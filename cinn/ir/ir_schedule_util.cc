@@ -743,9 +743,30 @@ std::vector<Expr> GetProducers(const Expr& block, const Expr& root) {
   CHECK(block.As<ir::ScheduleBlockRealize>());
   CHECK(root.As<ir::ScheduleBlockRealize>());
   std::vector<Expr> producers;
+
+  // collect all producers' tensor names
+  std::set<std::string> producer_tensor_names;
   auto compute_body = block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->body;
-  auto find_load    = ir::CollectIRNodesWithoutTensor(compute_body, [&](const Expr* x) { return x->As<ir::Load>(); });
-  for (auto& i : find_load) producers.emplace_back(i);
+  ir::CollectIRNodesWithoutTensor(compute_body, [&producer_tensor_names](const Expr* x) {
+    auto* load = x->As<ir::Load>();
+    if (load) {
+      producer_tensor_names.insert(load->tensor.as_tensor()->name);
+      return true;
+    }
+    return false;
+  });
+
+  // travserse each of other blocks and filter those ones which contain at least one producer tensor;
+  auto find_blocks = ir::CollectIRNodesWithoutTensor(
+      root, [&block, &root](const Expr* x) { return x->As<ir::ScheduleBlockRealize>() && *x != block && *x != root; });
+  for (auto&& cur : find_blocks) {
+    auto* cur_block = cur.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>();
+    CHECK(cur_block) << "block result should be a ScheduleBlockRealize";
+    auto find_stores = ir::CollectIRNodesWithoutTensor(cur_block->body, [&producer_tensor_names](const Expr* x) {
+      return x->As<ir::Store>() && producer_tensor_names.count(x->As<ir::Store>()->tensor.as_tensor()->name) > 0;
+    });
+    if (!find_stores.empty()) producers.emplace_back(cur);
+  }
   return producers;
 }
 
@@ -781,16 +802,24 @@ void CheckComputeAtValidation(const Expr& block, const Expr& loop, const Expr& r
   CHECK(find_block_in_loop.empty()) << "loop should not be block's ancestor!";
 }
 
-void InsertBlock(Expr& for_loop, const Expr& insertion) {
+void InsertBlock(Expr& for_loop, const Expr& insertion, int index) {
   CHECK(for_loop.As<ir::For>());
   CHECK(for_loop.As<ir::For>()->body.As<Block>());
-  Expr& block = for_loop.As<ir::For>()->body;
-  if (block.As<Block>()->stmts[0].As<IfThenElse>()) {
-    CHECK(block.As<Block>()->stmts[0].As<IfThenElse>()->true_case.As<Block>());
-    Expr& insert_block = block.As<Block>()->stmts[0].As<IfThenElse>()->true_case;
-    insert_block.As<Block>()->stmts.insert(insert_block.As<Block>()->stmts.begin(), insertion);
+  ir::Block* dst_block = for_loop.As<ir::For>()->body.As<Block>();
+  CHECK(index == -1 || index >= 0 && index < dst_block->stmts.size())
+      << "index = " << index << ", it should be -1 or between [0, block stmts size)";
+
+  if (index == -1) {
+    dst_block->stmts.emplace_back(insertion);
   } else {
-    block.As<Block>()->stmts.insert(block.As<Block>()->stmts.begin(), insertion);
+    auto dst_it = dst_block->stmts.begin() + index;
+    if (dst_it->As<IfThenElse>()) {
+      auto* inserted_block = dst_it->As<IfThenElse>()->true_case.As<Block>();
+      CHECK(inserted_block) << "the IfThenElse node to be inserted shuold contain a true_case block";
+      inserted_block->stmts.insert(inserted_block->stmts.begin(), insertion);
+    } else {
+      dst_block->stmts.insert(dst_it, insertion);
+    }
   }
 }
 
@@ -803,57 +832,79 @@ IterRange RangeUnion(const IterRange& range1, const IterRange& range2) {
 
 std::vector<IterRange> CalculateRequiredRegions(const Expr& block,
                                                 const Expr& loop,
-                                                const std::vector<Expr>& consumers,
-                                                const Expr& root) {
-  CHECK(block.As<ir::ScheduleBlockRealize>());
-  std::string block_tensor = GetTensor(block)->name;
+                                                const Expr& root,
+                                                const std::vector<Expr>& required_blocks,
+                                                bool is_store_provided) {
+  CHECK(block.As<ir::ScheduleBlockRealize>()) << "Param block should be a ir::ScheduleBlockRealize node";
+  CHECK(loop.As<ir::For>()) << "Param loop should be a ir::For node";
+
+  std::set<Expr> provided_nodes;
+  if (is_store_provided) {
+    provided_nodes = ir::CollectIRNodesWithoutTensor(block, [&](const Expr* x) { return x->As<ir::Store>(); });
+  } else {
+    provided_nodes = ir::CollectIRNodesWithoutTensor(block, [&](const Expr* x) { return x->As<ir::Load>(); });
+  }
+
   std::vector<IterRange> required_buffer_range;
-  CHECK(loop.As<ir::For>());
-  // deduce accessed regions of the tensor in block by itering each consumer
-  for (const auto& load_block : consumers) {
-    CHECK(load_block.As<ir::ScheduleBlockRealize>());
-    Expr block_body =
-        optim::IRCopy(load_block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->body);
-    auto iter_vars   = load_block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->iter_vars;
-    auto iter_values = load_block.As<ir::ScheduleBlockRealize>()->iter_values;
-    ReplaceExpr(&block_body, iter_vars, iter_values);
-    // Notice that we look for For nodes in loop's body instead of loop itself.
-    auto find_loops = ir::CollectIRNodesWithoutTensor(
-        loop.As<ir::For>()->body, [&](const Expr* x) { return x->As<ir::For>() && Contains(*x, load_block); });
-    auto load_nodes = ir::CollectIRNodesWithoutTensor(block_body, [&](const Expr* x) {
-      return x->As<ir::Load>() && x->As<ir::Load>()->tensor.as_tensor_ref()->name == block_tensor;
-    });
+  // deduce accessed regions of the provided tensor in block by itering each required block
+  for (const Expr& pro_node : provided_nodes) {
+    const std::string& provided_tensor_name = is_store_provided ? pro_node.As<ir::Store>()->tensor.as_tensor()->name
+                                                                : pro_node.As<ir::Load>()->tensor.as_tensor()->name;
 
-    // collect vars and their ranges of each loop under the input loop
-    std::vector<Var> loop_vars;
-    std::vector<IterRange> loop_ranges;
-    for (const auto& for_loop : find_loops) {
-      loop_vars.emplace_back(for_loop.As<ir::For>()->loop_var);
-      loop_ranges.emplace_back(IterRange(for_loop.As<ir::For>()->min, for_loop.As<ir::For>()->extent));
-    }
+    for (const Expr& req_block : required_blocks) {
+      CHECK(req_block.As<ir::ScheduleBlockRealize>());
+      Expr block_body =
+          optim::IRCopy(req_block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->body);
+      auto iter_vars   = req_block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->iter_vars;
+      auto iter_values = req_block.As<ir::ScheduleBlockRealize>()->iter_values;
+      ReplaceExpr(&block_body, iter_vars, iter_values);
 
-    // deducing range by indices of each Load node
-    for (const auto& load : load_nodes) {
-      CHECK(load.As<ir::Load>());
-      auto indices = load.As<ir::Load>()->indices;
-      if (find_loops.empty()) {
-        for (int i = 0; i < indices.size(); ++i) {
-          if (i >= required_buffer_range.size())
-            required_buffer_range.emplace_back(indices[i], Expr(1));
-          else
-            required_buffer_range[i] = RangeUnion(required_buffer_range[i], IterRange(indices[i], Expr(1)));
-        }
+      // Notice that we look for For nodes in loop's body instead of loop itself.
+      auto find_loops = ir::CollectIRNodesWithoutTensor(
+          loop.As<ir::For>()->body, [&](const Expr* x) { return x->As<ir::For>() && Contains(*x, req_block); });
+
+      // collect vars and their ranges of each loop under the input loop
+      std::vector<Var> loop_vars;
+      std::vector<IterRange> loop_ranges;
+      for (const auto& for_loop : find_loops) {
+        loop_vars.emplace_back(for_loop.As<ir::For>()->loop_var);
+        loop_ranges.emplace_back(for_loop.As<ir::For>()->min, for_loop.As<ir::For>()->extent);
+      }
+
+      std::set<Expr> required_nodes;
+      if (is_store_provided) {
+        required_nodes = ir::CollectIRNodesWithoutTensor(block_body, [&](const Expr* x) {
+          return x->As<ir::Load>() && x->As<ir::Load>()->tensor.as_tensor_ref()->name == provided_tensor_name;
+        });
       } else {
-        for (int i = 0; i < indices.size(); ++i) {
-          auto range = GetAccessedRange(indices[i], loop_vars, loop_ranges);
-          if (i >= required_buffer_range.size()) {
-            required_buffer_range.emplace_back(std::move(range));
-          } else {
-            required_buffer_range[i] = RangeUnion(required_buffer_range[i], range);
+        required_nodes = ir::CollectIRNodesWithoutTensor(block_body, [&](const Expr* x) {
+          return x->As<ir::Store>() && x->As<ir::Store>()->tensor.as_tensor_ref()->name == provided_tensor_name;
+        });
+      }
+
+      // deducing range by indices of each required node
+      for (const Expr& req_node : required_nodes) {
+        const auto& indices = is_store_provided ? req_node.As<ir::Load>()->indices : req_node.As<ir::Store>()->indices;
+
+        if (find_loops.empty()) {
+          for (int i = 0; i < indices.size(); ++i) {
+            if (i >= required_buffer_range.size())
+              required_buffer_range.emplace_back(indices[i], Expr(1));
+            else
+              required_buffer_range[i] = RangeUnion(required_buffer_range[i], IterRange(indices[i], Expr(1)));
+          }
+        } else {
+          for (int i = 0; i < indices.size(); ++i) {
+            auto range = GetAccessedRange(indices[i], loop_vars, loop_ranges);
+            if (i >= required_buffer_range.size()) {
+              required_buffer_range.emplace_back(std::move(range));
+            } else {
+              required_buffer_range[i] = RangeUnion(required_buffer_range[i], range);
+            }
           }
         }
-      }
-    }  // end for load_nodes
+      }  // end for load_nodes
+    }
   }
 
   int iter_size = block.As<ir::ScheduleBlockRealize>()->iter_values.size();
