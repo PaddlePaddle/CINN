@@ -13,6 +13,8 @@
 // limitations under the License.
 #pragma once
 
+#include <queue>
+
 #include "cinn/hlir/pass/fusion_helper_base.h"
 
 namespace cinn {
