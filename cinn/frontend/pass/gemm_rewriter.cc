@@ -30,6 +30,13 @@ class GemmRewriterPass : public ProgramPass {
   using ProgramPass::ProgramPass;
 
  protected:
+  void Clear() override {
+    removed_instrs_.clear();
+    origin2new_.clear();
+    output2instr_.clear();
+    var_used_count_.clear();
+  }
+
   void ApplyImpl(Program* prog,
                  const std::unordered_set<std::string>& fetch_ids,
                  const common::Target& target) override {
