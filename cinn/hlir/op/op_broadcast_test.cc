@@ -170,27 +170,6 @@ TEST(Operator, Operator_ElementWise_Add_Test1) {
   auto module      = builder.Build();
   auto source_code = codegen.Compile(module);
   LOG(INFO) << "Operator_ElementWise_Add_Test1 source code:\n" << source_code;
-
-  std::string target_code = codegen.GetSourceHeader() + R"(
-extern "C" {
-
-__global__
-void __launch_bounds__(1024) fn_add2(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
-{
-  if (((int)blockIdx.x < 4)) {
-    if (((int)threadIdx.x < 1024)) {
-      if ((((1024 * (int)blockIdx.x) + (int)threadIdx.x) < 3200)) {
-        C[((1024 * (int)blockIdx.x) + (int)threadIdx.x)] = (A[((1024 * (int)blockIdx.x) + (int)threadIdx.x)] + B[((int)threadIdx.x & 31)]);
-      };
-    };
-  };
-}
-
-}
-)";
-  if (FLAGS_cinn_ir_schedule) {
-    ASSERT_EQ(utils::Trim(target_code), source_code);
-  }
 }
 #endif
 
