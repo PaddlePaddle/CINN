@@ -91,6 +91,7 @@ const std::vector<Variable>& NetBuilder::CustomInstr(const std::string& type,
 }
 
 Variable NetBuilder::BinaryOp(const std::string& op_type, const Variable& lhs, const Variable& rhs, int axis) {
+  CHECK_EQ(lhs->type, rhs->type) << "The inputs type of op " << op_type << " should be equal!";
   return CustomInstr(op_type, {lhs, rhs}, {{"axis", axis}}).front();
 }
 

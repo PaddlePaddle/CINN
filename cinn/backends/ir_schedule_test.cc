@@ -2763,11 +2763,17 @@ TEST(IrSchedule, ComplexIndices) {
 
   loops_b = ir_sch.GetLoops("B");
   ir_sch.ComputeAt(a_cache, loops_b[0]);
-  VLOG(3) << "ComputeAt-B Expr:\n" << ir_sch.GetModule().GetExprs().front();
+  VLOG(3) << "A_cache-ComputeAt-B Expr:\n" << ir_sch.GetModule().GetExprs().front();
 
   block_b      = ir_sch.GetBlock("B");
   auto b_cache = ir_sch.CacheWrite(block_b, 0, "local");
   VLOG(3) << "CacheWrite-B Expr:\n" << ir_sch.GetModule().GetExprs().front();
+
+  auto loops_b_cache =
+      ir_sch.GetLoops(b_cache.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->name);
+  block_b = ir_sch.GetBlock("B");
+  ir_sch.ReverseComputeAt(block_b, loops_b_cache[1]);
+  VLOG(3) << "B-ReverseComputeAt-B_cache Expr:\n" << ir_sch.GetModule().GetExprs().front();
 
   Module::Builder builder("module1", target);
   for (auto& i : funcs) {
@@ -2778,7 +2784,47 @@ TEST(IrSchedule, ComplexIndices) {
   codegen.SetInlineBuiltinCodes(false);
   auto source_code = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
   VLOG(3) << "scheduled source code:\n" << source_code;
-  // TODO(CtfGo) add source code comparison after we fix codegen bug of cachewrite
+
+  std::string target_code = R"ROC(
+#include <cinn_runtime.h>
+#include <stdio.h>
+
+void TestIrSchedule_ReduceSum(void* _args, int32_t num_args)
+{
+  const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
+  cinn_buffer_t* _B = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[1]));
+  cinn_buffer_malloc((void*)(0), _B);
+  const float* A = ((const float*)(_A->memory));
+  float* B = ((float*)(_B->memory));
+  float* B__reduce_init = ((float*)(_B->memory));
+  {
+    for (int32_t i_0 = 0; i_0 < 8; i_0 += 1) {
+      for (int32_t i_1 = 0; i_1 < 4; i_1 += 1) {
+        B__reduce_init[((4 * i_0) + i_1)] = 0.00000f;
+      };
+    };
+    for (int32_t reduce_axis_k_0 = 0; reduce_axis_k_0 < 32; reduce_axis_k_0 += 1) {
+      for (int32_t ax0 = 0; ax0 < 32; ax0 += 1) {
+        for (int32_t ax1 = 0; ax1 < 2; ax1 += 1) {
+          A_shared_temp_buffer[((64 * ax0) + ((2 * reduce_axis_k_0) + ax1))] = A[((64 * ax0) + ((2 * reduce_axis_k_0) + ax1))];
+        };
+      };
+      for (int32_t i_0 = 0; i_0 < 8; i_0 += 1) {
+        for (int32_t reduce_axis_k_1 = 0; reduce_axis_k_1 < 2; reduce_axis_k_1 += 1) {
+          for (int32_t i_1 = 0; i_1 < 4; i_1 += 1) {
+            B_local_temp_buffer[((4 * i_0) + i_1)] = (B_local_temp_buffer[((4 * i_0) + i_1)] + A_shared_temp_buffer[((256 * i_0) + ((64 * i_1) + ((2 * reduce_axis_k_0) + reduce_axis_k_1)))]);
+          };
+        };
+        for (int32_t ax0_0 = 0; ax0_0 < 4; ax0_0 += 1) {
+          B[((4 * i_0) + ax0_0)] = B_local_temp_buffer[((4 * i_0) + ax0_0)];
+        };
+      };
+    };
+  };
+  cinn_buffer_free((void*)(0), _B);
+}
+)ROC";
+  ASSERT_EQ(utils::Trim(target_code), utils::Trim(source_code));
 }
 
 }  // namespace backends
