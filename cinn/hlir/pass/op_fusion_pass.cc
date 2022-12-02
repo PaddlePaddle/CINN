@@ -29,12 +29,6 @@ using framework::shape_t;
 using common::GraphEdge;
 using common::GraphNode;
 
-using GroupPtr  = std::shared_ptr<Graph::Group>;
-using GroupList = std::vector<GroupPtr>;
-
-using ShapeDict         = absl::flat_hash_map<std::string, shape_t>;
-using ConditionFunction = std::function<bool(const Node*, const Node*)>;
-
 // Op Fusion Pass which performs Ops fusion, Ops are fused
 // "vertically", meaning producing Ops are fused into their consumers
 // with the intent that the loops which compute their values will be fused in

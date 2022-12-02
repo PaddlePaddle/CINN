@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "cinn/hlir/framework/graph.h"
+#include "cinn/hlir/pass/fusion_helper_base.h"
 
 namespace cinn {
 namespace hlir {
@@ -20,6 +21,200 @@ namespace pass {
 
 // create a new group for every single node of the graph
 std::vector<std::shared_ptr<framework::Graph::Group>> BuildNonFusedGroups(const framework::Graph* graph);
+
+using GroupPtr  = std::shared_ptr<Graph::Group>;
+using GroupList = std::vector<GroupPtr>;
+
+using ShapeDict         = absl::flat_hash_map<std::string, shape_t>;
+using ConditionFunction = std::function<bool(const FusionHelperBase*, const Node*, const Node*)>;
+
+#define CONDITION_FUNC(func) bool func(const FusionHelperBase* helper, const Node* producer, const Node* consumer)
+
+CONDITION_FUNC(always_fuse) { return true; }
+
+CONDITION_FUNC(no_fuse) { return false; }
+
+CONDITION_FUNC(is_same_shape) {
+  auto& fusion_op  = helper->fusion_groups_[consumer];
+  auto master_node = fusion_op->master_nodes.begin();
+  return helper->GetNodeDataShape(producer) == helper->GetNodeDataShape(*master_node) ? true : false;
+}
+
+CONDITION_FUNC(without_last_dimension_in_reduce) {
+  auto in_shape    = helper->shape_dict_.at(producer->inlinks_in_order()[0]->source()->id());
+  auto reduce_axes = absl::get<std::vector<int>>(producer->attrs.attr_store.at("dim"));
+  return helper->WithoutLastDimInReduce(in_shape, reduce_axes);
+}
+
+CONDITION_FUNC(reduce_fuse_reduce) {
+  auto& fusion_op = helper->fusion_groups_[consumer];
+  Node* reducer   = NULL;
+  for (auto* master : fusion_op->master_nodes) {
+    if (helper->GetOpKind(master) == framework::kReduction) {
+      reducer = master;
+      break;
+    }
+  }
+  // check reduce has same input shape and output shape
+  auto producer_input_shape  = helper->shape_dict_.at(producer->inlinks_in_order()[0]->source()->id());
+  auto producer_output_shape = helper->shape_dict_.at(producer->outlinks_in_order()[0]->sink()->id());
+
+  auto reducer_input_shape  = helper->shape_dict_.at(reducer->inlinks_in_order()[0]->source()->id());
+  auto reducer_output_shape = helper->shape_dict_.at(reducer->outlinks_in_order()[0]->sink()->id());
+
+  auto producer_reduce_dim = absl::get<std::vector<int>>(producer->attrs.attr_store.at("dim"));
+  auto reducer_reduce_dim  = absl::get<std::vector<int>>(reducer->attrs.attr_store.at("dim"));
+
+  for (auto& dim : producer_reduce_dim) {
+    // if dim = -1, set as shape.size() - 1
+    if (dim == -1) {
+      dim = producer_input_shape.size() - 1;
+    }
+  }
+
+  for (auto& dim : reducer_reduce_dim) {
+    // if dim = -1,  set as shape.size() - 1
+    if (dim == -1) {
+      dim = reducer_input_shape.size() - 1;
+    }
+  }
+
+  // check shape is same
+  if (producer_input_shape == reducer_input_shape && producer_output_shape == reducer_output_shape &&
+      producer_reduce_dim == reducer_reduce_dim) {
+    auto shared_size = helper->GetSharedSize(producer);
+    for (auto* master : fusion_op->master_nodes) {
+      if (helper->GetOpKind(master) == framework::kReduction) {
+        shared_size += helper->GetSharedSize(master);
+      }
+    }
+
+#define MAX_AVAILABLE_SHREAD 32 * 1024
+    if (shared_size > MAX_AVAILABLE_SHREAD) {
+      return false;
+    }
+#undef MAX_AVAILABLE_SHREAD
+    return true;
+  }
+
+  if (helper->WithoutLastDimInReduce(producer_input_shape, producer_reduce_dim) &&
+      helper->WithoutLastDimInReduce(reducer_input_shape, reducer_reduce_dim) &&
+      producer_output_shape == reducer_output_shape && producer_reduce_dim == reducer_reduce_dim) {
+    auto shared_size = helper->GetSharedSize(producer);
+    for (auto* master : fusion_op->master_nodes) {
+      if (helper->GetOpKind(master) == framework::kReduction) {
+        shared_size += GetSharedSize(master);
+      }
+    }
+
+#define MAX_AVAILABLE_SHREAD 32 * 1024
+    if (shared_size > MAX_AVAILABLE_SHREAD) {
+      return false;
+    }
+#undef MAX_AVAILABLE_SHREAD
+    return true;
+  }
+
+  return false;
+}
+
+CONDITION_FUNC(is_same_shape_or_vertical_reduce_relation) {
+  // check is same shape with horizontal relation.
+  if (is_same_shape(helper, producer, consumer)) {
+    return true;
+  }
+
+  // reducer node in fusion op.
+  auto& fusion_op = helper->fusion_groups_[consumer];
+  Node* reducer   = NULL;
+  for (auto* master : fusion_op->master_nodes) {
+    if (helper->GetOpKind(master) == framework::kReduction) {
+      reducer = master;
+      break;
+    }
+  }
+
+  // check producer has same shape with reducer node.
+  auto reduce_shape = helper->shape_dict_.at(helper->GetProducerNodeData(reducer)[0]->id());
+  auto reduce_axes  = absl::get<std::vector<int>>(reducer->attrs.attr_store.at("dim"));
+  for (auto& axis : reduce_axes) {
+    // if axis = -1, set as shape.size() - 1
+    if (axis == -1) {
+      axis = reduce_shape.size() - 1;
+    }
+  }
+  // check without last axis in reduce.
+  if (helper->GetNodeDataShape(producer) != reduce_shape || helper->WithoutLastDimInReduce(reduce_shape, reduce_axes)) {
+    return false;
+  }
+
+  int succesive_reduce_dimension = reduce_shape.at(reduce_axes.back());
+  for (int idx = reduce_axes.size() - 2; idx >= 0; --idx) {
+    if (reduce_axes[idx] == reduce_axes[idx + 1] - 1) {
+      succesive_reduce_dimension *= reduce_shape[reduce_axes[idx]];
+      continue;
+    }
+    break;
+  }
+
+  return helper->target_ == common::DefaultNVGPUTarget()
+             ? (succesive_reduce_dimension <= helper->target_.max_num_threads() ? true : false)
+             : true;
+}
+
+CONDITION_FUNC(is_horizontal_relation) {
+  auto& fusion_op = helper->fusion_groups_[consumer];
+
+  auto check_depency = [&](const Node* node) {
+    std::queue<const Node*> candidates;
+    std::unordered_set<const Node*> visited_set;
+    candidates.push(node);
+
+    while (!candidates.empty()) {
+      auto& candidate = candidates.front();
+      candidates.pop();
+      // visit all producer node
+      for (auto tmp_node : helper->GetProducerNode(candidate)) {
+        // check depency.
+        if (producer == tmp_node) {
+          return true;
+        }
+        // check node is in region.
+        if (!fusion_op->nodes_set.count(tmp_node)) {
+          continue;
+        }
+        // recored visited node.
+        if (!visited_set.count(tmp_node)) {
+          visited_set.insert(tmp_node);
+          candidates.push(tmp_node);
+        }
+      }
+    }
+
+    return false;
+  };
+  for (auto master : fusion_op->master_nodes) {
+    if (check_depency(master)) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
+CONDITION_FUNC(horizontal_or_can_inline) {
+  if (is_horizontal_relation(helper, producer, consumer)) {
+    if (is_same_size(helper, producer, consumer)) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  return helper->GetNodeData(producer)->outlinks().size() == 1 && !helper->output_nodes_set_.count(const_cast<Node*>(producer);
+}
+
+#undef CONDITION_FUNC
 
 }  // namespace pass
 }  // namespace hlir
