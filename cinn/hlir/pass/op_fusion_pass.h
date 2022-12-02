@@ -11,6 +11,9 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#pragma once
+
+#include <queue>
 
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/pass/fusion_helper_base.h"
@@ -24,19 +27,18 @@ std::vector<std::shared_ptr<framework::Graph::Group>> BuildNonFusedGroups(const 
 
 using GroupPtr  = std::shared_ptr<Graph::Group>;
 using GroupList = std::vector<GroupPtr>;
+using ShapeDict = absl::flat_hash_map<std::string, shape_t>;
 
-using ShapeDict         = absl::flat_hash_map<std::string, shape_t>;
-using ConditionFunction = std::function<bool(const FusionHelperBase*, const Node*, const Node*)>;
+using ConditionFunction = std::function<bool(const FusionHelperBase*, const Node*, const GroupPtr&)>;
 
-#define CONDITION_FUNC(func) bool func(const FusionHelperBase* helper, const Node* producer, const Node* consumer)
+#define CONDITION_FUNC(func) bool func(const FusionHelperBase* helper, const Node* producer, const GroupPtr& consumer)
 
 CONDITION_FUNC(always_fuse) { return true; }
 
 CONDITION_FUNC(no_fuse) { return false; }
 
 CONDITION_FUNC(is_same_shape) {
-  auto& fusion_op  = helper->fusion_groups_[consumer];
-  auto master_node = fusion_op->master_nodes.begin();
+  auto master_node = consumer->master_nodes.begin();
   return helper->GetNodeDataShape(producer) == helper->GetNodeDataShape(*master_node) ? true : false;
 }
 
@@ -47,9 +49,8 @@ CONDITION_FUNC(without_last_dimension_in_reduce) {
 }
 
 CONDITION_FUNC(reduce_fuse_reduce) {
-  auto& fusion_op = helper->fusion_groups_[consumer];
-  Node* reducer   = NULL;
-  for (auto* master : fusion_op->master_nodes) {
+  Node* reducer = NULL;
+  for (auto* master : consumer->master_nodes) {
     if (helper->GetOpKind(master) == framework::kReduction) {
       reducer = master;
       break;
@@ -83,7 +84,7 @@ CONDITION_FUNC(reduce_fuse_reduce) {
   if (producer_input_shape == reducer_input_shape && producer_output_shape == reducer_output_shape &&
       producer_reduce_dim == reducer_reduce_dim) {
     auto shared_size = helper->GetSharedSize(producer);
-    for (auto* master : fusion_op->master_nodes) {
+    for (auto* master : consumer->master_nodes) {
       if (helper->GetOpKind(master) == framework::kReduction) {
         shared_size += helper->GetSharedSize(master);
       }
@@ -101,9 +102,9 @@ CONDITION_FUNC(reduce_fuse_reduce) {
       helper->WithoutLastDimInReduce(reducer_input_shape, reducer_reduce_dim) &&
       producer_output_shape == reducer_output_shape && producer_reduce_dim == reducer_reduce_dim) {
     auto shared_size = helper->GetSharedSize(producer);
-    for (auto* master : fusion_op->master_nodes) {
+    for (auto* master : consumer->master_nodes) {
       if (helper->GetOpKind(master) == framework::kReduction) {
-        shared_size += GetSharedSize(master);
+        shared_size += helper->GetSharedSize(master);
       }
     }
 
@@ -125,9 +126,8 @@ CONDITION_FUNC(is_same_shape_or_vertical_reduce_relation) {
   }
 
   // reducer node in fusion op.
-  auto& fusion_op = helper->fusion_groups_[consumer];
-  Node* reducer   = NULL;
-  for (auto* master : fusion_op->master_nodes) {
+  Node* reducer = NULL;
+  for (auto* master : consumer->master_nodes) {
     if (helper->GetOpKind(master) == framework::kReduction) {
       reducer = master;
       break;
@@ -163,8 +163,6 @@ CONDITION_FUNC(is_same_shape_or_vertical_reduce_relation) {
 }
 
 CONDITION_FUNC(is_horizontal_relation) {
-  auto& fusion_op = helper->fusion_groups_[consumer];
-
   auto check_depency = [&](const Node* node) {
     std::queue<const Node*> candidates;
     std::unordered_set<const Node*> visited_set;
@@ -180,7 +178,7 @@ CONDITION_FUNC(is_horizontal_relation) {
           return true;
         }
         // check node is in region.
-        if (!fusion_op->nodes_set.count(tmp_node)) {
+        if (!consumer->nodes_set.count(tmp_node)) {
           continue;
         }
         // recored visited node.
@@ -193,7 +191,7 @@ CONDITION_FUNC(is_horizontal_relation) {
 
     return false;
   };
-  for (auto master : fusion_op->master_nodes) {
+  for (auto master : consumer->master_nodes) {
     if (check_depency(master)) {
       return false;
     }
@@ -204,14 +202,15 @@ CONDITION_FUNC(is_horizontal_relation) {
 
 CONDITION_FUNC(horizontal_or_can_inline) {
   if (is_horizontal_relation(helper, producer, consumer)) {
-    if (is_same_size(helper, producer, consumer)) {
+    if (is_same_shape(helper, producer, consumer)) {
       return true;
     } else {
       return false;
     }
   }
 
-  return helper->GetNodeData(producer)->outlinks().size() == 1 && !helper->output_nodes_set_.count(const_cast<Node*>(producer);
+  return helper->GetNodeData(producer)->outlinks().size() == 1 &&
+         !helper->output_nodes_set_.count(const_cast<Node*>(producer));
 }
 
 #undef CONDITION_FUNC

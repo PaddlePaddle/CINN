@@ -334,6 +334,8 @@ CONDITION_FUNC(reduce_fuse_reduce) {
   return false;
 }
 
+#undef CONDITION_FUNC
+
 }  // namespace pass
 }  // namespace hlir
 }  // namespace cinn
