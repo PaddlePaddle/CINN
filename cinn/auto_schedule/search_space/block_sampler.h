@@ -15,6 +15,7 @@
 #pragma once
 
 #include <memory>
+#include <random>
 #include <vector>
 
 #include "cinn/ir/ir_base.h"
@@ -24,13 +25,13 @@ namespace auto_schedule {
 
 class SearchState;
 
-class BlockScheduler {
+class BlockSampler {
  public:
-  // Create a BlockScheduler with the specific strategy name
+  // Create a BlockSampler with the specific strategy name
   // and necessary construct parameters.
-  static std::unique_ptr<BlockScheduler> Make(const std::vector<ir::Expr>& all_blocks,
-                                              const std::string& strategy     = "traversal",
-                                              const std::vector<int>& weights = {});
+  static std::unique_ptr<BlockSampler> Make(const std::vector<ir::Expr>& all_blocks,
+                                            const std::string& strategy     = "traversal",
+                                            const std::vector<int>& weights = {});
 
   // Return the name of schedule strategy
   virtual const char* Name() const = 0;
@@ -39,11 +40,11 @@ class BlockScheduler {
   virtual void Reset() = 0;
 
   // Select a block to apply rule
-  virtual std::string NextBlock() = 0;
+  virtual std::string NextBlock(bool remove = true) = 0;
 
  protected:
-  // A BlockScheduler object should be created with the static function Make()
-  BlockScheduler(const std::vector<ir::Expr>& all_blocks);
+  // A BlockSampler object should be created with the static function Make()
+  BlockSampler(const std::vector<ir::Expr>& all_blocks);
 
   // The names of all blocks
   // Because the Block Expr will be changed in the search process, the name is saved for indexing
@@ -52,15 +53,15 @@ class BlockScheduler {
 
 // Schedule blocks with traversal strategy,
 // witch means to select blocks one by one until all blocks are traversed.
-class TraversalBlockScheduler : public BlockScheduler {
+class TraversalBlockSampler : public BlockSampler {
  public:
-  TraversalBlockScheduler(const std::vector<ir::Expr>& all_blocks) : BlockScheduler(all_blocks), cur_idx_(0) {}
+  TraversalBlockSampler(const std::vector<ir::Expr>& all_blocks) : BlockSampler(all_blocks), cur_idx_(0) {}
 
   const char* Name() const override { return "traversal"; }
 
   void Reset() override { cur_idx_ = 0; }
 
-  std::string NextBlock() override;
+  std::string NextBlock(bool remove = true) override;
 
  private:
   int cur_idx_;
@@ -68,18 +69,22 @@ class TraversalBlockScheduler : public BlockScheduler {
 
 // Schedule blocks with probabilistic strategy,
 // witch means randomly picking blocks according to the given distribution.
-class ProbabilisticBlockScheduler : public BlockScheduler {
+class ProbabilisticBlockSampler : public BlockSampler {
  public:
-  ProbabilisticBlockScheduler(const std::vector<ir::Expr>& all_blocks, const std::vector<int>& weights = {});
+  ProbabilisticBlockSampler(const std::vector<ir::Expr>& all_blocks, const std::vector<int>& weights = {});
 
   const char* Name() const override { return "probabilistic"; }
 
   void Reset() override {}
 
-  std::string NextBlock() override;
+  std::string NextBlock(bool remove = true) override;
 
  private:
-  std::vector<int> cumulative_weight_;
+  std::vector<int> weights_;
+  std::random_device rd_;
+  std::mt19937 gen_;
+  std::discrete_distribution<> distribution_;
+  int remains_;
 };
 
 }  // namespace auto_schedule

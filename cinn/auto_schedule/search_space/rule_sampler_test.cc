@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cinn/auto_schedule/search_space/rule_scheduler.h"
+#include "cinn/auto_schedule/search_space/rule_sampler.h"
 
 #include <gtest/gtest.h>
 
@@ -30,34 +30,39 @@ Target target = common::DefaultHostTarget();
 
 std::vector<AutoGenRule*> GenerateTestRules() { return {new AutoUnroll(target), new SkipRule(target)}; }
 
-TEST(RuleScheduler, Make) {
+TEST(rulesampler, Make) {
   std::vector<AutoGenRule*> rules = GenerateTestRules();
-  auto traversal_block_scheduler  = RuleScheduler::Make(rules, "traversal");
-  ASSERT_STREQ(traversal_block_scheduler->Name(), "traversal");
-  auto probabilistic_block_scheduler = RuleScheduler::Make(rules, "probabilistic");
-  ASSERT_STREQ(probabilistic_block_scheduler->Name(), "probabilistic");
+  auto traversal_block_sampler    = rulesampler::Make(rules, "traversal");
+  ASSERT_STREQ(traversal_block_sampler->Name(), "traversal");
+  auto probabilistic_block_sampler = rulesampler::Make(rules, "probabilistic");
+  ASSERT_STREQ(probabilistic_block_sampler->Name(), "probabilistic");
 }
 
-TEST(TraversalRuleScheduler, NextRule) {
+TEST(Traversalrulesampler, NextRule) {
   std::vector<AutoGenRule*> rules = GenerateTestRules();
-  auto traversal_rule_scheduler   = RuleScheduler::Make(rules, "traversal");
-  AutoGenRule* rule               = traversal_rule_scheduler->NextRule();
+  auto traversal_rule_sampler     = rulesampler::Make(rules, "traversal");
+  AutoGenRule* rule               = traversal_rule_sampler->NextRule();
   ASSERT_EQ("AutoUnroll", rule->GetRuleName());
-  rule = traversal_rule_scheduler->NextRule();
+  rule = traversal_rule_sampler->NextRule(false);
   ASSERT_EQ("SkipRule", rule->GetRuleName());
-  traversal_rule_scheduler->Reset();
-  rule = traversal_rule_scheduler->NextRule();
+  rule = traversal_rule_sampler->NextRule();
+  ASSERT_EQ("SkipRule", rule->GetRuleName());
+  traversal_rule_sampler->Reset();
+  rule = traversal_rule_sampler->NextRule();
   ASSERT_EQ("AutoUnroll", rule->GetRuleName());
 }
 
-TEST(ProbabilisticRuleScheduler, NextRule) {
-  std::vector<AutoGenRule*> rules   = GenerateTestRules();
-  auto probabilistic_rule_scheduler = RuleScheduler::Make(rules, "probabilistic", {4, 1});
+TEST(Probabilisticrulesampler, NextRule) {
+  std::vector<AutoGenRule*> rules = GenerateTestRules();
+  auto probabilistic_rule_sampler = rulesampler::Make(rules, "probabilistic", {4, 1});
   AutoGenRule* rule;
   for (int i = 0; i < 20; ++i) {
-    rule = probabilistic_rule_scheduler->NextRule();
+    rule = probabilistic_rule_sampler->NextRule(false);
     VLOG(6) << "next rule name: " << rule->GetRuleName();
   }
+  probabilistic_rule_sampler->NextRule(true);
+  probabilistic_rule_sampler->NextRule(true);
+  ASSERT_EQ(nullptr, probabilistic_rule_sampler->NextRule(true));
 }
 
 }  // namespace auto_schedule

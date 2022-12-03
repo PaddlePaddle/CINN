@@ -25,13 +25,13 @@ namespace auto_schedule {
 
 class SearchState;
 
-class RuleScheduler {
+class rulesampler {
  public:
-  // Create a RuleScheduler with the specific strategy name
+  // Create a rulesampler with the specific strategy name
   // and necessary construct parameters.
-  static std::unique_ptr<RuleScheduler> Make(const std::vector<AutoGenRule*>& potential_rules,
-                                             const std::string& strategy     = "traversal",
-                                             const std::vector<int>& weights = {});
+  static std::unique_ptr<rulesampler> Make(const std::vector<AutoGenRule*>& potential_rules,
+                                           const std::string& strategy     = "traversal",
+                                           const std::vector<int>& weights = {});
   // Return the name of schedule strategy
   virtual const char* Name() const = 0;
 
@@ -39,11 +39,11 @@ class RuleScheduler {
   virtual void Reset() = 0;
 
   // Select a rule to apply
-  virtual AutoGenRule* NextRule() = 0;
+  virtual AutoGenRule* NextRule(bool remove = true) = 0;
 
  protected:
-  // A RuleScheduler object should be created with the static function Make()
-  RuleScheduler(const std::vector<AutoGenRule*>& potential_rules) : potential_rules_(&potential_rules) {}
+  // A rulesampler object should be created with the static function Make()
+  rulesampler(const std::vector<AutoGenRule*>& potential_rules) : potential_rules_(&potential_rules) {}
 
   // The pointer refers to all potential rules
   const std::vector<AutoGenRule*>* potential_rules_;
@@ -51,16 +51,15 @@ class RuleScheduler {
 
 // Schedule rules with traversal strategy,
 // witch means to select rules one by one until all rules are traversed.
-class TraversalRuleScheduler : public RuleScheduler {
+class Traversalrulesampler : public rulesampler {
  public:
-  TraversalRuleScheduler(const std::vector<AutoGenRule*>& potential_rules)
-      : RuleScheduler(potential_rules), cur_idx_(0) {}
+  Traversalrulesampler(const std::vector<AutoGenRule*>& potential_rules) : rulesampler(potential_rules), cur_idx_(0) {}
 
   const char* Name() const override { return "traversal"; }
 
   void Reset() override { cur_idx_ = 0; }
 
-  AutoGenRule* NextRule() override;
+  AutoGenRule* NextRule(bool remove = true) override;
 
  private:
   int cur_idx_;
@@ -68,21 +67,22 @@ class TraversalRuleScheduler : public RuleScheduler {
 
 // Schedule rules with probabilistic strategy,
 // witch means randomly picking rules according to the given distribution.
-class ProbabilisticRuleScheduler : public RuleScheduler {
+class Probabilisticrulesampler : public rulesampler {
  public:
-  ProbabilisticRuleScheduler(const std::vector<AutoGenRule*>& potential_rules, const std::vector<int>& weights = {});
+  Probabilisticrulesampler(const std::vector<AutoGenRule*>& potential_rules, const std::vector<int>& weights = {});
 
   const char* Name() const override { return "probabilistic"; }
 
   void Reset() override {}
 
-  AutoGenRule* NextRule() override;
+  AutoGenRule* NextRule(bool remove = true) override;
 
  private:
   std::vector<int> weights_;
   std::random_device rd_;
   std::mt19937 gen_;
   std::discrete_distribution<> distribution_;
+  int remains_;
 };
 
 }  // namespace auto_schedule
