@@ -344,6 +344,10 @@ CINN_BUILD_STEP_KIND(SimpleComputeAt)
     .Inputs({"block", "loop"})
     .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(&IRSchedule::SimpleComputeAt)));
 
+CINN_BUILD_STEP_KIND(ReverseComputeAt)
+    .Inputs({"block", "loop"})
+    .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(&IRSchedule::ReverseComputeAt)));
+
 CINN_BUILD_STEP_KIND(GetRootBlock)
     .Inputs({"expr"})
     .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(&IRSchedule::GetRootBlock)));
@@ -447,6 +451,11 @@ CINN_BUILD_STEP_KIND(AnnotateStringAttr)
     .Inputs({"block"})
     .Attrs({"key", "value"})
     .SetApplyFn(APPLY_FUNC_UNIFORM(AnnotateStringAttr));
+
+CINN_BUILD_STEP_KIND(FlattenLoops)
+    .Inputs({"loops"})
+    .Attrs({"force_flat"})
+    .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(&IRSchedule::FlattenLoops)));
 
 // clang-format on
 

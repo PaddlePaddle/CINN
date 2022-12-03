@@ -38,8 +38,8 @@ class TestStackOp(OpMapperTest):
 
     def init_input_data(self):
         self.feed_data = {
-            'x': self.random([10, 12, 128, 128], 'float32'),
-            'y': self.random([10, 12, 128, 128], 'float32'),
+            'x': self.random([4, 3], 'float32'),
+            'y': self.random([4, 3], 'float32'),
         }
 
     def set_paddle_program(self):

@@ -153,6 +153,15 @@ struct CacheBlockInfo {
   Expr cache_block;
 };
 
+// a struct to present the min value and the extent of a iterable range,
+// where it is represented as a semi-closed interval, i.e [min, min + extent)
+struct IterRange {
+  IterRange(Expr begin, Expr length) : min(begin), extent(length) {}
+
+  Expr min;
+  Expr extent;
+};
+
 /**
  * \brief Given a ScheduleBlockRealize node, return the index-th Load tensor in its body.
  * @param block The given ScheduleBlockRealize node
@@ -217,7 +226,7 @@ void ReplaceExpr(Expr* source, const std::vector<Var>& replaced, const std::vect
  * Validate the factors param of Split. We will check if factors are validate and change -1 to positive integer.
  * @param factors The original factors.
  * @param total_extent The extent of the loop to be splitted.
- * @param return The valiated factors.
+ * @return return The valiated factors.
  */
 std::vector<int> ValidateFactors(const std::vector<int>& factors, int total_extent);
 
@@ -227,36 +236,21 @@ void CHECKRfactorValidation(const Expr& rf_loop, int rf_axis);
  * Return loops that contain the expr.
  * @param expr The expr.
  * @param root The root of the whole AST.
- * @param return Loops in AST that contain the expr.
+ * @return return Loops in AST that contain the expr.
  */
 std::vector<Expr> GetLoopsOfExpr(const Expr& expr, const Expr& root);
 
 /**
- * Given an Expr and all vars' range, return the Expr's range(min and max).
- * @param index The Expr we want to calculate its range.
+ * Given an index Expr and all vars' range, return the accessed range in this indice.
+ * @param index The Expr of a specified indice.
  * @param iter_vars The vars in expr.
  * @param iter_range Each var's range.
- * @param i The index indicating we are replacing i-th var to its range.
- * @param return The <min, max> of index after replacing i-th var to its range. If the range is not constant, return
- * <-1, -1>.
+ * @return return an IterRange represents the accessed range of this indice, If it is not constant, return corresponding
+ * tensor's shape.
  */
-std::pair<Expr, Expr> GetRange(Expr index,
-                               const std::vector<Var>& iter_vars,
-                               const std::vector<std::pair<Expr, Expr>>& iter_range,
-                               int i);
-
-/**
- * Given a vector of Expr and all vars' range, return the vector of Expr's ranges(min and max).
- * @param tensor_indices The vector of Expr. We want to calculate each Expr's range.
- * @param iter_vars The vars in expr.
- * @param iter_range Each var's range.
- * @param tensor The tensor. tensor_indices is its index.
- * @param return The <min, max> of tensor_indices. If it is not constant, return corresponding tensor's shape.
- */
-std::vector<std::pair<Expr, Expr>> GetRange(const std::vector<Expr>& tensor_indices,
-                                            const std::vector<Var>& iter_vars,
-                                            const std::vector<std::pair<Expr, Expr>>& iter_range,
-                                            const Tensor& tensor);
+IterRange GetAccessedRange(const Expr& index,
+                           const std::vector<Var>& iter_vars,
+                           const std::vector<IterRange>& iter_ranges);
 
 /**
  * Given a ScheduleBlockRealize, an AST root, a tensor and its tensor_indices, return the accessed buffer region of the
@@ -265,19 +259,20 @@ std::vector<std::pair<Expr, Expr>> GetRange(const std::vector<Expr>& tensor_indi
  * @param tensor_indices The tensor's indices.
  * @param tensor The tensor.
  * @param root The root of whole AST.
- * @param return The accessed buffer region of the tensor in block.
+ * @return return The accessed buffer region of the tensor in block.
  */
-std::vector<std::pair<Expr, Expr>> CalculateTensorRegions(const Expr& block,
-                                                          const std::vector<Expr>& tensor_indices,
-                                                          const Tensor& tensor,
-                                                          const Expr& root);
+
+std::vector<IterRange> CalculateTensorRegions(const Expr& block,
+                                              const std::vector<Expr>& tensor_indices,
+                                              const Tensor& tensor,
+                                              const Expr& root);
 
 /**
  * Return n-th access tensor in block
  * @param block The ScheduleBlockRealize.
  * @param index The index indicating which tensor we want to get.
  * @param is_write We want to get write tensor or read tensor.
- * @param return The n-th access tensor in block. Should be ir::Store(is_write) or ir::Load(!is_write).
+ * @return return The n-th access tensor in block. Should be ir::Store(is_write) or ir::Load(!is_write).
  */
 Expr GetNthAccessExpr(const Expr& block, int index, bool is_write);
 
@@ -285,7 +280,7 @@ Expr GetNthAccessExpr(const Expr& block, int index, bool is_write);
  * Make a tensor's cache tensor.
  * @param tensor The original tensor.
  * @param memory_type The memory type of the cache tensor.
- * @param return The tensor's cache tensor.
+ * @return return The tensor's cache tensor.
  */
 Tensor MakeCacheTensor(const Tensor& tensor, const std::string& memory_type);
 
@@ -295,9 +290,9 @@ Tensor MakeCacheTensor(const Tensor& tensor, const std::string& memory_type);
  * @param info The information of cache block.
  * @param memory_type The memory type of cache tensor.
  * @param device_api The device api of this Expr.
- * @param return ScheduleBlockRealize of the cache tensor.
+ * @return return ScheduleBlockRealize of the cache tensor.
  */
-Expr MakeCacheBlock(const std::vector<std::pair<Expr, Expr>>& buffer_region,
+Expr MakeCacheBlock(const std::vector<IterRange>& buffer_ranges,
                     CacheBlockInfo* info,
                     const std::string& memory_type,
                     DeviceAPI device_api);
@@ -344,7 +339,7 @@ Expr ConstructNewLoopChain(const std::vector<Expr>& chain,
  * \brief Find producers of block in root.
  * \param block The ScheduleBlockRealize node we want to find its producers.
  * \param root The root ScheduleBlockRealize node.
- * \return block's producers(Load nodes) in root.
+ * \return block's producers(ScheduleBlockRealize nodes) in root.
  */
 std::vector<Expr> GetProducers(const Expr& block, const Expr& root);
 
@@ -368,8 +363,11 @@ void CheckComputeAtValidation(const Expr& block, const Expr& loop, const Expr& r
  * \brief Insert a new ScheduleBlockRealize in a loop's body(under its IfThenElse Node, if any)
  * \param for_loop The for loop whose body we want to modify
  * \param insertion The ScheduleBlockRealize we want to insert
+ * \param index The position index of the for_loop body `stmts` to be inserted:
+ *        - `index = -1` means inserted into the tail
+ *        - otherwise, it should be a index between [0, stmts size)
  */
-void InsertBlock(Expr& for_loop, const Expr& insertion);
+void InsertBlock(Expr& for_loop, const Expr& insertion, int index = 0);
 
 /*!
  * \brief Make a union of two range. The detailed function is :
@@ -380,10 +378,10 @@ void InsertBlock(Expr& for_loop, const Expr& insertion);
  * \param range2 The second range
  * \return The union of these two ranges
  */
-std::pair<Expr, Expr> RangeUnion(const std::pair<Expr, Expr>& range1, const std::pair<Expr, Expr>& range2);
+IterRange RangeUnion(const IterRange& range1, const IterRange& range2);
 
 /*!
- * \brief Calculate the required buffer region given a block and its consumers.
+ * \brief Calculate the required buffer region given a block and its required blocks.
  * For example, if block is :
  * B[i0, j0] = A[i0, j0]
  * loop is :
@@ -392,21 +390,25 @@ std::pair<Expr, Expr> RangeUnion(const std::pair<Expr, Expr>& range1, const std:
  *     C[i, j] = B[i, j]
  *   }
  * }
- * And consumers is :
+ * And required_blocks is :
  * C[i, j] = B[i, j]
- * Then we get the consumer requires B's region:
+ * Then we get the required B's region:
  * B[i, j], where:
  * i : [i, i]
  * j : [0, 64]
  * \param block The ScheduleBlockRealize node begin required
  * \param loop The loop where we will insert the block under it
- * \param consumers Vector of ScheduleBlockRealize nodes that require the block
+ * @param root The root of the whole AST.
+ * \param required_blocks vector of ScheduleBlockRealize nodes that require the block
+ * \param is_store_provided Whether Store nodes of the block provide the tensor,
+ *        true means it is in compute_at case, otherwise false means in reverse_compuate_at case
  * \return Each index's range of block's tensor. Indicating the buffer region being required.
  */
-std::vector<std::pair<Expr, Expr>> CalculateRequiredRegions(const Expr& block,
-                                                            const Expr& loop,
-                                                            const std::vector<Expr>& consumers,
-                                                            const Expr& root);
+std::vector<IterRange> CalculateRequiredRegions(const Expr& block,
+                                                const Expr& loop,
+                                                const Expr& root,
+                                                const std::vector<Expr>& required_blocks,
+                                                bool is_store_provided = true);
 
 Expr CheckComputeInlineValidationAndGetStore(const Expr& schedule_block, const Expr& root);
 

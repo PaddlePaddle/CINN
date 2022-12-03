@@ -306,6 +306,21 @@ TEST_F(TestScheduleDesc, StepKind_SimpleComputeAt) {
   CheckReplayResult(ir_sch, ir_sch.GetTraceDesc());
 }
 
+TEST_F(TestScheduleDesc, StepKind_ReverseComputeAt) {
+  lowered_funcs         = LowerCompute({32, 32, 64}, target, true);
+  ir::IRSchedule ir_sch = MakeIRSchedule(lowered_funcs);
+
+  auto block_c = ir_sch.GetBlock("C");
+  trace.Append(ScheduleDesc::Step("GetBlock", {}, {{"block_name", std::string("C")}}, {block_c}));
+  auto loops = ir_sch.GetLoops("B");
+  trace.Append(ScheduleDesc::Step("GetLoopsWithName", {}, {{"block_name", std::string("B")}}, loops));
+  ir_sch.ReverseComputeAt(block_c, loops[1]);
+  trace.Append(ScheduleDesc::Step(
+      "ReverseComputeAt", {{"block", std::vector<Expr>({block_c})}, {"loop", std::vector<Expr>({loops[1]})}}, {}, {}));
+  CheckReplayResult(ir_sch, trace);
+  CheckReplayResult(ir_sch, ir_sch.GetTraceDesc());
+}
+
 TEST_F(TestScheduleDesc, StepKind_GetRootBlock) {
   lowered_funcs         = LowerCompute({32, 64}, target);
   ir::IRSchedule ir_sch = MakeIRSchedule(lowered_funcs);

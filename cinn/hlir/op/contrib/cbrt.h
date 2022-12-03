@@ -24,10 +24,7 @@
 namespace cinn {
 namespace hlir {
 namespace op {
-
-std::vector<ir::Tensor> Arange(
-    const float start, const float stop, const float step, const Type& dtype, const std::string& output_name);
-
+ir::Tensor Cbrt(const ir::Tensor &input, const Target &target, const std::string &output_name = "T_Cbrt_Out");
 }  // namespace op
 }  // namespace hlir
 }  // namespace cinn

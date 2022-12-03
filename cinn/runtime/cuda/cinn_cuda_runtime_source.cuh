@@ -33,6 +33,7 @@ __device__ inline float FN_FP32(erf)(float x) { return erf(x); }
 __device__ inline float FN_FP32(sigmoid)(float x) { return 1. / (1 + exp(-x)); }
 __device__ inline float FN_FP32(sqrt)(float x) { return sqrt(x); }
 __device__ inline float FN_FP32(rsqrt)(float x) { return rsqrt(x); }
+__device__ inline float FN_FP32(cbrt)(float x) { return cbrt(x); }
 
 __device__ inline bool FN_FP32(isfinite)(float x) { return isfinite(x); }
 __device__ inline bool FN_FP32(isinf)(float x) { return isinf(x); }
@@ -50,6 +51,7 @@ __device__ inline float FN_FP32(remainder)(float a, float b) { return remainderf
 #define FN_FP64(func) cinn_nvgpu_##func##_fp64
 
 __device__ inline double FN_FP64(pow)(double a, double b) { return pow(a, b); }
+__device__ inline double FN_FP64(cbrt)(double x) { return cbrt(x); }
 
 // *************************************************************** //
 // int32 unary and binary operator
@@ -102,6 +104,8 @@ __device__ inline float16 FN_FP16(log10)(float16 x) { return float16(hlog10(x.to
 
 __device__ inline float16 FN_FP16(sqrt)(float16 x) { return float16(hsqrt(x.to_half())); }
 __device__ inline float16 FN_FP16(rsqrt)(float16 x) { return float16(hrsqrt(x.to_half())); }
+
+__device__ inline float16 FN_FP16(cbrt)(float16 x) { return float16(FN_FP32(cbrt)(static_cast<float>(x))); }
 
 __device__ inline float16 FN_FP16(abs)(float16 x) { return cinn::common::abs(x); }
 

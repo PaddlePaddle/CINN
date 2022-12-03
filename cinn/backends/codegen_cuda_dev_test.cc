@@ -2769,6 +2769,9 @@ TEST(Cudnn, external_function_cudnn) {
   dev_bufs[0]->type.code = cinn_type_code_t::cinn_type_float;
   dev_bufs[1]->type.code = cinn_type_code_t::cinn_type_float;
   dev_bufs[2]->type.code = cinn_type_code_t::cinn_type_float;
+  dev_bufs[0]->type.bits = 32;
+  dev_bufs[1]->type.bits = 32;
+  dev_bufs[2]->type.bits = 32;
 
   cudaStream_t stream        = nullptr;
   cinn_pod_value_t v_args[3] = {
@@ -2796,6 +2799,8 @@ TEST(Cudnn, external_function_cudnn2) {
 
   dev_bufs[0]->type.code = cinn_type_code_t::cinn_type_float;
   dev_bufs[1]->type.code = cinn_type_code_t::cinn_type_float;
+  dev_bufs[0]->type.bits = 32;
+  dev_bufs[1]->type.bits = 32;
 
   cudaStream_t stream        = nullptr;
   cinn_pod_value_t v_args[2] = {cinn_pod_value_t(dev_bufs[0]), cinn_pod_value_t(dev_bufs[1])};
@@ -2823,6 +2828,8 @@ TEST(Cudnn, external_function_cudnn3) {
 
   dev_bufs[0]->type.code = cinn_type_code_t::cinn_type_float;
   dev_bufs[1]->type.code = cinn_type_code_t::cinn_type_float;
+  dev_bufs[0]->type.bits = 32;
+  dev_bufs[1]->type.bits = 32;
 
   cudaStream_t stream        = nullptr;
   cinn_pod_value_t v_args[2] = {cinn_pod_value_t(dev_bufs[0]), cinn_pod_value_t(dev_bufs[1])};

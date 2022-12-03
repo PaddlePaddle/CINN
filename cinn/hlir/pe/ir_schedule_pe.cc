@@ -36,6 +36,45 @@ namespace cinn {
 namespace hlir {
 namespace pe {
 
+void IRElementwiseSchedule(ir::IRSchedule &ir_sch, const std::vector<int> &output_shape, const common::Target &target) {
+  if (target == common::DefaultNVGPUTarget()) {
+    auto blocks = ir_sch.GetAllBlocks();
+    ir_sch.FlattenLoops(ir_sch.GetLoops(blocks[0]), true);
+
+    auto loops = ir_sch.GetLoops(blocks[0]);
+    auto size  = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>());
+    if (size <= target.max_num_threads()) {
+      ir_sch.Bind(loops[0], "threadIdx.x");
+    } else {
+      auto splited = ir_sch.Split(loops[0], {-1, target.max_num_threads() / 4});
+      ir_sch.Bind(splited[0], "blockIdx.x");
+      ir_sch.Bind(splited[1], "threadIdx.x");
+    }
+  } else {
+    auto blocks = ir_sch.GetAllBlocks();
+    ir_sch.FlattenLoops(ir_sch.GetLoops(blocks[0]));
+  }
+}
+
+void IRInjectiveSchedule(ir::IRSchedule &ir_sch, const std::vector<int> &output_shape, const common::Target &target) {
+  if (target == common::DefaultNVGPUTarget()) {
+    auto blocks = ir_sch.GetAllBlocks();
+    ir_sch.FlattenLoops(ir_sch.GetLoops(blocks[0]), false);
+
+    auto loops = ir_sch.GetLoops(blocks[0]);
+    auto size  = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>());
+    if (size <= target.max_num_threads()) {
+      ir_sch.Bind(loops[0], "threadIdx.x");
+    } else {
+      auto splited = ir_sch.Split(loops[0], {-1, target.max_num_threads() / 4});
+      ir_sch.Bind(splited[0], "blockIdx.x");
+      ir_sch.Bind(splited[1], "threadIdx.x");
+    }
+  } else {
+    IRScheduleInjectiveCPU(ir_sch, output_shape, target, false);
+  }
+}
+
 void IRScheduleInjectiveCPU(ir::IRSchedule &ir_sch,
                             const std::vector<int> &output_shape,
                             const common::Target &target,
@@ -124,63 +163,80 @@ void IRCudaSplitSchedule(ir::IRSchedule &ir_sch,
                          const std::vector<std::vector<int>> &output_shapes,
                          int axis,
                          const common::Target &target) {
-  ir_sch.MergeExprs();
   VLOG(3) << "In IRCudaSplitSchedule, Before schedule expr is : " << ir_sch.GetModule().GetExprs().at(0);
-  int dims = output_shapes[0].size();
-  std::vector<int> reorders;
-  for (int i = 0; i < dims; ++i) {
-    reorders.push_back(i);
-  }
-  reorders.erase(reorders.begin() + axis);
-  reorders.push_back(axis);
-  auto all_blocks = ir_sch.GetAllBlocks();
-  for (auto &block : all_blocks) {
-    ir_sch.Reorder(block, reorders);
-  }
-  std::vector<int> fuse_index;
-  for (int i = 0; i < dims - 1; ++i) fuse_index.push_back(i);
-  all_blocks = ir_sch.GetAllBlocks();
-  for (auto &block : all_blocks) {
-    ir_sch.Fuse(block, fuse_index);
-  }
-  int fused_shape = 1;
-  for (int i = 0; i < dims; ++i) {
-    if (i != axis) fused_shape = fused_shape * output_shapes[0][i];
+  ir_sch.MergeExprs();
+  // if all output are with same shape
+  bool with_same_shape = true;
+  for (int idx = 1; idx < output_shapes.size(); ++idx) {
+    if (output_shapes[0] != output_shapes[idx]) {
+      with_same_shape = false;
+      break;
+    }
   }
 
-  all_blocks           = ir_sch.GetAllBlocks();
-  auto loops           = ir_sch.GetLoops(all_blocks.back());
-  int compute_at_level = 0;
-  if (target.arch == Target::Arch::NVGPU) {
-    if (fused_shape > target.max_num_threads()) {
-      ir_sch.Split(loops[0], {-1, target.max_num_threads()});
-      all_blocks = ir_sch.GetAllBlocks();
-      loops      = ir_sch.GetLoops(all_blocks.back());
-      CHECK_GT(loops.size(), 1);
-      ir_sch.Bind(loops[0], "blockIdx.x");
-      ir_sch.Bind(loops[1], "threadIdx.x");
-      compute_at_level++;
-    } else {
-      ir_sch.Bind(loops[0], "threadIdx.x");
+  // collect block names
+  auto get_block_name = [](ir::Expr expr) {
+    CHECK(expr.As<ir::ScheduleBlockRealize>());
+    CHECK(expr.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>());
+    return expr.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->name;
+  };
+  std::vector<std::string> block_names;
+  auto blocks = ir_sch.GetAllBlocks();
+  for (auto &block : blocks) {
+    block_names.push_back(get_block_name(block));
+  }
+  // if output with same shape.
+  if (with_same_shape && target == common::DefaultNVGPUTarget()) {
+    // flat loops.
+    {
+      auto tsize = std::accumulate(output_shapes[0].begin(), output_shapes[0].end(), 1, std::multiplies<int>());
+      for (auto &block_name : block_names) {
+        ir_sch.FlattenLoops(ir_sch.GetLoops(block_name), false);
+
+        if (tsize > target.max_num_threads()) {
+          // split [-1, 256]
+          auto splited = ir_sch.Split(ir_sch.GetLoops(block_name)[0], {-1, target.max_num_threads() / 4});
+          ir_sch.Bind(splited[0], "blockIdx.x");
+          ir_sch.Bind(splited[1], "threadIdx.x");
+        } else {
+          auto splited = ir_sch.Split(ir_sch.GetLoops(block_name)[0], {1, tsize});
+          ir_sch.Bind(splited[0], "blockIdx.x");
+          ir_sch.Bind(splited[1], "threadIdx.x");
+        }
+      }
     }
-    int all_blocks_num = all_blocks.size();
-    for (int i = 0; i < all_blocks_num - 1; ++i) {
-      all_blocks = ir_sch.GetAllBlocks();
-      loops      = ir_sch.GetLoops(all_blocks[i]);
-      if (fused_shape > target.max_num_threads()) {
-        ir_sch.Split(loops[0], {-1, target.max_num_threads()});
-        all_blocks = ir_sch.GetAllBlocks();
-        loops      = ir_sch.GetLoops(all_blocks.back());
-        CHECK_GT(loops.size(), compute_at_level);
-        ir_sch.SimpleComputeAt(all_blocks[i], loops[compute_at_level]);
+    // do simple compute at.
+    {
+      for (int idx = 1; idx < block_names.size(); ++idx) {
+        auto master_loops = ir_sch.GetLoops(block_names[0]);
+        ir_sch.SimpleComputeAt(ir_sch.GetBlock(block_names[idx]), master_loops[1]);
+      }
+    }
+  } else if (target == common::DefaultNVGPUTarget()) {
+    // flat loops.
+    {
+      for (int idx = 0; idx < block_names.size(); ++idx) {
+        ir_sch.FlattenLoops(ir_sch.GetLoops(block_names[idx]), false);
+        auto first_loop = ir_sch.GetLoops(block_names[idx])[0];
+        CHECK(first_loop.As<ir::For>());
+        auto tsize = first_loop.As<ir::For>()->extent.as_int32();
+        if (tsize > target.max_num_threads()) {
+          // split [-1, 256]
+          auto splited = ir_sch.Split(ir_sch.GetLoops(block_names[idx])[0], {-1, target.max_num_threads() / 4});
+          ir_sch.Bind(splited[0], "blockIdx.x");
+          ir_sch.Bind(splited[1], "threadIdx.x");
+        } else {
+          auto splited = ir_sch.Split(ir_sch.GetLoops(block_names[idx])[0], {1, tsize});
+          ir_sch.Bind(splited[0], "blockIdx.x");
+          ir_sch.Bind(splited[1], "threadIdx.x");
+        }
       }
     }
   } else {
-    int all_blocks_num = all_blocks.size();
-    for (int i = 0; i < all_blocks_num - 1; ++i) {
-      all_blocks = ir_sch.GetAllBlocks();
-      loops      = ir_sch.GetLoops(all_blocks.back());
-      ir_sch.SimpleComputeAt(all_blocks[i], loops[0]);
+    {
+      for (auto &block_name : block_names) {
+        ir_sch.FlattenLoops(ir_sch.GetLoops(block_name), false);
+      }
     }
   }
   VLOG(3) << "In IRCudaSplitSchedule, After schedule expr is : " << ir_sch.GetModule().GetExprs().at(0);

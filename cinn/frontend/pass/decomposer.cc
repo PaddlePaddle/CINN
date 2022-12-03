@@ -26,6 +26,8 @@ class DecomposerPass : public ProgramPass {
   using ProgramPass::ProgramPass;
 
  protected:
+  void Clear() override {}
+
   void ApplyImpl(Program* prog,
                  const std::unordered_set<std::string>& fetch_ids,
                  const common::Target& target) const override {

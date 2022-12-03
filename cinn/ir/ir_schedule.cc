@@ -73,6 +73,7 @@ class ScheduleImpl {
   Expr Fuse(const Expr& block, const std::vector<int>& loops_index);
   void ComputeAt(const Expr& block, const Expr& loop);
   void SimpleComputeAt(const Expr& block, const Expr& loop);
+  void ReverseComputeAt(const Expr& block, const Expr& loop);
   Expr GetRootBlock(const Expr& expr) const;
   Expr CacheRead(const Expr& block, int read_buffer_index, const std::string& memory_type);
   Expr CacheWrite(const Expr& block, int write_buffer_index, const std::string& memory_type);
@@ -91,6 +92,7 @@ class ScheduleImpl {
   Expr Rfactor(const Expr& rf_loop, int rf_axis);
   Expr AddUnitLoop(const Expr& block) const;
   void Annotate(const Expr& block, const std::string& key, const attr_t& value);
+  void FlattenLoops(const std::vector<Expr>& loops, const bool force_flat = false);
   void CopyTransformAndLoopInfo(const Expr& block, const Expr& block_target);
   void CopyTransformAndLoopInfo(const std::string& block_name, const std::string& block_target_name);
 
@@ -741,8 +743,8 @@ Expr ScheduleImpl::CacheRead(const Expr& block, int read_tensor_index, const std
   info.write_tensor = MakeCacheTensor(info.read_tensor, memory_type);
   info.alloc        = info.write_tensor;
 
-  auto read_buffer_region = CalculateTensorRegions(block, tensor_indices, info.read_tensor, root);
-  auto new_block          = MakeCacheBlock(read_buffer_region, &info, memory_type, this->GetDeviceAPI());
+  auto read_ranges = CalculateTensorRegions(block, tensor_indices, info.read_tensor, root);
+  auto new_block   = MakeCacheBlock(read_ranges, &info, memory_type, this->GetDeviceAPI());
   FindInsertionPoint(root, &info, false);
   auto new_root = CacheReadRewriter::Rewrite(root, &info);
   this->Replace(root.As<ScheduleBlockRealize>()->schedule_block.As<ScheduleBlock>()->body,
@@ -759,11 +761,11 @@ Expr ScheduleImpl::CacheWrite(const Expr& block, int write_buffer_index, const s
   Tensor write_tensor = write_expr.As<ir::Store>()->tensor.as_tensor_ref();
   auto tensor_indices = write_expr.As<ir::Store>()->indices;
   CacheBlockInfo info;
-  info.read_tensor         = MakeCacheTensor(write_tensor, memory_type);
-  info.write_tensor        = write_tensor;
-  info.alloc               = info.read_tensor;
-  auto write_buffer_region = CalculateTensorRegions(block, tensor_indices, info.write_tensor, root);
-  auto new_block           = MakeCacheBlock(write_buffer_region, &info, memory_type, this->GetDeviceAPI());
+  info.read_tensor  = MakeCacheTensor(write_tensor, memory_type);
+  info.write_tensor = write_tensor;
+  info.alloc        = info.read_tensor;
+  auto write_ranges = CalculateTensorRegions(block, tensor_indices, info.write_tensor, root);
+  auto new_block    = MakeCacheBlock(write_ranges, &info, memory_type, this->GetDeviceAPI());
   FindInsertionPoint(root, &info, true);
 
   auto new_root = CacheWriteRewriter::Rewrite(root, &info);
@@ -964,8 +966,12 @@ struct LoopReconstructor : public ir::IRMutator<> {
 
   void operator()(Expr* expr) { IRMutator::Visit(expr, expr); }
 
-  void MakeNewLoop(const std::vector<std::pair<Expr, Expr>>& iter_doms) {
-    int n_iters = iter_doms.size();
+  /* \param inserted_pos The position index of the new_loop_ body `stmts` to be inserted:
+   *        - `index = -1` means inserted into the tail
+   *        - otherwise, it should be a index between [0, stmts size)
+   */
+  void MakeNewLoop(const std::vector<IterRange>& iter_ranges, int inserted_pos = -1) {
+    int n_iters = iter_ranges.size();
     std::vector<Var> loop_vars;
     std::vector<Expr> loop_extents;
     std::vector<Expr> iter_values;
@@ -973,15 +979,14 @@ struct LoopReconstructor : public ir::IRMutator<> {
     loop_extents.reserve(n_iters);
     iter_values.reserve(n_iters);
     for (int i = 0; i < n_iters; ++i) {
-      auto iter_dom = iter_doms[i];
-      if (iter_dom.second != Expr(1)) {
+      const auto& range = iter_ranges[i];
+      if (range.extent != Expr(1)) {
         Var var(common::UniqName("ax" + std::to_string(loop_vars.size())), Int(32));
-        // Var var("ax" + std::to_string(loop_vars.size()), Int(32));
         loop_vars.push_back(var);
-        loop_extents.push_back(iter_dom.second);
-        iter_values.push_back(common::AutoSimplify(iter_dom.first) + var);
+        loop_extents.push_back(range.extent);
+        iter_values.push_back(common::AutoSimplify(range.min) + var);
       } else {
-        iter_values.push_back(common::AutoSimplify(iter_dom.first));
+        iter_values.push_back(common::AutoSimplify(range.min));
       }
     }
     auto schedule_block_node = block_.As<ir::ScheduleBlockRealize>()->schedule_block;
@@ -995,7 +1000,7 @@ struct LoopReconstructor : public ir::IRMutator<> {
           loop_var, Expr(0), loop_extent, ForType::Serial, loop_.As<ir::For>()->device_api, std::move(loop_body));
     }
     new_loop_ = optim::IRCopy(loop_);
-    InsertBlock(new_loop_, loop_body);
+    InsertBlock(new_loop_, loop_body, inserted_pos);
     return;
   }
 
@@ -1117,9 +1122,8 @@ void ScheduleImpl::ComputeAt(const Expr& block, const Expr& loop) {
   LoopReconstructor reconstructor(root, block, loop);
   LeafBlockRemovalPlan remove_plan(block, &reconstructor.source_expr, &reconstructor.target_expr);
   remove_plan(&root);
-  auto iter_doms = CalculateRequiredRegions(block, loop, consumers, root);
-  for (auto& i : iter_doms) VLOG(3) << "CalculateRequiredRegions is : " << i.first << " to " << i.second;
-  reconstructor.MakeNewLoop(iter_doms);
+  auto iter_ranges = CalculateRequiredRegions(block, loop, root, consumers);
+  reconstructor.MakeNewLoop(iter_ranges, 0);
   this->Replace(reconstructor.source_expr, reconstructor.target_expr);
   this->Replace(reconstructor.loop_, reconstructor.new_loop_);
   return;
@@ -1206,6 +1210,23 @@ void ScheduleImpl::SimpleComputeAt(const Expr& block, const Expr& loop) {
 
   this->Replace(source_expr, target_expr);
   this->Replace(this_loop, new_loop);
+  return;
+}
+
+void ScheduleImpl::ReverseComputeAt(const Expr& block, const Expr& loop) {
+  CHECK(block.As<ir::ScheduleBlockRealize>());
+  CHECK(loop.As<ir::For>());
+  Expr root      = this->GetRootBlock(block);
+  auto producers = GetProducers(block, root);
+  auto consumers = GetConsumers(block, root);
+  CheckComputeAtValidation(block, loop, root);
+  LoopReconstructor reconstructor(root, block, loop);
+  LeafBlockRemovalPlan remove_plan(block, &reconstructor.source_expr, &reconstructor.target_expr);
+  remove_plan(&root);
+  auto iter_ranges = CalculateRequiredRegions(block, loop, root, producers, false);
+  reconstructor.MakeNewLoop(iter_ranges);
+  this->Replace(reconstructor.source_expr, reconstructor.target_expr);
+  this->Replace(reconstructor.loop_, reconstructor.new_loop_);
   return;
 }
 
@@ -1473,6 +1494,162 @@ void ScheduleImpl::Annotate(const Expr& block, const std::string& key, const att
   this->Replace(block, copied_block);
 }
 
+void ScheduleImpl::FlattenLoops(const std::vector<Expr>& loops, const bool flat_tensor) {
+  CHECK(loops.size()) << "loops is empty!";
+  // compute loop
+  int extent = 1;
+  std::vector<int> strides;
+  std::vector<ir::Var> loop_vars(loops.size());
+  for (int idx = loops.size() - 1; idx >= 0; --idx) {
+    strides.insert(strides.begin(), extent);
+    extent *= loops[idx].As<ir::For>()->extent.as_int32();
+    loop_vars[idx] = loops[idx].As<ir::For>()->loop_var;
+  }
+
+  // create new loop.
+  auto last = loops.back().As<ir::For>();
+  auto var  = ir::Var("flat_i");
+  auto _var = ir::Var("_flat_i");
+  auto loop = ir::For::Make(var, ir::Expr(0), ir::Expr(extent), last->for_type(), last->device_api, last->body);
+
+  // map loop var to old loop var.
+  auto _iter = ir::Expr(_var);
+  std::vector<ir::Expr> flat_i_to_loop_var;
+  for (int idx = 0; idx < strides.size(); ++idx) {
+    if (strides[idx] == 1) {
+      flat_i_to_loop_var.push_back(_iter);
+    } else {
+      flat_i_to_loop_var.push_back(_iter / Expr(strides[idx]));
+      _iter = _iter % Expr(strides[idx]);
+    }
+  }
+
+  ir::FindBlocksVisitor visitor;
+  auto blocks      = visitor(&last->body);
+  auto can_do_flat = [](const std::vector<Expr>& indexs, const std::vector<Var>& loop_vars) {
+    if (indexs.size() != loop_vars.size()) {
+      return false;
+    }
+
+    for (int idx = 0; idx < indexs.size(); ++idx) {
+      if (!indexs[idx].as_var()) {
+        return false;
+      } else {
+        auto var = indexs[idx].as_var_ref();
+        if (var->name != loop_vars[idx]->name) {
+          return false;
+        }
+      }
+    }
+    return true;
+  };
+
+  // change blocks iter value/iter var
+  for (auto& block : blocks) {
+    auto block_realize  = block.As<ir::ScheduleBlockRealize>();
+    auto schedule_block = block_realize->schedule_block.As<ir::ScheduleBlock>();
+
+    // checkout loops in orders.
+    std::vector<std::string> var_names = {};
+    CHECK_GE(block_realize->iter_values.size(), loop_vars.size())
+        << "the number of iter bind values must be more than loop vars!";
+    for (int idx = 0, index = 0; idx < block_realize->iter_values.size(); ++idx) {
+      auto& iter = block_realize->iter_values[idx];
+      if (iter.is_var()) {
+        CHECK_EQ(iter.as_var_ref()->name, loop_vars[index++]->name) << "loops is not the same order with tensor!";
+      } else {
+        CHECK(iter.As<IntImm>());
+        CHECK_EQ(iter.as_int32(), 0);
+        continue;
+      }
+    }
+
+    auto exprs = ir::CollectIRNodesInOrder(schedule_block->body,
+                                           [&](const Expr* x) { return x->As<ir::Store>() || x->As<ir::Load>(); });
+    // reverse exprs from last to first.
+    std::reverse(std::begin(exprs), std::end(exprs));
+
+    std::vector<ir::Var> var_to_replace;
+    CHECK_GE(schedule_block->iter_vars.size(), flat_i_to_loop_var.size());
+    // if iter var is more than flat i to loop, there exist dim = 1.
+    if (schedule_block->iter_vars.size() > flat_i_to_loop_var.size()) {
+      for (int idx = 0; idx < block_realize->iter_values.size(); ++idx) {
+        if (block_realize->iter_values[idx].is_var()) {
+          var_to_replace.push_back(schedule_block->iter_vars[idx]);
+        } else {
+          CHECK_EQ(block_realize->iter_values[idx].as_int32(), 0);
+          // insert var -> 0, to replace var to 0.
+          var_to_replace.insert(var_to_replace.begin(), schedule_block->iter_vars[idx]);
+          flat_i_to_loop_var.insert(flat_i_to_loop_var.begin(), Expr(0));
+        }
+      }
+    } else {
+      var_to_replace = schedule_block->iter_vars;
+    }
+
+    for (auto expr : exprs) {
+      if (expr.As<ir::Store>()) {
+        auto store = expr.As<ir::Store>();
+        if (store->is_addr_tensor()) {
+          auto t = store->tensor.as_tensor_ref();
+          CHECK(!t->reduce_axis.size());
+          auto tsize = std::accumulate(t->shape.begin(), t->shape.end(), 1, [](const int sum, const Expr& expr) {
+            return sum * expr.as_int32();
+          });
+          if ((!flat_tensor && !can_do_flat(store->indices, schedule_block->iter_vars)) || extent != tsize) {
+            // just replace indexs
+            for (auto& indice : store->indices) {
+              if (!indice.is_var()) {
+                continue;
+              }
+              ReplaceExpr(&indice, var_to_replace, flat_i_to_loop_var);
+            }
+            // compute index and flat tensor.
+            store->indices = {store->index()};
+            continue;
+          }
+          // update var and shape
+          store->indices = {Expr(_var)};
+        }
+      } else {
+        auto load = expr.As<ir::Load>();
+        if (load->is_addr_tensor()) {
+          auto t = load->tensor.as_tensor_ref();
+          CHECK(!t->reduce_axis.size());
+          auto tsize = std::accumulate(t->shape.begin(), t->shape.end(), 1, [](const int sum, const Expr& expr) {
+            return sum * expr.as_int32();
+          });
+          if ((!flat_tensor && !can_do_flat(load->indices, schedule_block->iter_vars)) || extent != tsize) {
+            // just replace indexs
+            for (auto& indice : load->indices) {
+              if (!indice.is_var()) {
+                continue;
+              }
+              ReplaceExpr(&indice, var_to_replace, flat_i_to_loop_var);
+            }
+            // compute index and flat tensor.
+            load->indices = {load->index()};
+            continue;
+          }
+          // update var and shape
+          load->indices = {Expr(_var)};
+        }
+      }
+    }
+    ReplaceExpr(&schedule_block->body, var_to_replace, flat_i_to_loop_var);
+
+    // update iter values
+    auto iter                  = ir::Expr(var);
+    block_realize->iter_values = {iter};
+
+    // update iter_vars
+    schedule_block->iter_vars = {_var};
+    CHECK_EQ(block_realize->iter_values.size(), schedule_block->iter_vars.size());
+  }
+
+  this->Replace(loops[0], loop);
+}
+
 void ScheduleImpl::CopyTransformAndLoopInfo(const std::string& block_name, const std::string& block_target_name) {
   auto block        = this->GetBlock(block_name);
   auto block_target = this->GetBlock(block_target_name);
@@ -1694,6 +1871,12 @@ void IRSchedule::SimpleComputeAt(const Expr& block, const Expr& loop) {
       "SimpleComputeAt", {{"block", std::vector<Expr>({block})}, {"loop", std::vector<Expr>({loop})}}, {}, {}));
 }
 
+void IRSchedule::ReverseComputeAt(const Expr& block, const Expr& loop) {
+  impl_->ReverseComputeAt(block, loop);
+  trace_.Append(ScheduleDesc::Step(
+      "ReverseComputeAt", {{"block", std::vector<Expr>({block})}, {"loop", std::vector<Expr>({loop})}}, {}, {}));
+}
+
 Expr IRSchedule::GetRootBlock(const Expr& expr) const {
   auto result = impl_->GetRootBlock(expr);
   trace_.Append(ScheduleDesc::Step("GetRootBlock", {{"expr", std::vector<Expr>({expr})}}, {}, {result}));
@@ -1800,6 +1983,12 @@ void IRSchedule::Annotate(const Expr& block, const std::string& key, const attr_
 #undef TRACE_ANNOTATE_ITEM
 
   LOG(FATAL) << "Value of attribute:" << key << " input unsupported data type";
+}
+
+void IRSchedule::FlattenLoops(const std::vector<Expr>& loops, const bool force_flat) {
+  impl_->FlattenLoops(loops, force_flat);
+  trace_.Append(
+      ScheduleDesc::Step("FlattenLoops", {{"loop", std::vector<Expr>({loops})}}, {{"force_flat", force_flat}}, {}));
 }
 
 void IRSchedule::CopyTransformAndLoopInfo(const Expr& block, const Expr& block_target) {
