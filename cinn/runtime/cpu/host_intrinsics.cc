@@ -130,6 +130,8 @@ inline int FN_INT32(clz)(int x) { return __builtin_clz(x); }
 
 inline int FN_INT32(popc)(int x) { return __builtin_popcount(x); }
 
+inline int FN_INT32(logical_right_shift)(int x, int y) { return (x >> y) & ~(((0x1 << 31) >> y) << 1); }
+
 #undef FN_INT32
 
 #define FN_INT64(func) cinn_host_##func##_int64
@@ -187,6 +189,8 @@ CINN_REGISTER_HELPER(host_intrinsics) {
   REGISTER_EXTERN_FUNC_2_IN_1_OUT(cinn_host_##func__##_int32, host_target, int, int, int);
 
   REGISTER_EXTERN_FUNC_2_IN_1_INT32(pow)
+
+  REGISTER_EXTERN_FUNC_2_IN_1_INT32(logical_right_shift)
 
 #undef REGISTER_EXTERN_FUNC_2_IN_1_INT32
 

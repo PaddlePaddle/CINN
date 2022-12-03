@@ -25,7 +25,10 @@ namespace cinn {
 namespace hlir {
 namespace op {
 
-ir::Tensor LogicalRightShift(const ir::Tensor& A, const ir::Tensor& B, const std::string& output_name);
+ir::Tensor LogicalRightShift(const ir::Tensor& A,
+                             const ir::Tensor& B,
+                             const Target& target,
+                             const std::string& output_name);
 
 }  // namespace op
 }  // namespace hlir

@@ -49,16 +49,35 @@ using framework::OpStrategy;
 using framework::shape_t;
 using framework::StrategyFunction;
 
-ir::Tensor LogicalRightShift(const ir::Tensor &A, const ir::Tensor &B, const std::string &output_name) {
+ir::Tensor LogicalRightShift(const ir::Tensor &A,
+                             const ir::Tensor &B,
+                             const Target &target,
+                             const std::string &output_name) {
+  std::string extern_func = "cinn_";
+  if (target == common::DefaultHostTarget()) {
+    extern_func += "host_";
+  } else if (target == common::DefaultNVGPUTarget()) {
+    extern_func += "nvgpu_";
+  } else {
+    CINN_NOT_IMPLEMENTED
+  }
+
+  extern_func += "logical_right_shift";
+
+  if (A->type().is_int(32) || A->type().is_uint(32)) {
+    extern_func += "_int32";
+  } else {
+    CINN_NOT_IMPLEMENTED
+  }
+
   return Compute(
       A->shape,
       [=](const std::vector<Expr> &indices) {
-        Expr bits = ir::Cast::Make(A->type(), A->type().bits() - 1);
-        return lang::BitwiseAnd(
-            lang::RightShift(A(indices), B(indices)),
-            lang::BitwiseNot(lang::LeftShift(lang::RightShift(lang::LeftShift(Expr(1), bits), B(indices)), Expr(1))));
+        Expr x = A(indices);
+        Expr y = B(indices);
+        return lang::CallExtern(extern_func, {x, y});
       },
-      UniqName(output_name));
+      output_name);
 }
 
 std::shared_ptr<OpStrategy> StrategyForLogicalRightShift(const framework::NodeAttr &attrs,
@@ -87,7 +106,7 @@ std::shared_ptr<OpStrategy> StrategyForLogicalRightShift(const framework::NodeAt
       tensor_name = pack_args[2].operator std::string();
     }
 
-    auto out    = LogicalRightShift(A, B, tensor_name);
+    auto out    = LogicalRightShift(A, B, target, tensor_name);
     auto stages = CreateStages({out});
     *ret        = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
   });

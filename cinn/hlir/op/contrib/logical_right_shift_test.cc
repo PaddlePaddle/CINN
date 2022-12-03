@@ -38,7 +38,7 @@ TEST(GenerateCode_Cpu, LogicalRightShift) {
   common::Target target = common::DefaultHostTarget();
   lang::Placeholder<int> x("x", std::vector<int>{10});
   lang::Placeholder<int> y("y", std::vector<int>{10});
-  ir::Tensor res = LogicalRightShift(x, y, "test_logical_right_shift");
+  ir::Tensor res = LogicalRightShift(x, y, target, "test_logical_right_shift");
 
   poly::StageMap stages = poly::CreateStages({res});
   std::vector<ir::LoweredFunc> funcs =
