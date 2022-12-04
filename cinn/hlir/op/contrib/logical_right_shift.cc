@@ -129,7 +129,10 @@ std::vector<framework::shape_t> InferShapeForLogicalRightShift(const std::vector
 
 std::vector<Type> InferDtypeForLogicalRightShift(const std::vector<Type> &inputs_type,
                                                  const framework::AttrMapType &attrs) {
-  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
+  CHECK_EQ(inputs_type.size(), 2UL) << "The logical_right_shift op should has two inputs! Please check.";
+  CHECK_EQ(inputs_type[0], inputs_type[1])
+      << "The data type of input tensors of logical_right_shift op should be equal, but here x:" << inputs_type[0]
+      << " != y:" << inputs_type[1] << "! Please check.";
   std::vector<Type> res{inputs_type[0]};
   return res;
 }
