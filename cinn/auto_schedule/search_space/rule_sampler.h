@@ -25,11 +25,11 @@ namespace auto_schedule {
 
 class SearchState;
 
-class rulesampler {
+class RuleSampler {
  public:
-  // Create a rulesampler with the specific strategy name
+  // Create a RuleSampler with the specific strategy name
   // and necessary construct parameters.
-  static std::unique_ptr<rulesampler> Make(const std::vector<AutoGenRule*>& potential_rules,
+  static std::unique_ptr<RuleSampler> Make(const std::vector<AutoGenRule*>& potential_rules,
                                            const std::string& strategy     = "traversal",
                                            const std::vector<int>& weights = {});
   // Return the name of schedule strategy
@@ -42,8 +42,8 @@ class rulesampler {
   virtual AutoGenRule* NextRule(bool remove = true) = 0;
 
  protected:
-  // A rulesampler object should be created with the static function Make()
-  rulesampler(const std::vector<AutoGenRule*>& potential_rules) : potential_rules_(&potential_rules) {}
+  // A RuleSampler object should be created with the static function Make()
+  RuleSampler(const std::vector<AutoGenRule*>& potential_rules) : potential_rules_(&potential_rules) {}
 
   // The pointer refers to all potential rules
   const std::vector<AutoGenRule*>* potential_rules_;
@@ -51,9 +51,9 @@ class rulesampler {
 
 // Schedule rules with traversal strategy,
 // witch means to select rules one by one until all rules are traversed.
-class Traversalrulesampler : public rulesampler {
+class TraversalRuleSampler : public RuleSampler {
  public:
-  Traversalrulesampler(const std::vector<AutoGenRule*>& potential_rules) : rulesampler(potential_rules), cur_idx_(0) {}
+  TraversalRuleSampler(const std::vector<AutoGenRule*>& potential_rules) : RuleSampler(potential_rules), cur_idx_(0) {}
 
   const char* Name() const override { return "traversal"; }
 
@@ -67,9 +67,9 @@ class Traversalrulesampler : public rulesampler {
 
 // Schedule rules with probabilistic strategy,
 // witch means randomly picking rules according to the given distribution.
-class Probabilisticrulesampler : public rulesampler {
+class ProbabilisticRuleSampler : public RuleSampler {
  public:
-  Probabilisticrulesampler(const std::vector<AutoGenRule*>& potential_rules, const std::vector<int>& weights = {});
+  ProbabilisticRuleSampler(const std::vector<AutoGenRule*>& potential_rules, const std::vector<int>& weights = {});
 
   const char* Name() const override { return "probabilistic"; }
 

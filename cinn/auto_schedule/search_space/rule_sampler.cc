@@ -20,21 +20,21 @@
 namespace cinn {
 namespace auto_schedule {
 
-std::unique_ptr<rulesampler> rulesampler::Make(const std::vector<AutoGenRule*>& potential_rules,
+std::unique_ptr<RuleSampler> RuleSampler::Make(const std::vector<AutoGenRule*>& potential_rules,
                                                const std::string& strategy,
                                                const std::vector<int>& weights) {
   CHECK_GT(potential_rules.size(), 0) << "Empty rule list";
   if (strategy == "traversal") {
-    return std::make_unique<Traversalrulesampler>(potential_rules);
+    return std::make_unique<TraversalRuleSampler>(potential_rules);
   } else if (strategy == "probabilistic") {
-    return std::make_unique<Probabilisticrulesampler>(potential_rules, weights);
+    return std::make_unique<ProbabilisticRuleSampler>(potential_rules, weights);
   }
 
   LOG(FATAL) << "Unimplementd strategy:" << strategy;
   return nullptr;
 }
 
-AutoGenRule* Traversalrulesampler::NextRule(bool remove) {
+AutoGenRule* TraversalRuleSampler::NextRule(bool remove) {
   if (cur_idx_ < potential_rules_->size()) {
     AutoGenRule* rule = potential_rules_->at(cur_idx_);
     if (remove) {
@@ -46,9 +46,9 @@ AutoGenRule* Traversalrulesampler::NextRule(bool remove) {
   return nullptr;
 }
 
-Probabilisticrulesampler::Probabilisticrulesampler(const std::vector<AutoGenRule*>& potential_rules,
+ProbabilisticRuleSampler::ProbabilisticRuleSampler(const std::vector<AutoGenRule*>& potential_rules,
                                                    const std::vector<int>& weights)
-    : rulesampler(potential_rules), weights_(weights), gen_(rd_()) {
+    : RuleSampler(potential_rules), weights_(weights), gen_(rd_()) {
   if (weights.empty()) {
     weights_.resize(potential_rules.size(), 1);
   } else {
@@ -58,7 +58,7 @@ Probabilisticrulesampler::Probabilisticrulesampler(const std::vector<AutoGenRule
   distribution_ = std::discrete_distribution<>(weights_.begin(), weights_.end());
 }
 
-AutoGenRule* Probabilisticrulesampler::NextRule(bool remove) {
+AutoGenRule* ProbabilisticRuleSampler::NextRule(bool remove) {
   if (remains_ == 0) {
     return nullptr;
   }
