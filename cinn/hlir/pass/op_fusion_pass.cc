@@ -245,11 +245,11 @@ class OpFusionPassHelper : public FusionHelperBase {
       // producer -> fusion
       relation.fusion_op_kind = {
           // horizontal or vertical relation(Broadcast + *Elementwise*), check with same output shape.
-          {framework::kElementWise, is_same_shape},
+          {framework::kElementWise, is_same_size},
           // must be horizontal, as Broadcast + Broadcast is not allowed.
-          {framework::kBroadcast, is_same_shape},
+          {framework::kBroadcast, is_same_size},
           // horizontal or vertical relation(Broadcast + Reduce).
-          {framework::kReduction, always_fuse},
+          {framework::kReduction, is_same_size},
           // can be horizontal or can compute inline, check with same output shape or just one consumer.
           {framework::kInjective, horizontal_or_can_inline},
           // must be horizontal, check with same output shape.
@@ -268,13 +268,13 @@ class OpFusionPassHelper : public FusionHelperBase {
           // must be horizontal relation, check with same output shape and without last dimension in reduce.
           {framework::kBroadcast,
            [](const FusionHelperBase* helper, const Node* producer, const GroupPtr& consumer) -> bool {
-             return is_same_shape(helper, producer, consumer) &&
+             return is_same_size(helper, producer, consumer) &&
                     without_last_dimension_in_reduce(helper, producer, consumer);
            }},
           // must be horizontal relation and with same reduce attr.
           {framework::kReduction, reduce_fuse_reduce},
           // can't fuse.
-          {framework::kInjective, no_fuse},
+          {framework::kInjective, horizontal_with_same_size},
           // can't fuse.
           {framework::kOutFusible, no_fuse}};
       fusion_relation_map_[framework::kReduction] = std::move(relation);
@@ -287,13 +287,13 @@ class OpFusionPassHelper : public FusionHelperBase {
       // producer -> fusion
       relation.fusion_op_kind = {
           // can be horizontal or vertical(Injective + Elementwise), check with same output shape.
-          {framework::kElementWise, is_same_shape},
+          {framework::kElementWise, is_same_size},
           // must be horizontal relation, check with same output shape.
-          {framework::kBroadcast, is_same_shape},
+          {framework::kBroadcast, is_same_size},
           // left to fusion merge pass.
           {framework::kReduction, no_fuse},
           // must be horizontal relation, check with same output shape.
-          {framework::kInjective, is_same_shape},
+          {framework::kInjective, horizontal_or_can_inline},
           // can't fuse.
           {framework::kOutFusible, no_fuse},
       };
@@ -307,13 +307,13 @@ class OpFusionPassHelper : public FusionHelperBase {
       // producer -> fusion
       relation.fusion_op_kind = {
           // horizontal or vertical relation, check has same shape.
-          {framework::kElementWise, is_same_shape},
+          {framework::kElementWise, is_same_size},
           // it must be horizontal relation, check has same shape.
-          {framework::kBroadcast, is_same_shape},
+          {framework::kBroadcast, is_same_size},
           // can't fuse.
           {framework::kReduction, no_fuse},
           // must be horizontal relation, check has same shape.
-          {framework::kInjective, is_same_shape},
+          {framework::kInjective, horizontal_with_same_size},
           // can't fuse.
           {framework::kOutFusible, no_fuse},
       };

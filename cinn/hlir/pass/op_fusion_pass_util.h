@@ -33,6 +33,18 @@ CONDITION_FUNC(is_same_shape) {
   return helper->GetNodeDataShape(producer) == helper->GetNodeDataShape(*master_node) ? true : false;
 }
 
+CONDITION_FUNC(is_same_size) {
+  auto master_node    = consumer->master_nodes.begin();
+  auto producer_shape = helper->GetNodeDataShape(producer);
+  auto consumer_shape = helper->GetNodeDataShape(*master_node);
+  if (producer_shape == consumer_shape) {
+    return true;
+  }
+  auto psize = std::accumulate(producer_shape.begin(), producer_shape.end(), 1, std::multiplies<int>());
+  auto csize = std::accumulate(consumer_shape.begin(), consumer_shape.end(), 1, std::multiplies<int>());
+  return psize == csize;
+}
+
 CONDITION_FUNC(without_last_dimension_in_reduce) {
   auto in_shape    = helper->shape_dict_.at(producer->inlinks_in_order()[0]->source()->id());
   auto reduce_axes = absl::get<std::vector<int>>(producer->attrs.attr_store.at("dim"));
@@ -112,7 +124,7 @@ CONDITION_FUNC(reduce_fuse_reduce) {
 
 CONDITION_FUNC(is_same_shape_or_vertical_reduce_relation) {
   // check is same shape with horizontal relation.
-  if (is_same_shape(helper, producer, consumer)) {
+  if (is_same_size(helper, producer, consumer)) {
     return true;
   }
 
@@ -193,7 +205,7 @@ CONDITION_FUNC(is_horizontal_relation) {
 
 CONDITION_FUNC(horizontal_or_can_inline) {
   if (is_horizontal_relation(helper, producer, consumer)) {
-    if (is_same_shape(helper, producer, consumer)) {
+    if (is_same_size(helper, producer, consumer)) {
       return true;
     } else {
       return false;
@@ -202,6 +214,15 @@ CONDITION_FUNC(horizontal_or_can_inline) {
 
   return helper->GetNodeData(producer)->outlinks().size() == 1 &&
          !helper->output_nodes_set_.count(const_cast<Node*>(producer));
+}
+
+CONDITION_FUNC(horizontal_with_same_size) {
+  if (is_horizontal_relation(helper, producer, consumer)) {
+    if (is_same_size(helper, producer, consumer)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 #undef CONDITION_FUNC

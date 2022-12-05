@@ -44,6 +44,7 @@ CONDITION_FUNC(limit_args) {
     return true;
   }
 }
+
 CONDITION_FUNC(always_fuse) { return true; }
 
 CONDITION_FUNC(is_same_shape) {
@@ -53,6 +54,21 @@ CONDITION_FUNC(is_same_shape) {
   auto output_var_0 = helper->GetNodeDataShape(*first->master_nodes.begin());
   auto output_var_1 = helper->GetNodeDataShape(*second->master_nodes.begin());
   return output_var_0 == output_var_1;
+}
+
+CONDITION_FUNC(is_same_size) {
+  if (!limit_args(helper, first, second)) {
+    return false;
+  }
+  auto output_var_0 = helper->GetNodeDataShape(*first->master_nodes.begin());
+  auto output_var_1 = helper->GetNodeDataShape(*second->master_nodes.begin());
+  if (output_var_0 == output_var_1) {
+    return true;
+  }
+
+  auto size_0 = std::accumulate(output_var_0.begin(), output_var_0.end(), 1, std::multiplies<int>());
+  auto size_1 = std::accumulate(output_var_1.begin(), output_var_1.end(), 1, std::multiplies<int>());
+  return size_0 == size_1;
 }
 
 bool is_const_group(const FusionHelperBase* helper, const std::shared_ptr<Graph::Group>& group) {
@@ -65,7 +81,7 @@ CONDITION_FUNC(elementwise_fuse_broadcast) {
     return true;
   }
   // if sampe shape with horizontal relation
-  if (is_same_shape(helper, first, second)) {
+  if (is_same_size(helper, first, second)) {
     return true;
   }
   // if first's output is not all in second's input
@@ -90,7 +106,7 @@ CONDITION_FUNC(elementwise_fuse_reduce) {
     return true;
   }
   // if same shape with horizontal relation
-  if (is_same_shape(helper, first, second)) {
+  if (is_same_size(helper, first, second)) {
     return true;
   }
   // if reduce using block_reduce, can't fuse producer.
@@ -162,7 +178,7 @@ CONDITION_FUNC(broadcast_fuse_reduce) {
 }
 
 CONDITION_FUNC(reduce_fuse_elementwise) {
-  if (!is_same_shape(helper, first, second)) {
+  if (!is_same_size(helper, first, second)) {
     return false;
   }
   // if with last axis in reduce, fuse will waste computation resource.
@@ -170,12 +186,13 @@ CONDITION_FUNC(reduce_fuse_elementwise) {
   // TODO(sunli) : cost-model.
   return true;
 }
-CONDITION_FUNC(horizontal_fusion) {
+
+CONDITION_FUNC(is_horizontal_with_consumer) {
   if (is_const_group(helper, first)) {
     return true;
   }
 
-  if (!is_same_shape(helper, first, second)) {
+  if (!is_same_size(helper, first, second)) {
     return false;
   }
   // merge injective
@@ -239,7 +256,7 @@ CONDITION_FUNC(horizontal_fusion) {
 }
 
 CONDITION_FUNC(reduce_fuse_reduce) {
-  if (!horizontal_fusion(helper, first, second)) {
+  if (!is_horizontal_with_consumer(helper, first, second)) {
     return false;
   }
   if (!limit_args(helper, first, second)) {
