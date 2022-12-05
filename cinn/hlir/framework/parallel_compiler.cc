@@ -25,7 +25,7 @@
 #include "cinn/backends/llvm/runtime_symbol_registry.h"
 #include "cinn/backends/nvrtc/nvrtc_util.h"
 #include "cinn/common/context.h"
-#include "cinn/hlir/pass/op_fusion_pass.h"
+#include "cinn/hlir/framework/pass.h"
 #include "cinn/ir/module.h"
 
 DECLARE_int32(cinn_parallel_compile_size);
@@ -41,7 +41,7 @@ std::vector<std::unique_ptr<Instruction>> ParallelCompiler::operator()() {
     return std::vector<std::unique_ptr<Instruction>>();
   }
   if (graph_->fusion_groups.size() == 0) {
-    graph_->fusion_groups = pass::BuildNonFusedGroups(graph_.get());
+    hlir::framework::ApplyPasses(graph_.get(), {"BuildNonFusedGroupsPass"});
   }
   // Task Spilt
   SplitTask();
