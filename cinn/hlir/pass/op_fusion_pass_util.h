@@ -212,8 +212,7 @@ CONDITION_FUNC(horizontal_or_can_inline) {
     }
   }
 
-  return helper->GetNodeData(producer)->outlinks().size() == 1 &&
-         !helper->output_nodes_set_.count(const_cast<Node*>(producer));
+  return helper->GetNodeData(producer)->outlinks().size() == 1;
 }
 
 CONDITION_FUNC(horizontal_with_same_size) {

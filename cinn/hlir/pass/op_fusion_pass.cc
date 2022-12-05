@@ -273,7 +273,7 @@ class OpFusionPassHelper : public FusionHelperBase {
            }},
           // must be horizontal relation and with same reduce attr.
           {framework::kReduction, reduce_fuse_reduce},
-          // can't fuse.
+          // must be horizontal relation
           {framework::kInjective, horizontal_with_same_size},
           // can't fuse.
           {framework::kOutFusible, no_fuse}};
