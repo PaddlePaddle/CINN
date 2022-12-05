@@ -22,9 +22,9 @@
 #include "cinn/cinn.h"
 #include "cinn/common/target.h"
 #include "cinn/common/test_helper.h"
-#include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
+#include "cinn/hlir/framework/op_lowering.h"
 #include "cinn/hlir/framework/op_strategy.h"
 #include "cinn/hlir/op/use_ops.h"
 #include "cinn/hlir/pe/nn.h"
@@ -53,7 +53,7 @@ Module LowerToModule(const std::string test_name,
     common::CINNValuePack cinn_input = common::CINNValuePack{cinn_inputs};
     input_names.push_back(output_name);
 
-    auto funcs = framework::GetFuncFromImpl(impl, cinn_input, inputs, input_names, func_name, target);
+    auto funcs = framework::GetFuncFromOpImpl(impl, cinn_input, inputs, input_names, "fn_" + func_name, target);
 
     for (auto func : funcs) {
       LOG(INFO) << "Test" << test_name << "'s Strategy, func is :\n" << func;
