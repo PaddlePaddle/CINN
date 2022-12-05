@@ -42,17 +42,8 @@ class SearchSpace {
  public:
   SearchSpace(const TuneTask& tune_task);
 
-  // Randomly generate sketch as initial population of evolutionary search
-  virtual std::vector<SearchState> GetRandomInitialSketch(int num);
-
   // Evolutionary search mutate, returns the mutated ModuleExpr and estimited cost
   virtual SearchState GetScheduleMutate(const SearchState& state, const ExprCostModel& cost_model);
-
-  // Generate sketch pruned randomly as initial population of evolutionary search
-  virtual std::vector<SearchState> GetRandomPrunedInitialSketch();
-
-  // Generate sketch pruned by rules as initial population of evolutionary search
-  virtual std::vector<SearchState> GetRulePrunedInitialSketch();
 
   // Generate sketch as initial population of evolutionary search
   virtual std::vector<SearchState> GetInitialSketch(int num, const std::string& strategy);
@@ -62,6 +53,12 @@ class SearchSpace {
   SearchState ManualScheduleMutate(const SearchState& state);
 
   SearchState RandomScheduleMutate(const SearchState& state);
+
+  // Generate sketch pruned randomly as initial population of evolutionary search
+  std::vector<SearchState> GetRandomPrunedInitialSketch();
+
+  // Generate sketch pruned by rules as initial population of evolutionary search
+  std::vector<SearchState> GetRulePrunedInitialSketch();
 
   std::vector<SearchState> CollectStateTransfer(const SearchState& state,
                                                 const std::string& block_name,
