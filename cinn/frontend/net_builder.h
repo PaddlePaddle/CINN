@@ -105,7 +105,8 @@ namespace frontend {
   macro__(GreaterThan) \
   macro__(LessThan) \
   macro__(GreaterEqual) \
-  macro__(LessEqual)
+  macro__(LessEqual) \
+  macro__(LogicalRightShift)
 
 // ******************************************* //
 // Reduce array elements over the given dims.
