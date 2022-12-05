@@ -28,7 +28,7 @@ namespace auto_schedule {
 
 static std::vector<int> auto_unroll_options = {0, 8, 32, 128};
 
-bool AutoUnroll::MeetCondition(const ir::ScheduleBlock* schedule_block) {
+bool AutoUnroll::MeetCondition(const ir::ScheduleBlock* schedule_block) const {
   // whether any block has reduce iter
   auto has_reduce_iter = [](const Expr* x) {
     auto* block_realize = x->As<ir::ScheduleBlockRealize>();
@@ -93,6 +93,27 @@ void AutoUnroll::Apply(int index) {
   int max_step       = auto_unroll_options[std::rand() % auto_unroll_options.size()];
   ir_schedule_->Annotate(applied_block, ir::attr::auto_unroll_max_step, max_step);
   return;
+}
+
+RuleApplyType AutoUnroll::AnalyseApplyType(SearchState state, const std::string& block_name) const {
+  Expr block_expr     = state->ir_schedule.GetBlock(block_name);
+  Expr root_block     = state->ir_schedule.GetRootBlock(block_expr);
+  auto* block_realize = root_block.As<ir::ScheduleBlockRealize>();
+  CHECK(block_realize) << "stmt is not a ScheduleBlockRealize:" << root_block;
+  auto* schedule_block = block_realize->schedule_block.As<ir::ScheduleBlock>();
+  CHECK(schedule_block) << "schedule_block field is not a ScheduleBlock:" << Expr(block_realize);
+
+  return MeetCondition(schedule_block) ? RuleApplyType::kApplyAndSkipThisRule : RuleApplyType::kCannotApply;
+}
+
+std::vector<SearchState> AutoUnroll::ApplyOnBlock(SearchState state, const std::string& block_name) {
+  SearchState new_state = state.Copy();
+  Expr block_expr       = new_state->ir_schedule.GetBlock(block_name);
+  Expr applied_block    = new_state->ir_schedule.GetRootBlock(block_expr);
+  int max_step          = auto_unroll_options[std::rand() % auto_unroll_options.size()];
+  new_state->ir_schedule.Annotate(applied_block, ir::attr::auto_unroll_max_step, max_step);
+
+  return {new_state};
 }
 
 }  // namespace auto_schedule
