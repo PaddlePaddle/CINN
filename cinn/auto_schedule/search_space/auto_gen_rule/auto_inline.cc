@@ -200,7 +200,7 @@ std::vector<SearchState> AutoInline::ApplyOnBlock(SearchState state, const std::
   CHECK(block_realize) << "stmt is not a ScheduleBlockRealize:" << block_expr;
 
   AnalyzeScheduleBlockReadWriteBuffer(block_realize->schedule_block.As<ir::ScheduleBlock>());
-  AutoInlineType type = AnalyzeInlineType(block_expr, &state->ir_schedule);
+  AutoInlineType type = AnalyzeInlineType(block_expr, &new_state->ir_schedule);
 
   if (type == AutoInlineType::kInlineIntoConsumer) {
     VLOG(6) << "Apply ComputeInline on " << block_expr;
