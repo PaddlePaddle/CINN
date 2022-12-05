@@ -87,7 +87,7 @@ class EvolutionarySearch {
  private:
   std::vector<SearchState> GetTopKCandidatesFromDatabase(int topk);
 
-  std::vector<SearchState> RandomInitSketch(int num);
+  std::vector<SearchState> InitSketch(int num, const std::string& strategy);
 
   SearchState CrossOver(const SearchState& state1, const SearchState& state2);
 
