@@ -28,6 +28,7 @@
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
+#include "cinn/hlir/op/op_util.h"
 #include "cinn/hlir/pe/elementwise.h"
 #include "cinn/hlir/pe/ir_schedule_pe.h"
 #include "cinn/hlir/pe/transform.h"
@@ -83,7 +84,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForFlip(const framework::NodeAttr
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(flip_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.flip.x86", 1);
+  strategy->AddImpl(flip_compute, GetInjectiveScheduleFunc(output_shapes, target), "strategy.flip.x86", 1);
   return strategy;
 }
 

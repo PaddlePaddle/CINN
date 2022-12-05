@@ -37,6 +37,7 @@ namespace hlir {
 namespace pe {
 
 void IRElementwiseSchedule(ir::IRSchedule &ir_sch, const std::vector<int> &output_shape, const common::Target &target) {
+  VLOG(3) << "Before IRElementwiseSchedule, new ir is : " << ir_sch.GetModule().GetExprs().at(0);
   if (target == common::DefaultNVGPUTarget()) {
     auto blocks = ir_sch.GetAllBlocks();
     ir_sch.FlattenLoops(ir_sch.GetLoops(blocks[0]), true);
@@ -51,12 +52,13 @@ void IRElementwiseSchedule(ir::IRSchedule &ir_sch, const std::vector<int> &outpu
       ir_sch.Bind(splited[1], "threadIdx.x");
     }
   } else {
-    auto blocks = ir_sch.GetAllBlocks();
-    ir_sch.FlattenLoops(ir_sch.GetLoops(blocks[0]));
+    IRScheduleInjectiveCPU(ir_sch, output_shape, target, false);
   }
+  VLOG(3) << "After IRElementwiseSchedule, new ir is : " << ir_sch.GetModule().GetExprs().at(0);
 }
 
 void IRInjectiveSchedule(ir::IRSchedule &ir_sch, const std::vector<int> &output_shape, const common::Target &target) {
+  VLOG(3) << "Before IRInjectiveSchedule, new ir is : " << ir_sch.GetModule().GetExprs().at(0);
   if (target == common::DefaultNVGPUTarget()) {
     auto blocks = ir_sch.GetAllBlocks();
     ir_sch.FlattenLoops(ir_sch.GetLoops(blocks[0]), false);
@@ -73,6 +75,7 @@ void IRInjectiveSchedule(ir::IRSchedule &ir_sch, const std::vector<int> &output_
   } else {
     IRScheduleInjectiveCPU(ir_sch, output_shape, target, false);
   }
+  VLOG(3) << "After IRInjectiveSchedule, new ir is : " << ir_sch.GetModule().GetExprs().at(0);
 }
 
 void IRScheduleInjectiveCPU(ir::IRSchedule &ir_sch,
