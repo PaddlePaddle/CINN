@@ -122,49 +122,6 @@ CONDITION_FUNC(reduce_fuse_reduce) {
   return false;
 }
 
-CONDITION_FUNC(is_same_shape_or_vertical_reduce_relation) {
-  // check is same shape with horizontal relation.
-  if (is_same_size(helper, producer, consumer)) {
-    return true;
-  }
-
-  // reducer node in fusion op.
-  Node* reducer = NULL;
-  for (auto* master : consumer->master_nodes) {
-    if (helper->GetOpKind(master) == framework::kReduction) {
-      reducer = master;
-      break;
-    }
-  }
-
-  // check producer has same shape with reducer node.
-  auto reduce_shape = helper->shape_dict_.at(helper->GetProducerNodeData(reducer)[0]->id());
-  auto reduce_axes  = absl::get<std::vector<int>>(reducer->attrs.attr_store.at("dim"));
-  for (auto& axis : reduce_axes) {
-    // if axis = -1, set as shape.size() - 1
-    if (axis == -1) {
-      axis = reduce_shape.size() - 1;
-    }
-  }
-  // check without last axis in reduce.
-  if (helper->GetNodeDataShape(producer) != reduce_shape || helper->WithoutLastDimInReduce(reduce_shape, reduce_axes)) {
-    return false;
-  }
-
-  int succesive_reduce_dimension = reduce_shape.at(reduce_axes.back());
-  for (int idx = reduce_axes.size() - 2; idx >= 0; --idx) {
-    if (reduce_axes[idx] == reduce_axes[idx + 1] - 1) {
-      succesive_reduce_dimension *= reduce_shape[reduce_axes[idx]];
-      continue;
-    }
-    break;
-  }
-
-  return helper->target_ == common::DefaultNVGPUTarget()
-             ? (succesive_reduce_dimension <= helper->target_.max_num_threads() ? true : false)
-             : true;
-}
-
 CONDITION_FUNC(is_horizontal_relation) {
   auto check_depency = [&](const Node* node) {
     std::queue<const Node*> candidates;
@@ -203,16 +160,68 @@ CONDITION_FUNC(is_horizontal_relation) {
   return true;
 };
 
-CONDITION_FUNC(horizontal_or_can_inline) {
+CONDITION_FUNC(horizontal_or_vertical_reduce_relation) {
+  // check is same shape with horizontal relation.
   if (is_horizontal_relation(helper, producer, consumer)) {
-    if (is_same_size(helper, producer, consumer)) {
-      return true;
-    } else {
-      return false;
+    CHECK(is_same_size(helper, producer, consumer));
+    return true;
+  }
+
+  // reducer node in fusion op.
+  Node* reducer = NULL;
+  for (auto* master : consumer->master_nodes) {
+    if (helper->GetOpKind(master) == framework::kReduction) {
+      reducer = master;
+      break;
     }
   }
 
-  return helper->GetNodeData(producer)->outlinks().size() == 1;
+  // check producer has same shape with reducer node.
+  auto reduce_shape = helper->shape_dict_.at(helper->GetProducerNodeData(reducer)[0]->id());
+  auto reduce_axes  = absl::get<std::vector<int>>(reducer->attrs.attr_store.at("dim"));
+  for (auto& axis : reduce_axes) {
+    // if axis = -1, set as shape.size() - 1
+    if (axis == -1) {
+      axis = reduce_shape.size() - 1;
+    }
+  }
+
+  auto node_shape  = helper->shape_dict_.at(helper->GetProducerNodeData(producer)[0]->id());
+  auto node_size   = std::accumulate(node_shape.begin(), node_shape.end(), 1, std::multiplies<int>());
+  auto reduce_size = std::accumulate(reduce_shape.begin(), reduce_shape.end(), 1, std::multiplies<int>());
+
+  // is not same size with reduce size.
+  if (node_size != reduce_size) {
+    return false;
+  }
+  // check without last axis in reduce.
+  if (helper->WithoutLastDimInReduce(reduce_shape, reduce_axes)) {
+    return false;
+  }
+
+  int succesive_reduce_dimension = reduce_shape.at(reduce_axes.back());
+  for (int idx = reduce_axes.size() - 2; idx >= 0; --idx) {
+    if (reduce_axes[idx] == reduce_axes[idx + 1] - 1) {
+      succesive_reduce_dimension *= reduce_shape[reduce_axes[idx]];
+      continue;
+    }
+    break;
+  }
+
+  return helper->target_ == common::DefaultNVGPUTarget()
+             ? (succesive_reduce_dimension <= helper->target_.max_num_threads() ? true : false)
+             : true;
+}
+
+CONDITION_FUNC(horizontal_or_can_inline) {
+  // horizontal relation.
+  if (is_horizontal_relation(helper, producer, consumer)) {
+    CHECK(is_same_size(helper, producer, consumer));
+    return true;
+  }
+  // vertical relation: 1.can compute inline;2.output node and has same shape.
+  return (helper->GetNodeData(producer)->outlinks().size() == 1 && helper->output_nodes_set_.count(producer) == 0) ||
+         (helper->output_nodes_set_.count(producer) && is_same_size(helper, producer, consumer));
 }
 
 CONDITION_FUNC(horizontal_with_same_size) {

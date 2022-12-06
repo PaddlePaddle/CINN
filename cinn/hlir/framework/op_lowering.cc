@@ -244,7 +244,7 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOp(IRComputeFunction compute,
   Node* first  = nullptr;
   Node* second = nullptr;
   // do schedule.
-  VLOG(3) << "Before IRLowerOp schedule";
+  VLOG(3) << "Before IRLowerOp schedule, ir is: \n" << ir_sch.GetModule().GetExprs().at(0);
   if (group->fused_sub_groups.size() == 0) {
     (this->*schedule)(ir_sch, tensor_map, group, group, first, second);
   } else {
@@ -426,7 +426,7 @@ std::vector<Expr> OpLowerer::IRElementwiseCompute(poly::StageMap& stages,
                                                   const GroupPtr& group,
                                                   const GroupPtr& sub_group,
                                                   bool apply_impl_schedule) {
-  VLOG(3) << "ElementwiseCompute Group : " << sub_group->group_id;
+  VLOG(2) << "ElementwiseCompute Group : " << sub_group->group_id;
   auto& strategy = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
 
   std::vector<Expr> ast_exprs;
@@ -489,13 +489,15 @@ void OpLowerer::IRElementwiseSchedule(ir::IRSchedule& ir_sch,
                                       const GroupPtr& sub_group,
                                       Node*&,
                                       Node*&) {
-  VLOG(3) << "IRElementwiseSchedule Group : " << sub_group->group_id;
+  VLOG(2) << "IRElementwiseSchedule Group : " << sub_group->group_id;
   auto master_node    = *group->master_nodes.begin();
   auto manster_tensor = tensor_map[GetNodeData(master_node)->id()];
 
   for (int idx = sub_group->nodes.size() - 1; idx >= 0; --idx) {
     auto node        = sub_group->nodes[idx];
     auto node_tensor = tensor_map[GetNodeData(node)->id()];
+
+    VLOG(3) << "Schedule node -> " << node->id() << " var : " << node_tensor->name;
     if (group->master_nodes.count(node)) {
       continue;
     }
@@ -1072,16 +1074,17 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
   VLOG(2) << "master node : " << master->id() << " ,reducer node : " << reducer->id();
   for (int idx = sub_group->nodes.size() - 1; idx >= 0; --idx) {
     auto node = sub_group->nodes[idx];
-    VLOG(2) << "Schedule node -> " << node->id();
+
     if (node == master) {
       continue;
     }
     if (op_pattern_dict[node->op()] == framework::kReduction) {
       continue;
     }
-
     auto node_data   = GetNodeData(node);
     auto node_tensor = tensor_map[node_data->id()];
+
+    VLOG(3) << "Schedule node -> " << node->id() << " var : " << node_tensor->name;
     // for x86 schedule.
     if (this->target_ == common::DefaultHostTarget()) {
       LOG(FATAL) << "X86 Not implemented";

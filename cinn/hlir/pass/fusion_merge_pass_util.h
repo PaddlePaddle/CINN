@@ -159,6 +159,10 @@ CONDITION_FUNC(elementwise_fuse_reduce) {
 }
 
 CONDITION_FUNC(broadcast_fuse_reduce) {
+  // if same shape with horizontal relation
+  if (is_same_size(helper, first, second)) {
+    return true;
+  }
   Node* reducer = nullptr;
   for (auto& node : second->master_nodes) {
     if (helper->GetOpKind(node) == OpPatternKind::kReduction) {
@@ -168,10 +172,13 @@ CONDITION_FUNC(broadcast_fuse_reduce) {
   }
   CHECK(reducer) << "Can't find reduce op in group " << second->group_id;
 
-  auto input_shape  = helper->shape_dict_.at(reducer->inlinks_in_order()[0]->source()->id());
-  auto reduce_axes  = absl::get<std::vector<int>>(reducer->attrs.attr_store.at("dim"));
+  auto input_shape = helper->shape_dict_.at(reducer->inlinks_in_order()[0]->source()->id());
+  auto input_size  = std::accumulate(input_shape.begin(), input_shape.end(), 1, std::multiplies<int>());
+
   auto output_shape = helper->GetNodeDataShape(*first->master_nodes.begin());
-  if (input_shape == output_shape) {
+  auto output_size  = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>());
+
+  if (input_size == output_size) {
     return elementwise_fuse_reduce(helper, first, second);
   }
   return false;
