@@ -31,6 +31,8 @@ class DeadCodeEliminatePass : public ProgramPass {
   using ProgramPass::ProgramPass;
 
  protected:
+  void Clear() override {}
+
   void ApplyImpl(Program* program,
                  const std::unordered_set<std::string>& fetch_ids,
                  const common::Target& target) override {

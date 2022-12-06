@@ -756,7 +756,7 @@ std::vector<Expr> GetProducers(const Expr& block, const Expr& root) {
     return false;
   });
 
-  // travserse each of other blocks and filter those ones which contain at least one producer tensor;
+  // traverse each of other blocks and filter those ones which contain at least one producer tensor;
   auto find_blocks = ir::CollectIRNodesWithoutTensor(
       root, [&block, &root](const Expr* x) { return x->As<ir::ScheduleBlockRealize>() && *x != block && *x != root; });
   for (auto&& cur : find_blocks) {

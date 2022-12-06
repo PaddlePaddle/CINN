@@ -53,6 +53,8 @@ inline int FN_INT32(clz)(int x);
 
 inline int FN_INT32(popc)(int x);
 
+inline int FN_INT32(logical_right_shift)(int x, int y);
+
 #undef FN_INT32
 
 #define FN_INT64(func) cinn_host_##func##_int64

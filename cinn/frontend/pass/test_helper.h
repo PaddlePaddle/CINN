@@ -104,17 +104,16 @@ class PassTest {
                                                               const std::vector<std::string>& input_names,
                                                               const std::vector<std::string>& output_names) {
     LOG(INFO) << program;
-    auto graph = std::make_shared<hlir::framework::Graph>(program, target_);
+    std::unordered_set<std::string> fetch_var_ids(output_names.begin(), output_names.end());
+    auto graph = std::make_shared<hlir::framework::Graph>(program, fetch_var_ids, target_);
     hlir::framework::ApplyPasses(graph.get(), DefaultOpFusionPasses());
 
     auto scope = hlir::framework::BuildScope(target_, graph);
     hlir::framework::GraphCompiler gc(target_, scope, graph);
-
     hlir::framework::GraphCompiler::CompileOptions options;
     options.with_instantiate_variables = true;
-    std::unordered_set<std::string> fetch_var_ids(output_names.begin(), output_names.end());
-    auto result          = gc.Build(options, std::move(fetch_var_ids));
-    auto runtime_program = std::move(result.runtime_program);
+    auto result                        = gc.Build(options, std::move(fetch_var_ids));
+    auto runtime_program               = std::move(result.runtime_program);
 
     for (auto& name : input_names) {
       SetInputTensor(name, scope);

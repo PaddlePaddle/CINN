@@ -176,6 +176,7 @@ NETBUILDER_BINARY_OP_DEF(Equal, equal);
 NETBUILDER_BINARY_OP_DEF(NotEqual, not_equal);
 NETBUILDER_BINARY_OP_DEF(GreaterEqual, greater_equal);
 NETBUILDER_BINARY_OP_DEF(LessEqual, less_equal);
+NETBUILDER_BINARY_OP_DEF(LogicalRightShift, logical_right_shift);
 
 #undef NETBUILDER_BINARY_OP_DEF
 

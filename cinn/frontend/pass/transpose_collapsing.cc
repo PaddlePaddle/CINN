@@ -64,6 +64,8 @@ class TransposeCollapsingPass : public ProgramPass {
   using InputToOpMap  = std::unordered_map<std::string, std::unordered_set<Instruction*>>;
 
  protected:
+  void Clear() override {}
+
   void ApplyImpl(Program* program,
                  const std::unordered_set<std::string>& fetch_ids,
                  const common::Target& target) const override {

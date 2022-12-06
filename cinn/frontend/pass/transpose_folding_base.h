@@ -33,12 +33,19 @@ class TransposeFoldingBase : public ProgramPass {
 
  protected:
   virtual void set_target_instrs() = 0;
+  void set_fold_instrs() { fold_instrs_ = {"transpose", "scale", "broadcast_to", "cast", "identity"}; }
+
+  void Clear() override {
+    target_instrs_.clear();
+    fold_instrs_.clear();
+  }
 
   void ApplyImpl(Program* program,
                  const std::unordered_set<std::string>& fetch_ids,
                  const common::Target& target) override {
     VLOG(4) << "-- Before folding: " << *program;
     set_target_instrs();
+    set_fold_instrs();
     // `out2instr` is used to represent the mapping of Output to Instruction.
     Out2InstrType out2instr;
     // `in2instr` is used to represent the mapping of Input to Instruction.
@@ -202,7 +209,7 @@ class TransposeFoldingBase : public ProgramPass {
                                     absl::flat_hash_set<Instruction*>* remove_instrs) const = 0;
 
   std::unordered_set<std::string> target_instrs_;
-  std::unordered_set<std::string> fold_instrs_{"transpose", "scale", "broadcast_to", "cast", "identity"};
+  std::unordered_set<std::string> fold_instrs_;
 };
 
 }  // namespace cinn::frontend::pass

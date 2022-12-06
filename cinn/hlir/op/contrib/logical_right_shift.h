@@ -12,15 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cinn/hlir/framework/graph.h"
+#pragma once
+
+#include <string>
+#include <vector>
+
+#include "cinn/ir/ir.h"
+#include "cinn/ir/ir_base.h"
+#include "cinn/ir/tensor.h"
 
 namespace cinn {
 namespace hlir {
-namespace pass {
+namespace op {
 
-// create a new group for every single node of the graph
-std::vector<std::shared_ptr<framework::Graph::Group>> BuildNonFusedGroups(const framework::Graph* graph);
+ir::Tensor LogicalRightShift(const ir::Tensor& A,
+                             const ir::Tensor& B,
+                             const Target& target,
+                             const std::string& output_name);
 
-}  // namespace pass
+}  // namespace op
 }  // namespace hlir
 }  // namespace cinn
