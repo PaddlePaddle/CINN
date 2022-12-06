@@ -74,7 +74,7 @@ SearchState SearchSpace::RandomScheduleMutate(const SearchState& state) {
   auto all_blocks        = state->ir_schedule.GetAllBlocks();
   auto block_sampler     = BlockSampler::Make(all_blocks, "probabilistic");
   std::string block_name = block_sampler->NextBlock(false);
-  // TODO(BiynXu): Add mutate rules
+  // TODO(BiynXu): Add rules after we have mutate rules, now only simulate with skip rule.
   std::vector<AutoGenRule*> mutate_rules = {sketch_rules_.back().get()};
   auto rule_sampler                      = RuleSampler::Make(mutate_rules, "probabilistic");
   auto new_states                        = CollectStateTransfer(state, block_name, rule_sampler.get(), 1, false, 1);
@@ -165,6 +165,14 @@ std::vector<SearchState> SearchSpace::GetInitialSketch(int num, const std::strin
       LOG(FATAL) << "Unimplemented init sketch strategy";
     }
     VLOG(6) << "generate sketch size: " << sketchs.size();
+    if (VLOG_IS_ON(6)) {
+      for (int i = 0; i < sketchs.size(); ++i) {
+        VLOG(6) << "sketch-" << i << " :\n" << sketchs[i]->DebugString();
+      }
+    }
+    // the more rules are applied, the greater the possibility of good results,
+    // the more rules are applied, the more they are saved behind the queue,
+    // so we give priority to the results in the rear
     for (auto iter = sketchs.rbegin(); iter != sketchs.rend(); ++iter) {
       result.push_back(*iter);
       if (result.size() == num) {
@@ -173,14 +181,10 @@ std::vector<SearchState> SearchSpace::GetInitialSketch(int num, const std::strin
     }
   }
 
-  VLOG(6) << "xb_debug sketch: ";
-  for (auto r : result) {
-    std::cout << r->ir_schedule.GetModule().GetExprs()[0] << std::endl;
-  }
-
   return result;
 }
 
+// Check whether the block named block_name exists in a SearchState
 bool CheckBlockExist(const SearchState& state, std::string block_name) {
   auto block_exprs = state->ir_schedule.GetAllBlocks();
   for (auto block_expr : block_exprs) {
@@ -202,12 +206,17 @@ std::vector<SearchState> SearchSpace::CollectStateTransfer(const SearchState& st
   std::list<SearchState> layer{state};
   int step = 0;
   AutoGenRule* rule;
+  // After determining a SearchState and a block, each rule has two possibilities: apply and not apply.
+  // In all transfer spaces, select a rule at each step, and collect all possible new states arrived by apply and not
+  // apply. This forms a tree, and we can use rule pruning or random pruning to reduce the number of sketches.
   VLOG(6) << "Collect the states of all transfers within steps: " << steps;
   while ((step++ < steps || steps == 0) && (rule = rule_sampler->NextRule())) {
     VLOG(6) << "step = " << step << ", rule: " << rule->GetRuleName();
     std::list<SearchState> new_states;
     int id = 0;
     for (std::list<SearchState>::iterator iter = layer.begin(); iter != layer.end();) {
+      // Some rules will reduce the number of blocks, such as AutoInline,
+      // so we need to check whether the SearchState still has the block.
       if (!CheckBlockExist(*iter, block_name)) {
         ++iter;
         continue;
@@ -220,7 +229,7 @@ std::vector<SearchState> SearchSpace::CollectStateTransfer(const SearchState& st
         ++iter;
         continue;
       }
-      // if can apply the rule, apply it and determine whether to prune
+      // if can apply the rule, apply it and determine whether to prune the branche that do not apply
       std::vector<SearchState> tmp_states = rule->ApplyOnBlock(*iter, block_name);
       new_states.insert(new_states.end(), tmp_states.begin(), tmp_states.end());
       bool need_prune = false;

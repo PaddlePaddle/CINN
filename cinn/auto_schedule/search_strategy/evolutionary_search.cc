@@ -66,7 +66,6 @@ std::vector<SearchState> EvolutionarySearch::SearchModuleExprBests(const TuningO
   PrintStates(4, "GetTopKCandidatesFromDatabase", topk_from_database);
   int init_num = options.evolution_init_population_num - topk_from_database.size();
 
-  // std::vector<SearchState> random_sketch = search_space_->GetInitialSketch(random_num, "random_prune");
   std::vector<SearchState> init_sketch = InitSketch(init_num, "rule_prune");
   PrintStates(4, "InitSketch", init_sketch);
 

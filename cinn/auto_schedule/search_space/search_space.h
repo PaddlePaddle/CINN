@@ -45,7 +45,8 @@ class SearchSpace {
   // Evolutionary search mutate, returns the mutated ModuleExpr and estimited cost
   virtual SearchState GetScheduleMutate(const SearchState& state, const ExprCostModel& cost_model);
 
-  // Generate sketch as initial population of evolutionary search
+  // Generate sketch as initial population of evolutionary search.
+  // Current optional strategies are "rule_prune" and "random_prune".
   virtual std::vector<SearchState> GetInitialSketch(int num, const std::string& strategy);
 
  private:
@@ -60,6 +61,16 @@ class SearchSpace {
   // Generate sketch pruned by rules as initial population of evolutionary search
   std::vector<SearchState> GetRulePrunedInitialSketch();
 
+  /**
+   * @brief Collect the new states that may be transferred to after applying several rules on a block from a certain
+   * state.
+   * @param state Starting point of state transition.
+   * @param block_name Name of the block to apply the rules to.
+   * @param rule_sampler Sampler that samples the new rule to apply on the block.
+   * @param steps Number of steps to apply the rule.
+   * @param prune_by_rule If true, prune the state transition tree by rule, otherwise prune randomly.
+   * @param prune_probability Pruning probability of random pruning.
+   */
   std::vector<SearchState> CollectStateTransfer(const SearchState& state,
                                                 const std::string& block_name,
                                                 RuleSampler* rule_sampler,
