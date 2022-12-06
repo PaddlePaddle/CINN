@@ -43,7 +43,7 @@ class AddCacheRead : public AutoGenRule {
   bool MeetCondition(const ir::Expr& block_expr) const;
 
   // Get the out most reduce loop to set cache block in.
-  ir::Expr GetTargetLoop(const ir::Expr& block_expr) const;
+  ir::Expr GetOutermostReduceLoop(const ir::Expr& block_expr) const;
 
  private:
   std::vector<ir::Expr> applicable_schedule_blocks_;

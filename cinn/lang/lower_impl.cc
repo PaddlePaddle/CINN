@@ -68,7 +68,7 @@ void BindBuffer(StageMap& stages) {
 Expr LowerGroup(const poly::ScheduleGroup& group,
                 const std::map<std::string, Expr>& tuple_to_expr,
                 std::map<std::string, ir::Tensor>* global_tensor_map,
-                std::unordered_set<std::string>& resized_buffer,
+                std::unordered_map<std::string, std::vector<Expr>>& resized_buffer_cache,
                 StageMap stage_map,
                 ir::CudaAxisInfo* cuda_axis_info) {
   BindBuffer(stage_map);
@@ -198,7 +198,7 @@ Expr LowerGroup(const poly::ScheduleGroup& group,
     }
     std::reverse(traverse_order.begin(), traverse_order.end());
 
-    optim::TransformGpuForloops(forloop_infos, traverse_order, global_tensor_map, resized_buffer, &e);
+    optim::TransformGpuForloops(forloop_infos, traverse_order, global_tensor_map, resized_buffer_cache, &e);
     auto axis_info = optim::GatherAxisInfoFromStages(stages);
     if (axis_info.valid()) cuda_axis_info->ExtendWith(axis_info);
   }
@@ -693,7 +693,7 @@ std::vector<Expr> LowerImpl::GenerateFunctionBody(const poly::Schedule* schedule
   CHECK(!schedule->groups.empty()) << "no group is generated";
 
   std::map<std::string, ir::Tensor> global_tensor_map;
-  std::unordered_set<std::string> resized_buffer;
+  std::unordered_map<std::string, std::vector<Expr>> resized_buffer_cache;
 
   for (auto& group : schedule->groups) {
     CHECK_GT(group.nodes.size(), 0) << "group is empty";
@@ -753,7 +753,7 @@ std::vector<Expr> LowerImpl::GenerateFunctionBody(const poly::Schedule* schedule
 
     ir::CudaAxisInfo temp_cuda_axis_info;
     Expr group_expr =
-        LowerGroup(group, tuple_to_expr, &global_tensor_map, resized_buffer, stages_, &temp_cuda_axis_info);
+        LowerGroup(group, tuple_to_expr, &global_tensor_map, resized_buffer_cache, stages_, &temp_cuda_axis_info);
 
     if (group_expr.defined()) {
       cuda_axis_info_.emplace_back(std::move(temp_cuda_axis_info));
