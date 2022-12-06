@@ -69,12 +69,10 @@ class AutoGenRule {
   virtual std::string GetRuleName() const = 0;
 
   // Analyze the ApplyType of the rule used for a block determined by a specific SearchState and block name
-  virtual RuleApplyType AnalyseApplyType(SearchState state, const std::string& block_name) const {
-    return RuleApplyType::kCannotApply;
-  };
+  virtual RuleApplyType AnalyseApplyType(SearchState state, const std::string& block_name) const = 0;
 
   // Apply the rule to a block determined by a specific SearchState and block name
-  virtual std::vector<SearchState> ApplyOnBlock(SearchState state, const std::string& block_name) { return {}; };
+  virtual std::vector<SearchState> ApplyOnBlock(SearchState state, const std::string& block_name) = 0;
 
  protected:
   // number of ScheduleBlock that can apply this auto gen rule
