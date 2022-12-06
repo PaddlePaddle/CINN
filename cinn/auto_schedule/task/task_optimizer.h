@@ -39,16 +39,17 @@ class TaskOptimizer {
  private:
   TuningResult::OptimizedComputeExpr OptimizeByEvolution(const TuningOptions& options);
 
+  std::vector<SearchState> SearchOneRound(const TuningOptions& options, std::vector<MeasureInput>* measure_candidates);
+
   ir::LoweredFunc FuncWithUpdatedBody(const ir::LoweredFunc& old_func, ir::Expr& body);
 
+  bool PruneInvalid(const ir::LoweredFunc& lowered_func);
+
+ private:
   const TuneTask* task_;
-
   ScheduleMeasurer* schedule_measurer_;
-
   std::unique_ptr<EvolutionarySearch> evolutionary_search_ = nullptr;
-
   ExprCostModel cost_model_;
-
   Database* database_;
 };
 

@@ -22,6 +22,8 @@
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_schedule.h"
+#include "cinn/ir/ir_visitor.h"
+#include "cinn/utils/functional.h"
 #include "cinn/utils/string.h"
 
 namespace cinn {
@@ -57,6 +59,78 @@ predicted_cost: %f)ROC";
 
 bool operator<(const SearchState& left, const SearchState& right) {
   return left->predicted_cost < right->predicted_cost;
+}
+
+class IrNodesStructuralHash : public ir::IRVisitor {
+ public:
+  IrNodesStructuralHash(size_t init_key) : hash_key_(init_key) {}
+  size_t operator()(const Expr* expr) {
+    Visit(expr);
+    return hash_key_;
+  }
+
+  void Visit(const Expr* expr) override {
+    if (!expr->defined()) return;
+    auto type_code = static_cast<IrNodeTyUnderlyingType>(expr->node_type());
+    hash_key_      = utils::HashCombine(hash_key_, type_code);
+    ir::IRVisitor::Visit(expr);
+  }
+
+ private:
+#define __m(t__)                          \
+  void Visit(const ir::t__* x) override { \
+    for (auto* n : x->expr_fields()) {    \
+      if (n->defined()) {                 \
+        Visit(n);                         \
+      }                                   \
+    }                                     \
+  }
+
+  NODETY_FORALL(__m)
+#undef __m
+
+ private:
+  using IrNodeTyUnderlyingType = std::underlying_type<ir::IrNodeTy>::type;
+  size_t hash_key_;
+};
+
+size_t SearchStateHash::operator()(const SearchState& s) const {
+  size_t hash_key   = 0;
+  const auto& exprs = s->ir_schedule.GetModule().GetExprs();
+  for (auto&& expr : exprs) {
+    hash_key = IrNodesStructuralHash(hash_key)(&expr);
+  }
+  return hash_key;
+}
+
+bool SearchStateEqual::operator()(const SearchState& lhs, const SearchState& rhs) const {
+  const auto& lhs_exprs = lhs->ir_schedule.GetModule().GetExprs();
+  const auto& rhs_exprs = rhs->ir_schedule.GetModule().GetExprs();
+  // compare exprs size firstly
+  if (lhs_exprs.size() != rhs_exprs.size()) return false;
+
+  // compare every expr one by one with ir::IrEqualVisitor
+  for (int i = 0; i < lhs_exprs.size(); ++i) {
+    ir::IrEqualVisitor compartor(/*allow_name_suffix_diff=*/true);
+    if (!compartor.Compare(lhs_exprs[i], rhs_exprs[i])) return false;
+  }
+  return true;
+}
+
+void PrintStates(const std::string& phase_name,
+                 const std::vector<SearchState>& states,
+                 bool enable,
+                 bool print_detail) {
+  if (!enable) return;
+
+  LOG(INFO) << phase_name << " states size:" << states.size();
+  SearchStateHash state_hasher;
+  for (auto i = 0; i < states.size(); ++i) {
+    uint64_t hash_key = state_hasher(states[i]);
+    LOG(INFO) << "State-" << i << " hash:" << hash_key;
+    if (print_detail)
+      LOG(INFO) << "****** State-" << i << "(hash:" << hash_key << ") Detail ******" << states[i]->DebugString();
+  }
 }
 
 }  // namespace auto_schedule

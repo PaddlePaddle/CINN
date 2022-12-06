@@ -98,13 +98,12 @@ class EvolutionarySearch {
                                                        int num,
                                                        float eps_greedy);
 
+ private:
   std::unique_ptr<SearchSpace> search_space_;
-
   const TuneTask& tune_task_;
-
   const ExprCostModel& cost_model_;  // not owned
-
-  Database* database_;  // not owned
+  Database* database_;               // not owned
+  std::unordered_set<SearchState, SearchStateHash, SearchStateEqual> visited_candidates_;
 };
 
 }  // namespace auto_schedule

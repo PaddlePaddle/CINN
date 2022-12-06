@@ -57,6 +57,8 @@ class SearchSpace {
   int init_sketch_random_depth_ = 6;
   // supported AutoGenRules, every task holds a set
   std::vector<std::unique_ptr<AutoGenRule>> sketch_rules_;
+  // TODO(CtfGo): it will be removed after we
+  std::unordered_set<SearchState, SearchStateHash, SearchStateEqual> visited_candidates_;
 };
 
 }  // namespace auto_schedule

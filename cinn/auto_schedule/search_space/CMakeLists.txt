@@ -8,3 +8,4 @@ gather_srcs(cinnapi_src SRCS
     )
 
 cc_test(test_search_space SRCS search_space_test.cc DEPS cinncore)
+cc_test(test_search_state SRCS search_state_test.cc DEPS cinncore)
