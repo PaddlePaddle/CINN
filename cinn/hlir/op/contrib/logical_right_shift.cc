@@ -25,6 +25,7 @@
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
+#include "cinn/hlir/op/op_util.h"
 #include "cinn/hlir/pe/ir_schedule_pe.h"
 #include "cinn/hlir/pe/nn.h"
 #include "cinn/hlir/pe/schedule.h"
@@ -113,7 +114,7 @@ std::shared_ptr<OpStrategy> StrategyForLogicalRightShift(const framework::NodeAt
 
   auto strategy = std::make_shared<framework::OpStrategy>();
   strategy->AddImpl(logical_right_shift_compute,
-                    framework::GetInjectiveScheduleFunc(output_shapes, target),
+                    GetInjectiveScheduleFunc(output_shapes, target),
                     "strategy.logical_right_shift.x86",
                     1);
   return strategy;

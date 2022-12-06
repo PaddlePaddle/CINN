@@ -134,7 +134,7 @@ inline int FN_INT32(clz)(int x) { return __builtin_clz(x); }
 
 inline int FN_INT32(popc)(int x) { return __builtin_popcount(x); }
 
-inline int FN_INT32(logical_right_shift)(int x, int y) { return (x >> y) & ~(((0x1 << 31) >> y) << 1); }
+inline int FN_INT32(logical_right_shift)(int x, int y) { return ((unsigned int)x >> y); }
 
 #undef FN_INT32
 
