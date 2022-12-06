@@ -88,7 +88,7 @@ void AddCacheRead::Apply(int index) {
     // The original block expr is invalid after the CacheRead schedule,
     // so we reacquire the block expr after the schedule according to the block name
     sch_block_expr       = ir_schedule_->GetBlock(block_name);
-    ir::Expr target_loop = GetTargetLoop(sch_block_expr, ir_schedule_);
+    ir::Expr target_loop = GetOutermostReduceLoop(sch_block_expr, ir_schedule_);
     ir_schedule_->ComputeAt(cache_block, target_loop);
   }
 }
@@ -143,7 +143,7 @@ std::vector<SearchState> AddCacheRead::ApplyOnBlock(SearchState state, const std
     // The original block expr is invalid after the CacheRead schedule,
     // so we reacquire the block expr after the schedule according to the block name
     sch_block_expr       = ir_sch->GetBlock(block_name);
-    ir::Expr target_loop = GetTargetLoop(sch_block_expr, ir_sch);
+    ir::Expr target_loop = GetOutermostReduceLoop(sch_block_expr, ir_sch);
     ir_sch->ComputeAt(cache_block, target_loop);
   }
 
@@ -167,7 +167,7 @@ bool AddCacheRead::MeetCondition(const ir::Expr& block_expr) const {
   return true;
 }
 
-ir::Expr AddCacheRead::GetTargetLoop(const ir::Expr& block_expr, ir::IRSchedule* ir_sch) const {
+ir::Expr AddCacheRead::GetOutermostReduceLoop(const ir::Expr& block_expr, ir::IRSchedule* ir_sch) const {
   // Get the out most reduce axis
   std::vector<ir::Expr> for_exprs = ir_sch->GetLoops(block_expr);
   for (auto& for_expr : for_exprs) {

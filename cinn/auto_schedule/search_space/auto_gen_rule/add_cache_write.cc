@@ -66,12 +66,34 @@ RuleApplyType AddCacheWrite::Init(ir::IRSchedule* ir_schedule) {
   return RuleApplyType::kCannotApply;
 }
 
+ir::Expr AddCacheWrite::GetFirstSpatialLoopOutofOutermostReduce(const ir::Expr& block) const {
+  std::vector<ir::Expr> for_exprs = ir_schedule_->GetLoops(block);
+  ir::Expr spatial_loop(nullptr);
+  for (auto& for_expr : for_exprs) {
+    ir::Var for_node_var          = for_expr.As<ir::For>()->loop_var;
+    std::string for_loop_var_name = for_node_var->name;
+    if (for_loop_var_name.substr(0, 6) == "reduce") {
+      VLOG(6) << "get target loop: " << for_expr;
+      return spatial_loop;
+    }
+    spatial_loop = for_expr;
+  }
+
+  LOG(FATAL) << "Cannot find target loop.";
+  return for_exprs[0];
+}
+
 void AddCacheWrite::Apply(int index) {
   ir::Expr sch_block_expr = applicable_schedule_blocks_[index];
 
   // Schedule
   ir::Expr cache_block = ir_schedule_->CacheWrite(sch_block_expr, 0, cache_memory_type_);
   VLOG(6) << "cache block: " << cache_block;
+  ir::Expr target_loop = GetFirstSpatialLoopOutofOutermostReduce(cache_block);
+  VLOG(6) << "target_loop: " << target_loop;
+  const std::string block_name =
+      sch_block_expr.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->name;
+  ir_schedule_->ReverseComputeAt(ir_schedule_->GetBlock(block_name), target_loop);
 }
 
 bool AddCacheWrite::MeetCondition(const ir::Expr& block_expr) const {

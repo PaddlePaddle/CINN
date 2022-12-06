@@ -73,6 +73,7 @@ __device__ inline int FN_INT32(bitwise_xor)(int a, int b) { return a ^ b; }
 __device__ inline int FN_INT32(bitwise_not)(int a) { return ~a; }
 __device__ inline int FN_INT32(clz)(int a) { return __clz(a); }
 __device__ inline int FN_INT32(popc)(int a) { return __popc(a); }
+__device__ inline int FN_INT32(logical_right_shift)(int a, int b) { return ((unsigned int)a >> b); }
 
 // *************************************************************** //
 

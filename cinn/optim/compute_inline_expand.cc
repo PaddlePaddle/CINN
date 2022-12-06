@@ -37,7 +37,7 @@ struct TensorInlineExpandMutator : public ir::IRMutator<> {
   bool inline_code{false};
   bool temp_buffer{false};
   bool memory_local{false};
-  std::unordered_set<std::string> resized_buffer;
+  std::unordered_map<std::string, std::vector<Expr>> resized_buffer_cache;
   std::vector<std::string> tensor_names;
   std::vector<std::vector<Var>> replace_var;
   std::map<std::string, Expr> var_to_extent;
@@ -52,7 +52,7 @@ struct TensorInlineExpandMutator : public ir::IRMutator<> {
     for (int i = 0; i < tensor_names.size(); i++) {
       for (auto &var : replace_var[i]) {
         optim::CUDAReplaceIndexOfCachePass(
-            expr, var, ir::Expr(0), all_tensor_map_, resized_buffer, false, var->upper_bound, tensor_names[i]);
+            expr, var, ir::Expr(0), all_tensor_map_, resized_buffer_cache, false, var->upper_bound, tensor_names[i]);
       }
     }
   }
