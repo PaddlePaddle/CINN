@@ -1221,24 +1221,35 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
           auto reducer_1_tensor = tensor_map[reducer_data->id() + "_1"];
           auto reducer_1_block  = ir_sch.GetBlock(reducer_1_tensor->name);
           auto reducer_1_loops  = ir_sch.GetLoops(reducer_1_block);
+
+          auto node_loops = ir_sch.GetLoops(node_tensor->name);
+          if (ir_sch.GetLoops(node_tensor->name).size() < ir_sch.GetLoops(reducer_1_block).size()) {
+            ir_sch.Split(node_tensor->name, 0, {-1, ir::GetLoopExtent(node_loops[0])});
+          }
+
           CHECK_EQ(ir_sch.GetLoops(node_tensor->name).size(), ir_sch.GetLoops(reducer_1_block).size())
-              << "node loop size and reduce loop size must be equal!";
+              << "node loop size and reduce loop size must be equal!" << ir_sch.GetModule().GetExprs().at(0);
           auto node_block = ir_sch.GetBlock(node_tensor->name);
           ir_sch.SimpleComputeAt(node_block, reducer_1_loops.back());
         } else {
           auto reducer_0_tensor = tensor_map[reducer_data->id() + "_0"];
           auto reducer_0_block  = ir_sch.GetBlock(reducer_0_tensor->name);
           auto reducer_0_loops  = ir_sch.GetLoops(reducer_0_block);
+          {
+            auto node_loops = ir_sch.GetLoops(node_tensor->name);
+            std::vector<int> factors;
+            for (auto& loop : reducer_0_loops) {
+              factors.push_back(loop.As<ir::For>()->extent.as_int32());
+            }
+            ir_sch.Split(node_loops.back(), factors);
+          }
 
           auto node_loops = ir_sch.GetLoops(node_tensor->name);
-          std::vector<int> factors;
-          for (auto& loop : reducer_0_loops) {
-            factors.push_back(loop.As<ir::For>()->extent.as_int32());
+          if (node_loops.size() < reducer_0_loops.size()) {
+            ir_sch.Split(node_tensor->name, 0, {-1, ir::GetLoopExtent(node_loops[0])});
           }
-          ir_sch.Split(node_loops.back(), factors);
-
           CHECK_EQ(ir_sch.GetLoops(node_tensor->name).size(), reducer_0_loops.size())
-              << "node loop size and reduce loop size must be equal!";
+              << "node loop size and reduce loop size must be equal!" << ir_sch.GetModule().GetExprs().at(0);
           auto node_block = ir_sch.GetBlock(node_tensor->name);
           ir_sch.SimpleComputeAt(node_block, reducer_0_loops.back());
         }
