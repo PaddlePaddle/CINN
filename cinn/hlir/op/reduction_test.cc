@@ -27,13 +27,13 @@
 #include "cinn/backends/llvm/execution_engine.h"
 #include "cinn/backends/llvm/runtime_symbol_registry.h"
 #include "cinn/backends/llvm/simple_jit.h"
-#include "cinn/backends/nvrtc_util.h"
+#include "cinn/backends/nvrtc/nvrtc_util.h"
 #include "cinn/cinn.h"
 #include "cinn/common/target.h"
 #include "cinn/common/test_helper.h"
+#include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
-#include "cinn/hlir/framework/op_lowering.h"
 #include "cinn/hlir/framework/op_strategy.h"
 #include "cinn/hlir/op/use_ops.h"
 #include "cinn/hlir/pe/nn.h"
@@ -108,12 +108,12 @@ std::pair<ir::Module, std::string> GenReduceCode(const std::vector<int>& shape,
     func = lang::LowerVec(func_name, rets.back(), inputs, {}, {}, nullptr, target);
   } else {
     std::vector<std::string> input_output_nodes{"X", op_name};
-    func = GetFuncFromOpImpl(impl,
-                             common::CINNValuePack{{common::CINNValue(X), common::CINNValue(op_name)}},
-                             inputs,
-                             input_output_nodes,
-                             "fn_" + func_name,
-                             target);
+    func = GetFuncFromImpl(impl,
+                           common::CINNValuePack{{common::CINNValue(X), common::CINNValue(op_name)}},
+                           inputs,
+                           input_output_nodes,
+                           func_name,
+                           target);
   }
   for (auto& f : func) {
     LOG(INFO) << "Test Strategy Codegen:\n" << f;
@@ -279,7 +279,7 @@ void TestCaseForReduce(
   auto source_code = GenReduceCode(shape, dim, test_name, false, op_name).second;
 
   // nv jit compile to ptx
-  backends::NVRTC_Compiler compiler;
+  backends::nvrtc::Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
 
@@ -352,7 +352,7 @@ TEST(Operator, Operator_Reduction_Case_6_4) {
   auto host_source = GenReduceCode(shape, dim, func_name);
 
   // compile to ptx
-  backends::NVRTC_Compiler compiler;
+  backends::nvrtc::Compiler compiler;
   auto ptx = compiler(host_source.second);
   CHECK(!ptx.empty());
 

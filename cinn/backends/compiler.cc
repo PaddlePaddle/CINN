@@ -22,7 +22,7 @@
 #include "cinn/backends/codegen_cuda_dev.h"
 #include "cinn/backends/codegen_cuda_host.h"
 #include "cinn/backends/codegen_cuda_util.h"
-#include "cinn/backends/nvrtc_util.h"
+#include "cinn/backends/nvrtc/nvrtc_util.h"
 #include "cinn/runtime/cuda/cuda_module.h"
 #include "cinn/runtime/cuda/cuda_util.h"
 #endif
@@ -101,7 +101,7 @@ void Compiler::CompileCudaModule(const Module& module, const std::string& code) 
   }
   using runtime::cuda::CUDAModule;
 
-  backends::NVRTC_Compiler compiler;
+  backends::nvrtc::Compiler compiler;
 
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());

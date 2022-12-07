@@ -81,7 +81,7 @@ std::shared_ptr<OpStrategy> StrategyForElementwise(const framework::NodeAttr &at
 
   auto strategy = std::make_shared<framework::OpStrategy>();
   strategy->AddImpl(
-      unary_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy." + op_name + ".x86", 1);
+      unary_compute, GetElementwiseScheduleFunc(output_shapes, target), "strategy." + op_name + ".x86", 1);
 
   return strategy;
 }
@@ -144,19 +144,28 @@ std::shared_ptr<OpStrategy> StrategyForScale(const framework::NodeAttr &attrs,
       CHECK(pack_args[1].is_string());
       tensor_name = pack_args[1].operator std::string();
     }
+
     if (bias_after_scale) {
       out = Compute(
-          A->shape, [=](const std::vector<Expr> &indice) { return scale * A(indice) + bias; }, tensor_name);
+          A->shape,
+          [=](const std::vector<Expr> &indice) {
+            return ir::Cast::Make(A->type(), Expr(scale)) * A(indice) + ir::Cast::Make(A->type(), Expr(bias));
+          },
+          tensor_name);
     } else {
       out = Compute(
-          A->shape, [=](const std::vector<Expr> &indice) { return scale * (A(indice) + bias); }, tensor_name);
+          A->shape,
+          [=](const std::vector<Expr> &indice) {
+            return ir::Cast::Make(A->type(), Expr(scale)) * (A(indice) + ir::Cast::Make(A->type(), Expr(bias)));
+          },
+          tensor_name);
     }
     auto stages = CreateStages({out});
     *ret        = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(scale_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.scale.x86", 1);
+  strategy->AddImpl(scale_compute, GetElementwiseScheduleFunc(output_shapes, target), "strategy.scale.x86", 1);
 
   return strategy;
 }
@@ -208,7 +217,7 @@ std::shared_ptr<OpStrategy> StrategyForConstScalar(const framework::NodeAttr &at
 
   auto strategy = std::make_shared<framework::OpStrategy>();
   strategy->AddImpl(
-      const_scalar_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.const_scalar.x86", 1);
+      const_scalar_compute, GetElementwiseScheduleFunc(output_shapes, target), "strategy.const_scalar.x86", 1);
 
   return strategy;
 }
@@ -306,10 +315,8 @@ std::shared_ptr<OpStrategy> StrategyForFillConstant(const framework::NodeAttr &a
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(fill_constant_compute,
-                    framework::GetInjectiveScheduleFunc(output_shapes, target),
-                    "strategy.fill_constant.x86",
-                    1);
+  strategy->AddImpl(
+      fill_constant_compute, GetElementwiseScheduleFunc(output_shapes, target), "strategy.fill_constant.x86", 1);
 
   return strategy;
 }
@@ -396,7 +403,7 @@ std::shared_ptr<OpStrategy> StrategyForAssignValue(const framework::NodeAttr &at
 
   auto strategy = std::make_shared<framework::OpStrategy>();
   strategy->AddImpl(
-      assign_value_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.assign_value.x86", 1);
+      assign_value_compute, GetElementwiseScheduleFunc(output_shapes, target), "strategy.assign_value.x86", 1);
 
   return strategy;
 }
@@ -513,6 +520,324 @@ StrategyForUnary(rsqrt, Rsqrt);
 StrategyForUnary(sigmoid, Sigmoid);
 
 #undef StrategyForUnary
+
+std::shared_ptr<framework::OpStrategy> StrategyForSqueeze(const framework::NodeAttr &attrs,
+                                                          const std::vector<ir::Tensor> &inputs,
+                                                          const std::vector<Type> &out_type,
+                                                          const std::vector<std::vector<int>> &output_shapes,
+                                                          const Target &target) {
+  const std::vector<int> &axes =
+      attrs.attr_store.count("axes") ? absl::get<std::vector<int>>(attrs.attr_store.at("axes")) : std::vector<int>{};
+
+  framework::CINNCompute squeeze_compute([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input arguments of Squeeze compute is empty! Please check.\n";
+    CINNValuePack pack_args = args[0];
+    CHECK_GE(pack_args.size(), 1U) << "at least 1 input tensors for Squeeze compute\n";
+    Expr A = pack_args[0];
+    CHECK(A.as_tensor());
+    CHECK(!output_shapes.empty());
+    auto tensor_A = A.as_tensor_ref();
+    auto stages   = CreateStages({tensor_A});
+    VLOG(3) << "A shape: " << utils::Join(tensor_A->shape, ", ")
+            << ", output_shapes: " << utils::Join(output_shapes[0], ", ");
+
+    std::string tensor_name = UniqName("Squeeze_out");
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(pack_args.size(), 2U);
+      tensor_name = pack_args[1].operator std::string();
+    }
+
+    ir::Tensor out = pe::Squeeze(tensor_A, axes, tensor_name);
+    std::vector<CINNValue> res;
+    stages->InsertLazily(out);
+    res.push_back(CINNValue(out));
+    CHECK(!out_type.empty()) << "Output type of Squeeze is empty! Please check.\n";
+    res.push_back(CINNValue(stages));
+    *ret = CINNValuePack{res};
+  });
+
+  auto strategy = std::make_shared<framework::OpStrategy>();
+  strategy->AddImpl(squeeze_compute, GetElementwiseScheduleFunc(output_shapes, target), "strategy.squeeze.x86", 1);
+  return strategy;
+}
+
+std::vector<std::vector<int>> InferShapeForSqueeze(const std::vector<std::vector<int>> &inputs_shape,
+                                                   const framework::AttrMapType &attrs) {
+  CHECK_EQ(inputs_shape.size(), 1U);
+  const std::vector<int> &axes =
+      attrs.count("axes") ? absl::get<std::vector<int>>(attrs.at("axes")) : std::vector<int>{};
+  VLOG(4) << "The [axis] value used in Squeeze: " << cinn::utils::Join(axes, ",");
+
+  const auto &posi_axes = GetPositiveAxes(axes, inputs_shape[0].size());
+  std::vector<int> output_shape;
+  if (posi_axes.size()) {
+    for (int idx = 0; idx < inputs_shape[0].size(); ++idx) {
+      // if can't find idx in axis
+      if (std::find(posi_axes.begin(), posi_axes.end(), idx) == posi_axes.end()) {
+        output_shape.push_back(inputs_shape[0][idx]);
+      } else {
+        CHECK_EQ(inputs_shape[0][idx], 1);
+      }
+    }
+  } else {
+    for (int idx = 0; idx < inputs_shape[0].size(); ++idx) {
+      if (inputs_shape[0][idx] != 1) {
+        output_shape.push_back(inputs_shape[0][idx]);
+      }
+    }
+  }
+
+  VLOG(4) << "The output calculated in Squeeze: " << cinn::utils::Join(output_shape, ", ");
+
+  return {output_shape};
+}
+
+std::shared_ptr<OpStrategy> StrategyForExpandDims(const framework::NodeAttr &attrs,
+                                                  const std::vector<ir::Tensor> &inputs,
+                                                  const std::vector<Type> &out_type,
+                                                  const std::vector<std::vector<int>> &output_shapes,
+                                                  const Target &target) {
+  const std::vector<int> &axes =
+      attrs.attr_store.count("axes") ? absl::get<std::vector<int>>(attrs.attr_store.at("axes")) : std::vector<int>{};
+
+  framework::CINNCompute expand_dims_compute{[=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input args are empty! Please check again.";
+    CINNValuePack input_args = args[0];
+    int input_size           = input_args.size();
+    CHECK_GE(input_size, 1U) << "Require 1 input tensors for expand_dims compute.";
+    Expr x = input_args[0];
+    CHECK(x.as_tensor());
+
+    std::string tensor_name = UniqName("expand_dims_output");
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(input_args.size(), 2U);
+      CHECK(input_args[1].is_string());
+      tensor_name = input_args[1].operator std::string();
+    }
+
+    auto out    = pe::ExpandDims(x.as_tensor_ref(), axes, output_shapes[0], tensor_name);
+    auto stages = CreateStages({x.as_tensor_ref()});
+    stages->InsertLazily(out);
+    std::vector<CINNValue> res{CINNValue(out), CINNValue(stages)};
+    *ret = CINNValuePack{res};
+  }};
+
+  auto strategy = std::make_shared<framework::OpStrategy>();
+  strategy->AddImpl(
+      expand_dims_compute, GetElementwiseScheduleFunc(output_shapes, target), "strategy.expand_dims.x86", 1);
+  return strategy;
+}
+
+std::vector<std::vector<int>> InferShapeForExpandDims(const std::vector<std::vector<int>> &inputs_shape,
+                                                      const framework::AttrMapType &attrs) {
+  CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
+
+  CHECK_EQ(inputs_shape.size(), 1U);
+  const std::vector<int> &axes =
+      attrs.count("axes") ? absl::get<std::vector<int>>(attrs.at("axes")) : std::vector<int>{};
+  VLOG(4) << "The [axes] value used in ExpandDims: " << cinn::utils::Join(axes, ",");
+
+  std::vector<int> out_shape(inputs_shape[0].size() + axes.size(), 1);
+  const auto &posi_axes = GetPositiveAxes(axes, out_shape.size());
+
+  int shape_pos = 0, axes_pos = 0;
+  for (int i = 0; i < out_shape.size(); ++i) {
+    if (axes_pos < posi_axes.size() && posi_axes[axes_pos] == i) {
+      out_shape[i] = 1;
+      ++axes_pos;
+    } else if (shape_pos < inputs_shape[0].size()) {
+      out_shape[i] = inputs_shape[0][shape_pos];
+      ++shape_pos;
+    }
+  }
+
+  VLOG(4) << "The output calculated in ExpandDims: " << cinn::utils::Join(out_shape, ", ");
+  return {out_shape};
+}
+
+std::shared_ptr<OpStrategy> StrategyForReshape(const framework::NodeAttr &attrs,
+                                               const std::vector<ir::Tensor> &inputs,
+                                               const std::vector<Type> &out_type,
+                                               const std::vector<std::vector<int>> &output_shapes,
+                                               const Target &target) {
+  framework::CINNCompute reshape_compute([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input arguments of Reshape compute is empty! Please check.\n";
+    CINNValuePack pack_args = args[0];
+    CHECK_GE(pack_args.size(), 1U) << "at least 1 input tensors for Reshape compute\n";
+    Expr A = pack_args[0];
+    CHECK(A.as_tensor());
+    CHECK(!output_shapes.empty());
+    auto attr_store = attrs.attr_store;
+    CHECK(attr_store.count("shape")) << "find no attr of shape";
+    std::vector<int> new_shape = absl::get<std::vector<int>>(attr_store.at("shape"));
+    auto tensor_A              = A.as_tensor_ref();
+    auto stages                = CreateStages({tensor_A});
+    VLOG(3) << "A shape: " << utils::Join(tensor_A->shape, ", ")
+            << ", output_shapes: " << utils::Join(output_shapes[0], ", ");
+
+    std::string tensor_name = UniqName("Reshape_out");
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(pack_args.size(), 2);
+      CHECK(pack_args[1].is_string());
+      tensor_name = pack_args[1].operator std::string();
+    }
+
+    ir::Tensor out = pe::Reshape(tensor_A, output_shapes[0], tensor_name);
+    std::vector<CINNValue> res;
+    stages->InsertLazily(out);
+    res.push_back(CINNValue(out));
+    CHECK(!out_type.empty()) << "Output type of Reshape is empty! Please check.\n";
+    res.push_back(CINNValue(stages));
+
+    *ret = CINNValuePack{res};
+  });
+
+  auto strategy = std::make_shared<framework::OpStrategy>();
+  strategy->AddImpl(reshape_compute, GetElementwiseScheduleFunc(output_shapes, target), "strategy.reshape.x86", 1);
+  return strategy;
+}
+
+std::vector<std::vector<int>> InferShapeForReshape(const std::vector<std::vector<int>> &inputs_shape,
+                                                   const framework::AttrMapType &attrs) {
+  CHECK_EQ(inputs_shape.size(), 1U) << "The input's shape size should be 1! Please check again.";
+  std::vector<int> output_shape;
+  for (auto &iter : attrs) {
+    if (iter.first == "shape") {
+      output_shape = absl::get<std::vector<int>>(iter.second);
+      break;
+    }
+  }
+  int tensor_size = 1;
+  for (auto i : inputs_shape[0]) {
+    tensor_size *= i;
+  }
+  CHECK(!output_shape.empty()) << "infer_shape for reshape turns out to be empty. Please check\n";
+  int flag_index = -1;
+  for (int i = 0; i < output_shape.size(); i++) {
+    if (output_shape[i] > 0) {
+      CHECK_EQ(tensor_size % output_shape[i], 0)
+          << "Incompatible input shape and output shape in op reshape: " << tensor_size << ", " << output_shape[i];
+      tensor_size /= output_shape[i];
+    } else if (output_shape[i] == 0) {
+      CHECK_LT(i, inputs_shape[0].size())
+          << "In op reshape, when attribute shape[i] == 0, shape[i] = input_shape[i]. But now the size of input_shape "
+             "<= i, which is incompatible. Please check!";
+      output_shape[i] = inputs_shape[0][i];
+      CHECK_EQ(tensor_size % output_shape[i], 0)
+          << "Incompatible input shape and output shape in op reshape: " << tensor_size << ", " << output_shape[i];
+      tensor_size /= output_shape[i];
+    } else if (output_shape[i] == -1 && flag_index == -1) {
+      flag_index = i;
+    } else if (output_shape[i] == -1) {
+      LOG(FATAL) << "More than one -1 in output_shape of op reshape.";
+    } else {
+      LOG(FATAL) << "Unsupported output_shape " << output_shape[i];
+    }
+  }
+  if (flag_index >= 0) output_shape[flag_index] = tensor_size;
+  std::vector<std::vector<int>> res{output_shape};
+  return res;
+}
+
+std::shared_ptr<framework::OpStrategy> StrategyForCast(const framework::NodeAttr &attrs,
+                                                       const std::vector<ir::Tensor> &inputs,
+                                                       const std::vector<Type> &out_type,
+                                                       const std::vector<std::vector<int>> &output_shapes,
+                                                       const Target &target) {
+  framework::CINNCompute cast_compute([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input arguments of Cast compute is empty! Please check.\n";
+    CINNValuePack pack_args = args[0];
+    CHECK_GE(pack_args.size(), 1U) << "at least 1 input tensors for Cast compute\n";
+    Expr A = pack_args[0];
+    CHECK(A.as_tensor());
+    CHECK(!output_shapes.empty());
+    auto tensor_A = A.as_tensor_ref();
+    auto stages   = CreateStages({tensor_A});
+    VLOG(3) << "A shape: " << utils::Join(tensor_A->shape, ", ")
+            << ", output_shapes: " << utils::Join(output_shapes[0], ", ");
+    std::string tensor_name = UniqName("Cast_out");
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(pack_args.size(), 2U);
+      tensor_name = pack_args[1].operator std::string();
+    }
+    ir::Tensor out = pe::Cast(tensor_A, out_type[0], tensor_name);
+    std::vector<CINNValue> res;
+    stages->InsertLazily(out);
+    res.push_back(CINNValue(out));
+    CHECK(!out_type.empty()) << "Output type of Cast is empty! Please check.\n";
+    res.push_back(CINNValue(stages));
+    *ret = CINNValuePack{res};
+  });
+
+  auto strategy = std::make_shared<framework::OpStrategy>();
+  strategy->AddImpl(cast_compute, GetElementwiseScheduleFunc(output_shapes, target), "strategy.reshape.x86", 1);
+  return strategy;
+}
+
+std::vector<Type> InferDtypeForCast(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
+  CHECK(attrs.count("dtype"));
+  return {common::Str2Type(absl::get<std::string>(attrs.at("dtype")))};
+}
+
+std::shared_ptr<framework::OpStrategy> StrategyForArange(const framework::NodeAttr &attrs,
+                                                         const std::vector<ir::Tensor> &inputs,
+                                                         const std::vector<Type> &out_type,
+                                                         const std::vector<std::vector<int>> &output_shapes,
+                                                         const Target &target) {
+  auto attr_store = attrs.attr_store;
+  CHECK(attr_store.count("start"));
+  CHECK(attr_store.count("stop"));
+  CHECK(attr_store.count("step"));
+  CHECK(attr_store.count("dtype"));
+
+  auto start = absl::get<float>(attr_store.at("start"));
+  auto stop  = absl::get<float>(attr_store.at("stop"));
+  auto step  = absl::get<float>(attr_store.at("step"));
+  auto dtype = common::Str2Type(absl::get<std::string>(attr_store.at("dtype")));
+
+  framework::CINNCompute arange_compute([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of arange compute is empty! Please check.\n";
+    CINNValuePack pack_args = args[0];
+
+    std::string tensor_name = common::UniqName("T_Arange_out");
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(pack_args.size(), 1U);
+      tensor_name = pack_args[0].operator std::string();
+    }
+
+    auto out = pe::Arange(start, stop, step, dtype, tensor_name);
+    std::vector<common::CINNValue> res;
+    auto stages = CreateStages({out});
+    res.push_back(common::CINNValue(out));
+    res.push_back(common::CINNValue(stages));
+    *ret = CINNValuePack{res};
+  });
+
+  auto strategy = std::make_shared<framework::OpStrategy>();
+  strategy->AddImpl(arange_compute, GetElementwiseScheduleFunc(output_shapes, target), "strategy.reshape.x86", 1);
+  return strategy;
+}
+
+std::vector<std::vector<int>> InferShapeForArange(const std::vector<std::vector<int>> &inputs_shape,
+                                                  const framework::AttrMapType &attrs) {
+  CHECK(attrs.count("start"));
+  CHECK(attrs.count("stop"));
+  CHECK(attrs.count("step"));
+  float start = absl::get<float>(attrs.at("start"));
+  float stop  = absl::get<float>(attrs.at("stop"));
+  float step  = absl::get<float>(attrs.at("step"));
+  CHECK_NE(step, 0.0f) << "The value of step can't be 0!";
+
+  int num = static_cast<int>(std::ceil((stop - start) / step));
+  CHECK(num) << "Invalid arange parameters, start = " << start << ", stop = " << stop << ", step = " << step
+             << ", cause num_elem = " << num << " which is negative.";
+  return {{num}};
+}
+
+std::vector<Type> InferDtypeForArange(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
+  CHECK(attrs.count("dtype"));
+  return {common::Str2Type(absl::get<std::string>(attrs.at("dtype")))};
+}
 
 }  // namespace op
 }  // namespace hlir
@@ -642,6 +967,76 @@ CINN_REGISTER_HELPER(elementwise_ops) {
 #endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElementWise)
       .set_support_level(4);
+
+  CINN_REGISTER_OP(squeeze)
+      .describe("The operator is used to squeeze input tensor's dims")
+      .set_num_inputs(1)
+      .set_num_outputs(1)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForSqueeze)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForSqueeze))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForElementwise))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForElementwise))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElementWise)
+      .set_support_level(4);
+
+  CINN_REGISTER_OP(expand_dims)
+      .describe("This operator is used to expand input tensor's dims.")
+      .set_num_inputs(1)
+      .set_num_outputs(1)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForExpandDims)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForExpandDims))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForElementwise))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForElementwise))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElementWise)
+      .set_support_level(4);
+
+  CINN_REGISTER_OP(reshape)
+      .describe("This operator is used to reshape input tensor X.")
+      .set_num_inputs(1)
+      .set_num_outputs(1)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForReshape)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForReshape))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForElementwise))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForElementwise))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kNonFusible)
+      .set_support_level(4);
+
+  CINN_REGISTER_OP(cast)
+      .describe("This operator is used to cast input tensor's type to target.")
+      .set_num_inputs(1)
+      .set_num_outputs(1)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForCast)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForElementwise))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForCast))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForElementwise))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElementWise)
+      .set_support_level(4);
+
+  CINN_REGISTER_OP(arange)
+      .describe("Returns evenly spaced values within a given interval.")
+      .set_num_inputs(0)
+      .set_num_outputs(1)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForArange)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForArange))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForArange))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElementWise)
+      .set_support_level(4);
+
+  CINN_REGISTER_OP(gelu)
+      .describe("The implement of gelu.")
+      .set_num_inputs(1)
+      .set_num_outputs(1)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForElementwise))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForElementwise))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElementWise);
+
+  CINN_REGISTER_OP(clip)
+      .describe("The implement of clip.")
+      .set_num_inputs(1)
+      .set_num_outputs(1)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForElementwise))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForElementwise))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElementWise);
 
   return true;
 }

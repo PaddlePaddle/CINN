@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <cmath>
 #include <functional>
 #include <memory>
 #include <string>
@@ -26,6 +27,16 @@ namespace cinn {
 namespace frontend {
 namespace pass {
 
+#define MATH_FUNC_REWRITER(op_name)                                            \
+  {                                                                            \
+#op_name, [](const Instruction& fill_constant, Instruction* instr) -> void { \
+       (*instr)->op_type = "fill_constant"; \
+       (*instr)->inputs.clear(); \
+       (*instr)->attrs = fill_constant->attrs; \
+       (*instr)->attrs["value"] = std::op_name(fill_constant.GetAttrs<float>("value")); \
+     } \
+  }
+
 static std::unordered_map<std::string, std::function<void(const Instruction&, Instruction*)>> rewriter_ops = {
     {"reshape",
      [](const Instruction& fill_constant, Instruction* instr) -> void {
@@ -38,7 +49,8 @@ static std::unordered_map<std::string, std::function<void(const Instruction&, In
        (*instr)->attrs          = fill_constant->attrs;
        (*instr)->attrs["shape"] = new_shape;
      }},
-    {"scale", [](const Instruction& fill_constant, Instruction* instr) -> void {
+    {"scale",
+     [](const Instruction& fill_constant, Instruction* instr) -> void {
        (*instr)->op_type = "fill_constant";
        (*instr)->inputs.clear();
        // the outputs keep same
@@ -56,13 +68,32 @@ static std::unordered_map<std::string, std::function<void(const Instruction&, In
        } else {
          (*instr)->attrs["value"] = scale * (old_value + bias);
        }
-     }}};
+     }},
+    {"cast",
+     [](const Instruction& fill_constant, Instruction* instr) -> void {
+       (*instr)->op_type = "fill_constant";
+       (*instr)->inputs.clear();
+       // the outputs keep same
+
+       CHECK((*instr)->attrs.count("dtype")) << "The cast op should has attribute [dtype]!";
+       auto cast_dtype = instr->GetAttrs<std::string>("dtype");
+
+       (*instr)->attrs          = fill_constant->attrs;
+       (*instr)->attrs["dtype"] = cast_dtype;
+     }},
+    MATH_FUNC_REWRITER(abs),
+    MATH_FUNC_REWRITER(log),
+    MATH_FUNC_REWRITER(log2),
+    MATH_FUNC_REWRITER(log10),
+    MATH_FUNC_REWRITER(tanh)};
 
 class FillConstantRewriterPass : public ProgramPass {
  public:
   using ProgramPass::ProgramPass;
 
  protected:
+  void Clear() override {}
+
   void ApplyImpl(Program* program,
                  const std::unordered_set<std::string>& fetch_ids,
                  const common::Target& target) override {

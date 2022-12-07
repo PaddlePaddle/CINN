@@ -51,27 +51,21 @@ void AnalyzeScheduleBlockReadWriteBuffer(ir::ScheduleBlock* sche_block) {
     return;
   }
 
-  std::set<ir::Expr> load_nodes =
-      ir::CollectIRNodesWithoutTensor(sche_block->body, [&](const Expr* x) { return x->As<ir::Load>() != nullptr; });
-  for (const ir::Expr& e : load_nodes) {
-    const ir::Load* load_expr = e.As<ir::Load>();
-    const ir::Tensor t        = load_expr->tensor.as_tensor_ref();
-    sche_block->read_buffers.emplace_back(ir::BufferRange(t->buffer, IndicesToVars(load_expr->indices)));
-  }
-
-  std::set<ir::Expr> store_nodes =
-      ir::CollectIRNodesWithoutTensor(sche_block->body, [&](const Expr* x) { return x->As<ir::Store>() != nullptr; });
-  for (const ir::Expr& e : store_nodes) {
-    const ir::Store* store_expr = e.As<ir::Store>();
-    const ir::Tensor t          = store_expr->tensor.as_tensor_ref();
-    sche_block->write_buffers.emplace_back(ir::BufferRange(t->buffer, IndicesToVars(store_expr->indices)));
-  }
-
-  auto buffer_range_cmp = [](const Expr& lhs, const Expr& rhs) {
-    return lhs.As<ir::_BufferRange_>()->buffer.as_buffer_ref() < rhs.As<ir::_BufferRange_>()->buffer.as_buffer_ref();
-  };
-  sort(sche_block->read_buffers.begin(), sche_block->read_buffers.end(), buffer_range_cmp);
-  sort(sche_block->write_buffers.begin(), sche_block->write_buffers.end(), buffer_range_cmp);
+  ir::CollectIRNodesWithoutTensor(sche_block->body, [&](const Expr* x) {
+    const ir::Load* load_expr = x->As<ir::Load>();
+    if (load_expr != nullptr) {
+      const ir::Tensor t = load_expr->tensor.as_tensor_ref();
+      sche_block->read_buffers.emplace_back(ir::BufferRange(t->buffer, IndicesToVars(load_expr->indices)));
+      return false;
+    }
+    const ir::Store* store_expr = x->As<ir::Store>();
+    if (store_expr != nullptr) {
+      const ir::Tensor t = store_expr->tensor.as_tensor_ref();
+      sche_block->write_buffers.emplace_back(ir::BufferRange(t->buffer, IndicesToVars(store_expr->indices)));
+      return false;
+    }
+    return false;
+  });
 }
 
 bool ContainsNodeType(ir::Expr expr, const std::unordered_set<ir::IrNodeTy>& node_types) {
@@ -90,6 +84,48 @@ std::unordered_set<std::string> GetOutputNamesFromLoweredFunc(const std::vector<
     }
   }
   return result;
+}
+
+bool NeedsMultiLevelTiling(const ir::ScheduleBlockRealize& sche_block_realize) {
+  const ir::ScheduleBlock* sche_block = sche_block_realize.schedule_block.As<ir::ScheduleBlock>();
+  if (sche_block->write_buffers.size() != 1 || sche_block->read_buffers.empty()) {
+    return false;
+  }
+  const ir::Expr& write_buffer = sche_block->write_buffers[0].As<ir::_BufferRange_>()->buffer;
+
+  // Enumerate each read region, get the number of schedule block iter vars
+  // which  are not used to index the read region
+  int total_unused_iter_vars = 0;
+
+  for (const ir::Expr& read_buffer_expr : sche_block->read_buffers) {
+    const ir::_BufferRange_* read_buffer = read_buffer_expr.As<ir::_BufferRange_>();
+    // Skip the reduction buffer
+    if (read_buffer->buffer == write_buffer) {
+      continue;
+    }
+    // Collect the vars in schedule block that are used to index the read region
+    std::unordered_set<std::string> vars_index_read;
+    for (const Var& range : read_buffer->ranges) {
+      vars_index_read.insert(range->name);
+    }
+    // Check the block iter vars are not used to index the read region
+    int n_unused_block_vars = 0;
+    for (const ir::Var& block_iter_var : sche_block->iter_vars) {
+      bool iter_var_in_read = false;
+      for (const std::string& var : vars_index_read) {
+        if (var == block_iter_var->name) {
+          iter_var_in_read = true;
+          break;
+        }
+      }
+      if (!iter_var_in_read) {
+        ++n_unused_block_vars;
+      }
+    }
+    total_unused_iter_vars += n_unused_block_vars;
+  }
+
+  return total_unused_iter_vars >= 1;
 }
 
 }  // namespace auto_schedule

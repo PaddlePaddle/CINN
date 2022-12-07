@@ -63,15 +63,6 @@ typedef void (OpLowerer::*ScheduleFunction)(poly::StageMap&,
 NodeData* GetNodeData(const Node* node);
 
 std::vector<NodeData*> GetAllNodeData(const Node* node);
-
-// Given params, lower the op to LoweredFunc using new IR Schedule
-std::vector<ir::LoweredFunc> GetFuncFromOpImpl(const std::shared_ptr<OpImpl>& impl,
-                                               const common::CINNValuePack& cinn_inputs,
-                                               std::vector<ir::Tensor>& tensor_inputs,
-                                               const std::vector<std::string>& input_output_nodes,
-                                               const std::string& func_name,
-                                               const Target& target,
-                                               bool apply_impl_schedule = true);
 class OpLowerer {
  public:
   OpLowerer(const absl::flat_hash_map<std::string, Type>&,

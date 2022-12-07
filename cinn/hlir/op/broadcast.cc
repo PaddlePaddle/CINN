@@ -85,8 +85,7 @@ std::shared_ptr<OpStrategy> StrategyForBroadcast(
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(
-      binary_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy." + op_name + ".x86", 1);
+  strategy->AddImpl(binary_compute, GetInjectiveScheduleFunc(output_shapes, target), "strategy." + op_name + ".x86", 1);
   return strategy;
 }
 
@@ -186,7 +185,7 @@ std::shared_ptr<OpStrategy> StrategyForPow(const framework::NodeAttr &attrs,
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(pow_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.pow.x86", 1);
+  strategy->AddImpl(pow_compute, GetInjectiveScheduleFunc(output_shapes, target), "strategy.pow.x86", 1);
   return strategy;
 }
 
@@ -233,7 +232,7 @@ std::shared_ptr<OpStrategy> StrategyForBroadcastTo(const framework::NodeAttr &at
 
   auto strategy = std::make_shared<framework::OpStrategy>();
   strategy->AddImpl(
-      broadcast_to_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.broadcast_to.x86", 1);
+      broadcast_to_compute, GetInjectiveScheduleFunc(output_shapes, target), "strategy.broadcast_to.x86", 1);
 
   return strategy;
 }
@@ -340,8 +339,7 @@ std::shared_ptr<OpStrategy> StrategyForIsClose(const framework::NodeAttr &attrs,
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(
-      isclose_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.assertisclose", 1);
+  strategy->AddImpl(isclose_compute, GetInjectiveScheduleFunc(output_shapes, target), "strategy.assertisclose", 1);
 
   return strategy;
 }
@@ -377,6 +375,7 @@ std::vector<std::vector<std::string>> InferLayoutForIsClose(const std::vector<st
 }
 
 StrategyForBinary(elementwise_add, Add);
+StrategyForBinary(atan2, Atan2);
 StrategyForBinary(elementwise_mul, Multiply);
 
 StrategyForBinary(substract, Substract);
@@ -434,6 +433,7 @@ CINN_REGISTER_HELPER(broadcast_ops) {
       .set_support_level(4);
 
   CINN_REGISTER_BINARY(elementwise_add, Add);
+  CINN_REGISTER_BINARY(atan2, Atan2);
   CINN_REGISTER_BINARY(elementwise_mul, Multiply);
 
   CINN_REGISTER_BINARY(substract, Substract);

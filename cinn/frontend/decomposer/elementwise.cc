@@ -43,10 +43,12 @@ void clip(const Instruction& instr, const DecomposerContext& context) {
   auto output   = instr->outputs[0];
   auto* builder = context.builder();
 
-  auto max_val  = instr.GetAttrs<float>("max_val");
-  auto min_val  = instr.GetAttrs<float>("min_val");
-  auto max_val_ = builder->FillConstant(input->shape, max_val, common::UniqName("constant"));
-  auto min_val_ = builder->FillConstant(input->shape, min_val, common::UniqName("constant"));
+  auto max_val = instr.GetAttrs<float>("max_val");
+  auto min_val = instr.GetAttrs<float>("min_val");
+  auto max_val_ =
+      builder->FillConstant(input->shape, max_val, common::UniqName("constant"), common::Type2Str(input->type));
+  auto min_val_ =
+      builder->FillConstant(input->shape, min_val, common::UniqName("constant"), common::Type2Str(input->type));
 
   auto out0 = builder->Min(input, max_val_);
   auto out1 = builder->Max(out0, min_val_);

@@ -49,5 +49,31 @@ inline int cinn_host_gt_num_int(
 
 inline int FN_INT32(pow)(int x, int y);
 
+inline int FN_INT32(clz)(int x);
+
+inline int FN_INT32(popc)(int x);
+
+inline int FN_INT32(logical_right_shift)(int x, int y);
+
 #undef FN_INT32
+
+#define FN_INT64(func) cinn_host_##func##_int64
+
+inline int64_t FN_INT64(clz)(int64_t x);
+
+inline int64_t FN_INT64(popc)(int64_t x);
+
+#undef FN_INT64
+
+#define FN_FP32(func) cinn_host_##func##_fp32
+
+inline float FN_FP32(cbrt)(float x);
+
+#undef FN_FP32
+
+#define FN_FP64(func) cinn_host_##func##_fp64
+
+inline double FN_FP64(cbrt)(double x);
+
+#undef FN_FP64
 }

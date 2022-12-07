@@ -26,6 +26,7 @@
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_visitor.h"
+#include "cinn/optim/cast_simplify.h"
 #include "cinn/optim/ir_copy.h"
 #include "cinn/utils/string.h"
 

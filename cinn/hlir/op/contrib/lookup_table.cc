@@ -27,6 +27,7 @@
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
+#include "cinn/hlir/op/op_util.h"
 #include "cinn/hlir/pe/elementwise.h"
 #include "cinn/hlir/pe/ir_schedule_pe.h"
 #include "cinn/hlir/pe/nn.h"
@@ -67,7 +68,7 @@ ir::Tensor LookupTable(const ir::Tensor& table,
         auto ids_offset = ir::Cast::Make(common::I32(), ids(offsets));
         auto pred =
             ir::And::Make(Expr(padding_idx != -1), ir::EQ::Make(ids_offset, Expr(static_cast<int32_t>(padding_idx))));
-        return ir::Select::Make(pred, common::make_const(table->type(), 0), table(ids_offset, indices.back()));
+        return ir::Select::Make(pred, ir::Cast::Make(table->type(), Expr(0)), table(ids_offset, indices.back()));
       },
       common::UniqName(output_name));
 }
@@ -111,8 +112,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForLookupTable(const framework::N
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(
-      lookup_table_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.lookup_table", 1);
+  strategy->AddImpl(lookup_table_compute, GetInjectiveScheduleFunc(output_shapes, target), "strategy.lookup_table", 1);
   return strategy;
 }
 

@@ -110,13 +110,15 @@ bool isfinite(float e) { return std::isfinite(e); }
 bool isinf(float e) { return std::isinf(e); }
 
 #define TEST_MKL_MATH_FP32(test_name__, is_elementwise) \
-  TEST(mkl_math, test_name__) { TestCallElementwise(#test_name__, test_name__, is_elementwise); }
-#define TEST_CINN_MKL_MATH_FP32(test_name__, is_elementwise) \
-  TEST(mkl_math, test_name__) { TestCallElementwise("cinn_mkl_" #test_name__ "_v_fp32", test_name__, is_elementwise); }
+  TEST(mkl_math, test_name__) { TestCallElementwise(#test_name__, test_name__##f, is_elementwise); }
+#define TEST_CINN_MKL_MATH_FP32(test_name__, is_elementwise)                                 \
+  TEST(mkl_math, test_name__) {                                                              \
+    TestCallElementwise("cinn_mkl_" #test_name__ "_v_fp32", test_name__##f, is_elementwise); \
+  }
 #define TEST_MKL_MATH_FP32_BOOL(test_name__, is_elementwise) \
   TEST(mkl_math, test_name__) { TestCallElementwise(#test_name__, test_name__, is_elementwise, Bool()); }
 #define TEST_MKL_MATH_FP32_SET(test_name__, is_elementwise, value) \
-  TEST(mkl_math, test_name__) { TestCallElementwise(#test_name__, test_name__, is_elementwise, Float(32), value); }
+  TEST(mkl_math, test_name__) { TestCallElementwise(#test_name__, test_name__##f, is_elementwise, Float(32), value); }
 
 TEST_CINN_MKL_MATH_FP32(exp, false)
 TEST_CINN_MKL_MATH_FP32(erf, false)
@@ -144,7 +146,7 @@ TEST_CINN_MKL_MATH_FP32(tanh, false)
 TEST_MKL_MATH_FP32_BOOL(isfinite, true)
 TEST_MKL_MATH_FP32_BOOL(isinf, true)
 
-TEST(mkl_math, tanh_v_fp32) { TestCallElementwise("cinn_mkl_tanh_v_fp32", tanh, false); }
+TEST(mkl_math, tanh_v_fp32) { TestCallElementwise("cinn_mkl_tanh_v_fp32", tanhf, false); }
 
 TEST(cinn_cpu_mkl_gemm_fp32, test) {
   Expr M(30);

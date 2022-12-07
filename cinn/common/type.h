@@ -18,6 +18,8 @@
 #include <memory>
 #include <string>
 
+#include "cinn/common/float16.h"
+#include "cinn/common/float16_utils.h"
 #include "cinn/common/macros.h"
 #include "cinn/runtime/cinn_runtime.h"
 
@@ -168,6 +170,7 @@ template <typename T>
 Type type_of();
 
 // clang-format off
+template <> inline Type type_of<float16>() { return F16(); }
 template <> inline Type type_of<float>() { return F32(); }
 template <> inline Type type_of<double>() { return F64(); }
 template <> inline Type type_of<unsigned char>() { return UI8(); }
@@ -198,6 +201,12 @@ template <>
 inline Type type_of<void**>() {
   Type x = type_of<void>();
   x.set_cpp_handle2();
+  return x;
+}
+template <>
+inline Type type_of<float16*>() {
+  Type x = type_of<float16>();
+  x.set_cpp_handle();
   return x;
 }
 template <>

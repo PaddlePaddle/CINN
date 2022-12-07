@@ -21,6 +21,7 @@
 #include "cinn/ir/ir_mutator.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"
+#include "cinn/optim/cast_simplify.h"
 
 namespace cinn {
 namespace common {
@@ -133,12 +134,15 @@ Expr RampRelatedMul(Expr a, Expr b) {
 }  // namespace
 
 Expr IndiceToAbsOffset(const std::vector<Expr> &shape, const std::vector<Expr> &indices) {
-  CHECK_GE(shape.size(), indices.size());
   VLOG(3) << "Begin IndiceToAbsOffset";
+  VLOG(3) << "shape is : " << utils::Join(shape, ",");
+  VLOG(3) << "indices is : " << utils::Join(indices, ",");
+  CHECK_LE(shape.size(), indices.size());
   Expr res;
   for (int i = 0; i < shape.size(); i++) {
     CHECK_EQ(shape[i].type(), Int(32));
     Expr indice_prod = indices[i];
+    optim::CastSimplify(&indice_prod);
     for (int j = i + 1; j < shape.size(); j++) {
       indice_prod = RampRelatedMul(indice_prod, shape[j]);
     }
@@ -285,14 +289,18 @@ void CheckBufferUniqueInExpr(Expr expr) {
 
 Expr cast(Expr e, Type type) {
   if (e.is_constant()) {
-    if (type.is_int(32)) {
-      return common::make_const(static_cast<int32_t>(e.get_constant()));
+    if (type.is_bool()) {
+      return Expr(static_cast<bool>(e.get_constant()));
+    } else if (type.is_int(32)) {
+      return Expr(static_cast<int32_t>(e.get_constant()));
     } else if (type.is_int(64)) {
-      return common::make_const(static_cast<int64_t>(e.get_constant()));
+      return Expr(static_cast<int64_t>(e.get_constant()));
     } else if (type.is_float(32)) {
-      return common::make_const(static_cast<float>(e.get_constant()));
+      return Expr(static_cast<float>(e.get_constant()));
     } else if (type.is_float(64)) {
-      return common::make_const(static_cast<double>(e.get_constant()));
+      return Expr(static_cast<double>(e.get_constant()));
+    } else if (type.is_float(16)) {
+      return Expr(static_cast<cinn::common::float16>(e.get_constant()));
     } else {
       CINN_NOT_IMPLEMENTED
     }

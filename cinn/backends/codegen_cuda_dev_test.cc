@@ -26,7 +26,7 @@
 #include "cinn/backends/extern_func_jit_register.h"
 #include "cinn/backends/llvm/execution_engine.h"
 #include "cinn/backends/llvm/simple_jit.h"
-#include "cinn/backends/nvrtc_util.h"
+#include "cinn/backends/nvrtc/nvrtc_util.h"
 #include "cinn/cinn.h"
 #include "cinn/common/cuda_test_helper.h"
 #include "cinn/common/ir_util.h"
@@ -132,7 +132,7 @@ TEST(CodeGenCUDA2, test_of_cacheread) {
 
   using runtime::cuda::CUDAModule;
 
-  backends::NVRTC_Compiler compiler;
+  backends::nvrtc::Compiler compiler;
 
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
@@ -210,18 +210,8 @@ TEST(CodeGenCUDA2, test_of_splitcudakernel) {
 
   LOG(INFO) << "compiled test_of_splitcudakernel code:\n\n\n" << source_code;
 
-  std::string source_target = R"ROC(
+  std::string source_target = codegen.GetSourceHeader() + R"ROC(
 extern "C" {
-
-#include "cinn_cuda_runtime_source.cuh"
-
-#ifdef __CUDACC_RTC__
-typedef int int32_t;
-typedef char int8_t;
-typedef long int int64_t;
-#endif
-
-
 
 __global__
 void __launch_bounds__(200) elementwise_mul_and_add(const float* __restrict__ X, const float* __restrict__ Y, float* __restrict__ C)
@@ -276,18 +266,8 @@ TEST(CodeGenCUDA2, test_of_splitouter) {
 
   LOG(INFO) << "compiled test_of_splitouter code:\n\n\n" << source_code;
 
-  std::string source_target = R"ROC(
+  std::string source_target = codegen.GetSourceHeader() + R"ROC(
 extern "C" {
-
-#include "cinn_cuda_runtime_source.cuh"
-
-#ifdef __CUDACC_RTC__
-typedef int int32_t;
-typedef char int8_t;
-typedef long int int64_t;
-#endif
-
-
 
 __global__
 void __launch_bounds__(5) elementwise_add_splitouter(const float* __restrict__ X, const float* __restrict__ Y, float* __restrict__ C)
@@ -309,7 +289,7 @@ void __launch_bounds__(5) elementwise_add_splitouter(const float* __restrict__ X
 
   using runtime::cuda::CUDAModule;
 
-  backends::NVRTC_Compiler compiler;
+  backends::nvrtc::Compiler compiler;
 
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
@@ -372,11 +352,11 @@ TEST(GlobalPool, pool2d_max) {
     builder.AddFunction(f);
   }
   auto source_code = codegen.Compile(builder.Build());
-  ASSERT_NE(source_code.find("cinn_warp_reduce_max"), std::string::npos);
+  ASSERT_NE(source_code.find("cinn_warp_reduce_max_fp32"), std::string::npos);
   LOG(INFO) << "compiled global_pool2d_max code:\n\n\n" << source_code;
 
   using runtime::cuda::CUDAModule;
-  backends::NVRTC_Compiler compiler;
+  backends::nvrtc::Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
   CUDAModule cuda_module(ptx, CUDAModule::Kind::PTX);
@@ -439,11 +419,11 @@ TEST(GlobalPool, pool2d_avg) {
     builder.AddFunction(f);
   }
   auto source_code = codegen.Compile(builder.Build());
-  ASSERT_NE(source_code.find("cinn_warp_reduce_avg"), std::string::npos);
+  ASSERT_NE(source_code.find("cinn_warp_reduce_avg_fp32"), std::string::npos);
   LOG(INFO) << "compiled global_pool2d_avg code:\n\n\n" << source_code;
 
   using runtime::cuda::CUDAModule;
-  backends::NVRTC_Compiler compiler;
+  backends::nvrtc::Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
   CUDAModule cuda_module(ptx, CUDAModule::Kind::PTX);
@@ -506,11 +486,11 @@ TEST(GlobalPool, pool2d_avg_1_1_7_7) {
     builder.AddFunction(f);
   }
   auto source_code = codegen.Compile(builder.Build());
-  ASSERT_NE(source_code.find("cinn_warp_reduce_avg"), std::string::npos);
+  ASSERT_NE(source_code.find("cinn_warp_reduce_avg_fp32"), std::string::npos);
   LOG(INFO) << "compiled global_pool2d_avg code:\n\n\n" << source_code;
 
   using runtime::cuda::CUDAModule;
-  backends::NVRTC_Compiler compiler;
+  backends::nvrtc::Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
   CUDAModule cuda_module(ptx, CUDAModule::Kind::PTX);
@@ -575,11 +555,11 @@ TEST(GlobalPool, pool2d_avg_1_32_7_7) {
     builder.AddFunction(f);
   }
   auto source_code = codegen.Compile(builder.Build());
-  ASSERT_NE(source_code.find("cinn_warp_reduce_avg"), std::string::npos);
+  ASSERT_NE(source_code.find("cinn_warp_reduce_avg_fp32"), std::string::npos);
   LOG(INFO) << "compiled global_pool2d_avg code:\n\n\n" << source_code;
 
   using runtime::cuda::CUDAModule;
-  backends::NVRTC_Compiler compiler;
+  backends::nvrtc::Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
   CUDAModule cuda_module(ptx, CUDAModule::Kind::PTX);
@@ -650,18 +630,8 @@ TEST(CodeGenCUDA2, test_schedule_conv2d_0) {
 
   LOG(INFO) << "compiled schedule_conv2d_0 code:\n\n\n" << source_code;
 
-  std::string source_target        = R"ROC(
+  std::string source_target        = codegen.GetSourceHeader() + R"ROC(
 extern "C" {
-
-#include "cinn_cuda_runtime_source.cuh"
-
-#ifdef __CUDACC_RTC__
-typedef int int32_t;
-typedef char int8_t;
-typedef long int int64_t;
-#endif
-
-
 
 __global__
 void __launch_bounds__(224) schedule_conv2d_0(const float* __restrict__ X, const float* __restrict__ Y, float* __restrict__ COD)
@@ -696,7 +666,7 @@ void __launch_bounds__(224) schedule_conv2d_0(const float* __restrict__ X, const
             __syncthreads();
             for (int32_t rc_inner = 0; rc_inner < 8; rc_inner += 1) {
               for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
-                COD_write_cache[j_inner] = (COD_write_cache[j_inner] + (input_pad_0_read_cache[((28 * rc_inner) + (2 * (int)threadIdx.x))] * Y_read_cache[((8 * j_inner) + ((16 * (int)threadIdx.z) + rc_inner))]));
+                COD_write_cache[j_inner] = (COD_write_cache[j_inner] + (input_pad_0_read_cache[((28 * rc_inner) + (2.00000f * (int)threadIdx.x))] * Y_read_cache[((8 * j_inner) + ((16 * (int)threadIdx.z) + rc_inner))]));
               };
             };
           };
@@ -718,7 +688,7 @@ void __launch_bounds__(224) schedule_conv2d_0(const float* __restrict__ X, const
   // ASSERT_EQ(trimed_source_target.substr(start_target), source_code.substr(start_source));
   using runtime::cuda::CUDAModule;
 
-  backends::NVRTC_Compiler compiler;
+  backends::nvrtc::Compiler compiler;
 
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
@@ -796,18 +766,8 @@ TEST(CodeGenCUDA2, test_schedule_conv2d_1) {
 
   LOG(INFO) << "compiled schedule_conv2d_1 code:\n\n\n" << source_code;
 
-  std::string source_target        = R"ROC(
+  std::string source_target        = codegen.GetSourceHeader() + R"ROC(
 extern "C" {
-
-#include "cinn_cuda_runtime_source.cuh"
-
-#ifdef __CUDACC_RTC__
-typedef int int32_t;
-typedef char int8_t;
-typedef long int int64_t;
-#endif
-
-
 
 __global__
 void __launch_bounds__(128) schedule_conv2d_1(const float* __restrict__ X, const float* __restrict__ Y, float* __restrict__ Conv2d_out)
@@ -866,7 +826,7 @@ void __launch_bounds__(128) schedule_conv2d_1(const float* __restrict__ X, const
   // ASSERT_EQ(trimed_source_target.substr(start_target), source_code.substr(start_source));
   using runtime::cuda::CUDAModule;
 
-  backends::NVRTC_Compiler compiler;
+  backends::nvrtc::Compiler compiler;
 
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
@@ -972,7 +932,7 @@ void __launch_bounds__(128) schedule_conv2d_1(const float* __restrict__ X, const
   }
   )ROC";
 
-  backends::NVRTC_Compiler compiler_tvm;
+  backends::nvrtc::Compiler compiler_tvm;
 
   auto ptx_tvm = compiler_tvm(source_tvm);
   CHECK(!ptx_tvm.empty());
@@ -1032,18 +992,8 @@ TEST(CodeGenCUDA, test_of_syncthreads) {
 
   LOG(INFO) << "compiled test_of_syncthreads code:\n\n\n" << source_code;
 
-  std::string source_target = R"ROC(
+  std::string source_target = codegen.GetSourceHeader() + R"ROC(
 extern "C" {
-
-#include "cinn_cuda_runtime_source.cuh"
-
-#ifdef __CUDACC_RTC__
-typedef int int32_t;
-typedef char int8_t;
-typedef long int int64_t;
-#endif
-
-
 
 __global__
 void __launch_bounds__(200) elementwise_add(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
@@ -1070,7 +1020,7 @@ void __launch_bounds__(200) elementwise_add(const float* __restrict__ A, const f
   // compile the code
   using runtime::cuda::CUDAModule;
 
-  backends::NVRTC_Compiler compiler;
+  backends::nvrtc::Compiler compiler;
 
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
@@ -1141,18 +1091,8 @@ TEST(CodeGenCUDA3, test_of_mul_cachewrite) {
 
   LOG(INFO) << "compiled CacheWrite and Reduce code:\n\n\n" << source_code;
 
-  std::string source_target = R"ROC(
+  std::string source_target = codegen.GetSourceHeader() + R"ROC(
 extern "C" {
-
-#include "cinn_cuda_runtime_source.cuh"
-
-#ifdef __CUDACC_RTC__
-typedef int int32_t;
-typedef char int8_t;
-typedef long int int64_t;
-#endif
-
-
 
 __global__
 void __launch_bounds__(4) mul_cache_write(const float* __restrict__ A1, const float* __restrict__ B1, float* __restrict__ C1)
@@ -1164,7 +1104,7 @@ void __launch_bounds__(4) mul_cache_write(const float* __restrict__ A1, const fl
     if (((int)threadIdx.x < 4)) {
       for (int32_t j_outer = 0; j_outer < 16; j_outer += 1) {
         for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
-          C1_write_cache__reduce_init[j_inner] = 0;
+          C1_write_cache__reduce_init[j_inner] = 0.00000f;
           for (int32_t k1 = 0; k1 < 32; k1 += 1) {
             C1_write_cache[j_inner] = (C1_write_cache[j_inner] + (A1[((128 * (int)blockIdx.x) + ((32 * (int)threadIdx.x) + k1))] * B1[((32 * j_inner) + ((64 * j_outer) + k1))]));
           };
@@ -1183,7 +1123,7 @@ void __launch_bounds__(4) mul_cache_write(const float* __restrict__ A1, const fl
 
   using runtime::cuda::CUDAModule;
 
-  backends::NVRTC_Compiler compiler;
+  backends::nvrtc::Compiler compiler;
 
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
@@ -1263,7 +1203,7 @@ class ElementwiseTester {
     // compile the code
     using runtime::cuda::CUDAModule;
 
-    backends::NVRTC_Compiler compiler;
+    backends::nvrtc::Compiler compiler;
 
     auto ptx = compiler(source_code);
     CHECK(!ptx.empty());
@@ -1488,7 +1428,7 @@ TEST(CodeGenCUDA, jit_host_call_cuda_kernel) {
 
   using runtime::cuda::CUDAModule;
 
-  backends::NVRTC_Compiler compiler;
+  backends::nvrtc::Compiler compiler;
 
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
@@ -1699,7 +1639,7 @@ TEST(elementwise_add1, share_local_cache) {
   CodeGenCUDA_Dev codegen(common::DefaultNVGPUTarget());
   auto source_code = codegen.Compile(builder.Build());
   LOG(INFO) << "device source code elementwise_add1: " << source_code;
-  backends::NVRTC_Compiler compiler;
+  backends::nvrtc::Compiler compiler;
 
   common::CudaModuleTester tester;
   tester.Compile(module);
@@ -1793,7 +1733,7 @@ TEST(elementwise_add0, share_local_cache) {
 
   LOG(INFO) << "device source code elementwise_add0:\n" << source_code;
 
-  backends::NVRTC_Compiler compiler;
+  backends::nvrtc::Compiler compiler;
 
   common::CudaModuleTester tester;
   tester.Compile(module);
@@ -1941,18 +1881,8 @@ TEST(ElementwiseAdd, cache_read_local) {
   auto source_code = codegen.Compile(module);
   LOG(INFO) << "source cache_read_local:\n" << source_code;
 
-  std::string source_target = R"ROC(
+  std::string source_target = codegen.GetSourceHeader() + R"ROC(
 extern "C" {
-
-#include "cinn_cuda_runtime_source.cuh"
-
-#ifdef __CUDACC_RTC__
-typedef int int32_t;
-typedef char int8_t;
-typedef long int int64_t;
-#endif
-
-
 
 __global__
 void __launch_bounds__(10) fn0(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
@@ -1977,7 +1907,7 @@ void __launch_bounds__(10) fn0(const float* __restrict__ A, const float* __restr
 )ROC";
   ASSERT_EQ(utils::Trim(source_target), source_code);
 
-  backends::NVRTC_Compiler compiler;
+  backends::nvrtc::Compiler compiler;
 
   common::CudaModuleTester tester;
   tester.Compile(module);
@@ -2078,18 +2008,8 @@ TEST(ElementwiseAdd, cache_read1) {
   auto source_code = codegen.Compile(builder.Build());
   std::cout << "CUDA source of ComputeAt2 & CacheRead\n" << source_code << std::endl;
 
-  std::string source_target = R"ROC(
+  std::string source_target = codegen.GetSourceHeader() + R"ROC(
 extern "C" {
-
-#include "cinn_cuda_runtime_source.cuh"
-
-#ifdef __CUDACC_RTC__
-typedef int int32_t;
-typedef char int8_t;
-typedef long int int64_t;
-#endif
-
-
 
 __global__
 void __launch_bounds__(98) fn1(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
@@ -2184,18 +2104,8 @@ TEST(ElementwiseAdd, cache_read_compute_at1) {
   auto source_code = codegen.Compile(builder.Build());
   LOG(INFO) << "CUDA source of cache_read_compute_at1:\n" << source_code << std::endl;
 
-  std::string source_target = R"ROC(
+  std::string source_target = codegen.GetSourceHeader() + R"ROC(
 extern "C" {
-
-#include "cinn_cuda_runtime_source.cuh"
-
-#ifdef __CUDACC_RTC__
-typedef int int32_t;
-typedef char int8_t;
-typedef long int int64_t;
-#endif
-
-
 
 __global__
 void __launch_bounds__(95) fn_cacheread_computeat1(const float* __restrict__ AA, float* __restrict__ C)
@@ -2287,18 +2197,8 @@ TEST(ElementwiseAdd, cache_read_compute_at2) {
   auto source_code = codegen.Compile(builder.Build());
   LOG(INFO) << "CUDA source of cache_read_compute_at2:\n" << source_code << std::endl;
 
-  std::string source_target = R"ROC(
+  std::string source_target = codegen.GetSourceHeader() + R"ROC(
 extern "C" {
-
-#include "cinn_cuda_runtime_source.cuh"
-
-#ifdef __CUDACC_RTC__
-typedef int int32_t;
-typedef char int8_t;
-typedef long int int64_t;
-#endif
-
-
 
 __global__
 void __launch_bounds__(5) fn_cacheread_computeat2(const float* __restrict__ AA, float* __restrict__ C)
@@ -2451,18 +2351,8 @@ TEST(ElementwiseAdd, cache_read_shared) {
   auto source_code = codegen.Compile(builder.Build());
   std::cout << "CUDA source2:\n" << source_code << std::endl;
 
-  auto target_source = R"ROC(
+  std::string target_source = codegen.GetSourceHeader() + R"ROC(
 extern "C" {
-
-#include "cinn_cuda_runtime_source.cuh"
-
-#ifdef __CUDACC_RTC__
-typedef int int32_t;
-typedef char int8_t;
-typedef long int int64_t;
-#endif
-
-
 
 __global__
 void __launch_bounds__(1) fn2(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
@@ -2535,18 +2425,8 @@ TEST(ElementwiseAdd, cache_write_local) {
   auto source_code = codegen.Compile(builder.Build());
   std::cout << "CUDA source cache_write:\n" << source_code << std::endl;
 
-  auto target_source = R"ROC(
+  std::string target_source = codegen.GetSourceHeader() + R"ROC(
 extern "C" {
-
-#include "cinn_cuda_runtime_source.cuh"
-
-#ifdef __CUDACC_RTC__
-typedef int int32_t;
-typedef char int8_t;
-typedef long int int64_t;
-#endif
-
-
 
 __global__
 void __launch_bounds__(4) cache_write_local(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
@@ -2621,18 +2501,8 @@ TEST(Cuda, external_function) {
   auto source_code = codegen.Compile(builder.Build());
   std::cout << "CUDA source:\n" << source_code << std::endl;
 
-  auto target_source = R"ROC(
+  std::string target_source = codegen.GetSourceHeader() + R"ROC(
 extern "C" {
-
-#include "cinn_cuda_runtime_source.cuh"
-
-#ifdef __CUDACC_RTC__
-typedef int int32_t;
-typedef char int8_t;
-typedef long int int64_t;
-#endif
-
-
 
 __global__
 void __launch_bounds__(4) external_function(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
@@ -2702,20 +2572,10 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
 
   LOG(INFO) << "compiled schedule_wino_conv2d code:\n\n\n" << wino_source_code;
 
-  backends::NVRTC_Compiler wino_compiler;
+  backends::nvrtc::Compiler wino_compiler;
 
-  std::string target_code = R"ROC(
+  std::string target_code = wino_codegen.GetSourceHeader() + R"ROC(
 extern "C" {
-
-#include "cinn_cuda_runtime_source.cuh"
-
-#ifdef __CUDACC_RTC__
-typedef int int32_t;
-typedef char int8_t;
-typedef long int int64_t;
-#endif
-
-
 
 __global__
 void __launch_bounds__(128) schedule_wino_conv2d(const float* __restrict__ X, float* __restrict__ data_pack)
@@ -2730,7 +2590,7 @@ void __launch_bounds__(128) schedule_wino_conv2d(const float* __restrict__ X, fl
     {
       for (int32_t i = 0; i < 4; i += 1) {
         for (int32_t j = 0; j < 4; j += 1) {
-          data_pack_write_cache__reduce_init[((4 * i) + j)] = 0;
+          data_pack_write_cache__reduce_init[((4 * i) + j)] = 0.00000f;
         };
       };
       for (int32_t i = 0; i < 4; i += 1) {
@@ -2794,7 +2654,7 @@ void __launch_bounds__(128) schedule_wino_conv2d_2(const float* __restrict__ X, 
         {
           for (int32_t ci_outer = 0; ci_outer < 4; ci_outer += 1) {
             for (int32_t ci_inner = 0; ci_inner < 2; ci_inner += 1) {
-              bgemm_write_cache__reduce_init[((2 * ci_outer) + ci_inner)] = 0;
+              bgemm_write_cache__reduce_init[((2 * ci_outer) + ci_inner)] = 0.00000f;
             };
           };
           for (int32_t ci_outer = 0; ci_outer < 32; ci_outer += 1) {
@@ -2851,10 +2711,10 @@ void __launch_bounds__(128) schedule_wino_conv2d_3(const float* __restrict__ X, 
     {
       for (int32_t k = 0; k < 2; k += 1) {
         for (int32_t a = 0; a < 2; a += 1) {
-          inverse__reduce_init[((2 * k) + a)] = 0;
+          inverse__reduce_init[((2 * k) + a)] = 0.00000f;
           for (int32_t r_g_a = 0; r_g_a < 4; r_g_a += 1) {
             for (int32_t r_g_b = 0; r_g_b < 4; r_g_b += 1) {
-              inverse[((2 * k) + a)] = (inverse[((2 * k) + a)] + (bgemm[((128 * (int)blockIdx.x) + ((32768 * r_g_a) + ((8192 * r_g_b) + (int)threadIdx.x)))] * ((((((3 - r_g_a) == 0) && ((1 - k) == 0))) ? 1 : (((((3 - r_g_a) == 0) && ((-1 * k) == 0))) ? 0 : (((((2 - r_g_a) == 0) && ((1 - k) == 0))) ? 1 : (((((2 - r_g_a) == 0) && ((-1 * k) == 0))) ? 1 : (((((1 - r_g_a) == 0) && ((1 - k) == 0))) ? -1 : (((((1 - r_g_a) == 0) && ((-1 * k) == 0))) ? 1 : (((((-1 * r_g_a) == 0) && ((1 - k) == 0))) ? 0 : (((((-1 * r_g_a) == 0) && ((-1 * k) == 0))) ? 1 : 1)))))))) * (((((3 - r_g_b) == 0) && ((1 - a) == 0))) ? 1 : (((((3 - r_g_b) == 0) && ((-1 * a) == 0))) ? 0 : (((((2 - r_g_b) == 0) && ((1 - a) == 0))) ? 1 : (((((2 - r_g_b) == 0) && ((-1 * a) == 0))) ? 1 : (((((1 - r_g_b) == 0) && ((1 - a) == 0))) ? -1 : (((((1 - r_g_b) == 0) && ((-1 * a) == 0))) ? 1 : (((((-1 * r_g_b) == 0) && ((1 - a) == 0))) ? 0 : (((((-1 * r_g_b) == 0) && ((-1 * a) == 0))) ? 1 : 1)))))))))));
+              inverse[((2 * k) + a)] = (inverse[((2 * k) + a)] + (bgemm[((128 * (int)blockIdx.x) + ((32768 * r_g_a) + ((8192 * r_g_b) + (int)threadIdx.x)))] * ((((((3 - r_g_a) == 0) && ((1 - k) == 0))) ? 1.00000f : (((((3 - r_g_a) == 0) && ((-1 * k) == 0))) ? 0.00000f : (((((2 - r_g_a) == 0) && ((1 - k) == 0))) ? 1.00000f : (((((2 - r_g_a) == 0) && ((-1 * k) == 0))) ? 1.00000f : (((((1 - r_g_a) == 0) && ((1 - k) == 0))) ? -1.00000f : (((((1 - r_g_a) == 0) && ((-1 * k) == 0))) ? 1.00000f : (((((-1 * r_g_a) == 0) && ((1 - k) == 0))) ? 0.00000f : (((((-1 * r_g_a) == 0) && ((-1 * k) == 0))) ? 1.00000f : 1.00000f)))))))) * (((((3 - r_g_b) == 0) && ((1 - a) == 0))) ? 1.00000f : (((((3 - r_g_b) == 0) && ((-1 * a) == 0))) ? 0.00000f : (((((2 - r_g_b) == 0) && ((1 - a) == 0))) ? 1.00000f : (((((2 - r_g_b) == 0) && ((-1 * a) == 0))) ? 1.00000f : (((((1 - r_g_b) == 0) && ((1 - a) == 0))) ? -1.00000f : (((((1 - r_g_b) == 0) && ((-1 * a) == 0))) ? 1.00000f : (((((-1 * r_g_b) == 0) && ((1 - a) == 0))) ? 0.00000f : (((((-1 * r_g_b) == 0) && ((-1 * a) == 0))) ? 1.00000f : 1.00000f)))))))))));
             };
           };
         };
@@ -2909,6 +2769,9 @@ TEST(Cudnn, external_function_cudnn) {
   dev_bufs[0]->type.code = cinn_type_code_t::cinn_type_float;
   dev_bufs[1]->type.code = cinn_type_code_t::cinn_type_float;
   dev_bufs[2]->type.code = cinn_type_code_t::cinn_type_float;
+  dev_bufs[0]->type.bits = 32;
+  dev_bufs[1]->type.bits = 32;
+  dev_bufs[2]->type.bits = 32;
 
   cudaStream_t stream        = nullptr;
   cinn_pod_value_t v_args[3] = {
@@ -2936,6 +2799,8 @@ TEST(Cudnn, external_function_cudnn2) {
 
   dev_bufs[0]->type.code = cinn_type_code_t::cinn_type_float;
   dev_bufs[1]->type.code = cinn_type_code_t::cinn_type_float;
+  dev_bufs[0]->type.bits = 32;
+  dev_bufs[1]->type.bits = 32;
 
   cudaStream_t stream        = nullptr;
   cinn_pod_value_t v_args[2] = {cinn_pod_value_t(dev_bufs[0]), cinn_pod_value_t(dev_bufs[1])};
@@ -2963,6 +2828,8 @@ TEST(Cudnn, external_function_cudnn3) {
 
   dev_bufs[0]->type.code = cinn_type_code_t::cinn_type_float;
   dev_bufs[1]->type.code = cinn_type_code_t::cinn_type_float;
+  dev_bufs[0]->type.bits = 32;
+  dev_bufs[1]->type.bits = 32;
 
   cudaStream_t stream        = nullptr;
   cinn_pod_value_t v_args[2] = {cinn_pod_value_t(dev_bufs[0]), cinn_pod_value_t(dev_bufs[1])};
@@ -3039,7 +2906,7 @@ TEST(CodeGenCUDA2, test_of_slice_assign) {
 
   using runtime::cuda::CUDAModule;
 
-  backends::NVRTC_Compiler compiler;
+  backends::nvrtc::Compiler compiler;
 
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
@@ -3098,18 +2965,8 @@ TEST(Cuda, type_vectorize) {
   auto source_code = codegen.Compile(builder.Build());
   LOG(INFO) << "CUDA source:\n" << source_code;
 
-  auto target_source = R"ROC(
+  std::string target_source = codegen.GetSourceHeader() + R"ROC(
 extern "C" {
-
-#include "cinn_cuda_runtime_source.cuh"
-
-#ifdef __CUDACC_RTC__
-typedef int int32_t;
-typedef char int8_t;
-typedef long int int64_t;
-#endif
-
-
 
 __global__
 void __launch_bounds__(128) add_vectorize(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)

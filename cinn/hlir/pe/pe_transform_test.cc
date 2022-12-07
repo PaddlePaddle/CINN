@@ -18,7 +18,7 @@
 #include "cinn/backends/codegen_cuda_util.h"
 #include "cinn/backends/cuda_util.h"
 #include "cinn/backends/llvm/execution_engine.h"
-#include "cinn/backends/nvrtc_util.h"
+#include "cinn/backends/nvrtc/nvrtc_util.h"
 #include "cinn/cinn.h"
 #include "cinn/common/target.h"
 #include "cinn/common/test_helper.h"
@@ -137,7 +137,7 @@ TEST(ScatterAssign, ScatterAssign) {
   LOG(INFO) << "compiled code:\n\n\n" << source_code;
 
   // nv jit compile to ptx
-  backends::NVRTC_Compiler compiler;
+  backends::nvrtc::Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
   // cuda_module load ptx
@@ -179,7 +179,7 @@ TEST(SliceAssign, SliceAssign) {
   LOG(INFO) << "compiled code:\n\n\n" << source_code;
 
   // nv jit compile to ptx
-  backends::NVRTC_Compiler compiler;
+  backends::nvrtc::Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
 
@@ -218,7 +218,7 @@ TEST(Concat, ConcatCase0) {
   LOG(INFO) << "compiled code:\n\n\n" << source_code;
 
   // nv jit compile to ptx
-  backends::NVRTC_Compiler compiler;
+  backends::nvrtc::Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
 #endif
@@ -258,7 +258,7 @@ TEST(Reduce, Reduce_Test_0) {
   LOG(INFO) << "compiled code:\n\n\n" << source_code;
 
   // nv jit compile to ptx
-  backends::NVRTC_Compiler compiler;
+  backends::nvrtc::Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
 #endif
@@ -327,7 +327,7 @@ TEST(Reduce, Reduce_Test_1) {
   LOG(INFO) << "compiled code:\n\n\n" << source_code;
 
   // nv jit compile to ptx
-  backends::NVRTC_Compiler compiler;
+  backends::nvrtc::Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
 }
@@ -362,7 +362,7 @@ TEST(Reduce, Reduce_Test_2) {
   LOG(INFO) << "compiled code:\n\n\n" << source_code;
 
   // nv jit compile to ptx
-  backends::NVRTC_Compiler compiler;
+  backends::nvrtc::Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
 }
@@ -397,7 +397,7 @@ TEST(Reduce, Reduce_Test_2_1) {
   LOG(INFO) << "compiled code:\n\n\n" << source_code;
 
   // nv jit compile to ptx
-  backends::NVRTC_Compiler compiler;
+  backends::nvrtc::Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
 }
@@ -432,7 +432,7 @@ TEST(Reduce, Reduce_Test_2_2) {
   LOG(INFO) << "compiled code:\n\n\n" << source_code;
 
   // nv jit compile to ptx
-  backends::NVRTC_Compiler compiler;
+  backends::nvrtc::Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
 }
@@ -467,7 +467,7 @@ TEST(Reduce, Reduce_Test_2_3) {
   LOG(INFO) << "compiled code:\n\n\n" << source_code;
 
   // nv jit compile to ptx
-  backends::NVRTC_Compiler compiler;
+  backends::nvrtc::Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
 }
@@ -502,7 +502,7 @@ TEST(Reduce, Reduce_Test_3) {
   LOG(INFO) << "compiled code:\n\n\n" << source_code;
 
   // nv jit compile to ptx
-  backends::NVRTC_Compiler compiler;
+  backends::nvrtc::Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
 }
@@ -537,7 +537,7 @@ TEST(Reduce, Reduce_Test_3_1) {
   LOG(INFO) << "compiled code:\n\n\n" << source_code;
 
   // nv jit compile to ptx
-  backends::NVRTC_Compiler compiler;
+  backends::nvrtc::Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
 }
@@ -573,7 +573,7 @@ TEST(Reduce, Reduce_Test_3_2) {
   LOG(INFO) << "compiled code:\n\n\n" << source_code;
 
   // nv jit compile to ptx
-  backends::NVRTC_Compiler compiler;
+  backends::nvrtc::Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
 }
@@ -609,7 +609,7 @@ TEST(Reduce, Reduce_Test_4) {
   LOG(INFO) << "compiled code:\n\n\n" << source_code;
 
   // nv jit compile to ptx
-  backends::NVRTC_Compiler compiler;
+  backends::nvrtc::Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
 }
@@ -644,7 +644,7 @@ TEST(Reduce, Reduce_Test_5) {
   LOG(INFO) << "compiled code:\n\n\n" << source_code;
 
   // nv jit compile to ptx
-  backends::NVRTC_Compiler compiler;
+  backends::nvrtc::Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
 }
@@ -679,7 +679,7 @@ TEST(Reduce, Reduce_Test_6) {
   LOG(INFO) << "compiled code:\n\n\n" << source_code;
 
   // nv jit compile to ptx
-  backends::NVRTC_Compiler compiler;
+  backends::nvrtc::Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
 }
@@ -715,7 +715,7 @@ TEST(Reduce, Reduce_Test_7) {
   LOG(INFO) << "compiled code:\n\n\n" << source_code;
 
   // nv jit compile to ptx
-  backends::NVRTC_Compiler compiler;
+  backends::nvrtc::Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
 }
@@ -751,7 +751,7 @@ TEST(Reduce, Reduce_Test_8) {
   LOG(INFO) << "compiled code:\n\n\n" << source_code;
 
   // nv jit compile to ptx
-  backends::NVRTC_Compiler compiler;
+  backends::nvrtc::Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
 }
@@ -787,7 +787,7 @@ TEST(Reduce, Reduce_Test_9) {
   LOG(INFO) << "compiled code:\n\n\n" << source_code;
 
   // nv jit compile to ptx
-  backends::NVRTC_Compiler compiler;
+  backends::nvrtc::Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
 }
@@ -832,7 +832,7 @@ TEST(Reduce, Reduce_Test_10) {
   LOG(INFO) << "compiled code:\n\n\n" << source_code;
 
   // nv jit compile to ptx
-  backends::NVRTC_Compiler compiler;
+  backends::nvrtc::Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
 }
@@ -865,7 +865,7 @@ TEST(Reduce, Reduce_Test_11) {
   LOG(INFO) << "compiled code:\n\n\n" << source_code;
 
   // nv jit compile to ptx
-  backends::NVRTC_Compiler compiler;
+  backends::nvrtc::Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
 }
@@ -898,7 +898,7 @@ TEST(Reduce, Reduce_Test_12) {
   LOG(INFO) << "compiled code:\n\n\n" << source_code;
 
   // nv jit compile to ptx
-  backends::NVRTC_Compiler compiler;
+  backends::nvrtc::Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
 }
@@ -931,7 +931,7 @@ TEST(Reduce, Reduce_Test_13) {
   LOG(INFO) << "compiled code:\n\n\n" << source_code;
 
   // nv jit compile to ptx
-  backends::NVRTC_Compiler compiler;
+  backends::nvrtc::Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
 }

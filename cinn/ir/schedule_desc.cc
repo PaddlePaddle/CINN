@@ -344,6 +344,10 @@ CINN_BUILD_STEP_KIND(SimpleComputeAt)
     .Inputs({"block", "loop"})
     .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(&IRSchedule::SimpleComputeAt)));
 
+CINN_BUILD_STEP_KIND(ReverseComputeAt)
+    .Inputs({"block", "loop"})
+    .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(&IRSchedule::ReverseComputeAt)));
+
 CINN_BUILD_STEP_KIND(GetRootBlock)
     .Inputs({"expr"})
     .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(&IRSchedule::GetRootBlock)));
@@ -371,18 +375,18 @@ CINN_BUILD_STEP_KIND(SetBuffer)
 CINN_BUILD_STEP_KIND(Reorder)
     .Inputs({"loops"})
     .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(
-                    static_cast<void (IRSchedule::*)(const std::vector<Expr>&)>(&IRSchedule::Reorder))));
+                    static_cast<Expr (IRSchedule::*)(const std::vector<Expr>&)>(&IRSchedule::Reorder))));
 
 CINN_BUILD_STEP_KIND(ReorderWithBlock)
     .Inputs({"block"})
     .Attrs({"loops_index"})
     .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(
-                    static_cast<void (IRSchedule::*)(const Expr&, const std::vector<int>&)>(&IRSchedule::Reorder))));
+                    static_cast<Expr (IRSchedule::*)(const Expr&, const std::vector<int>&)>(&IRSchedule::Reorder))));
 
 CINN_BUILD_STEP_KIND(ReorderWithName)
     .Attrs({"block_name", "loops_index"})
     .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(
-                    static_cast<void (IRSchedule::*)(const std::string&, const std::vector<int>&)>(&IRSchedule::Reorder))));
+                    static_cast<Expr (IRSchedule::*)(const std::string&, const std::vector<int>&)>(&IRSchedule::Reorder))));
 
 CINN_BUILD_STEP_KIND(Parallel)
     .Inputs({"loop"})
@@ -447,6 +451,11 @@ CINN_BUILD_STEP_KIND(AnnotateStringAttr)
     .Inputs({"block"})
     .Attrs({"key", "value"})
     .SetApplyFn(APPLY_FUNC_UNIFORM(AnnotateStringAttr));
+
+CINN_BUILD_STEP_KIND(FlattenLoops)
+    .Inputs({"loops"})
+    .Attrs({"force_flat"})
+    .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(&IRSchedule::FlattenLoops)));
 
 // clang-format on
 

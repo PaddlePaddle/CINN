@@ -13,3 +13,107 @@
 // limitations under the License.
 
 #include "cinn/hlir/op/op_util.h"
+
+#include "cinn/hlir/pe/ir_schedule_pe.h"
+#include "cinn/hlir/pe/schedule.h"
+#include "cinn/ir/ir_schedule.h"
+
+DECLARE_bool(cinn_ir_schedule);
+
+namespace cinn {
+namespace hlir {
+
+std::vector<int> GetPositiveAxes(const std::vector<int>& axes, int rank) {
+  std::vector<int> new_axes(axes.size());
+  for (int i = 0; i < axes.size(); ++i) {
+    int axis = axes[i] + (axes[i] < 0 ? rank : 0);
+    CHECK(axis >= 0 && axis < rank) << "The axis should in [0, " << rank << "), but axes[" << i << "]=" << axes[i]
+                                    << " not.";
+    new_axes[i] = axis;
+  }
+  std::sort(new_axes.begin(), new_axes.end());
+  return new_axes;
+}
+
+CINNSchedule GetElementwiseScheduleFunc(const std::vector<std::vector<int>>& output_shapes,
+                                        const Target& target,
+                                        bool vectorizable) {
+  return CINNSchedule([=](lang::Args args, lang::RetValue* ret) {
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK(!args.empty()) << "The input argument of InjectiveSchedule is empty! Please check.\n";
+      common::CINNValuePack arg_pack = args[0];
+      std::vector<Expr> vec_ast;
+      for (int i = 0; i < arg_pack.size(); i++) {
+        if (arg_pack[i].is_expr()) {
+          Expr temp = arg_pack[i];
+          vec_ast.emplace_back(temp);
+        }
+      }
+      CHECK(!vec_ast.empty());
+      ir::ModuleExpr mod_expr(vec_ast);
+      ir::IRSchedule ir_sch(mod_expr);
+      ir_sch.MergeExprs();
+      pe::IRElementwiseSchedule(ir_sch, output_shapes.front(), target);
+      std::vector<common::CINNValue> res{common::CINNValue(ir_sch.GetModule().GetExprs().at(0))};
+      *ret = common::CINNValuePack{res};
+    } else {
+      CHECK(!args.empty()) << "The input argument of InjectiveSchedule is empty! Please check.\n";
+      common::CINNValuePack arg_pack = args[0];
+      Expr out                       = arg_pack[0];
+      poly::StageMap stages          = arg_pack[1];
+      CHECK(out.as_tensor());
+      CHECK_EQ(arg_pack.size(), 2UL);
+      if (target.arch == Target::Arch::NVGPU) {
+        pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes.front(), target);
+      } else if (target.arch == Target::Arch::X86) {
+        pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes.front(), target, vectorizable);
+      }
+      *ret = arg_pack;
+    }
+  });
+}
+
+CINNSchedule GetInjectiveScheduleFunc(const std::vector<std::vector<int>>& output_shapes,
+                                      const Target& target,
+                                      bool vectorizable) {
+  return CINNSchedule([=](lang::Args args, lang::RetValue* ret) {
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK(!args.empty()) << "The input argument of InjectiveSchedule is empty! Please check.\n";
+      common::CINNValuePack arg_pack = args[0];
+      std::vector<Expr> vec_ast;
+      for (int i = 0; i < arg_pack.size(); i++) {
+        if (arg_pack[i].is_expr()) {
+          Expr temp = arg_pack[i];
+          vec_ast.emplace_back(temp);
+        }
+      }
+      CHECK(!vec_ast.empty());
+      ir::ModuleExpr mod_expr(vec_ast);
+      ir::IRSchedule ir_sch(mod_expr);
+      ir_sch.MergeExprs();
+      if (target.arch == Target::Arch::NVGPU) {
+        pe::IRInjectiveSchedule(ir_sch, output_shapes.front(), target);
+      } else if (target.arch == Target::Arch::X86) {
+        pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target, vectorizable);
+      }
+      std::vector<common::CINNValue> res{common::CINNValue(ir_sch.GetModule().GetExprs().at(0))};
+      *ret = common::CINNValuePack{res};
+    } else {
+      CHECK(!args.empty()) << "The input argument of InjectiveSchedule is empty! Please check.\n";
+      common::CINNValuePack arg_pack = args[0];
+      Expr out                       = arg_pack[0];
+      poly::StageMap stages          = arg_pack[1];
+      CHECK(out.as_tensor());
+      CHECK_EQ(arg_pack.size(), 2UL);
+      if (target.arch == Target::Arch::NVGPU) {
+        pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes.front(), target);
+      } else if (target.arch == Target::Arch::X86) {
+        pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes.front(), target, vectorizable);
+      }
+      *ret = arg_pack;
+    }
+  });
+}
+
+}  // namespace hlir
+}  // namespace cinn

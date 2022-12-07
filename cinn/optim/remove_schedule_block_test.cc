@@ -56,7 +56,7 @@ function matmul (_A, _B, _C)
         ScheduleBlock(C__reduce_init)
         {
           i0, i1 = axis.bind(i, j)
-          C__reduce_init[i0, i1] = 0
+          C__reduce_init[i0, i1] = 0.00000f
         }
         serial for (k0, 0, 20)
         {
@@ -83,7 +83,7 @@ function matmul (_A, _B, _C)
   {
     serial for (j, 0, 50)
     {
-      C__reduce_init[i, j] = 0
+      C__reduce_init[i, j] = 0.00000f
       serial for (k0, 0, 20)
       {
         C[i, j] = (C[i, j] + (A[i, k0] * B[k0, j]))

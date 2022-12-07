@@ -30,6 +30,13 @@ class GemmRewriterPass : public ProgramPass {
   using ProgramPass::ProgramPass;
 
  protected:
+  void Clear() override {
+    removed_instrs_.clear();
+    origin2new_.clear();
+    output2instr_.clear();
+    var_used_count_.clear();
+  }
+
   void ApplyImpl(Program* prog,
                  const std::unordered_set<std::string>& fetch_ids,
                  const common::Target& target) override {
@@ -179,7 +186,7 @@ class GemmRewriterPass : public ProgramPass {
         // only support the condition below:
         // 1) tow-dim matrix multiply, such as m * k, k * n
         // 2) three-dim tensor multiply, such as b * m * k, b * k * n
-        if ((lhs_dim_size == 2 || lhs_dim_size == 3) && (lhs_dim_size == rhs_dim_size)) {
+        if (lhs_dim_size <= 4 && rhs_dim_size <= 4) {
           instr->op_type = "cublas_matmul";
         }
       }

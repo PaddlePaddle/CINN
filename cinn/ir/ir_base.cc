@@ -26,6 +26,8 @@
 namespace cinn {
 namespace ir {
 
+using cinn::common::float16;
+
 //! Implementations for Ir Expr Nodes.
 // @{
 #define __m(t__)                                             \
@@ -54,6 +56,7 @@ std::ostream &operator<<(std::ostream &os, IrNodeTy type) {
 }
 
 Expr Zero(const Type &type) {
+  if (type.is_float(16)) return Expr(float16(0.f));
   if (type.is_float(32)) return Expr(0.f);
   if (type.is_float(64)) return Expr(double(0.));  // NOLINT
   if (type.is_bool()) return Expr(false);
@@ -61,6 +64,19 @@ Expr Zero(const Type &type) {
   if (type.is_int(64)) return Expr(int64_t(0));
   if (type.is_uint(32)) return Expr(uint32_t(0));
   if (type.is_uint(64)) return Expr(uint64_t(0));
+  CINN_NOT_IMPLEMENTED
+  return Expr();
+}
+
+Expr One(const Type &type) {
+  if (type.is_float(16)) return Expr(float16(1.f));
+  if (type.is_float(32)) return Expr(1.f);
+  if (type.is_float(64)) return Expr(double(1.));  // NOLINT
+  if (type.is_bool()) return Expr(true);
+  if (type.is_int(32)) return Expr(int32_t(1));
+  if (type.is_int(64)) return Expr(int64_t(1));
+  if (type.is_uint(32)) return Expr(uint32_t(1));
+  if (type.is_uint(64)) return Expr(uint64_t(1));
   CINN_NOT_IMPLEMENTED
   return Expr();
 }
@@ -77,6 +93,10 @@ int32_t Expr::as_int32() const {
 int64_t Expr::as_int64() const {
   CHECK(type().is_int(64));
   return As<IntImm>()->value;
+}
+float16 Expr::as_float16() const {
+  CHECK(type().is_float(16));
+  return float16(As<FloatImm>()->value);
 }
 float Expr::as_float() const {
   CHECK(type().is_float(32));

@@ -53,6 +53,8 @@ class ProgramPass {
     return const_cast<ProgramPass*>(this)->ApplyImpl(prog, fetch_ids, target);
   }
 
+  virtual void Clear() = 0;
+
  private:
   std::string name_;
 };

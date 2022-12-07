@@ -34,6 +34,213 @@ namespace pe {
 using cinn::lang::Compute;
 using ir::Tensor;
 
+namespace utils {
+std::vector<std::vector<int>> GetMatmulNewShapes(const std::vector<std::vector<int>>& inputs_shape,
+                                                 bool trans_x,
+                                                 bool trans_y) {
+  CHECK_EQ(inputs_shape.size(), 2UL) << "The matmul should only have two inputs.";
+  const auto &x_shape = inputs_shape[0], &y_shape = inputs_shape[1];
+  CHECK(!x_shape.empty()) << "The shape of matmul input 'x' should not empty.";
+  CHECK(!y_shape.empty()) << "The shape of matmul input 'y' should not empty.";
+
+  auto matmul_info = [&]() {
+    std::stringstream ss;
+    ss << std::boolalpha << "matmul(X:"
+       << "[" << cinn::utils::Join(x_shape, ", ") << "], Y:"
+       << "[" << cinn::utils::Join(y_shape, ", ") << "]"
+       << ", trans_x=" << trans_x << ", trans_y=" << trans_y << ")";
+    return ss.str();
+  };
+  VLOG(4) << "Try infer " << matmul_info() << "'s correct shape";
+
+  std::vector<std::vector<int>> new_shape(3);
+  auto& new_x_shape = new_shape[0];
+  auto& new_y_shape = new_shape[1];
+  auto& out_shape   = new_shape[2];
+
+  int x_dim = x_shape.size(), y_dim = y_shape.size();
+  int max_dim = std::max(x_shape.size(), y_shape.size());
+  int out_dim = max_dim >= 3 ? 3 : (max_dim <= 2 ? 2 : max_dim);
+
+  auto get_input_shape = [out_dim](const std::vector<int>& old_shape) {
+    CHECK_GE(old_shape.size(), 2UL) << "The shape of matmul input should greater equal 2";
+    std::vector<int> res;
+    res.resize(out_dim, 1);
+    // [a, b, m, d] -> [a*b, m, d]
+    for (int i = 0; i < old_shape.size() - 2; ++i) {
+      res[0] *= old_shape[i];
+    }
+    res[out_dim - 2] = old_shape[old_shape.size() - 2];
+    res[out_dim - 1] = old_shape[old_shape.size() - 1];
+    return res;
+  };
+
+  if (max_dim == 1) {
+    // vector * vector
+    CHECK(x_shape[0] == y_shape[0])
+        << "The matmul input X's numbers must be equal to Y's numbers,when X/Y's dims =1. But here " << matmul_info();
+
+    new_x_shape = trans_x ? std::vector<int>{x_shape[0], 1} : std::vector<int>{1, x_shape[0]};
+    new_y_shape = trans_y ? std::vector<int>{1, y_shape[0]} : std::vector<int>{y_shape[0], 1};
+    out_shape   = {1};
+  } else if (x_dim == 1) {
+    // vector * matrix
+    int y_K = trans_y ? y_shape[max_dim - 1] : y_shape[max_dim - 2];
+    CHECK_EQ(y_K, x_shape[0]) << "The K dimension of Y:" << y_K << " should equal to X.shape[0]:" << x_shape[0]
+                              << ". But here " << matmul_info();
+
+    // set x shape for broadcast
+    new_x_shape.resize(out_dim, 1);
+    if (trans_x) {
+      // [m] * [a, b, m, d] -> [1, m, 1] * [a*b, m, d]
+      new_x_shape[out_dim - 2] = x_shape[0];
+    } else {
+      // [m] * [a, b, m, d] -> [1, 1, m] * [a*b, m, d]
+      new_x_shape[out_dim - 1] = x_shape[0];
+    }
+
+    new_y_shape = get_input_shape(y_shape);
+
+    // set output shape after broadcast
+    out_shape = y_shape;
+    if (trans_y) {
+      // [m] * [a, b, d, m] -> [a, b, d]
+      out_shape.erase(out_shape.end() - 1);
+    } else {
+      // [m] * [a, b, m, d] -> [a, b, d]
+      out_shape.erase(out_shape.end() - 2);
+    }
+
+  } else if (y_dim == 1) {
+    // matrix * vector
+    int x_K = trans_x ? x_shape[max_dim - 2] : x_shape[max_dim - 1];
+    CHECK_EQ(x_K, y_shape[0]) << "The K dimension of X:" << x_K << " should equal to Y.shape[0]:" << y_shape[0]
+                              << ". But here " << matmul_info();
+
+    // set y shape for broadcast
+    // [a, b, c, m] * [m] -> [a*b, c, m] * [1, m, 1]
+    new_x_shape = get_input_shape(x_shape);
+
+    new_y_shape.resize(out_dim, 1);
+    if (trans_y) {
+      // [a, b, c, m] * [m] -> [a*b, c, m] * [1, 1, m]
+      new_y_shape[out_dim - 1] = y_shape[0];
+    } else {
+      // [a, b, c, m] * [m] -> [a*b, c, m] * [1, m, 1]
+      new_y_shape[out_dim - 2] = y_shape[0];
+    }
+
+    out_shape = x_shape;
+    if (trans_x) {
+      // [a, b, m, c] * [m] -> [a, b, c]
+      out_shape.erase(out_shape.end() - 2);
+    } else {
+      // [a, b, c, m] * [m] -> [a, b, c]
+      out_shape.erase(out_shape.end() - 1);
+    }
+  } else {
+    // matrix * matrix
+    int x_K = trans_x ? x_shape[x_dim - 2] : x_shape[x_dim - 1];
+    int y_K = trans_y ? y_shape[y_dim - 1] : y_shape[y_dim - 2];
+    CHECK_EQ(x_K, y_K) << "The K dimension of matmul not equal. Where " << matmul_info();
+
+    // [c, m] * [a, b, m, d] -> [1, c, m] * [a*b, m, d]
+    new_x_shape = get_input_shape(x_shape);
+    // [a, b, c, m] * [m, d] -> [a*b, c, m] * [1, m, d]
+    new_y_shape = get_input_shape(y_shape);
+
+    // get output shape
+    // [a, b, c, m] * [a, b, m, d] -> [a, b, c, d]
+    int M = trans_x ? x_shape[x_dim - 1] : x_shape[x_dim - 2];
+    int N = trans_y ? y_shape[y_dim - 2] : y_shape[y_dim - 1];
+
+    out_shape.resize(max_dim, 1);
+    out_shape[max_dim - 2] = M;
+    out_shape[max_dim - 1] = N;
+
+    // get the batch dimension after broadcast
+    int x_pos = x_dim - 3, y_pos = y_dim - 3, out_pos = max_dim - 3;
+    while (x_pos >= 0 && y_pos >= 0) {
+      CHECK(x_shape[x_pos] == y_shape[y_pos] || x_shape[x_pos] == 1 || y_shape[y_pos] == 1)
+          << "Input X and Y's batch dimension should be same or 1. But here " << matmul_info();
+
+      out_shape[out_pos] = (x_shape[x_pos] == 1) ? y_shape[y_pos] : x_shape[x_pos];
+
+      out_pos--;
+      x_pos--;
+      y_pos--;
+    }
+
+    while (x_pos >= 0) {
+      out_shape[out_pos--] = x_shape[x_pos--];
+    }
+    while (y_pos >= 0) {
+      out_shape[out_pos--] = x_shape[y_pos--];
+    }
+  }
+
+  return new_shape;
+}
+
+std::vector<std::vector<int>> GetMulNewShapes(const std::vector<std::vector<int>>& inputs_shape,
+                                              int x_num_col_dims,
+                                              int y_num_col_dims) {
+  CHECK_EQ(inputs_shape.size(), 2UL) << "The mul should only have two inputs.";
+  const auto &x_shape = inputs_shape[0], &y_shape = inputs_shape[1];
+  CHECK(!x_shape.empty()) << "The shape of mul input 'x' should not empty.";
+  CHECK(!y_shape.empty()) << "The shape of mul input 'y' should not empty.";
+
+  auto mul_info = [&]() {
+    std::stringstream ss;
+    ss << std::boolalpha << "mul(X:"
+       << "[" << cinn::utils::Join(x_shape, ", ") << "], Y:"
+       << "[" << cinn::utils::Join(y_shape, ", ") << "]"
+       << ", x_num_col_dims=" << x_num_col_dims << ", y_num_col_dims=" << y_num_col_dims << ")";
+    return ss.str();
+  };
+  VLOG(4) << "Try infer " << mul_info() << "'s correct shape";
+
+  std::vector<std::vector<int>> new_shape(3);
+  auto& new_x_shape = new_shape[0];
+  auto& new_y_shape = new_shape[1];
+  auto& out_shape   = new_shape[2];
+
+  auto flatten_shape = [&](const std::vector<int>& shape, int num_col_dims) {
+    if (shape.size() <= 2) {
+      return shape;
+    }
+
+    if (num_col_dims < 0) {
+      num_col_dims += shape.size();
+    }
+
+    CHECK_GT(num_col_dims, 0) << "The [num_col_dims] should not be 0 in " << mul_info() << "! Please check.";
+    CHECK_LT(num_col_dims, shape.size()) << "The [num_col_dims] > rank(input) in " << mul_info() << "! Please check.";
+
+    std::vector<int> res(2, 1);
+    for (int i = 0; i < num_col_dims; ++i) {
+      res[0] *= shape[i];
+    }
+    for (int i = num_col_dims; i < shape.size(); ++i) {
+      res[1] *= shape[i];
+    }
+    return res;
+  };
+
+  new_x_shape = flatten_shape(x_shape, x_num_col_dims);
+  new_y_shape = flatten_shape(y_shape, y_num_col_dims);
+
+  for (int i = 0; i < x_num_col_dims; ++i) {
+    out_shape.emplace_back(x_shape[i]);
+  }
+  for (int i = y_num_col_dims; i < y_shape.size(); ++i) {
+    out_shape.emplace_back(y_shape[i]);
+  }
+
+  return new_shape;
+}
+}  // namespace utils
+
 std::vector<Tensor> Matmul(
     const Tensor& A, const Tensor& B, bool trans_a, bool trans_b, float alpha, const std::string& name) {
   std::vector<Expr> shape_A = A->shape;
@@ -86,7 +293,7 @@ std::vector<Tensor> Matmul(
   if (alpha != 1) {
     auto res = Compute(
         output_shape,
-        [=](const std::vector<Expr>& indice) { return temp(indice) * make_const(temp->type(), alpha); },
+        [=](const std::vector<Expr>& indice) { return temp(indice) * ir::Cast::Make(temp->type(), Expr(alpha)); },
         name);
     return {res, temp};
   } else {
@@ -114,40 +321,6 @@ ir::Tensor Reshape(const ir::Tensor& A,
       << "In op reshape, the input tensor and output tensor's total size should be equal, please check!";
   auto out = Identity(A->Reshape(new_expr_shape, stages), name).front();
   return out;
-}
-
-ir::Tensor Reshape(const ir::Tensor& A, const std::vector<int>& new_shape, const std::string& name) {
-  std::vector<Expr> new_expr_shape;
-  std::vector<Expr> A_expr_shape = A->shape;
-  int input_total_size           = 1;
-  int output_total_size          = 1;
-  for (auto& i : A_expr_shape) {
-    CHECK(i.is_constant()) << "Input tensor's shape should be constant value.";
-    input_total_size *= static_cast<int>(i.get_constant());
-  }
-  for (auto& i : new_shape) {
-    output_total_size *= i;
-    new_expr_shape.push_back(Expr(i));
-  }
-  CHECK_EQ(input_total_size, output_total_size)
-      << "In op reshape, the input tensor and output tensor's total size should be equal, please check!";
-  auto res = Compute(
-      new_expr_shape,
-      [=](const std::vector<Expr>& indice) {
-        Expr offset = Expr(0);
-        for (int i = 0; i < indice.size(); i++) {
-          offset = offset * new_expr_shape[i] + indice[i];
-        }
-        std::vector<Expr> indice_a;
-        for (int i = A_expr_shape.size() - 1; i >= 0; i--) {
-          auto temp = offset % A_expr_shape[i];
-          indice_a.insert(indice_a.begin(), common::AutoSimplify(temp));
-          offset = (offset - temp) / A_expr_shape[i];
-        }
-        return A(indice_a);
-      },
-      name);
-  return res;
 }
 
 std::vector<ir::Tensor> Split(const ir::Tensor& A,
@@ -317,7 +490,7 @@ std::vector<Tensor> MatmulV2(const Tensor& A,
         if (alpha == 1) {
           return lang::ReduceSum(A(indice_a) * packedB(indice_b), {reduce_k});
         } else {
-          return lang::ReduceSum(A(indice_a) * packedB(indice_b) * make_const(A->type(), alpha), {reduce_k});
+          return lang::ReduceSum(A(indice_a) * packedB(indice_b) * ir::Cast::Make(A->type(), Expr(alpha)), {reduce_k});
         }
       },
       UniqName("matmulV2_out"));
@@ -430,7 +603,8 @@ std::vector<Tensor> MulBase(const Tensor& A, const Tensor& B, const std::string&
   if (target.arch == Target::Arch::X86) {
     int reduce_dim   = A->shape[1].as_int32();
     int split_factor = GetMulFactor(reduce_dim, A->type(), target);
-    Var reduce_k_first(common::make_const(A->shape[1]->type(), reduce_dim / split_factor), UniqName("reduce_k_first"));
+    Var reduce_k_first(ir::Cast::Make(A->shape[1]->type(), Expr(reduce_dim / split_factor)),
+                       UniqName("reduce_k_first"));
     auto mul_reduce_first = Compute(
         {A->shape[0], B->shape[0], Expr(split_factor)},
         [=](const std::vector<Expr>& indice) {
@@ -440,7 +614,7 @@ std::vector<Tensor> MulBase(const Tensor& A, const Tensor& B, const std::string&
                                  {reduce_k_first});
         },
         UniqName("mul_reduce_k_first"));
-    Var reduce_k_second(common::make_const(A->shape[1]->type(), split_factor), UniqName("reduce_k_second"));
+    Var reduce_k_second(ir::Cast::Make(A->shape[1]->type(), Expr(split_factor)), UniqName("reduce_k_second"));
     return {Compute(
                 output_shape,
                 [=](const std::vector<Expr>& indice) {
@@ -509,18 +683,18 @@ std::vector<Tensor> MulMKL(const Tensor& A, const Tensor& B, const std::string& 
       [=]() -> Expr {
         return lang::CallExtern("cinn_cpu_mkl_gemm_fp32",
                                 {
-                                    common::make_const(Float(32), 1),  // alpha
-                                    M,                                 // M
-                                    N,                                 // N
-                                    x_width,                           // K
-                                    common::make_bool(false),          // ta
-                                    common::make_bool(true),           // tb
-                                    shape_A.back(),                    // lda
-                                    shape_B.back(),                    // ldb
-                                    N,                                 // ldc
-                                    common::make_zero<float>(),        // beta
-                                    A,                                 // A
-                                    B,                                 // B
+                                    Expr(1.0f),                  // alpha
+                                    M,                           // M
+                                    N,                           // N
+                                    x_width,                     // K
+                                    common::make_bool(false),    // ta
+                                    common::make_bool(true),     // tb
+                                    shape_A.back(),              // lda
+                                    shape_B.back(),              // ldb
+                                    N,                           // ldc
+                                    common::make_zero<float>(),  // beta
+                                    A,                           // A
+                                    B,                           // B
                                 });
       },
       UniqName("mul_mkl_out"));
@@ -980,40 +1154,23 @@ ir::Tensor ScatterAdd(const ir::Tensor& input,
   return output;
 }
 
-ir::Tensor ExpandDims(const ir::Tensor& input, int axis, int num_newaxis, const std::string& output_name) {
-  int ndims = input.ndims();
-  CHECK(axis >= -ndims - 1 && axis <= ndims)
-      << "expand_dims only accept `axis` in [-x.ndim - 1, x.ndim], but got axis = " << axis
-      << ", and x.ndims = " << ndims;
-  CHECK_GE(num_newaxis, 0);
-
-  if (axis < 0) {
-    axis = ndims + axis + 1;
-  }
-  std::vector<Expr> output_shape;
-  for (size_t i = 0; i < static_cast<size_t>(axis); ++i) {
-    output_shape.push_back(input->shape[i]);
-  }
-  for (size_t i = 0; i < static_cast<size_t>(num_newaxis); ++i) {
-    output_shape.push_back(Expr(1));
-  }
-  for (size_t i = axis; i < input->shape.size(); ++i) {
-    output_shape.push_back(input->shape[i]);
-  }
-
-  return Compute(
-      output_shape,
-      [=](const std::vector<Expr>& indice) {
-        std::vector<Expr> idx;
-        for (size_t i = 0; i < static_cast<size_t>(axis); ++i) {
-          idx.push_back(indice[i]);
+ir::Tensor Gather(const ir::Tensor& input, const ir::Tensor& index, const int& axis, const std::string& output_name) {
+  CHECK_EQ(input->shape.size(), index->shape.size());
+  auto res = Compute(
+      index->shape,
+      [=](const std::vector<Expr>& indices) {
+        std::vector<Expr> A_indices;
+        for (int i = 0; i < axis; ++i) {
+          A_indices.push_back(indices[i]);
         }
-        for (size_t i = axis + num_newaxis; i < indice.size(); ++i) {
-          idx.push_back(indice[i]);
+        A_indices.push_back(ir::Cast::Make(common::I32(), index(indices)));
+        for (size_t i = axis + 1; i < input->shape.size(); ++i) {
+          A_indices.push_back(indices[i]);
         }
-        return input(idx);
+        return input(A_indices);
       },
       UniqName(output_name));
+  return res;
 }
 
 }  // namespace pe

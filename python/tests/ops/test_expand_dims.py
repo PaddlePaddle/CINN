@@ -25,7 +25,7 @@ from cinn.common import *
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
                     "x86 test will be skipped due to timeout.")
-class TestCastOp(OpTest):
+class TestExpandDimsOp(OpTest):
     def setUp(self):
         self.init_case()
 
@@ -34,12 +34,13 @@ class TestCastOp(OpTest):
             "x": np.random.random([
                 32,
                 64,
-            ]).astype("float32") * 2 - 1
+            ]).astype("float32")
         }
+        self.axes = [0]
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.inputs["x"], stop_gradient=True)
-        out = paddle.unsqueeze(x, [-1, 0, 1])
+        out = paddle.unsqueeze(x, self.axes)
 
         self.paddle_outputs = [out]
 
@@ -48,9 +49,7 @@ class TestCastOp(OpTest):
     def build_cinn_program(self, target):
         builder = NetBuilder("expand_dims")
         x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
-        out = builder.expand_dims(x, -1)
-        out = builder.expand_dims(out, 0)
-        out = builder.expand_dims(out, 1)
+        out = builder.expand_dims(x, self.axes)
 
         prog = builder.build()
         res = self.get_cinn_output(prog, target, [x], [self.inputs["x"]],
@@ -62,11 +61,16 @@ class TestCastOp(OpTest):
         self.check_outputs_and_grads()
 
 
-class TestCastCase1(TestCastOp):
+class TestExpandDimsCase1(TestExpandDimsOp):
     def init_case(self):
-        self.inputs = {
-            "x": np.random.random([2, 3, 4]).astype("float32") * 3 - 1
-        }
+        self.inputs = {"x": np.random.random([2, 3, 4]).astype("float32")}
+        self.axes = [0, 2, 4]
+
+
+class TestExpandDimsCase2(TestExpandDimsOp):
+    def init_case(self):
+        self.inputs = {"x": np.random.random([2, 3, 4]).astype("float32")}
+        self.axes = [3, 4, 5]
 
 
 if __name__ == "__main__":

@@ -198,9 +198,9 @@ TEST(Vectorize, vectorize) {
     auto expr = Load::Make(ir::Tensor(A), {a * 2 + b * 2});
     expr      = expr + 10.f * expr;
     detail::Vectorize(a, 16, &expr);
-    EXPECT_EQ(
-        GetStreamCnt(expr),
-        "(A[Ramp(((b * 2) + (0 * 2)),(1 * 2),16)] + (Broadcast(10,16) * A[Ramp(((b * 2) + (0 * 2)),(1 * 2),16)]))");
+    EXPECT_EQ(GetStreamCnt(expr),
+              "(A[Ramp(((b * 2) + (0 * 2)),(1 * 2),16)] + (Broadcast(10.0000f,16) * A[Ramp(((b * 2) + (0 * 2)),(1 * "
+              "2),16)]))");
   }
 }
 
