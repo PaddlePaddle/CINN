@@ -151,8 +151,12 @@ CONDITION_FUNC(is_horizontal_relation) {
 
     return false;
   };
-  for (auto master : consumer->master_nodes) {
-    if (check_depency(master)) {
+
+  for (auto node : consumer->nodes_set) {
+    if (helper->GetOpKind(node) != consumer->op_pattern_kind) {
+      continue;
+    }
+    if (check_depency(node)) {
       return false;
     }
   }
@@ -162,8 +166,7 @@ CONDITION_FUNC(is_horizontal_relation) {
 
 CONDITION_FUNC(horizontal_or_vertical_reduce_relation) {
   // check is same shape with horizontal relation.
-  if (is_horizontal_relation(helper, producer, consumer)) {
-    CHECK(is_same_size(helper, producer, consumer));
+  if (is_same_size(helper, producer, consumer)) {
     return true;
   }
 
