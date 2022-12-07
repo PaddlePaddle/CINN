@@ -790,6 +790,10 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
         ir_sch.Fuse(block_name, {axes[index + 1], axes[index + 1] + 1});
       }
       OrderAssignReduce(ir_sch, block_name, first_axes, true);
+      // fuse axis before reduce to bind blockidx.
+      for (int idx = 0; idx < (inshape.size() - axes.size()) - 1; ++idx) {
+        ir_sch.Fuse(block_name, {0, 1});
+      }
     }
   };
 
