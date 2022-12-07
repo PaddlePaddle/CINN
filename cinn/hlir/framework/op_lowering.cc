@@ -1208,18 +1208,15 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
       } else {
         VLOG(2) << "Reduce Schedule for WithLastDimInReduce";
         if (tensor_map.count(reducer_data->id() + "_1")) {
-          // ScheduleAssignReduceWithLast(ir_sch, node_tensor->name, reducer_shape, reducer_axes);
+          {
+            auto node_loops = ir_sch.GetLoops(node_tensor->name);
+            ir_sch.Split(node_loops.back(), reducer_shape);
+          }
+
+          ScheduleAssignReduceWithLast(ir_sch, node_tensor->name, reducer_shape, reducer_axes);
           auto reducer_1_tensor = tensor_map[reducer_data->id() + "_1"];
           auto reducer_1_block  = ir_sch.GetBlock(reducer_1_tensor->name);
           auto reducer_1_loops  = ir_sch.GetLoops(reducer_1_block);
-
-          auto node_loops = ir_sch.GetLoops(node_tensor->name);
-          std::vector<int> factors;
-          for (auto& loop : reducer_1_loops) {
-            factors.push_back(loop.As<ir::For>()->extent.as_int32());
-          }
-          ir_sch.Split(node_loops.back(), factors);
-
           CHECK_EQ(ir_sch.GetLoops(node_tensor->name).size(), ir_sch.GetLoops(reducer_1_block).size())
               << "node loop size and reduce loop size must be equal!";
           auto node_block = ir_sch.GetBlock(node_tensor->name);
