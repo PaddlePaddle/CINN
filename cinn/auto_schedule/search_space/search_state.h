@@ -68,10 +68,9 @@ struct SearchStateEqual {
   bool operator()(const SearchState& lhs, const SearchState& rhs) const;
 };
 
-void PrintStates(const std::string& phase_name,
-                 const std::vector<SearchState>& states,
-                 bool enable,
-                 bool print_detail = false);
+std::string JoinStatesDebugString(const std::string& title,
+                                  const std::vector<SearchState>& states,
+                                  bool verbose = false);
 
 }  // namespace auto_schedule
 }  // namespace cinn

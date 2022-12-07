@@ -52,28 +52,19 @@ std::vector<SearchState> EvolutionarySearch::SearchModuleExprBests(const TuningO
           << visited_candidates_.size();
   std::vector<SearchState> init_population;
   std::vector<SearchState> topk_from_database = GetTopKCandidatesFromDatabase(options.evolution_pick_database_topk);
-  PrintStates("EvolutionarySearch::GetTopKCandidatesFromDatabase",
-              topk_from_database,
-              /*enable=*/VLOG_IS_ON(4),
-              /*print_detail=*/VLOG_IS_ON(5));
+  VLOG(4) << JoinStatesDebugString(
+      "EvolutionarySearch::GetTopKCandidatesFromDatabase", topk_from_database, /*verbose=*/VLOG_IS_ON(5));
   int random_num = options.evolution_init_population_num - topk_from_database.size();
 
   std::vector<SearchState> random_sketch = RandomInitSketch(random_num);
-  PrintStates("EvolutionarySearch::RandomInitSketch",
-              random_sketch,
-              /*enable=*/VLOG_IS_ON(4),
-              /*print_detail=*/VLOG_IS_ON(5));
+  VLOG(4) << JoinStatesDebugString("EvolutionarySearch::RandomInitSketch", random_sketch, /*verbose=*/VLOG_IS_ON(5));
 
   init_population.insert(init_population.end(), topk_from_database.begin(), topk_from_database.end());
   init_population.insert(init_population.end(), random_sketch.begin(), random_sketch.end());
 
   std::vector<SearchState> picked_bests =
       Evolve(init_population, options.evolution_cross_over_num, options.num_samples_per_iteration);
-  PrintStates("EvolutionarySearch::Evolve",
-              picked_bests,
-              /*enable=*/VLOG_IS_ON(4),
-              /*print_detail=*/VLOG_IS_ON(5));
-
+  VLOG(4) << JoinStatesDebugString("EvolutionarySearch::Evolve", picked_bests, /*verbose=*/VLOG_IS_ON(5));
   return picked_bests;
 }
 
@@ -82,10 +73,8 @@ std::vector<SearchState> EvolutionarySearch::SearchModuleExprEpsGreedy(const Tun
   int random_num                        = options.evolution_init_population_num - options.evolution_pick_database_topk;
   auto results                          = PickNextGenerationEpsGreedy(
       picked_bests, RandomInitSketch(random_num), options.num_samples_per_iteration, options.evolution_eps_greedy);
-  PrintStates("EvolutionarySearch::PickNextGenerationEpsGreedy",
-              results,
-              /*enable=*/VLOG_IS_ON(4),
-              /*print_detail=*/VLOG_IS_ON(5));
+  VLOG(4) << JoinStatesDebugString(
+      "EvolutionarySearch::PickNextGenerationEpsGreedy", results, /*verbose=*/VLOG_IS_ON(5));
   return results;
 }
 
@@ -108,10 +97,7 @@ std::vector<SearchState> EvolutionarySearch::RandomInitSketch(int num) {
 }
 
 SearchState EvolutionarySearch::CrossOver(const SearchState& state1, const SearchState& state2) {
-  PrintStates("EvolutionarySearch::CrossOver",
-              {state1, state2},
-              /*enable=*/VLOG_IS_ON(5),
-              /*print_detail=*/VLOG_IS_ON(6));
+  VLOG(4) << JoinStatesDebugString("EvolutionarySearch::CrossOver", {state1, state2}, /*verbose=*/VLOG_IS_ON(5));
   // TODO(CtfGo): tracing CrossOver with IRSchedule
   std::vector<ir::Expr> cross_over_exprs;
   std::vector<ir::Expr> father_exprs = state1->ir_schedule.GetModule().GetExprs();
@@ -195,10 +181,8 @@ std::vector<SearchState> EvolutionarySearch::PickNextGenerationEpsGreedy(const s
       result.push_back(selected);
     } else {
       ++deduplicated_cnt;
-      PrintStates("EvolutionarySearch::Deduplicate_ON_PickNextGenerationEpsGreedy",
-                  {selected},
-                  /*enable=*/VLOG_IS_ON(5),
-                  /*print_detail=*/VLOG_IS_ON(6));
+      VLOG(4) << JoinStatesDebugString(
+          "EvolutionarySearch::Deduplicate_ON_PickNextGenerationEpsGreedy", {selected}, /*verbose=*/VLOG_IS_ON(5));
     }
   }
   return result;

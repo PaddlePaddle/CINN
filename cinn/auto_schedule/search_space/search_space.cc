@@ -69,27 +69,19 @@ std::vector<SearchState> SearchSpace::GetRandomInitialSketch(int num) {
 
     auto debug_str = state->DebugString();
     if (!visited_candidates_.count(state)) {
-      PrintStates("SearchSpace::GetRandomInitialSketch-New_Sketch",
-                  {state},
-                  /*enable=*/VLOG_IS_ON(5),
-                  /*print_detail=*/VLOG_IS_ON(6));
+      VLOG(4) << JoinStatesDebugString(
+          "SearchSpace::GetRandomInitialSketch-New_Sketch", {state}, /*verbose=*/VLOG_IS_ON(5));
       visited_candidates_.insert(state);
       result.emplace_back(std::move(state));
     } else {
-      PrintStates("SearchSpace::GetRandomInitialSketch-Duplicate_Sketch",
-                  {state},
-                  /*enable=*/VLOG_IS_ON(5),
-                  /*print_detail=*/VLOG_IS_ON(6));
+      VLOG(4) << JoinStatesDebugString(
+          "SearchSpace::GetRandomInitialSketch-Duplicate_Sketch", {state}, /*verbose=*/VLOG_IS_ON(5));
     }
   }
   return result;
 }
 
 SearchState SearchSpace::GetScheduleMutate(const SearchState& state, const ExprCostModel& cost_model) {
-  PrintStates("SearchSpace::GetScheduleMutate",
-              {state},
-              /*enable=*/VLOG_IS_ON(5),
-              /*print_detail=*/VLOG_IS_ON(6));
   bool has_manual_schedule = false;
   if (has_manual_schedule) {
     SearchState ret = ManualScheduleMutate(state);
@@ -99,6 +91,7 @@ SearchState SearchSpace::GetScheduleMutate(const SearchState& state, const ExprC
   if (FLAGS_auto_schedule_use_cost_model) {
     ret->predicted_cost = cost_model.Predict(ret->ir_schedule.GetModule(), tune_task_.target);
   }
+  VLOG(4) << JoinStatesDebugString("SearchSpace::GetScheduleMutate", {state}, /*verbose=*/VLOG_IS_ON(5));
   return ret;
 }
 

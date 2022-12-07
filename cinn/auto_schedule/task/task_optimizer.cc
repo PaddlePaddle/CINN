@@ -32,6 +32,11 @@
 #include "cinn/optim/transform_gpu_forloop.h"
 #include "cinn/runtime/flags.h"
 #include "cinn/utils/string.h"
+#ifdef CINN_WITH_CUDA
+#include <cuda_runtime_api.h>
+
+#include "cinn/backends/cuda_util.h"
+#endif
 
 DECLARE_bool(auto_schedule_use_cost_model);
 
@@ -75,12 +80,27 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
     return result;
   }
 
-  int measured_count   = 0;
-  double min_exec_time = std::numeric_limits<double>().max();
+  int measured_count            = 0;
+  uint32_t continuous_empty_cnt = 0;
+  double min_exec_time          = std::numeric_limits<double>().max();
   while (measured_count < options.num_measure_trials) {
     VLOG(4) << "Launch a new search, current measured_count:" << measured_count;
     std::vector<MeasureInput> measure_inputs;
     std::vector<SearchState> states = SearchOneRound(options, &measure_inputs);
+    if (states.empty()) {
+      ++continuous_empty_cnt;
+      if (continuous_empty_cnt <= kMaxRetryContinuousEmpty_) {
+        VLOG(4) << "No valid state searched, continuous_empty_cnt=" << continuous_empty_cnt;
+        continue;
+      } else {
+        LOG(WARNING)
+            << "OptimizeByEvolution will be exited in advance due to continuous invalid search, final measured_count="
+            << measured_count;
+        break;
+      }
+    }
+    continuous_empty_cnt = 0;
+
     VLOG(4) << "ScheduleMeasurer start with input size=" << measure_inputs.size();
     std::vector<MeasureResult> measure_outputs = schedule_measurer_->Measure(measure_inputs);
     CHECK_EQ(measure_outputs.size(), states.size())
@@ -122,10 +142,7 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
 std::vector<SearchState> TaskOptimizer::SearchOneRound(const TuningOptions& options,
                                                        std::vector<MeasureInput>* measure_candidates) {
   std::vector<SearchState> states = evolutionary_search_->SearchModuleExprEpsGreedy(options);
-  PrintStates("TaskOptimizer::SearchOneRound-Init",
-              states,
-              /*enable=*/VLOG_IS_ON(5),
-              /*print_detail=*/VLOG_IS_ON(6));
+  VLOG(4) << JoinStatesDebugString("TaskOptimizer::SearchOneRound-Init", states, /*verbose=*/VLOG_IS_ON(5));
 
   size_t valid_cnt = 0;
   for (size_t i = 0; i < states.size(); ++i) {
@@ -137,10 +154,7 @@ std::vector<SearchState> TaskOptimizer::SearchOneRound(const TuningOptions& opti
     for (size_t j = 0; j < best_exprs.size(); ++j) {
       auto updated_f = FuncWithUpdatedBody(init_funcs[j], best_exprs[j]);
       if (PruneInvalid(updated_f)) {
-        PrintStates("TaskOptimizer::SearchOneRound-PruneInvalid",
-                    {states[i]},
-                    /*enable=*/VLOG_IS_ON(5),
-                    /*print_detail=*/VLOG_IS_ON(6));
+        VLOG(4) << "PruneInvalid states-" << i;
         break;
       }
       valid_funcs.emplace_back(updated_f);
@@ -161,10 +175,7 @@ std::vector<SearchState> TaskOptimizer::SearchOneRound(const TuningOptions& opti
   states.erase(states.begin() + valid_cnt, states.end());
   CHECK_EQ(states.size(), measure_candidates->size()) << "result size of states not equal to measure_candidates";
   VLOG(4) << "EvolutionarySearch return size=" << states.size() << ", valid count=" << valid_cnt;
-  PrintStates("TaskOptimizer::SearchOneRound-Result",
-              states,
-              /*enable=*/VLOG_IS_ON(5),
-              /*print_detail=*/VLOG_IS_ON(6));
+  VLOG(4) << JoinStatesDebugString("TaskOptimizer::SearchOneRound-Result", states, /*verbose=*/VLOG_IS_ON(5));
   return states;
 }
 
@@ -207,24 +218,68 @@ ir::LoweredFunc TaskOptimizer::FuncWithUpdatedBody(const ir::LoweredFunc& old_fu
   return new_func;
 }
 
-bool IsGPUSharedExceedLimit(const ir::LoweredFunc& lowered_func) {
-  static constexpr uint32_t kGPUSharedLimitByte = 48 * 1024;
+size_t GetGPUSharedMemoryLimit() {
+#ifdef CINN_WITH_CUDA
+  int device_id;
+  CUDA_CALL(cudaGetDevice(&device_id));
+  cudaDeviceProp prop;
+  CUDA_CALL(cudaGetDeviceProperties(&prop, device_id));
+  VLOG(4) << utils::StringFormat("GPU-%d GPUSharedMemoryLimit=%d", device_id, prop.sharedMemPerBlock);
+  return prop.sharedMemPerBlock;
+#else
+  return 0;
+#endif
+}
 
+size_t GetGPULocalStackLimit() {
+#ifdef CINN_WITH_CUDA
+  int device_id;
+  CUDA_CALL(cudaGetDevice(&device_id));
+  cudaDeviceProp prop;
+  CUDA_CALL(cudaGetDeviceProperties(&prop, device_id));
+  size_t limit = prop.totalGlobalMem / prop.multiProcessorCount / prop.maxThreadsPerMultiProcessor;
+  VLOG(4) << utils::StringFormat(
+      "GPU-%d totalGlobalMem=%lu,maxThreadsPerMultiProcessor=%d,multiProcessorCount=%d, calculated "
+      "GPULocalStackLimit=%lu",
+      device_id,
+      prop.totalGlobalMem,
+      prop.multiProcessorCount,
+      prop.maxThreadsPerMultiProcessor,
+      limit);
+  return limit;
+#else
+  return 0;
+#endif
+}
+
+bool IsGPUMemoryUsageExceedLimit(const ir::LoweredFunc& lowered_func,
+                                 const ir::MemoryType& used_memory_type,
+                                 const size_t limit_bytes) {
   std::unordered_set<std::string> visited;
-  uint32_t used_bytes_cnt = 0;
+  size_t used_bytes_cnt = 0;
   for (auto&& buf : lowered_func->temp_bufs) {
-    if (buf->memory_type == ir::MemoryType::GPUShared && visited.count(buf->name)) {
+    VLOG(5) << "temp buf name=" << buf->name << ", numel=" << buf->numel() << ",dtype=" << buf->dtype;
+    if (buf->memory_type == used_memory_type && !visited.count(buf->name)) {
       used_bytes_cnt += buf->numel() * buf->dtype.bytes();
       visited.insert(buf->name);
     }
   }
-  return used_bytes_cnt > kGPUSharedLimitByte;
+  VLOG(5) << "total used_bytes_cnt=" << used_bytes_cnt;
+  return used_bytes_cnt >= limit_bytes;
 }
 
 bool TaskOptimizer::PruneInvalid(const ir::LoweredFunc& lowered_func) {
+  static const size_t kGPUSharedMemoryLimitBytes = GetGPUSharedMemoryLimit();
+  static const size_t kGPULocalStackLimitBytes   = GetGPULocalStackLimit();
+
   if (task_->target == common::DefaultNVGPUTarget()) {
-    if (IsGPUSharedExceedLimit(lowered_func)) {
-      VLOG(6) << "Prune a candidate due to GPUSharedExceedLimit, func:\n" << lowered_func;
+    if (IsGPUMemoryUsageExceedLimit(lowered_func, ir::MemoryType::GPUShared, kGPUSharedMemoryLimitBytes)) {
+      VLOG(5) << ir::MemoryType::GPUShared << " memory usage exceeds limit, func:\n" << lowered_func;
+      return true;
+    }
+
+    if (IsGPUMemoryUsageExceedLimit(lowered_func, ir::MemoryType::GPULocal, kGPULocalStackLimitBytes)) {
+      VLOG(5) << ir::MemoryType::GPULocal << " memory usage exceeds limit, func:\n" << lowered_func;
       return true;
     }
   }

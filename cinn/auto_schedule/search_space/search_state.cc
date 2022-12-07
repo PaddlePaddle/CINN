@@ -61,22 +61,8 @@ bool operator<(const SearchState& left, const SearchState& right) {
   return left->predicted_cost < right->predicted_cost;
 }
 
-class IrNodesStructuralHash : public ir::IRVisitor {
- public:
-  IrNodesStructuralHash(size_t init_key) : hash_key_(init_key) {}
-  size_t operator()(const Expr* expr) {
-    Visit(expr);
-    return hash_key_;
-  }
-
-  void Visit(const Expr* expr) override {
-    if (!expr->defined()) return;
-    auto type_code = static_cast<IrNodeTyUnderlyingType>(expr->node_type());
-    hash_key_      = utils::HashCombine(hash_key_, type_code);
-    ir::IRVisitor::Visit(expr);
-  }
-
- private:
+class DfsWithExprsFields : public ir::IRVisitor {
+ protected:
 #define __m(t__)                          \
   void Visit(const ir::t__* x) override { \
     for (auto* n : x->expr_fields()) {    \
@@ -89,7 +75,33 @@ class IrNodesStructuralHash : public ir::IRVisitor {
   NODETY_FORALL(__m)
 #undef __m
 
+  void Visit(const Expr* expr) override { IRVisitor::Visit(expr); }
+};
+
+class IrNodesStructuralHash : public DfsWithExprsFields {
+ public:
+  IrNodesStructuralHash(size_t init_key) : hash_key_(init_key) {}
+  size_t operator()(const Expr* expr) {
+    Visit(expr);
+    return hash_key_;
+  }
+
+  void Visit(const Expr* expr) override {
+    static decltype(ir::kIrNodeTyReprs) Node2Name = ir::kIrNodeTyReprs;
+    if (!expr->defined()) return;
+    auto type_code = static_cast<IrNodeTyUnderlyingType>(expr->node_type());
+    hash_key_      = utils::HashCombine(hash_key_, type_code);
+    DfsWithExprsFields::Visit(expr);
+  }
+
  private:
+  void Visit(const ir::_Tensor_* x) override {
+    for (auto& e : x->shape) {
+      Visit(&e);
+    }
+    DfsWithExprsFields::Visit(x->buffer.As<ir::_Buffer_>());
+  }
+
   using IrNodeTyUnderlyingType = std::underlying_type<ir::IrNodeTy>::type;
   size_t hash_key_;
 };
@@ -117,20 +129,17 @@ bool SearchStateEqual::operator()(const SearchState& lhs, const SearchState& rhs
   return true;
 }
 
-void PrintStates(const std::string& phase_name,
-                 const std::vector<SearchState>& states,
-                 bool enable,
-                 bool print_detail) {
-  if (!enable) return;
-
-  LOG(INFO) << phase_name << " states size:" << states.size();
+std::string JoinStatesDebugString(const std::string& title, const std::vector<SearchState>& states, bool verbose) {
+  std::stringstream ss;
+  ss << title << " states size:" << states.size() << "\n";
   SearchStateHash state_hasher;
-  for (auto i = 0; i < states.size(); ++i) {
+  for (size_t i = 0; i < states.size(); ++i) {
     uint64_t hash_key = state_hasher(states[i]);
-    LOG(INFO) << "State-" << i << " hash:" << hash_key;
-    if (print_detail)
-      LOG(INFO) << "****** State-" << i << "(hash:" << hash_key << ") Detail ******" << states[i]->DebugString();
+    ss << "State-" << i << " hash:" << hash_key << "\n";
+    if (verbose)
+      ss << "****** State-" << i << "(hash:" << hash_key << ") Detail ******" << states[i]->DebugString() << "\n";
   }
+  return std::move(*ss.rdbuf()).str();
 }
 
 }  // namespace auto_schedule

@@ -46,6 +46,7 @@ class TaskOptimizer {
   bool PruneInvalid(const ir::LoweredFunc& lowered_func);
 
  private:
+  static constexpr uint32_t kMaxRetryContinuousEmpty_ = 5;
   const TuneTask* task_;
   ScheduleMeasurer* schedule_measurer_;
   std::unique_ptr<EvolutionarySearch> evolutionary_search_ = nullptr;
