@@ -553,18 +553,16 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
       tensor_name = pack_args.back().operator std::string();
     }
 
-    // pe realize need transpose y
-    auto trans_B = pe::Transpose(new_B, {1, 0}, UniqName(tensor_name + "_T"));
-
     if (target.arch == Target::Arch::X86) {
 #ifdef CINN_WITH_MKL_CBLAS
-      out = pe::MulMKL(new_A, trans_B, tensor_name, target);
+      out = pe::MatmulMKL(new_A, new_B, false, false, 1.0f, tensor_name, target);
 #else
-      out = pe::MulBase(new_A, trans_B, tensor_name, target);
+      out = pe::MatmulV2(new_A, new_B, false, false, 1.0f, tensor_name, target);
 #endif
     } else {
-      out = pe::MulBase(new_A, trans_B, tensor_name, target);
+      out = pe::Matmul(new_A, new_B, false, false, 1.0f, tensor_name);
     }
+
     std::vector<CINNValue> res;
     for (auto &t : out) {
       stages->InsertLazily(t);
@@ -580,12 +578,12 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
   });
 
   framework::CINNSchedule mul_schedule([=](lang::Args args, lang::RetValue *ret) {
-    int reduce_factor                  = pe::GetMulFactor(new_shape_A[1], Float(32), common::DefaultHostTarget());
-    std::vector<int> temp_reduce_shape = {output_shape[0], output_shape[1], reduce_factor};
-
+    CHECK(!args.empty()) << "The input argument of matmul schedule is empty! Please check.\n";
+    CINNValuePack arg_pack = args[0];
     if (FLAGS_cinn_ir_schedule) {
-      CHECK(!args.empty()) << "The input argument of relu schedule is empty! Please check.\n";
-      CINNValuePack arg_pack = args[0];
+      if (target.arch == Target::Arch::X86) {
+        CINN_NOT_IMPLEMENTED
+      }
       std::vector<Expr> vec_ast;
       for (int i = 0; i < arg_pack.size(); i++) {
         if (arg_pack[i].is_expr()) {
@@ -597,30 +595,39 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
       ir::ModuleExpr mod_expr(vec_ast);
       ir::IRSchedule ir_sch(mod_expr);
       ir_sch.MergeExprs();
-      if (target.arch == Target::Arch::NVGPU) {
-        pe::IRCudaScheduleMul(ir_sch, output_shape, target);
-      } else if (target.arch == Target::Arch::X86) {
-#ifndef CINN_WITH_MKL_CBLAS
-        pe::IRMulScheduleCPU(ir_sch, temp_reduce_shape, target);
-#endif
-      }
-      std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
-      *ret = CINNValuePack{res};
-    } else {
-      CHECK(!args.empty()) << "The input argument of mul schedule is empty! Please check.\n";
-      CINNValuePack arg_pack = args[0];
-      Expr out               = arg_pack[0];
-      poly::StageMap stages  = arg_pack[1];
+      auto blocks = ir_sch.GetAllBlocks();
 
-      CHECK(out.as_tensor());
+      int prod_size = std::accumulate(output_shapes[0].begin(), output_shapes[0].end(), 1, std::multiplies<int>());
+      if (prod_size > 1) {
+        if (ir_sch.GetLoops(blocks[0]).size() == 1) {
+          ir_sch.Bind(ir_sch.GetLoops(blocks[0])[0], "threadIdx.x");
+        } else {
+          ir_sch.Bind(ir_sch.GetLoops(blocks[0])[0], "blockIdx.x");
+          ir_sch.Bind(ir_sch.GetLoops(blocks[0])[1], "threadIdx.x");
+        }
+      }
+
+      std::vector<CINNValue> results = {CINNValue(ir_sch.GetModule().GetExprs().at(0))};
+      *ret                           = CINNValuePack({results});
+    } else {
+      CHECK(arg_pack.size() == 2UL || arg_pack.size() == 3UL);
+      poly::StageMap stages = arg_pack.back();
       if (target.arch == Target::Arch::NVGPU) {
-        pe::CudaScheduleMul(stages, out.as_tensor_ref(), temp_reduce_shape, target);
+        Expr out = arg_pack[0];
+        CHECK(out.as_tensor());
+        stages[out.as_tensor_ref()]->Split(1, 2);
+        stages[out.as_tensor_ref()]->Bind(0, "blockIdx.x");
+        stages[out.as_tensor_ref()]->Bind(1, "threadIdx.x");
       } else if (target.arch == Target::Arch::X86) {
+#ifdef CINN_WITH_MKL_CBLAS
         CHECK_EQ(arg_pack.size(), 3UL);
-#ifndef CINN_WITH_MKL_CBLAS
-        Expr reduce_first = arg_pack[1];
-        CHECK(reduce_first.as_tensor());
-        pe::MulScheduleCPU(stages, out.as_tensor_ref(), reduce_first.as_tensor_ref(), target);
+#else
+        CHECK_EQ(arg_pack.size(), 3UL);
+        Expr out     = arg_pack[0];
+        Expr packedB = arg_pack[1];
+        CHECK(packedB.as_tensor());
+        CHECK(out.as_tensor());
+        pe::MatmulScheduleCPU(stages, out.as_tensor_ref(), packedB.as_tensor_ref(), target);
 #endif
       }
       *ret = arg_pack;
