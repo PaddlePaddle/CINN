@@ -95,6 +95,9 @@ class MultiLevelTiling : public AutoGenRule {
   }
 
  private:
+  void Apply(ir::IRSchedule* ir_schedule, ir::Expr& block_expr);
+
+ private:
   std::vector<ir::Expr> all_block_realizes_;
   std::vector<int> applicable_indices_;
 

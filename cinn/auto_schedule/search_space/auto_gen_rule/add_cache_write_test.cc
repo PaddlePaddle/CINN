@@ -107,7 +107,7 @@ TEST_F(TestAddCacheWriteWith2DMatmul, BasicApplyOnMatmul) {
   CheckPrecision(build_module);
 }
 
-TEST_F(TestAddCacheWriteWith2DMatmul, BasicApplyOnMatmul2) {
+TEST_F(TestAddCacheWriteWith2DMatmul, ApplyOnBlock) {
   ir::IRSchedule ir_schedule       = Initialize("matmul_apply_add_cache_write", {{32, 32}, {32, 32}}, {{32, 32}});
   std::vector<ir::Expr> func_bodys = ir_schedule.GetModule().GetExprs();
   ASSERT_EQ(func_bodys.size(), 1UL);

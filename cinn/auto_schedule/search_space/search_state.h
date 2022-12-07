@@ -39,6 +39,7 @@ class SearchState : public common::Shared<_SearchState_> {
   // compare function for two states
   friend bool operator<(const SearchState& left, const SearchState& right);
 
+  // Deep copy a SearchState
   SearchState Copy() const;
 };
 

@@ -151,32 +151,8 @@ void AutoInline::Apply(int index) {
       << "Invalid index for AutoInline::Apply, the index needs 0 <= index && index < NumberApplicable(), "
       << "Currently index = " << index << ",  NumberApplicable() = " << num_applicable_;
 
-  int apply_index     = apply_indices_and_type_[index].first;
-  AutoInlineType type = apply_indices_and_type_[index].second;
-  if (type == AutoInlineType::kInlineIntoConsumer) {
-    VLOG(6) << "Apply ComputeInline on " << all_block_realizes_[apply_index];
-    ir_schedule_->ComputeInline(all_block_realizes_[apply_index]);
-    VLOG(6) << "After ComputeInline: " << all_block_realizes_[apply_index];
-
-  } else if (type == AutoInlineType::kInlineIntoProducer) {
-    // TODO(zhhsplendid): We don't have ReverseComputeInline in IRSchedule now,
-    // so we just do kInlineIntoConsumer here. Add CanInlineIntoConsumer
-    // once ReverseComputeInline is ready.
-
-    // ir_schedule_->ReverseComputeInline(all_block_realizes_[apply_index]);
-  }
-
-  // Make sure re-apply the AutoInline won't be error.
-  // AutoInline changes the read and write buffers of schedule blocks,
-  // we need to re-analyze
-  all_block_realizes_ = ir_schedule_->GetAllBlocks();
-  for (size_t i = 0; i < all_block_realizes_.size(); ++i) {
-    ir::ScheduleBlockRealize* sche_block_realize = all_block_realizes_[i].As<ir::ScheduleBlockRealize>();
-    ir::ScheduleBlock* sche_block                = sche_block_realize->schedule_block.As<ir::ScheduleBlock>();
-    sche_block->read_buffers                     = {};
-    sche_block->write_buffers                    = {};
-    AnalyzeScheduleBlockReadWriteBuffer(sche_block);
-  }
+  int apply_index = apply_indices_and_type_[index].first;
+  Apply(ir_schedule_, all_block_realizes_[apply_index]);
   return;
 }
 
@@ -196,15 +172,21 @@ RuleApplyType AutoInline::AnalyseApplyType(SearchState state, const std::string&
 std::vector<SearchState> AutoInline::ApplyOnBlock(SearchState state, const std::string& block_name) {
   SearchState new_state = state.Copy();
   Expr block_expr       = new_state->ir_schedule.GetBlock(block_name);
-  auto* block_realize   = block_expr.As<ir::ScheduleBlockRealize>();
+  Apply(&new_state->ir_schedule, block_expr);
+
+  return {new_state};
+}
+
+void AutoInline::Apply(ir::IRSchedule* ir_schedule, ir::Expr& block_expr) {
+  auto* block_realize = block_expr.As<ir::ScheduleBlockRealize>();
   CHECK(block_realize) << "stmt is not a ScheduleBlockRealize:" << block_expr;
 
   AnalyzeScheduleBlockReadWriteBuffer(block_realize->schedule_block.As<ir::ScheduleBlock>());
-  AutoInlineType type = AnalyzeInlineType(block_expr, &new_state->ir_schedule);
+  AutoInlineType type = AnalyzeInlineType(block_expr, ir_schedule);
 
   if (type == AutoInlineType::kInlineIntoConsumer) {
     VLOG(6) << "Apply ComputeInline on " << block_expr;
-    new_state->ir_schedule.ComputeInline(block_expr);
+    ir_schedule->ComputeInline(block_expr);
     VLOG(6) << "After ComputeInline: " << block_expr;
 
   } else if (type == AutoInlineType::kInlineIntoProducer) {
@@ -212,13 +194,13 @@ std::vector<SearchState> AutoInline::ApplyOnBlock(SearchState state, const std::
     // so we just do kInlineIntoConsumer here. Add CanInlineIntoConsumer
     // once ReverseComputeInline is ready.
 
-    // ir_schedule_->ReverseComputeInline(all_block_realizes_[apply_index]);
+    // ir_schedule->ReverseComputeInline(all_block_realizes_[apply_index]);
   }
 
   // Make sure re-apply the AutoInline won't be error.
   // AutoInline changes the read and write buffers of schedule blocks,
   // we need to re-analyze
-  all_block_realizes_ = new_state->ir_schedule.GetAllBlocks();
+  all_block_realizes_ = ir_schedule->GetAllBlocks();
   for (size_t i = 0; i < all_block_realizes_.size(); ++i) {
     ir::ScheduleBlockRealize* sche_block_realize = all_block_realizes_[i].As<ir::ScheduleBlockRealize>();
     ir::ScheduleBlock* sche_block                = sche_block_realize->schedule_block.As<ir::ScheduleBlock>();
@@ -226,8 +208,6 @@ std::vector<SearchState> AutoInline::ApplyOnBlock(SearchState state, const std::
     sche_block->write_buffers                    = {};
     AnalyzeScheduleBlockReadWriteBuffer(sche_block);
   }
-
-  return {new_state};
 }
 
 }  // namespace auto_schedule

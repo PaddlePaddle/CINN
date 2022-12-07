@@ -87,154 +87,8 @@ void MultiLevelTiling::Apply(int index) {
       << "Invalid index for MultiLevelTiling::Apply, the index needs 0 <= index && index < NumberApplicable(), "
       << "Currently index = " << index << ",  NumberApplicable() = " << num_applicable_;
 
-  int apply_index                              = applicable_indices_[index];
-  ir::ScheduleBlockRealize* sche_block_realize = all_block_realizes_[apply_index].As<ir::ScheduleBlockRealize>();
-  ir::ScheduleBlock* sche_block                = sche_block_realize->schedule_block.As<ir::ScheduleBlock>();
-
-  std::vector<Expr> for_exprs = ir_schedule_->GetLoops(Expr(sche_block_realize));
-  std::vector<std::vector<Expr>> tiles(s_indices_.size() + r_indices_.size());
-
-  VLOG(5) << "The number of loops to split in MultiLevelTiling is " << for_exprs.size();
-  for (int i = for_exprs.size() - 1; i >= 0; --i) {
-    ir::For* ir_for = for_exprs[i].As<ir::For>();
-    VLOG(6) << "Applying Split for MultiLevelTiling on: " << Expr(ir_for);
-    const std::vector<int>* idx = nullptr;
-    if (sche_block->iter_vars[i]->is_reduce_axis) {
-      idx = &r_indices_;
-    } else {
-      idx = &s_indices_;
-    }  // TODO: support more iterator variable types
-
-    int extent = ir_for->extent.as_int32();  // maybe int64?
-
-    int num_split                      = idx->size();
-    std::vector<int> tile_split_factor = SampleTileSplit<int>(extent, num_split);
-
-    std::vector<Expr> splited = ir_schedule_->Split(Expr(ir_for), tile_split_factor);
-    VLOG(6) << "Finish Split for MultiLevelTiling on above loop";
-    for (int j = 0; j < num_split; ++j) {
-      tiles[idx->at(j)].push_back(splited[j]);
-    }
-  }
-  VLOG(5) << "Finish Split in MultiLevelTiling, before Reorder.";
-
-  // Have to GetLoops again because Split can change Block Expr(s)
-  for_exprs = ir_schedule_->GetLoops(sche_block->name);
-  std::unordered_map<std::string, int> loop_var_name_to_idx;
-  for (int i = 0; i < for_exprs.size(); ++i) {
-    loop_var_name_to_idx[for_exprs[i].As<ir::For>()->loop_var->name] = i;
-  }
-  CHECK(loop_var_name_to_idx.size() == for_exprs.size()) << "Loops contain duplicate loop var names after split";
-
-  std::vector<Expr> splited_loops;
-  for (auto& t : tiles) {
-    std::reverse(t.begin(), t.end());
-    for (auto& tile_loop_expr : t) {
-      const ir::For* tile_loop = tile_loop_expr.As<ir::For>();
-      CHECK(tile_loop) << "tiles store non For Expr";
-      int idx = loop_var_name_to_idx[tile_loop->loop_var->name];
-      splited_loops.push_back(for_exprs[idx]);
-    }
-  }
-
-  Expr reordered_expr = ir_schedule_->Reorder(splited_loops);
-  VLOG(5) << "Finish Reorder in MultiLevelTiling, now do Fuse and Binding on the main loop chain";
-
-  int num_binds = std::min(bind_axis_.size(), tiles.size());
-  for (int i = 0; i < num_binds; ++i) {
-    loop_var_name_to_idx.clear();
-    for_exprs = ir_schedule_->GetLoops(sche_block->name);
-    for (int j = 0; j < for_exprs.size(); ++j) {
-      loop_var_name_to_idx[for_exprs[j].As<ir::For>()->loop_var->name] = j;
-    }
-    CHECK(loop_var_name_to_idx.size() == for_exprs.size()) << "Loops contain duplicate loop var names before Fusion";
-
-    // Some loops extent may exceed the limited max factor (For example,
-    // exceed the limit number of CUDA threads), here we check whether
-    // the fused loop extent, which is the production of extends of loops
-    // to be fused, is less or equal to the max factore.
-    //
-    // If yes, we fuse those loops and bind the fused loop
-    // If no, we bind the first loop whose extent is less than the factor.
-    int extent_prod                    = 1;
-    int first_idx_less_than_max_factor = -1;
-    for (int j = 0; j < tiles[i].size(); ++j) {
-      const ir::For* tile_loop = tiles[i][j].As<ir::For>();
-      CHECK(tile_loop) << "tiles store non For Expr";
-      int idx     = loop_var_name_to_idx[tile_loop->loop_var->name];
-      tiles[i][j] = for_exprs[idx];
-      int extent  = tile_loop->extent.as_int32();  // maybe int64?
-      extent_prod *= extent;
-      if (first_idx_less_than_max_factor == -1 && extent <= max_factor_) {
-        first_idx_less_than_max_factor = idx;
-      }
-    }
-
-    if (extent_prod <= max_factor_) {
-      Expr fused = ir_schedule_->Fuse(tiles[i]);
-      ir_schedule_->Bind(fused, bind_axis_[i]);
-    } else if (first_idx_less_than_max_factor != -1) {
-      ir_schedule_->Bind(for_exprs[first_idx_less_than_max_factor], bind_axis_[i]);
-    }
-  }
-
-  VLOG(5) << "Do Fuse and Binding on the non-main loop chains";
-  Expr sche_block_top_loop = ir_schedule_->GetLoops(sche_block->name)[0];
-
-  if (reordered_expr.As<ir::Block>()) {
-    for (Expr& top_loop : reordered_expr.As<ir::Block>()->stmts) {
-      if (top_loop != sche_block_top_loop) {
-        std::vector<Expr> scan_loop_blocks = ir_schedule_->GetAllBlocks();
-        Expr other_loop_chain_schedule;
-        for (Expr& block : scan_loop_blocks) {
-          std::vector<Expr> loop_chain = ir_schedule_->GetLoops(block);
-          if (loop_chain[0] == top_loop) {
-            other_loop_chain_schedule = block;
-            break;
-          }
-        }
-        if (!other_loop_chain_schedule.defined()) {
-          LOG(WARNING) << "Has non-main loop chain, but not corresponding ScheduleBlock in MultiLevelTiling";
-          continue;
-        }
-
-        std::string other_loop_schedule_name =
-            other_loop_chain_schedule.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->name;
-        VLOG(6) << "Found other_loop_schedule_name = " << other_loop_schedule_name;
-        int fuse_index = 0;
-        for (int i = 0; i < num_binds; ++i) {
-          for_exprs = ir_schedule_->GetLoops(other_loop_schedule_name);
-
-          // Some loops extent may exceed the limited max factor (For example,
-          // exceed the limit number of CUDA threads), here we check whether
-          // the fused loop extent, which is the production of extends of loops
-          // to be fused, is less or equal to the max factore.
-          //
-          // If yes, we fuse those loops and bind the fused loop
-          // If no, we bind the first loop whose extent is less than the factor.
-          int extent_prod                    = 1;
-          int first_idx_less_than_max_factor = -1;
-          for (int j = 0; j < tiles[i].size(); ++j) {
-            int extent = for_exprs[fuse_index + j].As<ir::For>()->extent.as_int32();
-            extent_prod *= extent;
-            if (first_idx_less_than_max_factor == -1 && extent <= max_factor_) {
-              first_idx_less_than_max_factor = fuse_index + j;
-            }
-          }
-          if (extent_prod <= max_factor_) {
-            std::vector<Expr> loops_to_fuse(for_exprs.begin() + fuse_index,
-                                            for_exprs.begin() + fuse_index + tiles[i].size());
-            Expr fused = ir_schedule_->Fuse(loops_to_fuse);
-            ir_schedule_->Bind(fused, bind_axis_[i]);
-            fuse_index += 1;
-          } else if (first_idx_less_than_max_factor != -1) {
-            ir_schedule_->Bind(for_exprs[first_idx_less_than_max_factor], bind_axis_[i]);
-            fuse_index += tiles[i].size();
-          }
-        }
-      }
-    }
-  }
+  int apply_index = applicable_indices_[index];
+  Apply(ir_schedule_, all_block_realizes_[apply_index]);
 
   VLOG(4) << "Returning the result of MultiLevelTiling";
   return;
@@ -252,13 +106,20 @@ RuleApplyType MultiLevelTiling::AnalyseApplyType(SearchState state, const std::s
 }
 
 std::vector<SearchState> MultiLevelTiling::ApplyOnBlock(SearchState state, const std::string& block_name) {
-  SearchState new_state                        = state.Copy();
-  ir::IRSchedule* ir_sch                       = &new_state->ir_schedule;
-  Expr block_expr                              = ir_sch->GetBlock(block_name);
+  SearchState new_state  = state.Copy();
+  ir::IRSchedule* ir_sch = &new_state->ir_schedule;
+  Expr block_expr        = ir_sch->GetBlock(block_name);
+  Apply(ir_sch, block_expr);
+
+  VLOG(4) << "Returning the result of MultiLevelTiling";
+  return {new_state};
+}
+
+void MultiLevelTiling::Apply(ir::IRSchedule* ir_schedule, ir::Expr& block_expr) {
   ir::ScheduleBlockRealize* sche_block_realize = block_expr.As<ir::ScheduleBlockRealize>();
   ir::ScheduleBlock* sche_block                = sche_block_realize->schedule_block.As<ir::ScheduleBlock>();
 
-  std::vector<Expr> for_exprs = ir_sch->GetLoops(Expr(sche_block_realize));
+  std::vector<Expr> for_exprs = ir_schedule->GetLoops(Expr(sche_block_realize));
   std::vector<std::vector<Expr>> tiles(s_indices_.size() + r_indices_.size());
 
   VLOG(5) << "The number of loops to split in MultiLevelTiling is " << for_exprs.size();
@@ -277,7 +138,7 @@ std::vector<SearchState> MultiLevelTiling::ApplyOnBlock(SearchState state, const
     int num_split                      = idx->size();
     std::vector<int> tile_split_factor = SampleTileSplit<int>(extent, num_split);
 
-    std::vector<Expr> splited = ir_sch->Split(Expr(ir_for), tile_split_factor);
+    std::vector<Expr> splited = ir_schedule->Split(Expr(ir_for), tile_split_factor);
     VLOG(6) << "Finish Split for MultiLevelTiling on above loop";
     for (int j = 0; j < num_split; ++j) {
       tiles[idx->at(j)].push_back(splited[j]);
@@ -286,7 +147,7 @@ std::vector<SearchState> MultiLevelTiling::ApplyOnBlock(SearchState state, const
   VLOG(5) << "Finish Split in MultiLevelTiling, before Reorder.";
 
   // Have to GetLoops again because Split can change Block Expr(s)
-  for_exprs = ir_sch->GetLoops(sche_block->name);
+  for_exprs = ir_schedule->GetLoops(sche_block->name);
   std::unordered_map<std::string, int> loop_var_name_to_idx;
   for (int i = 0; i < for_exprs.size(); ++i) {
     loop_var_name_to_idx[for_exprs[i].As<ir::For>()->loop_var->name] = i;
@@ -304,13 +165,13 @@ std::vector<SearchState> MultiLevelTiling::ApplyOnBlock(SearchState state, const
     }
   }
 
-  Expr reordered_expr = ir_sch->Reorder(splited_loops);
+  Expr reordered_expr = ir_schedule->Reorder(splited_loops);
   VLOG(5) << "Finish Reorder in MultiLevelTiling, now do Fuse and Binding on the main loop chain";
 
   int num_binds = std::min(bind_axis_.size(), tiles.size());
   for (int i = 0; i < num_binds; ++i) {
     loop_var_name_to_idx.clear();
-    for_exprs = ir_sch->GetLoops(sche_block->name);
+    for_exprs = ir_schedule->GetLoops(sche_block->name);
     for (int j = 0; j < for_exprs.size(); ++j) {
       loop_var_name_to_idx[for_exprs[j].As<ir::For>()->loop_var->name] = j;
     }
@@ -338,23 +199,23 @@ std::vector<SearchState> MultiLevelTiling::ApplyOnBlock(SearchState state, const
     }
 
     if (extent_prod <= max_factor_) {
-      Expr fused = ir_sch->Fuse(tiles[i]);
-      ir_sch->Bind(fused, bind_axis_[i]);
+      Expr fused = ir_schedule->Fuse(tiles[i]);
+      ir_schedule->Bind(fused, bind_axis_[i]);
     } else if (first_idx_less_than_max_factor != -1) {
-      ir_sch->Bind(for_exprs[first_idx_less_than_max_factor], bind_axis_[i]);
+      ir_schedule->Bind(for_exprs[first_idx_less_than_max_factor], bind_axis_[i]);
     }
   }
 
   VLOG(5) << "Do Fuse and Binding on the non-main loop chains";
-  Expr sche_block_top_loop = ir_sch->GetLoops(sche_block->name)[0];
+  Expr sche_block_top_loop = ir_schedule->GetLoops(sche_block->name)[0];
 
   if (reordered_expr.As<ir::Block>()) {
     for (Expr& top_loop : reordered_expr.As<ir::Block>()->stmts) {
       if (top_loop != sche_block_top_loop) {
-        std::vector<Expr> scan_loop_blocks = ir_sch->GetAllBlocks();
+        std::vector<Expr> scan_loop_blocks = ir_schedule->GetAllBlocks();
         Expr other_loop_chain_schedule;
         for (Expr& block : scan_loop_blocks) {
-          std::vector<Expr> loop_chain = ir_sch->GetLoops(block);
+          std::vector<Expr> loop_chain = ir_schedule->GetLoops(block);
           if (loop_chain[0] == top_loop) {
             other_loop_chain_schedule = block;
             break;
@@ -370,7 +231,7 @@ std::vector<SearchState> MultiLevelTiling::ApplyOnBlock(SearchState state, const
         VLOG(6) << "Found other_loop_schedule_name = " << other_loop_schedule_name;
         int fuse_index = 0;
         for (int i = 0; i < num_binds; ++i) {
-          for_exprs = ir_sch->GetLoops(other_loop_schedule_name);
+          for_exprs = ir_schedule->GetLoops(other_loop_schedule_name);
 
           // Some loops extent may exceed the limited max factor (For example,
           // exceed the limit number of CUDA threads), here we check whether
@@ -391,20 +252,17 @@ std::vector<SearchState> MultiLevelTiling::ApplyOnBlock(SearchState state, const
           if (extent_prod <= max_factor_) {
             std::vector<Expr> loops_to_fuse(for_exprs.begin() + fuse_index,
                                             for_exprs.begin() + fuse_index + tiles[i].size());
-            Expr fused = ir_sch->Fuse(loops_to_fuse);
-            ir_sch->Bind(fused, bind_axis_[i]);
+            Expr fused = ir_schedule->Fuse(loops_to_fuse);
+            ir_schedule->Bind(fused, bind_axis_[i]);
             fuse_index += 1;
           } else if (first_idx_less_than_max_factor != -1) {
-            ir_sch->Bind(for_exprs[first_idx_less_than_max_factor], bind_axis_[i]);
+            ir_schedule->Bind(for_exprs[first_idx_less_than_max_factor], bind_axis_[i]);
             fuse_index += tiles[i].size();
           }
         }
       }
     }
   }
-
-  VLOG(4) << "Returning the result of MultiLevelTiling";
-  return {new_state};
 }
 
 }  // namespace auto_schedule

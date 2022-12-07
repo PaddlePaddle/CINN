@@ -208,7 +208,7 @@ TEST(AutoInline, AddReluInline) {
   EXPECT_EQ(auto_inline.Init(&ir_sch), RuleApplyType::kCannotApply);
 }
 
-TEST(AutoInline, AddReluInline2) {
+TEST(AutoInline, ApplyOnBlock) {
   srand(0);
   Context::Global().ResetNameId();
   Target target = common::DefaultHostTarget();

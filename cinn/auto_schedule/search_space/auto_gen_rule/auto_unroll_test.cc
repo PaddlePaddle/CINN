@@ -93,7 +93,7 @@ TEST(AutoUnroll, UnrollableApply) {
   VLOG(6) << "After auto-unroll:max_step=" << *max_step << ", Ast:\n" << ir_schedule.GetModule().GetExprs().front();
 }
 
-TEST(AutoUnroll, ApplyOnSpecificBlock) {
+TEST(AutoUnroll, ApplyOnBlock) {
   using namespace ir;
 
   Expr M(100);

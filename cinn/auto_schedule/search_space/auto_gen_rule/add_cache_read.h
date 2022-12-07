@@ -47,7 +47,10 @@ class AddCacheRead : public AutoGenRule {
 
  private:
   // Returns true if the schedule block expr is applicable by AddCacheRead
-  bool MeetCondition(const ir::Expr& block_expr) const;
+  bool MeetCondition(ir::IRSchedule* ir_schedule, const ir::Expr& block_expr) const;
+
+  // Applies rule on the ir::ModuleExpr for a schedule block
+  void Apply(ir::IRSchedule* ir_schedule, ir::Expr& block_expr);
 
   // Get the out most reduce loop to set cache block in.
   ir::Expr GetOutermostReduceLoop(const ir::Expr& block_expr, ir::IRSchedule* ir_sch) const;

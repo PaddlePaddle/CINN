@@ -166,7 +166,7 @@ TEST(MulitLevelTile, MatrixMultiply) {
   VLOG(6) << expr_str;
 }
 
-TEST(MultiLevelTile, SimpleLoops2) {
+TEST(MultiLevelTile, SimpleLoopsApplyOnBlock) {
   srand(0);
   Context::Global().ResetNameId();
 #ifdef CINN_WITH_CUDA
@@ -208,7 +208,7 @@ TEST(MultiLevelTile, SimpleLoops2) {
   VLOG(6) << expr_str;
 }
 
-TEST(MulitLevelTile, MatrixMultiply2) {
+TEST(MulitLevelTile, MatrixMultiplyApplyOnBlock) {
   srand(0);
   Context::Global().ResetNameId();
 #ifdef CINN_WITH_CUDA
