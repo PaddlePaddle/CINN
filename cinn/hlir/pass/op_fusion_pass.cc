@@ -182,6 +182,7 @@ class OpFusionPassHelper : public FusionHelperBase {
         }
 
         if (this->output_nodes_set_.count(producer)) {
+          VLOG(3) << "Insert Global Output Node : " << producer->id();
           consumer_fusion->output_nodes.insert(producer);
         } else if (producer_data->outlinks().size() > 1 && producer->inlinks().size() > 0) {
           // producer is not a const value node.
