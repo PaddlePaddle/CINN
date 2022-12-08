@@ -27,6 +27,7 @@ namespace cinn {
 namespace auto_schedule {
 
 struct _SearchState_;
+
 //! Shared Wrapper for _SearchState_
 class SearchState : public common::Shared<_SearchState_> {
  public:
