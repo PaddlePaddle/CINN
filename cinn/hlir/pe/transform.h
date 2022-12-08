@@ -34,7 +34,8 @@ std::vector<std::vector<int>> GetMatmulNewShapes(const std::vector<std::vector<i
 
 std::vector<std::vector<int>> GetMulNewShapes(const std::vector<std::vector<int>>& inputs_shape,
                                               int x_num_col_dims,
-                                              int y_num_col_dims);
+                                              int y_num_col_dims,
+                                              bool is_infer = false);
 }  // namespace utils
 
 /**

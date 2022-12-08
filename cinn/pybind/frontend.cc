@@ -505,7 +505,8 @@ void BindFrontend(pybind11::module *m) {
            py::arg("x"),
            py::arg("y"),
            py::arg("x_num_col_dims") = 1,
-           py::arg("y_num_col_dims") = 1)
+           py::arg("y_num_col_dims") = 1,
+           py::arg("is_infer")       = false)
       .def("elementwise_add_grad",
            &NetBuilder::ElementwiseAddGrad,
            py::arg("dout"),

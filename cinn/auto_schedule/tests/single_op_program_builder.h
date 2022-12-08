@@ -55,34 +55,7 @@ class MulProgramBuilder : public TestProgramBuilder {
     auto x = builder.CreateInput(Float(32), input_shape_x_, "X");
     auto y = builder.CreateInput(Float(32), input_shape_y_, "Y");
 
-    // Step2: reshape x
-    frontend::Variable x_reshape = x;
-    if (x.shape().size() > 2) {
-      std::vector<int> new_x_shape(2, 1);
-      for (int i = 0; i < x_num_col_dims_; ++i) {
-        new_x_shape[0] *= x.shape()[i];
-      }
-      for (int i = x_num_col_dims_; i < x.shape().size(); ++i) {
-        new_x_shape[1] *= x.shape()[i];
-      }
-      x_reshape = builder.Reshape(x, new_x_shape);
-    }
-
-    // Step3: transpose y
-    frontend::Variable y_reshape = y;
-    if (y.shape().size() > 2) {
-      std::vector<int> new_y_shape(2, 1);
-      for (int i = 0; i < y_num_col_dims_; ++i) {
-        new_y_shape[0] *= y.shape()[i];
-      }
-      for (int i = y_num_col_dims_; i < y.shape().size(); ++i) {
-        new_y_shape[1] *= y.shape()[i];
-      }
-      y_reshape = builder.Reshape(y, new_y_shape);
-    }
-
-    // Step4: matmul
-    const auto& out = builder.Matmul(x_reshape, y_reshape, false, true);
+    auto out = builder.Mul(x, y, x_num_col_dims_, y_num_col_dims_, true);
 
     return builder.Build();
   }

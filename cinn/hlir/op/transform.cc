@@ -517,11 +517,12 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
   const auto &attr_store = attrs.attr_store;
   int x_num_col_dims     = GetAttr(attr_store, "x_num_col_dims", 1);
   int y_num_col_dims     = GetAttr(attr_store, "y_num_col_dims", 1);
+  int is_infer           = GetAttr(attr_store, "is_infer", false);
 
   const auto &shape_A = ToPodVector<int>(inputs[0]->shape);
   const auto &shape_B = ToPodVector<int>(inputs[1]->shape);
 
-  const auto &new_shape = pe::utils::GetMulNewShapes({shape_A, shape_B}, x_num_col_dims, y_num_col_dims);
+  const auto &new_shape = pe::utils::GetMulNewShapes({shape_A, shape_B}, x_num_col_dims, y_num_col_dims, is_infer);
 
   const auto &new_shape_A  = new_shape[0];
   const auto &new_shape_B  = new_shape[1];
@@ -555,12 +556,12 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
 
     if (target.arch == Target::Arch::X86) {
 #ifdef CINN_WITH_MKL_CBLAS
-      out = pe::MatmulMKL(new_A, new_B, false, false, 1.0f, tensor_name, target);
+      out = pe::MatmulMKL(new_A, new_B, false, is_infer, 1.0f, tensor_name, target);
 #else
-      out = pe::MatmulV2(new_A, new_B, false, false, 1.0f, tensor_name, target);
+      out = pe::MatmulV2(new_A, new_B, false, is_infer, 1.0f, tensor_name, target);
 #endif
     } else {
-      out = pe::Matmul(new_A, new_B, false, false, 1.0f, tensor_name);
+      out = pe::Matmul(new_A, new_B, false, is_infer, 1.0f, tensor_name);
     }
 
     std::vector<CINNValue> res;
@@ -651,8 +652,9 @@ std::vector<std::vector<int>> InferShapeForMul(const std::vector<std::vector<int
 
   int x_num_col_dims = GetAttr(attrs, "x_num_col_dims", 1);
   int y_num_col_dims = GetAttr(attrs, "y_num_col_dims", 1);
+  int is_infer       = GetAttr(attrs, "is_infer", false);
 
-  const auto &new_shape = pe::utils::GetMulNewShapes(inputs_shape, x_num_col_dims, y_num_col_dims);
+  const auto &new_shape = pe::utils::GetMulNewShapes(inputs_shape, x_num_col_dims, y_num_col_dims, is_infer);
 
   const auto &new_shape_A  = new_shape[0];
   const auto &new_shape_B  = new_shape[1];
@@ -662,7 +664,10 @@ std::vector<std::vector<int>> InferShapeForMul(const std::vector<std::vector<int
   VLOG(4) << "During the mul shape inference, new_shape_B: " << utils::Join(new_shape_B, ", ");
   VLOG(4) << "During the mul shape inference, output_shape: " << utils::Join(output_shape, ", ");
 
-  CHECK_EQ(new_shape_A[1], new_shape_B[0]) << "The K dimension of mul should be equal.";
+  int a_K = new_shape_A[1];
+  int b_K = is_infer ? new_shape_B[1] : new_shape_B[0];
+
+  CHECK_EQ(a_K, b_K) << "The K dimension of mul should be equal.";
 
   return {output_shape};
 }

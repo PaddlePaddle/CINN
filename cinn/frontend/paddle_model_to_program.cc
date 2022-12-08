@@ -127,34 +127,7 @@ void PaddleModelToProgram::AddOpMapper_mul() {
     VLOG(4) << "x shape: " << utils::Join(x->shape, ",");
     VLOG(4) << "y shape: " << utils::Join(y->shape, ",");
 
-    // Step2: reshape x
-    auto x_reshape = x;
-    if (x->shape.size() > 2) {
-      std::vector<int> new_x_shape(2, 1);
-      for (int i = 0; i < x_num_col_dims; ++i) {
-        new_x_shape[0] *= x->shape[i];
-      }
-      for (int i = x_num_col_dims; i < x->shape.size(); ++i) {
-        new_x_shape[1] *= x->shape[i];
-      }
-      x_reshape = net_builder_->Reshape(x, new_x_shape);
-    }
-
-    // Step3: transpose y
-    auto y_reshape = y;
-    if (y->shape.size() > 2) {
-      std::vector<int> new_y_shape(2, 1);
-      for (int i = 0; i < y_num_col_dims; ++i) {
-        new_y_shape[0] *= y->shape[i];
-      }
-      for (int i = y_num_col_dims; i < y->shape.size(); ++i) {
-        new_y_shape[1] *= y->shape[i];
-      }
-      y_reshape = net_builder_->Reshape(y, new_y_shape);
-    }
-
-    // Step4: matmul
-    const auto& out = net_builder_->Matmul(x_reshape, y_reshape, false, true);
+    const auto& out = net_builder_->Mul(x, y, x_num_col_dims, y_num_col_dims, true);
 
     CHECK_EQ(op_desc.Output("Out").size(), 1UL);
     auto out_name = op_desc.Output("Out").front();

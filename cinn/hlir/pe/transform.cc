@@ -184,7 +184,8 @@ std::vector<std::vector<int>> GetMatmulNewShapes(const std::vector<std::vector<i
 
 std::vector<std::vector<int>> GetMulNewShapes(const std::vector<std::vector<int>>& inputs_shape,
                                               int x_num_col_dims,
-                                              int y_num_col_dims) {
+                                              int y_num_col_dims,
+                                              bool is_infer) {
   CHECK_EQ(inputs_shape.size(), 2UL) << "The mul should only have two inputs.";
   const auto &x_shape = inputs_shape[0], &y_shape = inputs_shape[1];
   CHECK(!x_shape.empty()) << "The shape of mul input 'x' should not empty.";
@@ -233,8 +234,14 @@ std::vector<std::vector<int>> GetMulNewShapes(const std::vector<std::vector<int>
   for (int i = 0; i < x_num_col_dims; ++i) {
     out_shape.emplace_back(x_shape[i]);
   }
-  for (int i = y_num_col_dims; i < y_shape.size(); ++i) {
-    out_shape.emplace_back(y_shape[i]);
+  if (is_infer) {
+    for (int i = 0; i < y_num_col_dims; ++i) {
+      out_shape.emplace_back(y_shape[i]);
+    }
+  } else {
+    for (int i = y_num_col_dims; i < y_shape.size(); ++i) {
+      out_shape.emplace_back(y_shape[i]);
+    }
   }
 
   return new_shape;
@@ -670,13 +677,13 @@ std::vector<Tensor> MulMKL(const Tensor& A, const Tensor& B, const std::string& 
   int b_dim                 = shape_B.size();
   CHECK_EQ(a_dim, 2U) << "tensor_A's shape size should be two while current shape size is " << A->shape.size();
   CHECK_EQ(b_dim, 2U) << "tensor_B's shape size should be two while current shape size is " << B->shape.size();
-  // A: [M, K], B: [K, N]
+  // A: [M, K], B: [N, K]
   Expr x_width  = shape_A[1];
-  Expr y_height = shape_B[0];
+  Expr y_height = shape_B[1];
   Expr M        = shape_A[0];
-  Expr N        = shape_B[1];
+  Expr N        = shape_B[0];
   CHECK(is_zero(x_width - y_height)) << "matrix multiplication requires x_width to be same with y_height";
-  CHECK_EQ(A->shape[1], B->shape[0]) << "tensor_A's last shape should be same with tensor_B";
+  CHECK_EQ(A->shape[1], B->shape[1]) << "tensor_A's last shape should be same with tensor_B";
 
   auto call = Compute(
       {Expr(1)},
@@ -690,7 +697,7 @@ std::vector<Tensor> MulMKL(const Tensor& A, const Tensor& B, const std::string& 
                                     common::make_bool(false),    // ta
                                     common::make_bool(true),     // tb
                                     shape_A.back(),              // lda
-                                    shape_B.front(),             // ldb
+                                    shape_B.back(),              // ldb
                                     N,                           // ldc
                                     common::make_zero<float>(),  // beta
                                     A,                           // A

@@ -339,8 +339,11 @@ Variable NetBuilder::IsClose(const Variable& x, const Variable& y, float rtol, f
   return CustomInstr("isclose", {x, y}, {{"rtol", rtol}, {"atol", atol}, {"equal_nan", equal_nan}}).front();
 }
 
-Variable NetBuilder::Mul(const Variable& a, const Variable& b, int x_num_col_dims, int y_num_col_dims) {
-  return CustomInstr("mul", {a, b}, {{"x_num_col_dims", x_num_col_dims}, {"y_num_col_dims", y_num_col_dims}}).front();
+Variable NetBuilder::Mul(const Variable& a, const Variable& b, int x_num_col_dims, int y_num_col_dims, bool is_infer) {
+  return CustomInstr("mul",
+                     {a, b},
+                     {{"x_num_col_dims", x_num_col_dims}, {"y_num_col_dims", y_num_col_dims}, {"is_infer", is_infer}})
+      .front();
 }
 
 const std::vector<Variable>& NetBuilder::ElementwiseAddGrad(const Variable& dout,

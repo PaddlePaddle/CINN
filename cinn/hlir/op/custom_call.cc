@@ -131,6 +131,7 @@ std::vector<ir::Expr> CustomCallArgsForCublas(const framework::NodeAttr &attrs,
 
   int x_num_col_dims = attr_store.count("x_num_col_dims") ? absl::get<int>(attr_store.at("x_num_col_dims")) : 0;
   int y_num_col_dims = attr_store.count("y_num_col_dims") ? absl::get<int>(attr_store.at("y_num_col_dims")) : 0;
+  int is_infer       = attr_store.count("is_infer") ? absl::get<bool>(attr_store.at("is_infer")) : false;
   CHECK((x_num_col_dims == 0 && y_num_col_dims == 0) || (x_num_col_dims > 0 && y_num_col_dims > 0));
 
   std::vector<ir::Expr> a_shape, b_shape;
@@ -196,7 +197,12 @@ std::vector<ir::Expr> CustomCallArgsForCublas(const framework::NodeAttr &attrs,
     b_shape.emplace_back(b_height);
     b_shape.emplace_back(b_width);
 
-    CHECK_EQ(a_width, b_height) << "The K dimension of mul shold be equal! Please check.";
+    if (is_infer) {
+      CHECK_EQ(a_width, b_width) << "The K dimension of mul shold be equal! Please check.";
+      trans_b = true;
+    } else {
+      CHECK_EQ(a_width, b_height) << "The K dimension of mul shold be equal! Please check.";
+    }
   } else {
     LOG(FATAL) << "Unkown Matmul Setting!";
   }
