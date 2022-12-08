@@ -785,7 +785,6 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
       for (auto& group : graph_->fusion_groups) {
         VLOG(3) << "group_id is : " << group->group_id << ", and its number is : " << group->nodes.size();
         groups.push_back(std::move(group->CollectNodes()));
-        graph_->VisualizeGroupedGraph({groups.back()}, fetch_var_ids_);
         local_lowered_funcs.emplace_back(std::move(op_lowerer.Lower(group)));
         CHECK_EQ(local_lowered_funcs.back().size(), 1) << "Lowerd Function Is Not Equal 1!";
         VLOG(3) << local_lowered_funcs.back()[0];
@@ -820,7 +819,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   for (auto&& lowered_func : lowered_funcs) {
     this->ProcessFunction(lowered_func);
   }
-  // graph_->VisualizeGroupedGraph(groups, fetch_var_ids_);
+  graph_->VisualizeGroupedGraph(groups, fetch_var_ids_);
 
   // compile the module
   // Need to create a new compiler for every call of Build,
