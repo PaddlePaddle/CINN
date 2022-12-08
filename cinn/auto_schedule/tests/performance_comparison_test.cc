@@ -109,10 +109,9 @@ class PerformanceTester : public ::testing::Test {
     compile_options.with_instantiate_variables = true;
 
     if (graph->fusion_groups.empty()) {
-      compile_options.groups = hlir::pass::BuildNonFusedGroups(graph);
-    } else {
-      compile_options.groups = graph->fusion_groups;
+      hlir::framework::ApplyPasses(graph, {"BuildNonFusedGroupsPass"});
     }
+    compile_options.groups = graph->fusion_groups;
 
     for (auto group : graph->fusion_groups) {
       compile_options.lowered_funcs.push_back(op_lowerer->LowerWithoutSchedule(group));
