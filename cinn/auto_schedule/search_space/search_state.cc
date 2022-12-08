@@ -61,6 +61,7 @@ bool operator<(const SearchState& left, const SearchState& right) {
   return left->predicted_cost < right->predicted_cost;
 }
 
+// Visit every node by expanding all of their fields in dfs order
 class DfsWithExprsFields : public ir::IRVisitor {
  protected:
 #define __m(t__)                          \
@@ -78,6 +79,7 @@ class DfsWithExprsFields : public ir::IRVisitor {
   void Visit(const Expr* expr) override { IRVisitor::Visit(expr); }
 };
 
+// Generate a reduce hash of a AST tree by combining hash of each AST node
 class IrNodesStructuralHash : public DfsWithExprsFields {
  public:
   IrNodesStructuralHash(size_t init_key) : hash_key_(init_key) {}
@@ -123,7 +125,7 @@ bool SearchStateEqual::operator()(const SearchState& lhs, const SearchState& rhs
 
   // compare every expr one by one with ir::IrEqualVisitor
   for (int i = 0; i < lhs_exprs.size(); ++i) {
-    ir::IrEqualVisitor compartor(/*allow_name_suffix_diff=*/true);
+    ir::IrEqualVisitor compartor(/*allow_name_suffix_diff=*/true);  // ignore suffix difference in name
     if (!compartor.Compare(lhs_exprs[i], rhs_exprs[i])) return false;
   }
   return true;

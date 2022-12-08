@@ -67,8 +67,7 @@ std::vector<SearchState> SearchSpace::GetRandomInitialSketch(int num) {
       }
     }
 
-    auto debug_str = state->DebugString();
-    if (!visited_candidates_.count(state)) {
+    if (!visited_candidates_.count(state)) {  // deduplicate
       VLOG(4) << JoinStatesDebugString(
           "SearchSpace::GetRandomInitialSketch-New_Sketch", {state}, /*verbose=*/VLOG_IS_ON(5));
       visited_candidates_.insert(state);

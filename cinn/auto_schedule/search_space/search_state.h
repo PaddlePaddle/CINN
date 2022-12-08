@@ -58,7 +58,7 @@ struct _SearchState_ : public common::Object {
   static constexpr char* __type_info__ = "auto_schedule_state";
 };
 
-// SearchStateHash hash functor, here just use its underlying address simply
+// SearchStateHash hash functor that visits every AST node and combine their hash of node_type in dfs order
 struct SearchStateHash {
   size_t operator()(const SearchState& s) const;
 };
@@ -68,6 +68,13 @@ struct SearchStateEqual {
   bool operator()(const SearchState& lhs, const SearchState& rhs) const;
 };
 
+/*!
+ * \brief concatenate debug strings of all states with additional info
+ * \param title head of the result string
+ * \param states SearchState array to be debuged
+ * \param verbose whether to enable more verbose debug info
+ * \return the concatenated debug string
+ */
 std::string JoinStatesDebugString(const std::string& title,
                                   const std::vector<SearchState>& states,
                                   bool verbose = false);

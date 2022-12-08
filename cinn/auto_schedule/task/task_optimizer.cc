@@ -68,7 +68,7 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
     evolutionary_search_ = std::make_unique<EvolutionarySearch>(*task_, cost_model_, database_);
   }
 
-  // initial lowered function as default result
+  // use initial lowered function as default result
   TuningResult::OptimizedComputeExpr result;
   result.lowered_funcs.push_back(optim::IRCopy(task_->lowered_funcs));
   if (options.num_measure_trials == 0) {  // no need to measure and simply return the best searched
@@ -76,6 +76,8 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
     std::vector<SearchState> states = SearchOneRound(options, &measure_candidates);
     if (!states.empty()) {
       result.lowered_funcs = measure_candidates[0].lowered_funcs;
+    } else {
+      LOG(WARNING) << "No valid candidate searched, will return initial state";
     }
     return result;
   }
@@ -99,7 +101,7 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
         break;
       }
     }
-    continuous_empty_cnt = 0;
+    continuous_empty_cnt = 0;  // reset if get valid candidates
 
     VLOG(4) << "ScheduleMeasurer start with input size=" << measure_inputs.size();
     std::vector<MeasureResult> measure_outputs = schedule_measurer_->Measure(measure_inputs);
@@ -160,14 +162,11 @@ std::vector<SearchState> TaskOptimizer::SearchOneRound(const TuningOptions& opti
       valid_funcs.emplace_back(updated_f);
     }
 
+    // all functions are validated, collect this state to be measured
     if (valid_funcs.size() == init_funcs.size()) {
       states[valid_cnt++] = states[i];
       measure_candidates->emplace_back(MeasureInput());
       measure_candidates->back().task = task_;
-      // TODO(zhhsplendid): current a task only contains one Op or one Fused Op,
-      // so we can take only first std::vector<ir::LoweredFunc>. Support the
-      // lowered_funcs to be std::vector<std::vector<ir::LoweredFunc>>
-      // in the future.
       measure_candidates->back().lowered_funcs.emplace_back(std::move(valid_funcs));
     }
   }
