@@ -41,6 +41,8 @@ class AddCacheWrite : public AutoGenRule {
  private:
   // Return true if the schedule block expr is applicable by AddCacheWrite
   bool MeetCondition(const ir::Expr& block_expr) const;
+  // get the spatial loop that is the first one out of the outermost reduce iterator
+  ir::Expr GetFirstSpatialLoopOutofOutermostReduce(const ir::Expr& block) const;
 
  private:
   std::vector<ir::Expr> applicable_schedule_blocks_;
