@@ -275,7 +275,7 @@ void __launch_bounds__(5) elementwise_add_splitouter(const float* __restrict__ X
   if (((int)blockIdx.x < 20)) {
     if (((int)threadIdx.x < 5)) {
       for (int32_t j_outer = 0; j_outer < 17; j_outer += 1) {
-        for (int32_t j_inner = 0; j_inner < cinn_nvgpu_min_fp32(6, (100 + (-6 * j_outer))); j_inner += 1) {
+        for (int32_t j_inner = 0; j_inner < min(6, (100 + (-6 * j_outer))); j_inner += 1) {
           C[((500 * (int)blockIdx.x) + ((6 * j_outer) + ((100 * (int)threadIdx.x) + j_inner)))] = (X[((500 * (int)blockIdx.x) + ((6 * j_outer) + ((100 * (int)threadIdx.x) + j_inner)))] * Y[((500 * (int)blockIdx.x) + ((6 * j_outer) + ((100 * (int)threadIdx.x) + j_inner)))]);
         };
       };
@@ -2719,8 +2719,8 @@ void __launch_bounds__(128) schedule_wino_conv2d_3(const float* __restrict__ X, 
           };
         };
       };
-      for (int32_t k = 0; k < cinn_nvgpu_min_fp32(2, (7 + ((-2 * ((int)threadIdx.x / 4)) + (8 * ((int)threadIdx.x / 16))))); k += 1) {
-        for (int32_t a = 0; a < cinn_nvgpu_min_fp32(2, (31 + ((-2 * ((int)threadIdx.x & 15)) + (-4 * k)))); a += 1) {
+      for (int32_t k = 0; k < min(2, (7 + ((-2 * ((int)threadIdx.x / 4)) + (8 * ((int)threadIdx.x / 16))))); k += 1) {
+        for (int32_t a = 0; a < min(2, (31 + ((-2 * ((int)threadIdx.x & 15)) + (-4 * k)))); a += 1) {
           if ((((1 + (int)threadIdx.x) & 3) >= a)) {
             Winograd_Conv2d_out[((-7 * ((int)threadIdx.x / 16)) + ((14 * ((int)threadIdx.x / 4)) + ((2 * ((int)threadIdx.x & 3)) + ((392 * (int)blockIdx.x) + ((7 * k) + a)))))] = inverse[((2 * k) + a)];
           };
