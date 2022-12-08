@@ -222,9 +222,8 @@ CONDITION_FUNC(horizontal_or_can_inline) {
     CHECK(is_same_size(helper, producer, consumer));
     return true;
   }
-  // vertical relation: 1.can compute inline;2.output node and has same shape.
-  return (helper->GetNodeData(producer)->outlinks().size() == 1 && helper->output_nodes_set_.count(producer) == 0) ||
-         (helper->output_nodes_set_.count(producer) && is_same_size(helper, producer, consumer));
+  // vertical relation: 1.can compute inline
+  return helper->GetNodeData(producer)->outlinks().size() == 1 && helper->output_nodes_set_.count(producer) == 0;
 }
 
 CONDITION_FUNC(horizontal_with_same_size) {

@@ -262,25 +262,6 @@ CONDITION_FUNC(is_horizontal_with_consumer) {
   return true;
 }
 
-CONDITION_FUNC(is_horizontal_or_same_size) {
-  if (is_horizontal_with_consumer(helper, first, second)) {
-    CHECK(is_same_size(helper, first, second));
-    return true;
-  }
-
-  // vertical but with same shape.
-  auto consumer_shape = helper->GetNodeDataShape(*second->master_nodes.begin());
-  auto consumer_size  = std::accumulate(consumer_shape.begin(), consumer_shape.end(), 1, std::multiplies<int>());
-  for (auto node : first->output_nodes) {
-    auto node_shape = helper->GetNodeDataShape(node);
-    auto node_size  = std::accumulate(node_shape.begin(), node_shape.end(), 1, std::multiplies<int>());
-    if (node_size != consumer_size) {
-      return false;
-    }
-  }
-  return true;
-}
-
 CONDITION_FUNC(reduce_fuse_reduce) {
   if (!is_horizontal_with_consumer(helper, first, second)) {
     return false;

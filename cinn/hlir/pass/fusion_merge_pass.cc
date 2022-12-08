@@ -848,7 +848,7 @@ class FusionMergePassHelper : public FusionHelperBase {
                                     // element-wise and broadcast can be vertical/horizontal relation.
                                     {OpPatternKind::kBroadcast, elementwise_fuse_broadcast},
                                     // element-wise and injective op must be horizontal relation.
-                                    {OpPatternKind::kInjective, is_horizontal_or_same_size},
+                                    {OpPatternKind::kInjective, is_horizontal_with_consumer},
                                     // element-wise and reduce can be vertical/horizontal relation.
                                     {OpPatternKind::kReduction, elementwise_fuse_reduce}};
     }
@@ -870,7 +870,7 @@ class FusionMergePassHelper : public FusionHelperBase {
                                     // broadcast and broadcast op must be horizontal relation.
                                     {OpPatternKind::kBroadcast, is_same_size},
                                     // broadcast and injective op must be horizontal relation.
-                                    {OpPatternKind::kInjective, is_horizontal_or_same_size},
+                                    {OpPatternKind::kInjective, is_horizontal_with_consumer},
                                     // broadcast and reduce must be vertical relation.
                                     {OpPatternKind::kReduction, broadcast_fuse_reduce}};
     }
@@ -892,7 +892,7 @@ class FusionMergePassHelper : public FusionHelperBase {
                                     // injective and broadcast op must be horizontal relation.
                                     {OpPatternKind::kBroadcast, is_same_size},
                                     // injective and injective op must be horizontal relation.
-                                    {OpPatternKind::kInjective, is_horizontal_or_same_size},
+                                    {OpPatternKind::kInjective, is_horizontal_with_consumer},
                                     // injective and reduce can be horizontal/vertical relation.
                                     {OpPatternKind::kReduction, elementwise_fuse_reduce}};
     }
