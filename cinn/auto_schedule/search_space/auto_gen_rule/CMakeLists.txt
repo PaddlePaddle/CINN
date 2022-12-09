@@ -10,7 +10,9 @@ gather_srcs(cinnapi_src SRCS
   add_cache_write.cc
 	)
 
-cc_library(auto_gen_rule_test_helper SRCS test_helper.cc DEPS glog gtest)
+if (WITH_TESTING)
+  cc_library(auto_gen_rule_test_helper SRCS test_helper.cc DEPS glog gtest)
+endif()
 
 cc_test(test_auto_inline SRCS auto_inline_test.cc DEPS cinncore)
 cc_test(test_multi_level_tiling SRCS multi_level_tiling_test.cc DEPS cinncore)
