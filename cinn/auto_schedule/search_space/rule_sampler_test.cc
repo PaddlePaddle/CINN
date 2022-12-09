@@ -32,15 +32,15 @@ std::vector<AutoGenRule*> GenerateTestRules() { return {new AutoUnroll(target), 
 
 TEST(RuleSampler, Make) {
   std::vector<AutoGenRule*> rules = GenerateTestRules();
-  auto traversal_block_sampler    = RuleSampler::Make(rules, "traversal");
+  auto traversal_block_sampler    = RuleSampler::Make(rules, true, "traversal");
   ASSERT_STREQ(traversal_block_sampler->Name(), "traversal");
-  auto probabilistic_block_sampler = RuleSampler::Make(rules, "probabilistic");
+  auto probabilistic_block_sampler = RuleSampler::Make(rules, true, "probabilistic");
   ASSERT_STREQ(probabilistic_block_sampler->Name(), "probabilistic");
 }
 
 TEST(TraversalRuleSampler, NextRule) {
   std::vector<AutoGenRule*> rules = GenerateTestRules();
-  auto traversal_rule_sampler     = RuleSampler::Make(rules, "traversal");
+  auto traversal_rule_sampler     = RuleSampler::Make(rules, true, "traversal");
   AutoGenRule* rule               = traversal_rule_sampler->NextRule();
   ASSERT_EQ("AutoUnroll", rule->GetRuleName());
   rule = traversal_rule_sampler->NextRule(false);
@@ -54,7 +54,7 @@ TEST(TraversalRuleSampler, NextRule) {
 
 TEST(ProbabilisticRuleSampler, NextRule) {
   std::vector<AutoGenRule*> rules = GenerateTestRules();
-  auto probabilistic_rule_sampler = RuleSampler::Make(rules, "probabilistic", {4, 1});
+  auto probabilistic_rule_sampler = RuleSampler::Make(rules, true, "probabilistic", {4, 1});
   AutoGenRule* rule;
   for (int i = 0; i < 20; ++i) {
     rule = probabilistic_rule_sampler->NextRule(false);

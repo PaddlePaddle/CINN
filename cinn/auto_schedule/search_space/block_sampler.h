@@ -25,59 +25,80 @@ namespace auto_schedule {
 
 class SearchState;
 
+// Select the next block to be operated for SearchState during the search process
 class BlockSampler {
  public:
-  // Create a BlockSampler with the specific strategy name
-  // and necessary construct parameters.
+  /**
+   * @brief Create a BlockSampler with the specific strategy name and necessary construct parameters.
+   * @param all_blocks All possible blocks to be sampled.
+   * @param default_remove_policy The default option to determine whether to delete the next block after selecting it.
+   * @param strategy The block sampling strategy.
+   *                 Currently, the available strategies are "traversal" and "probabilistic",
+   *                 where "traversal" means to select blocks one by one until all blocks are traversed,
+   *                 and "probabilistic" means randomly picking blocks according to the given distribution.
+   * @param weights Used for the probabilistic policy, giving each candidate a weight.
+   */
   static std::unique_ptr<BlockSampler> Make(const std::vector<ir::Expr>& all_blocks,
+                                            bool default_remove_policy      = true,
                                             const std::string& strategy     = "traversal",
                                             const std::vector<int>& weights = {});
 
-  // Return the name of schedule strategy
+  // Return the name of sample strategy
   virtual const char* Name() const = 0;
 
-  // Reset associated states to schedule at the beginning
+  // Reset associated states to sample at the beginning
   virtual void Reset() = 0;
 
   // Select a block to apply rule
-  virtual std::string NextBlock(bool remove = true) = 0;
+  // The param remove is used to determine whether to delete the next block after selecting it,
+  // If remove == true, it will not be sampled in the future.
+  virtual std::string NextBlock(bool remove) = 0;
+
+  // Select a block with default remove policy.
+  std::string NextBlock() { return NextBlock(default_remove_policy_); }
 
  protected:
   // A BlockSampler object should be created with the static function Make()
-  BlockSampler(const std::vector<ir::Expr>& all_blocks);
+  BlockSampler(const std::vector<ir::Expr>& all_blocks, bool default_remove_policy);
 
   // The names of all blocks
   // Because the Block Expr will be changed in the search process, the name is saved for indexing
   std::vector<std::string> all_blocks_;
+
+  // The default policy to determine whether to delete the next block after selecting it.
+  bool default_remove_policy_;
 };
 
-// Schedule blocks with traversal strategy,
+// Sample blocks with traversal strategy,
 // witch means to select blocks one by one until all blocks are traversed.
 class TraversalBlockSampler : public BlockSampler {
  public:
-  TraversalBlockSampler(const std::vector<ir::Expr>& all_blocks) : BlockSampler(all_blocks), cur_idx_(0) {}
+  TraversalBlockSampler(const std::vector<ir::Expr>& all_blocks, bool default_remove_policy)
+      : BlockSampler(all_blocks, default_remove_policy), cur_idx_(0) {}
 
   const char* Name() const override { return "traversal"; }
 
   void Reset() override { cur_idx_ = 0; }
 
-  std::string NextBlock(bool remove = true) override;
+  std::string NextBlock(bool remove) override;
 
  private:
   int cur_idx_;
 };
 
-// Schedule blocks with probabilistic strategy,
+// Sample blocks with probabilistic strategy,
 // witch means randomly picking blocks according to the given distribution.
 class ProbabilisticBlockSampler : public BlockSampler {
  public:
-  ProbabilisticBlockSampler(const std::vector<ir::Expr>& all_blocks, const std::vector<int>& weights = {});
+  ProbabilisticBlockSampler(const std::vector<ir::Expr>& all_blocks,
+                            bool default_remove_policy,
+                            const std::vector<int>& weights = {});
 
   const char* Name() const override { return "probabilistic"; }
 
   void Reset() override {}
 
-  std::string NextBlock(bool remove = true) override;
+  std::string NextBlock(bool remove) override;
 
  private:
   std::vector<int> weights_;
