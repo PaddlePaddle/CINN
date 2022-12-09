@@ -169,7 +169,7 @@ class FusionHelperBase {
   // target
   const common::Target& target_;
   // output node set
-  std::unordered_set<Node*> output_nodes_set_;
+  std::unordered_set<const Node*> output_nodes_set_;
   // shape dict
   const absl::flat_hash_map<std::string, shape_t>& shape_dict_;
   // op pattern dict
