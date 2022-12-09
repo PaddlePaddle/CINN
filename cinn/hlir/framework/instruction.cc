@@ -219,15 +219,13 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
 
   if (FLAGS_cinn_self_check_accuracy) {
     CheckResults(name2podargs, stream);
-#ifdef CINN_WITH_CUDA
-  } else if (FLAGS_cinn_sync_run) {
-    utils::RecordEvent record_sync("Synchronize");
-    auto st = cudaStreamSynchronize(static_cast<cudaStream_t>(stream));
-    if (st) {
-      LOG(FATAL) << "cuda error -> " << cudaGetErrorString(st);
-    }
-#endif
   }
+#ifdef CINN_WITH_CUDA
+  if (FLAGS_cinn_sync_run == true) {
+    utils::RecordEvent record_sync("FLAGS_cinn_sync_run");
+    CUDA_CALL(cudaStreamSynchronize(static_cast<cudaStream_t>(stream)));
+  }
+#endif
 }
 
 void Instruction::CheckResults(const std::map<std::string, cinn_pod_value_t>* name2podargs, void* stream) {
