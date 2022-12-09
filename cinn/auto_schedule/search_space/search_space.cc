@@ -135,11 +135,11 @@ SearchState SearchSpace::RandomTuneMutate(const SearchState& state) {
   VLOG(5) << "Start SearchSpace::RandomTuneMutate";
 
   auto all_blocks        = state->ir_schedule.GetAllBlocks();
-  auto block_sampler     = BlockSampler::Make(all_blocks, "probabilistic");
-  std::string block_name = block_sampler->NextBlock(false);
+  auto block_sampler     = BlockSampler::Make(all_blocks, false, "probabilistic");
+  std::string block_name = block_sampler->NextBlock();
   // TODO(BiynXu): Add rules after we have tune mutate, now only simulate with skip rule.
   std::vector<AutoGenRule*> mutate_rules = {sketch_rules_.back().get()};
-  auto rule_sampler                      = RuleSampler::Make(mutate_rules, "probabilistic");
+  auto rule_sampler                      = RuleSampler::Make(mutate_rules, false, "probabilistic");
   auto new_states                        = CollectStateTransfer(state, block_name, rule_sampler.get(), 1, false, 1);
   return new_states.at(0);
 }
@@ -176,7 +176,7 @@ std::vector<SearchState> SearchSpace::GetRandomPrunedInitialSketch() {
   VLOG(6) << "Start SearchSpace::GetRandomPrunedInitialSketch";
   ir::IRSchedule init_schedule(ir::ModuleExpr(tune_task_.GetLoweredFuncBodyExprs()));
   auto all_blocks    = init_schedule.GetAllBlocks();
-  auto block_sampler = BlockSampler::Make(all_blocks, "probabilistic");
+  auto block_sampler = BlockSampler::Make(all_blocks, true, "probabilistic");
 
   std::vector<AutoGenRule*> init_rules;
   std::transform(sketch_rules_.begin(), sketch_rules_.end() - 1, std::back_inserter(init_rules), [](const auto& rule) {
@@ -201,7 +201,7 @@ std::vector<SearchState> SearchSpace::GetRandomPrunedInitialSketch() {
     total_steps += steps;
     p_states_next->clear();
     for (const auto& state : *p_states_cur) {
-      auto rule_sampler = RuleSampler::Make(init_rules, "probabilistic");
+      auto rule_sampler = RuleSampler::Make(init_rules, true, "probabilistic");
       auto new_states   = CollectStateTransfer(state, block_name, rule_sampler.get(), steps, false, 1);
       p_states_next->insert(p_states_next->end(), new_states.begin(), new_states.end());
     }
@@ -216,7 +216,7 @@ std::vector<SearchState> SearchSpace::GetRulePrunedInitialSketch() {
   ir::IRSchedule init_schedule(ir::ModuleExpr(tune_task_.GetLoweredFuncBodyExprs()));
   auto all_blocks = init_schedule.GetAllBlocks();
   std::reverse(all_blocks.begin(), all_blocks.end());
-  auto block_sampler = BlockSampler::Make(all_blocks, "traversal");
+  auto block_sampler = BlockSampler::Make(all_blocks, true, "traversal");
 
   std::vector<AutoGenRule*> init_rules;
   std::transform(sketch_rules_.begin(), sketch_rules_.end() - 1, std::back_inserter(init_rules), [](const auto& rule) {
@@ -232,7 +232,7 @@ std::vector<SearchState> SearchSpace::GetRulePrunedInitialSketch() {
   while ("" != (block_name = block_sampler->NextBlock())) {
     p_states_next->clear();
     for (const auto& state : *p_states_cur) {
-      auto rule_sampler = RuleSampler::Make(init_rules, "traversal");
+      auto rule_sampler = RuleSampler::Make(init_rules, true, "traversal");
       auto new_states   = CollectStateTransfer(state, block_name, rule_sampler.get(), 0, true);
       p_states_next->insert(p_states_next->end(), new_states.begin(), new_states.end());
     }

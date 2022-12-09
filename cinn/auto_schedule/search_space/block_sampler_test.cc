@@ -32,15 +32,15 @@ std::vector<ir::Expr> CreateTestBlocks() {
 
 TEST(BlockSampler, Make) {
   std::vector<ir::Expr> mock_blocks = CreateTestBlocks();
-  auto traversal_block_sampler      = BlockSampler::Make(mock_blocks, "traversal");
+  auto traversal_block_sampler      = BlockSampler::Make(mock_blocks, true, "traversal");
   ASSERT_STREQ(traversal_block_sampler->Name(), "traversal");
-  auto probabilistic_block_sampler = BlockSampler::Make(mock_blocks, "probabilistic");
+  auto probabilistic_block_sampler = BlockSampler::Make(mock_blocks, true, "probabilistic");
   ASSERT_STREQ(probabilistic_block_sampler->Name(), "probabilistic");
 }
 
 TEST(TraversalBlockSampler, NextBlock) {
   std::vector<ir::Expr> blocks = CreateTestBlocks();
-  auto traversal_block_sampler = BlockSampler::Make(blocks, "traversal");
+  auto traversal_block_sampler = BlockSampler::Make(blocks, true, "traversal");
   ASSERT_EQ("block_0", traversal_block_sampler->NextBlock());
   ASSERT_EQ("block_1", traversal_block_sampler->NextBlock());
   ASSERT_EQ("block_2", traversal_block_sampler->NextBlock(false));
@@ -52,7 +52,7 @@ TEST(TraversalBlockSampler, NextBlock) {
 
 TEST(ProbabilisticBlockSampler, NextBlock) {
   std::vector<ir::Expr> blocks     = CreateTestBlocks();
-  auto probabilistic_block_sampler = BlockSampler::Make(blocks, "probabilistic", {4, 2, 1});
+  auto probabilistic_block_sampler = BlockSampler::Make(blocks, true, "probabilistic", {4, 2, 1});
   std::string block_name;
   for (int i = 0; i < 20; ++i) {
     block_name = probabilistic_block_sampler->NextBlock(false);
