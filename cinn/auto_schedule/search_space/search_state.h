@@ -18,7 +18,6 @@
 #include <limits>
 #include <vector>
 
-#include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
 #include "cinn/common/object.h"
 #include "cinn/common/shared.h"
 #include "cinn/ir/ir_schedule.h"
@@ -27,6 +26,7 @@ namespace cinn {
 namespace auto_schedule {
 
 struct _SearchState_;
+class AutoGenRule;
 
 //! Shared Wrapper for _SearchState_
 class SearchState : public common::Shared<_SearchState_> {
@@ -39,6 +39,9 @@ class SearchState : public common::Shared<_SearchState_> {
   static constexpr float NOT_INIT_COST = std::numeric_limits<float>::max();
   // compare function for two states
   friend bool operator<(const SearchState& left, const SearchState& right);
+
+  // Deep copy a SearchState
+  SearchState Copy() const;
 };
 
 //! Class to store immediate states during search
