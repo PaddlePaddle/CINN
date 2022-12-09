@@ -51,6 +51,15 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
   bool trans_b           = GetAttr(attr_store, "trans_b", false);
   float alpha            = GetAttr(attr_store, "alpha", 1.0f);
 
+  const auto &shape_A = ToPodVector<int>(inputs[0]->shape);
+  const auto &shape_B = ToPodVector<int>(inputs[1]->shape);
+
+  const auto &new_shape = pe::utils::GetMatmulNewShapes({shape_A, shape_B}, trans_a, trans_b);
+
+  const auto &new_shape_A  = new_shape[0];
+  const auto &new_shape_B  = new_shape[1];
+  const auto &output_shape = new_shape[2];
+
   framework::CINNCompute matmul_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input arguments of Matmul compute is empty! Please check.\n";
     CINNValuePack pack_args = args[0];
@@ -70,19 +79,6 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
     auto tensor_A = A.as_tensor_ref();
     auto tensor_B = B.as_tensor_ref();
     auto stages   = CreateStages({tensor_A, tensor_B});
-
-    std::vector<std::vector<int>> old_shape(2);
-    for (auto &shape : tensor_A->shape) {
-      old_shape[0].push_back(shape.as_int32());
-    }
-    for (auto &shape : tensor_B->shape) {
-      old_shape[1].push_back(shape.as_int32());
-    }
-    const auto &new_shape = pe::utils::GetMatmulNewShapes(old_shape, trans_a, trans_b);
-
-    const auto &new_shape_A  = new_shape[0];
-    const auto &new_shape_B  = new_shape[1];
-    const auto &output_shape = new_shape[2];
 
     auto new_shape_A_e = ToCinnExprs(new_shape_A);
     auto new_shape_B_e = ToCinnExprs(new_shape_B);
@@ -119,33 +115,7 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
     CHECK(!args.empty()) << "The input argument of matmul schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
     if (FLAGS_cinn_ir_schedule) {
-      if (target.arch == Target::Arch::X86) {
-        CINN_NOT_IMPLEMENTED
-      }
-      std::vector<Expr> vec_ast;
-      for (int i = 0; i < arg_pack.size(); i++) {
-        if (arg_pack[i].is_expr()) {
-          Expr temp = arg_pack[i];
-          vec_ast.emplace_back(temp);
-        }
-      }
-      CHECK(!vec_ast.empty());
-      ir::ModuleExpr mod_expr(vec_ast);
-      ir::IRSchedule ir_sch(mod_expr);
-      ir_sch.MergeExprs();
-      auto blocks = ir_sch.GetAllBlocks();
-
-      int prod_size = std::accumulate(output_shapes[0].begin(), output_shapes[0].end(), 1, std::multiplies<int>());
-      if (prod_size > 1) {
-        if (ir_sch.GetLoops(blocks[0]).size() == 1) {
-          ir_sch.Bind(ir_sch.GetLoops(blocks[0])[0], "threadIdx.x");
-        } else {
-          ir_sch.Bind(ir_sch.GetLoops(blocks[0])[0], "blockIdx.x");
-          ir_sch.Bind(ir_sch.GetLoops(blocks[0])[1], "threadIdx.x");
-        }
-      }
-
-      std::vector<CINNValue> results = {CINNValue(ir_sch.GetModule().GetExprs().at(0))};
+      std::vector<CINNValue> results = pe::IRCudaScheduleMatMul(arg_pack, output_shape, target);
       *ret                           = CINNValuePack({results});
     } else {
       CHECK(arg_pack.size() == 2UL || arg_pack.size() == 3UL);
@@ -153,9 +123,7 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
       if (target.arch == Target::Arch::NVGPU) {
         Expr out = arg_pack[0];
         CHECK(out.as_tensor());
-        stages[out.as_tensor_ref()]->Split(1, 2);
-        stages[out.as_tensor_ref()]->Bind(0, "blockIdx.x");
-        stages[out.as_tensor_ref()]->Bind(1, "threadIdx.x");
+        pe::MatmulScheduleCUDA(stages, out.as_tensor_ref(), target);
       } else if (target.arch == Target::Arch::X86) {
 #ifdef CINN_WITH_MKL_CBLAS
         CHECK_EQ(arg_pack.size(), 3UL);
@@ -517,7 +485,7 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
   const auto &attr_store = attrs.attr_store;
   int x_num_col_dims     = GetAttr(attr_store, "x_num_col_dims", 1);
   int y_num_col_dims     = GetAttr(attr_store, "y_num_col_dims", 1);
-  int is_infer           = GetAttr(attr_store, "is_infer", false);
+  bool is_infer          = GetAttr(attr_store, "is_infer", false);
 
   const auto &shape_A = ToPodVector<int>(inputs[0]->shape);
   const auto &shape_B = ToPodVector<int>(inputs[1]->shape);
@@ -582,33 +550,7 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
     CHECK(!args.empty()) << "The input argument of matmul schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
     if (FLAGS_cinn_ir_schedule) {
-      if (target.arch == Target::Arch::X86) {
-        CINN_NOT_IMPLEMENTED
-      }
-      std::vector<Expr> vec_ast;
-      for (int i = 0; i < arg_pack.size(); i++) {
-        if (arg_pack[i].is_expr()) {
-          Expr temp = arg_pack[i];
-          vec_ast.emplace_back(temp);
-        }
-      }
-      CHECK(!vec_ast.empty());
-      ir::ModuleExpr mod_expr(vec_ast);
-      ir::IRSchedule ir_sch(mod_expr);
-      ir_sch.MergeExprs();
-      auto blocks = ir_sch.GetAllBlocks();
-
-      int prod_size = std::accumulate(output_shapes[0].begin(), output_shapes[0].end(), 1, std::multiplies<int>());
-      if (prod_size > 1) {
-        if (ir_sch.GetLoops(blocks[0]).size() == 1) {
-          ir_sch.Bind(ir_sch.GetLoops(blocks[0])[0], "threadIdx.x");
-        } else {
-          ir_sch.Bind(ir_sch.GetLoops(blocks[0])[0], "blockIdx.x");
-          ir_sch.Bind(ir_sch.GetLoops(blocks[0])[1], "threadIdx.x");
-        }
-      }
-
-      std::vector<CINNValue> results = {CINNValue(ir_sch.GetModule().GetExprs().at(0))};
+      std::vector<CINNValue> results = pe::IRCudaScheduleMatMul(arg_pack, output_shape, target);
       *ret                           = CINNValuePack({results});
     } else {
       CHECK(arg_pack.size() == 2UL || arg_pack.size() == 3UL);
@@ -616,9 +558,7 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
       if (target.arch == Target::Arch::NVGPU) {
         Expr out = arg_pack[0];
         CHECK(out.as_tensor());
-        stages[out.as_tensor_ref()]->Split(1, 2);
-        stages[out.as_tensor_ref()]->Bind(0, "blockIdx.x");
-        stages[out.as_tensor_ref()]->Bind(1, "threadIdx.x");
+        pe::MatmulScheduleCUDA(stages, out.as_tensor_ref(), target);
       } else if (target.arch == Target::Arch::X86) {
 #ifdef CINN_WITH_MKL_CBLAS
         CHECK_EQ(arg_pack.size(), 3UL);
@@ -652,7 +592,7 @@ std::vector<std::vector<int>> InferShapeForMul(const std::vector<std::vector<int
 
   int x_num_col_dims = GetAttr(attrs, "x_num_col_dims", 1);
   int y_num_col_dims = GetAttr(attrs, "y_num_col_dims", 1);
-  int is_infer       = GetAttr(attrs, "is_infer", false);
+  bool is_infer      = GetAttr(attrs, "is_infer", false);
 
   const auto &new_shape = pe::utils::GetMulNewShapes(inputs_shape, x_num_col_dims, y_num_col_dims, is_infer);
 
