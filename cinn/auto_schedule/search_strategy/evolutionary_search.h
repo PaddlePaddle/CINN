@@ -87,6 +87,12 @@ class EvolutionarySearch {
  private:
   std::vector<SearchState> GetTopKCandidatesFromDatabase(int topk);
 
+  // Generate sketch as initial population of evolutionary search.
+  // Current optional strategies are "rule_prune" or "random_prune" or "random".
+  // Among them, "random" uses the old method,
+  // "Random_plane" uses the new interface CollectStateTransfer() to simulate the random generation of sketches,
+  // and supports the function of a rule returning multiple SearchStates and random pruning by probability.
+  // "rule_plane" uses rules to prune and generate sketches as efficiently as possible.
   std::vector<SearchState> InitSketch(int num, const std::string& strategy);
 
   SearchState CrossOver(const SearchState& state1, const SearchState& state2);

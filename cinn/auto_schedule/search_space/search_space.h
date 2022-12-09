@@ -42,18 +42,31 @@ class SearchSpace {
  public:
   SearchSpace(const TuneTask& tune_task);
 
-  // Evolutionary search mutate, returns the mutated ModuleExpr and estimited cost
-  virtual SearchState GetScheduleMutate(const SearchState& state, const ExprCostModel& cost_model);
+  // Sketch mutate, returns the mutated ModuleExpr and estimited cost
+  virtual SearchState GetScheduleMutate(const SearchState& state,
+                                        const ExprCostModel& cost_model,
+                                        bool is_sketch_mutate);
 
   // Generate sketch as initial population of evolutionary search.
-  // Current optional strategies are "rule_prune" and "random_prune".
+  // Current optional strategies are "rule_prune" or "random_prune" or "random".
+  // Among them, "random" uses the old method,
+  // "Random_plane" uses the new interface CollectStateTransfer() to simulate the random generation of sketches,
+  // and supports the function of a rule returning multiple SearchStates and random pruning by probability.
+  // "rule_plane" uses rules to prune and generate sketches as efficiently as possible.
   virtual std::vector<SearchState> GetInitialSketch(int num, const std::string& strategy);
 
  private:
   // TODO(zhhsplendid): mutate by manual schedule.
-  SearchState ManualScheduleMutate(const SearchState& state);
+  SearchState ManualSketchMutate(const SearchState& state);
 
-  SearchState RandomScheduleMutate(const SearchState& state);
+  // mutate by sketch rules randomly
+  SearchState RandomSketchMutate(const SearchState& state);
+
+  // mutate by tune rules randomly, such as mutate tile size, mutate parallel, which can be applied infinitely
+  SearchState RandomTuneMutate(const SearchState& state);
+
+  // Generate num sketchs, each with several rounds of SketchMutate
+  std::vector<SearchState> GetRandomInitialSketch(int num);
 
   // Generate sketch pruned randomly as initial population of evolutionary search
   std::vector<SearchState> GetRandomPrunedInitialSketch();
@@ -78,6 +91,7 @@ class SearchSpace {
                                                 bool prune_by_rule,
                                                 double prune_probability = 1);
 
+ private:
   const TuneTask& tune_task_;
   int init_sketch_random_depth_ = 6;
   // supported AutoGenRules, every task holds a set

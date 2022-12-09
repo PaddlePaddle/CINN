@@ -46,7 +46,7 @@ class MockSearchSpace : public SearchSpace {
 
   int GetModuleExprSize() const { return module_expr_size_; }
 
-  std::vector<SearchState> GetRandomInitialSketch(int num) override {
+  std::vector<SearchState> GetInitialSketch(int num, const std::string& strategy) override {
     std::vector<SearchState> ret;
     for (int i = 0; i < num; ++i) {
       std::vector<ir::Expr> exprs;
@@ -59,7 +59,9 @@ class MockSearchSpace : public SearchSpace {
     return ret;
   }
 
-  SearchState GetScheduleMutate(const SearchState& state, const ExprCostModel& cost_model) override {
+  SearchState GetScheduleMutate(const SearchState& state,
+                                const ExprCostModel& cost_model,
+                                bool is_sketch_mutate) override {
     float cost                  = 0.0f;
     std::vector<ir::Expr> exprs = state->ir_schedule.GetModule().GetExprs();
     for (const ir::Expr& expr : exprs) {
