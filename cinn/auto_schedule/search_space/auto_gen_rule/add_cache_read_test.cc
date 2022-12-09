@@ -82,7 +82,8 @@ TEST_F(TestAddCacheReadWith2DMatmul, Init) {
 }
 
 TEST_F(TestAddCacheReadWith2DMatmul, BasicApplyOnMatmul) {
-  ir::IRSchedule ir_schedule       = Initialize("matmul_apply_add_cache_read", {{32, 32}, {32, 32}}, {{32, 32}});
+  ir::IRSchedule ir_schedule = Initialize("matmul_apply_add_cache_read", {{32, 32}, {32, 32}}, {{32, 32}});
+  SearchState state(ir_schedule, 0, {});
   std::vector<ir::Expr> func_bodys = ir_schedule.GetModule().GetExprs();
   ASSERT_EQ(func_bodys.size(), 1UL);
   VLOG(6) << "Original Expr:\n" << func_bodys[0];
@@ -100,33 +101,25 @@ TEST_F(TestAddCacheReadWith2DMatmul, BasicApplyOnMatmul) {
   VLOG(6) << "scheduled source code:\n" << source_code;
   // execute and check precision
   CheckPrecision(build_module);
-}
 
-TEST_F(TestAddCacheReadWith2DMatmul, ApplyOnBlock) {
-  ir::IRSchedule ir_schedule       = Initialize("matmul_apply_add_cache_read", {{32, 32}, {32, 32}}, {{32, 32}});
-  std::vector<ir::Expr> func_bodys = ir_schedule.GetModule().GetExprs();
-  ASSERT_EQ(func_bodys.size(), 1UL);
-  VLOG(6) << "Original Expr:\n" << func_bodys[0];
-  SearchState state(ir_schedule, 0, {});
-
+  // ApplyOnBlock
   // Apply AddCacheRead.
-  AddCacheRead add_cache_read(target_);
   EXPECT_EQ(add_cache_read.AnalyseApplyType(state, "C"), RuleApplyType::kApplyAndSkipAllRules);
   auto new_states             = add_cache_read.ApplyOnBlock(state, "C");
   std::vector<ir::Expr> exprs = new_states[0]->ir_schedule.GetModule().GetExprs();
   EXPECT_EQ(exprs.size(), 1UL);
-  VLOG(6) << "Matmul Expr after AddCacheRead: " << exprs[0];
-
+  VLOG(6) << "Matmul Expr after AddCacheRead applied on block: " << exprs[0];
   // build ir::Module and debug source code
-  auto build_module = BuildIRModule(func_bodys);
-  auto source_code  = GenSourceCode(build_module);
-  VLOG(6) << "scheduled source code:\n" << source_code;
+  build_module = BuildIRModule(exprs);
+  source_code  = GenSourceCode(build_module);
+  VLOG(6) << "ApplyOnBlock scheduled source code:\n" << source_code;
   // execute and check precision
   CheckPrecision(build_module);
 }
 
 TEST_F(TestAddCacheReadWith2DMatmul, ApplyOnMatmulWithTiling) {
-  ir::IRSchedule ir_schedule       = Initialize("matmul_apply_add_cache_read", {{32, 32}, {32, 32}}, {{32, 32}});
+  ir::IRSchedule ir_schedule = Initialize("matmul_apply_add_cache_read", {{32, 32}, {32, 32}}, {{32, 32}});
+  SearchState state(ir_schedule, 0, {});
   std::vector<ir::Expr> func_bodys = ir_schedule.GetModule().GetExprs();
   ASSERT_EQ(func_bodys.size(), 1UL);
   VLOG(6) << "Original Expr:\n" << func_bodys[0];
@@ -149,6 +142,26 @@ TEST_F(TestAddCacheReadWith2DMatmul, ApplyOnMatmulWithTiling) {
   auto build_module = BuildIRModule(func_bodys);
   auto source_code  = GenSourceCode(build_module);
   VLOG(6) << "scheduled source code:\n" << source_code;
+  // execute and check precision
+  CheckPrecision(build_module);
+
+  // ApplyOnBlock
+  // Apply MultiLevelTiling before AddCacheRead.
+  EXPECT_EQ(multi_level_tiling.AnalyseApplyType(state, "C"), RuleApplyType::kApplyAndSkipThisRule);
+  auto states_after_tiling    = multi_level_tiling.ApplyOnBlock(state, "C");
+  std::vector<ir::Expr> exprs = states_after_tiling[0]->ir_schedule.GetModule().GetExprs();
+  EXPECT_EQ(exprs.size(), 1UL);
+  VLOG(6) << "Expr after MultiLevelTiling applied on block: " << exprs[0];
+  // Apply AddCacheRead.
+  EXPECT_EQ(add_cache_read.AnalyseApplyType(states_after_tiling[0], "C"), RuleApplyType::kApplyAndSkipAllRules);
+  auto states_after_cache_read = add_cache_read.ApplyOnBlock(states_after_tiling[0], "C");
+  exprs                        = states_after_cache_read[0]->ir_schedule.GetModule().GetExprs();
+  EXPECT_EQ(exprs.size(), 1UL);
+  VLOG(6) << "Matmul Expr after AddCacheRead applied on block: " << exprs[0];
+  // build ir::Module and debug source code
+  build_module = BuildIRModule(exprs);
+  source_code  = GenSourceCode(build_module);
+  VLOG(6) << "ApplyOnBlock scheduled source code:\n" << source_code;
   // execute and check precision
   CheckPrecision(build_module);
 }

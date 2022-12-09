@@ -71,6 +71,7 @@ TEST(AutoInline, SingleLoopInline) {
    * test case for AutoInline.
    */
   ir::IRSchedule ir_sch(ir::ModuleExpr(std::vector<ir::Expr>{funcs[0]->body}));
+  SearchState state(ir_sch, 0, {});
   ir::Expr block_b            = ir_sch.GetBlock("B");
   std::vector<ir::Expr> loops = ir_sch.GetLoops("C");
   ir_sch.ComputeAt(block_b, loops[0]);
@@ -82,19 +83,27 @@ TEST(AutoInline, SingleLoopInline) {
   AutoInline auto_inline(target, {"C"});
   EXPECT_EQ(auto_inline.Init(&ir_sch), RuleApplyType::kApply);
   EXPECT_EQ(auto_inline.NumberApplicable(), 1);
-
   auto_inline.ApplyRandomly();
   std::vector<ir::Expr> exprs = ir_sch.GetModule().GetExprs();
   EXPECT_EQ(exprs.size(), 1UL);
 
-  std::stringstream ss;
-  ss << exprs[0];
+  // ApplyOnBlock
+  EXPECT_EQ(auto_inline.AnalyseApplyType(state, "B"), RuleApplyType::kApply);
+  auto new_states = auto_inline.ApplyOnBlock(state, "B");
 
-  std::string expr_str = ss.str();
-  VLOG(6) << "After AutoInline:";
-  VLOG(6) << expr_str;
+  auto test_func = [](ir::IRSchedule* ir_sch) {
+    ir::ModuleExpr mod_expr_after_inline = ir_sch->GetModule();
+    std::vector<ir::Expr> exprs          = mod_expr_after_inline.GetExprs();
+    EXPECT_EQ(exprs.size(), 1UL);
 
-  std::string target_str = R"ROC({
+    std::stringstream ss;
+    ss << exprs[0];
+
+    std::string expr_str = ss.str();
+    VLOG(6) << "After AutoInline:";
+    VLOG(6) << expr_str;
+
+    std::string target_str = R"ROC({
   ScheduleBlock(root)
   {
     {
@@ -111,10 +120,15 @@ TEST(AutoInline, SingleLoopInline) {
     }
   }
 })ROC";
-  EXPECT_EQ(expr_str, target_str);
+    EXPECT_EQ(expr_str, target_str);
+  };
+
+  test_func(&ir_sch);
+  test_func(&new_states[0]->ir_schedule);
 
   // Cannot inline above expr again
   EXPECT_EQ(auto_inline.Init(&ir_sch), RuleApplyType::kCannotApply);
+  EXPECT_EQ(auto_inline.AnalyseApplyType(new_states[0], "C"), RuleApplyType::kCannotApply);
 }
 
 TEST(AutoInline, AddReluInline) {
@@ -146,6 +160,7 @@ TEST(AutoInline, AddReluInline) {
 
   ir::ModuleExpr mod_expr_before_inline(std::vector<Expr>({funcs[0]->body}));
   ir::IRSchedule ir_sch(mod_expr_before_inline);
+  SearchState state(ir_sch, 0, {});
 
   AutoInline auto_inline(target, {"var_2"});
   EXPECT_EQ(auto_inline.Init(&ir_sch), RuleApplyType::kApply);
@@ -166,20 +181,28 @@ TEST(AutoInline, AddReluInline) {
   // Auto Inline again
   EXPECT_EQ(auto_inline.Init(&ir_sch), RuleApplyType::kApply);
   EXPECT_EQ(auto_inline.NumberApplicable(), 1);
-
   auto_inline.Apply(0);
-  ir::ModuleExpr final_mod_expr = ir_sch.GetModule();
-  exprs                         = final_mod_expr.GetExprs();
-  EXPECT_EQ(exprs.size(), 1UL);
 
-  ss.str("");
-  ss << exprs[0];
+  // ApplyOnBlock
+  EXPECT_EQ(auto_inline.AnalyseApplyType(state, "var_1"), RuleApplyType::kApply);
+  auto new_states = auto_inline.ApplyOnBlock(state, "var_1");
+  // Auto Inline again
+  EXPECT_EQ(auto_inline.AnalyseApplyType(new_states[0], "var_3"), RuleApplyType::kApply);
+  new_states = auto_inline.ApplyOnBlock(new_states[0], "var_3");
 
-  expr_str = ss.str();
-  VLOG(6) << "Final AutoInline:";
-  VLOG(6) << expr_str;
+  auto test_func = [](ir::IRSchedule* ir_sch) {
+    ir::ModuleExpr final_mod_expr = ir_sch->GetModule();
+    auto exprs                    = final_mod_expr.GetExprs();
+    EXPECT_EQ(exprs.size(), 1UL);
 
-  std::string target_str = R"ROC({
+    std::stringstream ss;
+    ss << exprs[0];
+
+    std::string expr_str = ss.str();
+    VLOG(6) << "Final AutoInline:";
+    VLOG(6) << expr_str;
+
+    std::string target_str = R"ROC({
   ScheduleBlock(root)
   {
     {
@@ -202,99 +225,14 @@ TEST(AutoInline, AddReluInline) {
     }
   }
 })ROC";
-  EXPECT_EQ(expr_str, target_str);
+    EXPECT_EQ(expr_str, target_str);
+  };
+
+  test_func(&ir_sch);
+  test_func(&new_states[0]->ir_schedule);
 
   // Cannot inline above expr again
   EXPECT_EQ(auto_inline.Init(&ir_sch), RuleApplyType::kCannotApply);
-}
-
-TEST(AutoInline, ApplyOnBlock) {
-  srand(0);
-  Context::Global().ResetNameId();
-  Target target = common::DefaultHostTarget();
-
-  frontend::NetBuilder builder("test");
-
-  auto a = builder.CreateInput(Float(32), {1, 64, 112, 112}, "A");
-  auto b = builder.CreateInput(Float(32), {64}, "B");
-  auto c = builder.Add(a, b, 1);
-  auto d = builder.Relu(c);
-
-  frontend::Program program = builder.Build();
-
-  FLAGS_cinn_ir_schedule = true;
-  auto graph             = std::make_shared<Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-
-  const auto& dtype_dict = graph->GetAttrs<absl::flat_hash_map<std::string, common::Type>>("inferdtype");
-  const auto& shape_dict = graph->GetAttrs<absl::flat_hash_map<std::string, hlir::framework::shape_t>>("infershape");
-  auto op_lowerer        = std::make_unique<hlir::framework::OpLowerer>(dtype_dict, shape_dict, target);
-
-  EXPECT_EQ(graph->fusion_groups.size(), 1UL);
-  std::vector<ir::LoweredFunc> funcs = op_lowerer->LowerWithoutSchedule(graph->fusion_groups[0]);
-
-  VLOG(6) << "Expr before auto inline: " << funcs[0]->body;
-
-  ir::ModuleExpr mod_expr_before_inline(std::vector<Expr>({funcs[0]->body}));
-  ir::IRSchedule ir_sch(mod_expr_before_inline);
-  SearchState state(ir_sch, 0, {});
-  AutoInline auto_inline(target, {"var_2"});
-
-  EXPECT_EQ(auto_inline.AnalyseApplyType(state, "var_1"), RuleApplyType::kApply);
-
-  auto new_states                      = auto_inline.ApplyOnBlock(state, "var_1");
-  ir::ModuleExpr mod_expr_after_inline = new_states[0]->ir_schedule.GetModule();
-  std::vector<ir::Expr> exprs          = mod_expr_after_inline.GetExprs();
-  EXPECT_EQ(exprs.size(), 1UL);
-
-  std::stringstream ss;
-  ss << exprs[0];
-
-  std::string expr_str = ss.str();
-  VLOG(6) << "After AutoInline:";
-  VLOG(6) << expr_str;
-
-  // Auto Inline again
-  EXPECT_EQ(auto_inline.AnalyseApplyType(new_states[0], "var_3"), RuleApplyType::kApply);
-
-  new_states            = auto_inline.ApplyOnBlock(new_states[0], "var_3");
-  mod_expr_after_inline = new_states[0]->ir_schedule.GetModule();
-  exprs                 = mod_expr_after_inline.GetExprs();
-  EXPECT_EQ(exprs.size(), 1UL);
-
-  ss.str("");
-  ss << exprs[0];
-
-  expr_str = ss.str();
-  VLOG(6) << "Final AutoInline:";
-  VLOG(6) << expr_str;
-
-  std::string target_str = R"ROC({
-  ScheduleBlock(root)
-  {
-    {
-      serial for (j, 0, 64)
-      {
-        serial for (k, 0, 112)
-        {
-          serial for (a, 0, 112)
-          {
-            ScheduleBlock(var_2)
-            {
-              i0, i1, i2, i3 = axis.bind(0, j, k, a)
-              read_buffers(_A[i0(0:1), i1(0:64), i2(0:112), i3(0:112)], _B[])
-              write_buffers(_var_2[i0(0:1), i1(0:64), i2(0:112), i3(0:112)])
-              var_2[i0, i1, i2, i3] = cinn_max((A[i0, i1, i2, i3] + B[(i1 % 64)]), 0.00000f)
-            }
-          }
-        }
-      }
-    }
-  }
-})ROC";
-  EXPECT_EQ(expr_str, target_str);
-
-  // Cannot inline above expr again
   EXPECT_EQ(auto_inline.AnalyseApplyType(new_states[0], "var_2"), RuleApplyType::kCannotApply);
 }
 
