@@ -604,6 +604,13 @@ __device__ inline cinn::common::float16 __shfl_xor_sync(unsigned mask,
                                                         int width = warpSize) {
   return cinn::common::float16(__shfl_xor_sync(mask, var.to_half(), laneMask, width));
 }
+
+__host__ __device__ inline cinn::common::float16 max(const cinn::common::float16& a, const cinn::common::float16& b) {
+  return a > b ? a : b;
+}
+__host__ __device__ inline cinn::common::float16 min(const cinn::common::float16& a, const cinn::common::float16& b) {
+  return a < b ? a : b;
+}
 #endif  // __cplusplus && CINN_CUDA_FP16
 
 #endif  // CINN_COMMON_FLOAT16_H

@@ -69,8 +69,6 @@ CINN_REGISTER_HELPER(cuda_intrinsics) {
 #define REGISTER_EXTERN_FUNC_2_IN_1_FLOAT(func__) \
   REGISTER_EXTERN_SOURCE_FUNC_2_IN_1_OUT(cinn_nvgpu_##func__##_fp32, target, float, float, float);
 
-  REGISTER_EXTERN_FUNC_2_IN_1_FLOAT(max)
-  REGISTER_EXTERN_FUNC_2_IN_1_FLOAT(min)
   REGISTER_EXTERN_FUNC_2_IN_1_FLOAT(pow)
   REGISTER_EXTERN_FUNC_2_IN_1_FLOAT(remainder)
 
