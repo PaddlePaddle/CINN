@@ -11,6 +11,7 @@ gather_srcs(cinnapi_src SRCS
     dot_merger.cc
     check_fusion_accuracy_pass.cc
     custom_call_pass.cc
+    common_subexpression_elimination.cc
     dce_pass.cc
     )
 
@@ -29,3 +30,4 @@ if (NOT WITH_CUDA)
 endif()
 cc_test(test_dot_merger SRCS test_dot_merger.cc DEPS cinncore)
 cc_test(test_dce_pass SRCS dce_pass_test.cc DEPS cinncore)
+cc_test(test_common_subexpression_elimination SRCS common_subexpression_elimination_test.cc DEPS cinncore)
