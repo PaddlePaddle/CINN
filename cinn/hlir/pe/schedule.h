@@ -75,6 +75,8 @@ void ScheduleInjectiveCPU1(poly::Stage *stage,
                            const common::Target &target,
                            bool vectorizable = true);
 
+void MatmulScheduleCUDA(poly::StageMap stages, const ir::Tensor &output, const common::Target &target);
+
 void MatmulScheduleCPU(poly::StageMap stage,
                        const ir::Tensor &output,
                        const ir::Tensor &packedB,
