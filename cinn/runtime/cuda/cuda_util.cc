@@ -226,7 +226,7 @@ void cinn_call_cublas(void *v_args,
 
       void **ptr_arr        = nullptr;
       cudaStream_t g_stream = CublasHandle::GetInstance().GetCuStream();
-      CUDA_CALL(cudaMallocAsync(&ptr_arr, sizeof(float *) * 3 * std::max(l1, r1) * std::max(l2, r2), g_stream));
+      CUDA_CALL(cudaMallocAsync(&ptr_arr, sizeof(void *) * 3 * std::max(l1, r1) * std::max(l2, r2), g_stream));
 
       std::vector<void *> ptr(3 * std::max(l1, r1) * std::max(l2, r2));
       void **ptr_a = ptr.data();
@@ -237,7 +237,7 @@ void cinn_call_cublas(void *v_args,
       for (int idx = 0, index = 0; idx < std::max(l1, r1); ++idx) {
         for (int idy = 0; idy < std::max(l2, r2); ++idy) {
           ptr_a[index] = reinterpret_cast<uint8_t *>(lhs) + (idx * bstride_l + idy * stride_l) * bytes;
-          ptr_b[index] = reinterpret_cast<uint8_t *>(ldr) + (idx * bstride_r + idy * stride_r) * bytes;
+          ptr_b[index] = reinterpret_cast<uint8_t *>(rhs) + (idx * bstride_r + idy * stride_r) * bytes;
           ptr_c[index] = reinterpret_cast<uint8_t *>(C) + (idx * bstride_c + idy * m * n) * bytes;
           ++index;
         }
@@ -259,7 +259,7 @@ void cinn_call_cublas(void *v_args,
                                     ldr,
                                     beta,
                                     ptr_arr + std::max(l1, r1) * std::max(l2, r2) * 2,
-                                    m * n,
+                                    ldc,
                                     std::max(l1, r1) * std::max(l2, r2)));
       CUDA_CALL(cudaFreeAsync(ptr_arr, custream));
     }
