@@ -37,6 +37,8 @@ SearchState::SearchState(ir::IRSchedule ir_sch, float cost, const std::vector<Au
   state->predicted_cost   = cost;
 }
 
+SearchState SearchState::Copy() const { return SearchState((*this)->ir_schedule, (*this)->predicted_cost, {}); }
+
 std::string _SearchState_::DebugString() const {
   const auto& exprs = ir_schedule.GetModule().GetExprs();
   std::stringstream module_stream;

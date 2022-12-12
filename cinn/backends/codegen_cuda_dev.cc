@@ -155,7 +155,7 @@ void CodeGenCUDA_Dev::Visit(const ir::Alloc *op) {
 }
 
 void CodeGenCUDA_Dev::Visit(const ir::Min *op) {
-  os() << "cinn_nvgpu_min_fp32(";
+  os() << "min(";
   Print(op->a());
   os() << ", ";
   Print(op->b());
@@ -163,7 +163,7 @@ void CodeGenCUDA_Dev::Visit(const ir::Min *op) {
 }
 
 void CodeGenCUDA_Dev::Visit(const ir::Max *op) {
-  os() << "cinn_nvgpu_max_fp32(";
+  os() << "max(";
   Print(op->a());
   os() << ", ";
   Print(op->b());

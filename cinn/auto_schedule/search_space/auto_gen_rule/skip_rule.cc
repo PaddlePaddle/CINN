@@ -32,7 +32,7 @@ RuleApplyType SkipRule::Init(ir::IRSchedule* ir_schedule) {
   return RuleApplyType::kApply;
 }
 
-std::string SkipRule::GetRuleName() const { return "SikpRule"; }
+std::string SkipRule::GetRuleName() const { return "SkipRule"; }
 
 }  // namespace auto_schedule
 }  // namespace cinn
