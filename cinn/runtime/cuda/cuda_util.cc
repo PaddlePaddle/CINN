@@ -57,6 +57,9 @@ class CublasHandle {
     cudaMemPool_t mem_pool;
     CUDA_CALL(cudaDeviceGetMemPool(&mem_pool, 0));
 
+    uint64_t threshold = UINT32_MAX;
+    CUDA_CALL(cudaMemPoolSetAttribute(mem_pool, cudaMemPoolAttrReleaseThreshold, &threshold));
+
     int enable = 1;
     CUDA_CALL(cudaMemPoolSetAttribute(mem_pool, cudaMemPoolReuseFollowEventDependencies, &enable));
     CUDA_CALL(cudaMemPoolSetAttribute(mem_pool, cudaMemPoolReuseAllowInternalDependencies, &enable));
