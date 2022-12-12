@@ -103,16 +103,16 @@ function prepare_ci {
     apt install -y python${py_version}-venv
     python${py_version} -m venv $build_dir/ci-env
   fi
-  proxy_off
   source $build_dir/ci-env/bin/activate
-  pip install -U pip
-  pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/
-  pip config set global.trusted-host mirrors.aliyun.com
-  pip install pre-commit
-  pip install clang-format==9.0
-  pip install wheel
-  pip install sphinx==3.3.1 sphinx_gallery==0.8.1 recommonmark==0.6.0 exhale scipy breathe==4.24.0 matplotlib sphinx_rtd_theme
-  pip install paddlepaddle-gpu==2.3.1.post101 -f https://www.paddlepaddle.org.cn/whl/linux/mkl/avx/stable.html
+  pip${py_version} install -U pip --trusted-host mirrors.aliyun.com --index-url https://mirrors.aliyun.com/pypi/simple/
+  pip${py_version} config set global.index-url https://mirrors.aliyun.com/pypi/simple/
+  pip${py_version} config set global.trusted-host mirrors.aliyun.com
+  proxy_off
+  pip${py_version} install pre-commit
+  pip${py_version} install clang-format==9.0
+  pip${py_version} install wheel
+  pip${py_version} install sphinx==3.3.1 sphinx_gallery==0.8.1 recommonmark==0.6.0 exhale scipy breathe==4.24.0 matplotlib sphinx_rtd_theme
+  pip${py_version} install paddlepaddle-gpu==2.3.1.post101 -f https://www.paddlepaddle.org.cn/whl/linux/mkl/avx/stable.html
 }
 
 function prepare_doc_model_file {
