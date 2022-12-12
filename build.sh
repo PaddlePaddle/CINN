@@ -64,12 +64,10 @@ OLD_HTTPS_PROXY=$https_proxy &> /dev/null
 function proxy_off {
   unset http_proxy &> /dev/null
   unset https_proxy &> /dev/null
-  unset no_proxy &> /dev/null
 }
 function proxy_on {
   export http_proxy=$OLD_HTTP_PROXY &> /dev/null
   export https_proxy=$OLD_HTTPS_PROXY &> /dev/null
-  export no_proxy=aliyun.com &> /dev/null
 }
 
 function prepare_ci {
@@ -107,7 +105,7 @@ function prepare_ci {
   fi
   proxy_off
   source $build_dir/ci-env/bin/activate
-  pip install -U pip --trusted-host mirrors.aliyun.com --index-url https://mirrors.aliyun.com/pypi/simple/
+  pip install -U pip
   pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/
   pip config set global.trusted-host mirrors.aliyun.com
   pip install pre-commit
