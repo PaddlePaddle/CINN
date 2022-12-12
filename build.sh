@@ -64,10 +64,12 @@ OLD_HTTPS_PROXY=$https_proxy &> /dev/null
 function proxy_off {
   unset http_proxy &> /dev/null
   unset https_proxy &> /dev/null
+  unset no_proxy &> /dev/null
 }
 function proxy_on {
   export http_proxy=$OLD_HTTP_PROXY &> /dev/null
   export https_proxy=$OLD_HTTPS_PROXY &> /dev/null
+  export no_proxy=aliyun.com &> /dev/null
 }
 
 function prepare_ci {
