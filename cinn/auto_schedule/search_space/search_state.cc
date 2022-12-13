@@ -139,9 +139,11 @@ std::string JoinStatesDebugString(const std::string& title, const std::vector<Se
   SearchStateHash state_hasher;
   for (size_t i = 0; i < states.size(); ++i) {
     uint64_t hash_key = state_hasher(states[i]);
-    ss << "State-" << i << " hash:" << hash_key << "\n";
-    if (verbose)
-      ss << "****** State-" << i << "(hash:" << hash_key << ") Detail ******" << states[i]->DebugString() << "\n";
+    if (verbose) {
+      ss << "\tState-" << i << " hash:" << hash_key << "\t content:------>" << states[i]->DebugString() << "\n<------";
+    } else {
+      ss << "\tState-" << i << " hash:" << hash_key << "\n";
+    }
   }
   return std::move(*ss.rdbuf()).str();
 }

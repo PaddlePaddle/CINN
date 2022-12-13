@@ -39,7 +39,7 @@ class TaskOptimizer {
  private:
   TuningResult::OptimizedComputeExpr OptimizeByEvolution(const TuningOptions& options);
 
-  // call EvolutionarySearch to search candidates once
+  // call search candidates once by EvolutionarySearch and prune invalid ones
   std::vector<SearchState> SearchOneRound(const TuningOptions& options, std::vector<MeasureInput>* measure_candidates);
 
   ir::LoweredFunc FuncWithUpdatedBody(const ir::LoweredFunc& old_func, ir::Expr& body);
@@ -49,7 +49,7 @@ class TaskOptimizer {
 
  private:
   // the max retry times if continuously get empty result
-  static constexpr uint32_t kMaxRetryContinuousEmpty_ = 5;
+  static constexpr uint32_t kMaxRetryContinuousEmpty_ = 3;
   const TuneTask* task_;
   ScheduleMeasurer* schedule_measurer_;
   std::unique_ptr<EvolutionarySearch> evolutionary_search_ = nullptr;

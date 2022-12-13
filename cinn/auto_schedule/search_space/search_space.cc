@@ -48,8 +48,7 @@ SearchSpace::SearchSpace(const TuneTask& tune_task) : tune_task_(tune_task) {
 }
 
 std::vector<SearchState> SearchSpace::GetRandomInitialSketch(int num) {
-  VLOG(4) << "SearchSpace::GetRandomInitialSketch with num=" << num
-          << ", visited_candidates size=" << visited_candidates_.size();
+  VLOG(4) << "SearchSpace::GetRandomInitialSketch with num=" << num;
   ir::IRSchedule init_schedule(ir::ModuleExpr(tune_task_.GetLoweredFuncBodyExprs()));
   std::vector<AutoGenRule*> init_rules;
   std::transform(sketch_rules_.begin(), sketch_rules_.end(), std::back_inserter(init_rules), [](const auto& rule) {
@@ -67,15 +66,9 @@ std::vector<SearchState> SearchSpace::GetRandomInitialSketch(int num) {
       }
     }
 
-    if (!visited_candidates_.count(state)) {  // deduplicate
-      VLOG(4) << JoinStatesDebugString(
-          "SearchSpace::GetRandomInitialSketch-New_Sketch", {state}, /*verbose=*/VLOG_IS_ON(5));
-      visited_candidates_.insert(state);
-      result.emplace_back(std::move(state));
-    } else {
-      VLOG(4) << JoinStatesDebugString(
-          "SearchSpace::GetRandomInitialSketch-Duplicate_Sketch", {state}, /*verbose=*/VLOG_IS_ON(5));
-    }
+    VLOG(4) << JoinStatesDebugString(
+        "SearchSpace::GetRandomInitialSketch-New_Sketch", {state}, /*verbose=*/VLOG_IS_ON(5));
+    result.emplace_back(std::move(state));
   }
   return result;
 }

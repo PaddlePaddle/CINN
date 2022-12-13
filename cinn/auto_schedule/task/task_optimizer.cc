@@ -89,7 +89,7 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
     VLOG(4) << "Launch a new search, current measured_count:" << measured_count;
     std::vector<MeasureInput> measure_inputs;
     std::vector<SearchState> states = SearchOneRound(options, &measure_inputs);
-    if (states.empty()) {
+    if (states.empty()) {  // no new valid candidate achieved
       ++continuous_empty_cnt;
       if (continuous_empty_cnt <= kMaxRetryContinuousEmpty_) {
         VLOG(4) << "No valid state searched, continuous_empty_cnt=" << continuous_empty_cnt;
@@ -136,6 +136,7 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
       }
     }
 
+    // count result size
     measured_count += states.size();
   }
   return result;
@@ -144,7 +145,7 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
 std::vector<SearchState> TaskOptimizer::SearchOneRound(const TuningOptions& options,
                                                        std::vector<MeasureInput>* measure_candidates) {
   std::vector<SearchState> states = evolutionary_search_->SearchModuleExprEpsGreedy(options);
-  VLOG(4) << JoinStatesDebugString("TaskOptimizer::SearchOneRound-Init", states, /*verbose=*/VLOG_IS_ON(5));
+  VLOG(4) << JoinStatesDebugString("TaskOptimizer::EvolutionarySearch-Result", states, /*verbose=*/VLOG_IS_ON(5));
 
   size_t valid_cnt = 0;
   for (size_t i = 0; i < states.size(); ++i) {
@@ -217,6 +218,7 @@ ir::LoweredFunc TaskOptimizer::FuncWithUpdatedBody(const ir::LoweredFunc& old_fu
   return new_func;
 }
 
+// detect the limit of avaliable shared memory on the currnet NVGPU with CUDA runtime
 size_t GetGPUSharedMemoryLimit() {
 #ifdef CINN_WITH_CUDA
   int device_id;
@@ -230,6 +232,7 @@ size_t GetGPUSharedMemoryLimit() {
 #endif
 }
 
+// detect the limit of avaliable local/stack memory on the currnet NVGPU with CUDA runtime
 size_t GetGPULocalStackLimit() {
 #ifdef CINN_WITH_CUDA
   int device_id;
@@ -251,6 +254,7 @@ size_t GetGPULocalStackLimit() {
 #endif
 }
 
+// check whether usage of the specific memory type in the lowered_func exceeds hardware limit
 bool IsGPUMemoryUsageExceedLimit(const ir::LoweredFunc& lowered_func,
                                  const ir::MemoryType& used_memory_type,
                                  const size_t limit_bytes) {

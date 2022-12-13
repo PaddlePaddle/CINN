@@ -57,10 +57,6 @@ class SearchSpace {
   int init_sketch_random_depth_ = 6;
   // supported AutoGenRules, every task holds a set
   std::vector<std::unique_ptr<AutoGenRule>> sketch_rules_;
-  // used to depuplicate states with the same structural IR
-  // TODO(CtfGo): it will be removed after we enable to generate sketchs one-time
-  // and migrate the mutate logic to EvolutionarySearch
-  std::unordered_set<SearchState, SearchStateHash, SearchStateEqual> visited_candidates_;
 };
 
 }  // namespace auto_schedule
