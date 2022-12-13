@@ -72,13 +72,13 @@ class SearchSpace {
   SearchState RandomTuneMutate(const SearchState& state);
 
   // Generate num sketchs, each with several rounds of SketchMutate
-  std::vector<SearchState> GetRandomInitialSketch(int num);
+  std::vector<SearchState> InitSketchWithRandomStrategy(int num);
 
   // Generate sketch pruned randomly as initial population of evolutionary search
-  std::vector<SearchState> GetRandomPrunedInitialSketch();
+  std::vector<SearchState> InitSketchWithRandomPrunedStrategy();
 
   // Generate sketch pruned by rules as initial population of evolutionary search
-  std::vector<SearchState> GetRulePrunedInitialSketch();
+  std::vector<SearchState> InitiSketchWithRulePrunedStrategy();
 
   /**
    * @brief Collect the new states that may be transferred to after applying several rules on a block from a certain

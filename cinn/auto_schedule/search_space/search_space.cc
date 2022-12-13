@@ -144,8 +144,8 @@ SearchState SearchSpace::RandomTuneMutate(const SearchState& state) {
   return new_states.at(0);
 }
 
-std::vector<SearchState> SearchSpace::GetRandomInitialSketch(int num) {
-  VLOG(5) << "Start SearchSpace::GetRandomInitialSketch with num:" << num;
+std::vector<SearchState> SearchSpace::InitSketchWithRandomStrategy(int num) {
+  VLOG(5) << "Start SearchSpace::InitSketchWithRandomStrategy with num:" << num;
   ir::IRSchedule init_schedule(ir::ModuleExpr(tune_task_.GetLoweredFuncBodyExprs()));
   std::vector<AutoGenRule*> init_rules;
   std::transform(sketch_rules_.begin(), sketch_rules_.end(), std::back_inserter(init_rules), [](const auto& rule) {
@@ -172,8 +172,8 @@ std::vector<SearchState> SearchSpace::GetRandomInitialSketch(int num) {
   return result;
 }
 
-std::vector<SearchState> SearchSpace::GetRandomPrunedInitialSketch() {
-  VLOG(5) << "Start SearchSpace::GetRandomPrunedInitialSketch";
+std::vector<SearchState> SearchSpace::InitSketchWithRandomPrunedStrategy() {
+  VLOG(5) << "Start SearchSpace::InitSketchWithRandomPrunedStrategy";
   ir::IRSchedule init_schedule(ir::ModuleExpr(tune_task_.GetLoweredFuncBodyExprs()));
   auto all_blocks    = init_schedule.GetAllBlocks();
   auto block_sampler = BlockSampler::Make(all_blocks, true, "probabilistic");
@@ -211,8 +211,8 @@ std::vector<SearchState> SearchSpace::GetRandomPrunedInitialSketch() {
   return *p_states_next;
 }
 
-std::vector<SearchState> SearchSpace::GetRulePrunedInitialSketch() {
-  VLOG(5) << "Start SearchSpace::GetRulePrunedInitialSketch";
+std::vector<SearchState> SearchSpace::InitiSketchWithRulePrunedStrategy() {
+  VLOG(5) << "Start SearchSpace::InitiSketchWithRulePrunedStrategy";
   ir::IRSchedule init_schedule(ir::ModuleExpr(tune_task_.GetLoweredFuncBodyExprs()));
   auto all_blocks = init_schedule.GetAllBlocks();
   std::reverse(all_blocks.begin(), all_blocks.end());
@@ -246,16 +246,16 @@ std::vector<SearchState> SearchSpace::GenerateSketches(int num, const std::strin
   VLOG(4) << "Start SearchSpace::GenerateSketches with num:" << num;
 
   if (strategy == "random") {
-    return GetRandomInitialSketch(num);
+    return InitSketchWithRandomStrategy(num);
   }
 
   std::vector<SearchState> result;
   while (result.size() < num) {
     std::vector<SearchState> sketchs;
     if (strategy == "rule_prune") {
-      sketchs = GetRulePrunedInitialSketch();
+      sketchs = InitiSketchWithRulePrunedStrategy();
     } else if (strategy == "random_prune") {
-      sketchs = GetRandomPrunedInitialSketch();
+      sketchs = InitSketchWithRandomPrunedStrategy();
     } else {
       LOG(FATAL) << "Unimplemented init sketch strategy";
     }
