@@ -49,17 +49,17 @@ class BlockSampler {
   // Reset associated states to sample at the beginning
   virtual void Reset() = 0;
 
-  // Select a block to apply rule
-  // The param remove is used to determine whether to delete the next block after selecting it,
-  // If remove == true, it will not be sampled in the future.
-  virtual std::string NextBlock(bool remove) = 0;
-
   // Select a block with default remove policy.
   std::string NextBlock() { return NextBlock(default_remove_policy_); }
 
  protected:
   // A BlockSampler object should be created with the static function Make()
   BlockSampler(const std::vector<ir::Expr>& all_blocks, bool default_remove_policy);
+
+  // Select a block to apply rule
+  // The param remove is used to determine whether to delete the next block after selecting it,
+  // If remove == true, it will not be sampled in the future.
+  virtual std::string NextBlock(bool remove) = 0;
 
   // The names of all blocks
   // Because the Block Expr will be changed in the search process, the name is saved for indexing
@@ -80,6 +80,7 @@ class TraversalBlockSampler : public BlockSampler {
 
   void Reset() override { cur_idx_ = 0; }
 
+ private:
   std::string NextBlock(bool remove) override;
 
  private:
@@ -98,6 +99,7 @@ class ProbabilisticBlockSampler : public BlockSampler {
 
   void Reset() override {}
 
+ private:
   std::string NextBlock(bool remove) override;
 
  private:

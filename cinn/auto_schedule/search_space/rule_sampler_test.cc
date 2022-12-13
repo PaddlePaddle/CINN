@@ -43,26 +43,32 @@ TEST(TraversalRuleSampler, NextRule) {
   auto traversal_rule_sampler     = RuleSampler::Make(rules, true, "traversal");
   AutoGenRule* rule               = traversal_rule_sampler->NextRule();
   ASSERT_EQ("AutoUnroll", rule->GetRuleName());
-  rule = traversal_rule_sampler->NextRule(false);
-  ASSERT_EQ("SkipRule", rule->GetRuleName());
   rule = traversal_rule_sampler->NextRule();
   ASSERT_EQ("SkipRule", rule->GetRuleName());
   traversal_rule_sampler->Reset();
+  rule = traversal_rule_sampler->NextRule();
+  ASSERT_EQ("AutoUnroll", rule->GetRuleName());
+
+  traversal_rule_sampler = RuleSampler::Make(rules, false, "traversal");
+  rule                   = traversal_rule_sampler->NextRule();
+  ASSERT_EQ("AutoUnroll", rule->GetRuleName());
   rule = traversal_rule_sampler->NextRule();
   ASSERT_EQ("AutoUnroll", rule->GetRuleName());
 }
 
 TEST(ProbabilisticRuleSampler, NextRule) {
   std::vector<AutoGenRule*> rules = GenerateTestRules();
-  auto probabilistic_rule_sampler = RuleSampler::Make(rules, true, "probabilistic", {4, 1});
+  auto probabilistic_rule_sampler = RuleSampler::Make(rules, false, "probabilistic", {4, 1});
   AutoGenRule* rule;
   for (int i = 0; i < 20; ++i) {
-    rule = probabilistic_rule_sampler->NextRule(false);
+    rule = probabilistic_rule_sampler->NextRule();
     VLOG(6) << "next rule name: " << rule->GetRuleName();
   }
-  probabilistic_rule_sampler->NextRule(true);
-  probabilistic_rule_sampler->NextRule(true);
-  ASSERT_EQ(nullptr, probabilistic_rule_sampler->NextRule(true));
+
+  probabilistic_rule_sampler = RuleSampler::Make(rules, true, "probabilistic", {4, 1});
+  probabilistic_rule_sampler->NextRule();
+  probabilistic_rule_sampler->NextRule();
+  ASSERT_EQ(nullptr, probabilistic_rule_sampler->NextRule());
 }
 
 }  // namespace auto_schedule

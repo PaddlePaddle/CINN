@@ -43,25 +43,30 @@ TEST(TraversalBlockSampler, NextBlock) {
   auto traversal_block_sampler = BlockSampler::Make(blocks, true, "traversal");
   ASSERT_EQ("block_0", traversal_block_sampler->NextBlock());
   ASSERT_EQ("block_1", traversal_block_sampler->NextBlock());
-  ASSERT_EQ("block_2", traversal_block_sampler->NextBlock(false));
   ASSERT_EQ("block_2", traversal_block_sampler->NextBlock());
   ASSERT_EQ("", traversal_block_sampler->NextBlock());
   traversal_block_sampler->Reset();
+  ASSERT_EQ("block_0", traversal_block_sampler->NextBlock());
+
+  traversal_block_sampler = BlockSampler::Make(blocks, false, "traversal");
+  ASSERT_EQ("block_0", traversal_block_sampler->NextBlock());
   ASSERT_EQ("block_0", traversal_block_sampler->NextBlock());
 }
 
 TEST(ProbabilisticBlockSampler, NextBlock) {
   std::vector<ir::Expr> blocks     = CreateTestBlocks();
-  auto probabilistic_block_sampler = BlockSampler::Make(blocks, true, "probabilistic", {4, 2, 1});
+  auto probabilistic_block_sampler = BlockSampler::Make(blocks, false, "probabilistic", {4, 2, 1});
   std::string block_name;
   for (int i = 0; i < 20; ++i) {
-    block_name = probabilistic_block_sampler->NextBlock(false);
+    block_name = probabilistic_block_sampler->NextBlock();
     VLOG(6) << "next block name: " << block_name;
   }
-  probabilistic_block_sampler->NextBlock(true);
-  probabilistic_block_sampler->NextBlock(true);
-  probabilistic_block_sampler->NextBlock(true);
-  ASSERT_EQ("", probabilistic_block_sampler->NextBlock(true));
+
+  probabilistic_block_sampler = BlockSampler::Make(blocks, true, "probabilistic", {4, 2, 1});
+  probabilistic_block_sampler->NextBlock();
+  probabilistic_block_sampler->NextBlock();
+  probabilistic_block_sampler->NextBlock();
+  ASSERT_EQ("", probabilistic_block_sampler->NextBlock());
 }
 
 }  // namespace auto_schedule
