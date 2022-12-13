@@ -105,7 +105,7 @@ std::vector<SearchState> EvolutionarySearch::GetTopKCandidatesFromDatabase(int t
 
 std::vector<SearchState> EvolutionarySearch::InitSketch(int num, const std::string& strategy) {
   VLOG(4) << "InitSketch with num:" << num << ", strategy: " << strategy;
-  return search_space_->GetInitialSketch(num, strategy);
+  return search_space_->GenerateSketches(num, strategy);
 }
 
 SearchState EvolutionarySearch::CrossOver(const SearchState& state1, const SearchState& state2) {

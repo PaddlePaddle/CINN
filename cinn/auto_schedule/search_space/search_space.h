@@ -47,13 +47,19 @@ class SearchSpace {
                                         const ExprCostModel& cost_model,
                                         bool is_sketch_mutate);
 
-  // Generate sketch as initial population of evolutionary search.
-  // Current optional strategies are "rule_prune" or "random_prune" or "random".
-  // Among them, "random" uses the old method,
-  // "Random_plane" uses the new interface CollectStateTransfer() to simulate the random generation of sketches,
-  // and supports the function of a rule returning multiple SearchStates and random pruning by probability.
-  // "rule_plane" uses rules to prune and generate sketches as efficiently as possible.
-  virtual std::vector<SearchState> GetInitialSketch(int num, const std::string& strategy);
+  /**
+   * \brief Generate sketch as initial population of evolutionary search.
+   * @param num The number of sketches to generate.
+   * @param strategy The strategy to generate sketchs,
+   *        Current optional strategies are "rule_prune" or "random_prune" or "random".
+   * - "rule_prune": will use rules to prune and generate sketches as efficiently as possible.
+   * - "random_prune": will use the new interface ApplySketchRules() to simulate the random generation of sketches,
+   *    and supports the function of a rule returning multiple SearchStates and random pruning by probability.
+   * - "random": will randomly select a block and a rule to apply and repeat this step several times,
+   *    however, each rule can only be used on one SearchState at most once.
+   * @return  Generated sketchs.
+   */
+  virtual std::vector<SearchState> GenerateSketches(int num, const std::string& strategy);
 
  private:
   // TODO(zhhsplendid): mutate by manual schedule.
@@ -84,12 +90,12 @@ class SearchSpace {
    * @param prune_by_rule If true, prune the state transition tree by rule, otherwise prune randomly.
    * @param prune_probability Pruning probability of random pruning.
    */
-  std::vector<SearchState> CollectStateTransfer(const SearchState& state,
-                                                const std::string& block_name,
-                                                RuleSampler* rule_sampler,
-                                                int steps,
-                                                bool prune_by_rule,
-                                                double prune_probability = 1);
+  std::vector<SearchState> ApplySketchRule(const SearchState& state,
+                                           const std::string& block_name,
+                                           RuleSampler* rule_sampler,
+                                           int steps,
+                                           bool prune_by_rule,
+                                           double prune_probability = 1);
 
  private:
   const TuneTask& tune_task_;

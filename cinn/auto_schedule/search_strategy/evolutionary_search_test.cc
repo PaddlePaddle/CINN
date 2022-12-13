@@ -46,7 +46,7 @@ class MockSearchSpace : public SearchSpace {
 
   int GetModuleExprSize() const { return module_expr_size_; }
 
-  std::vector<SearchState> GetInitialSketch(int num, const std::string& strategy) override {
+  std::vector<SearchState> GenerateSketches(int num, const std::string& strategy) override {
     std::vector<SearchState> ret;
     for (int i = 0; i < num; ++i) {
       std::vector<ir::Expr> exprs;
