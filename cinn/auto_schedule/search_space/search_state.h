@@ -20,7 +20,9 @@
 
 #include "cinn/common/object.h"
 #include "cinn/common/shared.h"
+#include "cinn/ir/ir_compare.h"
 #include "cinn/ir/ir_schedule.h"
+#include "cinn/ir/ir_visitor.h"
 
 namespace cinn {
 namespace auto_schedule {
@@ -59,6 +61,27 @@ struct _SearchState_ : public common::Object {
   const char* type_info() const override { return __type_info__; }
   static constexpr char* __type_info__ = "auto_schedule_state";
 };
+
+// SearchStateHash hash functor that visits every AST node and combine their hash of node_type in dfs order
+struct SearchStateHash {
+  size_t operator()(const SearchState& s) const;
+};
+
+// SearchStateHash equal functor, use ir::IrEqualVisitor to compare their AST struct and fields
+struct SearchStateEqual {
+  bool operator()(const SearchState& lhs, const SearchState& rhs) const;
+};
+
+/*!
+ * \brief concatenate debug strings of all states with additional info
+ * \param title head of the result string
+ * \param states SearchState array to be debuged
+ * \param verbose whether to enable more verbose debug info
+ * \return the concatenated debug string
+ */
+std::string JoinStatesDebugString(const std::string& title,
+                                  const std::vector<SearchState>& states,
+                                  bool verbose = false);
 
 }  // namespace auto_schedule
 }  // namespace cinn

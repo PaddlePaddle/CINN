@@ -48,7 +48,7 @@ SearchSpace::SearchSpace(const TuneTask& tune_task) : tune_task_(tune_task) {
 }
 
 std::vector<SearchState> SearchSpace::GetRandomInitialSketch(int num) {
-  VLOG(4) << "Start SearchSpace::GetRandomInitialSketch with num:" << num;
+  VLOG(4) << "SearchSpace::GetRandomInitialSketch with num=" << num;
   ir::IRSchedule init_schedule(ir::ModuleExpr(tune_task_.GetLoweredFuncBodyExprs()));
   std::vector<AutoGenRule*> init_rules;
   std::transform(sketch_rules_.begin(), sketch_rules_.end(), std::back_inserter(init_rules), [](const auto& rule) {
@@ -59,26 +59,21 @@ std::vector<SearchState> SearchSpace::GetRandomInitialSketch(int num) {
   while (result.size() < num) {
     SearchState state(init_schedule, SearchState::NOT_INIT_COST, init_rules);
     for (int i = 0; i < init_sketch_random_depth_; ++i) {
-      VLOG(5) << "Generating random sketch at depth: " << i;
+      VLOG(5) << "Generating random sketch with RandomScheduleMutate at depth: " << i;
       state = RandomScheduleMutate(state);
       if (state->applicable_rules.empty()) {
         break;
       }
     }
-    // TODO:(zhhsplendid): De-duplication on the result after we have Expr/ModuleExpr hash;
-    auto debug_str = state->DebugString();
-    VLOG(5) << utils::StringFormat("Sketch-%lu generated, SearchState hash:%lu, DebugString:%s",
-                                   result.size(),
-                                   std::hash<std::string>()(debug_str),
-                                   debug_str.c_str());
+
+    VLOG(4) << JoinStatesDebugString(
+        "SearchSpace::GetRandomInitialSketch-New_Sketch", {state}, /*verbose=*/VLOG_IS_ON(5));
     result.emplace_back(std::move(state));
   }
-
   return result;
 }
 
 SearchState SearchSpace::GetScheduleMutate(const SearchState& state, const ExprCostModel& cost_model) {
-  VLOG(5) << "Start SearchSpace::GetScheduleMutate in state:" << std::hash<std::string>()(state->DebugString());
   bool has_manual_schedule = false;
   if (has_manual_schedule) {
     SearchState ret = ManualScheduleMutate(state);
@@ -88,6 +83,7 @@ SearchState SearchSpace::GetScheduleMutate(const SearchState& state, const ExprC
   if (FLAGS_auto_schedule_use_cost_model) {
     ret->predicted_cost = cost_model.Predict(ret->ir_schedule.GetModule(), tune_task_.target);
   }
+  VLOG(4) << JoinStatesDebugString("SearchSpace::GetScheduleMutate", {state}, /*verbose=*/VLOG_IS_ON(5));
   return ret;
 }
 
@@ -97,8 +93,6 @@ SearchState SearchSpace::ManualScheduleMutate(const SearchState& state) {
 }
 
 SearchState SearchSpace::RandomScheduleMutate(const SearchState& state) {
-  VLOG(5) << "Start SearchSpace::RandomScheduleMutate";
-
   // 1. Found the schedules which can apply on this Expr
   // 2. Make a distribution on those schedules
   std::map<int, AutoGenRule*> weight_to_rule;

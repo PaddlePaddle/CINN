@@ -75,7 +75,6 @@ ir::Expr AddCacheWrite::GetFirstSpatialLoopOutofOutermostReduce(ir::IRSchedule* 
     ir::Var for_node_var          = for_expr.As<ir::For>()->loop_var;
     std::string for_loop_var_name = for_node_var->name;
     if (for_loop_var_name.substr(0, 6) == "reduce") {
-      VLOG(6) << "get target loop: " << for_expr;
       return spatial_loop;
     }
     spatial_loop = for_expr;
