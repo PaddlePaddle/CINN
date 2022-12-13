@@ -279,19 +279,6 @@ std::vector<SearchState> SearchSpace::GenerateSketches(int num, const std::strin
   return result;
 }
 
-// Check whether the block named block_name exists in a SearchState
-bool CheckBlockExist(const SearchState& state, std::string block_name) {
-  auto block_exprs = state->ir_schedule.GetAllBlocks();
-  for (auto block_expr : block_exprs) {
-    const ir::ScheduleBlockRealize* block_realize = block_expr.As<ir::ScheduleBlockRealize>();
-    const ir::ScheduleBlock* block                = block_realize->schedule_block.As<ir::ScheduleBlock>();
-    if (block->name == block_name) {
-      return true;
-    }
-  }
-  return false;
-}
-
 std::vector<SearchState> SearchSpace::ApplySketchRule(const SearchState& state,
                                                       const std::string& block_name,
                                                       RuleSampler* rule_sampler,
@@ -312,7 +299,7 @@ std::vector<SearchState> SearchSpace::ApplySketchRule(const SearchState& state,
     for (std::list<SearchState>::iterator iter = layer.begin(); iter != layer.end();) {
       // Some rules will reduce the number of blocks, such as AutoInline,
       // so we need to check whether the SearchState still has the block.
-      if (!CheckBlockExist(*iter, block_name)) {
+      if (!(*iter)->ir_schedule.HasBlock(block_name)) {
         ++iter;
         continue;
       }
