@@ -60,16 +60,15 @@ TEST(CodeGenDebug, RunCudaSourceCode) {
   common::Context::Global().ResetNameId();
 
   std::string source_code = R"ROC(
+  #include <cstdint>
+
+  #define CINN_WITH_CUDA
+  #include "float16.h"
+  using cinn::common::float16;
+
+  #include "cinn_cuda_runtime_source.cuh"
+
 extern "C" {
-
-#include "cinn_cuda_runtime_source.cuh"
-
-#ifdef __CUDACC_RTC__
-typedef int int32_t;
-typedef char int8_t;
-#endif
-
-
 
 __global__
 void __launch_bounds__(512) fn_relu_1_kernel(const float* __restrict__ var_1, float* __restrict__ Relu_output)

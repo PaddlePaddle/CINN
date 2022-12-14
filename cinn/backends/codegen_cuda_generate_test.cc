@@ -44,7 +44,6 @@ TEST(CUDAFile, Module_output) {
   std::string cuda_source_code = R"ROC(
 #include <cstdint>
 
-#define CINN_WITH_CUDA
 #include "float16.h"
 using cinn::common::float16;
 

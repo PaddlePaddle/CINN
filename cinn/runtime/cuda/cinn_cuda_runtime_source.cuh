@@ -34,6 +34,22 @@ __device__ inline int64_t clz(int64_t a) { return __clzll(a); }
 __device__ inline int popc(int a) { return __popc(a); }
 __device__ inline int64_t popc(int64_t a) { return __popcll(a); }
 
+__device__ inline int pow(int a, int b) {
+  int res = 1;
+  for (int i = 0; i < b; ++i) {
+    res *= a;
+  }
+  return res;
+}
+
+__device__ inline int64_t pow(int64_t a, int64_t b) {
+  int64_t res = 1;
+  for (int64_t i = 0; i < b; ++i) {
+    res *= a;
+  }
+  return res;
+}
+
 #endif  // __cplusplus
 
 extern "C" {

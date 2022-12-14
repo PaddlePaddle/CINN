@@ -872,16 +872,15 @@ void __launch_bounds__(128) schedule_conv2d_1(const float* __restrict__ X, const
       host_data3.data(), reinterpret_cast<void*>(Cd), host_data3.size() * sizeof(float), cudaMemcpyDeviceToHost));
 
   std::string source_tvm = R"ROC(
-  extern "C" {
+  #include <cstdint>
+
+  #define CINN_WITH_CUDA
+  #include "float16.h"
+  using cinn::common::float16;
 
   #include "cinn_cuda_runtime_source.cuh"
 
-  #ifdef __CUDACC_RTC__
-  typedef int int32_t;
-  typedef char int8_t;
-  typedef long int int64_t;
-  #endif
-
+  extern "C" {
 
   __global__ void schedule_conv2d_1(float* __restrict__ placeholder, float* __restrict__ placeholder1, float*
   __restrict__ Conv2d_out) { float compute[2];

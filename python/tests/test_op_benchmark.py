@@ -106,16 +106,15 @@ class TestBenchmark(unittest.TestCase):
             self.target, [a, b], tensor_data, c, 20000,
             "TESTING [conv2d of tvm schedule] time cost with shape [1, 128, 28, 28]...",
             """
-extern "C" {
+#include <cstdint>
+
+#define CINN_WITH_CUDA
+#include "float16.h"
+using cinn::common::float16;
 
 #include "cinn_cuda_runtime_source.cuh"
 
-#ifdef __CUDACC_RTC__
-typedef int int32_t;
-typedef char int8_t;
-#endif
-
-
+extern "C" {
 
 __global__
 void fn_conv2d_0_kernel(const float* __restrict__ X, const float* __restrict__ Y, float* __restrict__ COD)
@@ -189,16 +188,15 @@ void fn_conv2d_0_kernel(const float* __restrict__ X, const float* __restrict__ Y
             self.target, [a, b], tensor_data, c, 20000,
             "TESTING [conv2d of tvm schedule] time cost with shape [1, 128, 28, 28]...",
             """
-extern "C" {
+#include <cstdint>
+
+#define CINN_WITH_CUDA
+#include "float16.h"
+using cinn::common::float16;
 
 #include "cinn_cuda_runtime_source.cuh"
 
-#ifdef __CUDACC_RTC__
-typedef int int32_t;
-typedef char int8_t;
-#endif
-
-
+extern "C" {
 
 __global__ void fn_conv2d_0_kernel(float* __restrict__ placeholder, float* __restrict__ placeholder1, float* __restrict__ Conv2d_nchw_out) {
   float compute_local[2];
@@ -292,12 +290,15 @@ __global__ void fn_conv2d_0_kernel(float* __restrict__ placeholder, float* __res
         result = prog.test_benchmark_with_code(
             self.target, [a, b], tensor_data, d, 200,
             "TESTING [matmul] time cost with shape [512,512]...", '''
-            extern "C" {
+#include <cstdint>
+
+#define CINN_WITH_CUDA
+#include "float16.h"
+using cinn::common::float16;
+
 #include "cinn_cuda_runtime_source.cuh"
-#ifdef __CUDACC_RTC__
-typedef int int32_t;
-typedef char int8_t;
-#endif
+
+extern "C" {
 
  __global__
  void fn_mul_0_kernel(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ Mul_output)

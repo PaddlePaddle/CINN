@@ -80,17 +80,18 @@ EXTERN_CALL_IMP_NO_VEC(Atanh, atanh);
 #undef EXTERN_CALL_IMP
 #undef EXTERN_CALL_IMP_NO_VEC
 
-#define EXTERN_BINARY_CALL_IMP(name__, target__)                                                \
-  Expr name__(Expr a, Expr b) {                                                                 \
-    CHECK_EQ(a.type(), b.type()) << #name__ << "'s inputs type not equal, where a:" << a.type() \
-                                 << " but b:" << b.type();                                      \
-    return lang::CallIntrinsic(#target__, a->type(), {a, b});                                   \
-  }
+// referenece from https://stackoverflow.com/questions/13683563/whats-the-difference-between-mod-and-remainder
+Expr Remainder(Expr a, Expr b) {
+  CHECK_EQ(a.type(), b.type()) << "Remainder's inputs type not equal, where a:" << a.type() << " but b:" << b.type();
+  return a.type().is_int() ? a % b : lang::CallIntrinsic("remainder", a->type(), {a, b});
+}
 
-EXTERN_BINARY_CALL_IMP(Remainder, remainder)
-EXTERN_BINARY_CALL_IMP(Mod, fmod)
-
-#undef EXTERN_BINARY_CALL_IMP
+Expr Mod(Expr a, Expr b) {
+  CHECK_EQ(a.type(), b.type()) << "Remainder's inputs type not equal, where a:" << a.type() << " but b:" << b.type();
+  Expr tmp = a % b;
+  return a.type().is_int() ? ir::Select::Make(tmp < 0, ir::Select::Make(b < 0, tmp - b, tmp + b), tmp)
+                           : lang::CallIntrinsic("fmod", a->type(), {a, b});
+}
 
 Expr Zero(const Type& type) { return ir::Zero(type); }
 
@@ -184,7 +185,7 @@ Expr IsNan(Expr e) {
     if (node) {
       return common::make_bool(std::isnan(node->value), type.lanes());
     }
-    return lang::CallIntrinsic("isnan", e->type(), {e}, {{"vectorizable", false}});
+    return lang::CallIntrinsic("isnan", common::Bool(), {e}, {{"vectorizable", false}});
   } else {
     LOG(FATAL) << type << "is not supported for isnan op.";
     return e;
@@ -215,7 +216,7 @@ Expr IsInf(Expr e) {
     if (node) {
       return common::make_bool(std::isinf(node->value), type.lanes());
     }
-    return lang::CallIntrinsic("isinf", e->type(), {e}, {{"vectorizable", false}});
+    return lang::CallIntrinsic("isinf", common::Bool(), {e}, {{"vectorizable", false}});
   } else {
     LOG(FATAL) << type << "is not supported for isinf op.";
     return e;

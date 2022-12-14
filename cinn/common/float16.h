@@ -634,37 +634,47 @@ __device__ inline bool isinf(cinn::common::float16 x) { return __hisinf(x.to_hal
 
 #else  // CINN_CUDA_FP16
 
-inline cinn::common::float16 abs(cinn::common::float16 x) { return cinn::common::float16(abs(static_cast<float>(x))); }
-inline cinn::common::float16 ceil(cinn::common::float16 x) {
+__host__ __device__ inline cinn::common::float16 abs(cinn::common::float16 x) {
+  return cinn::common::float16(abs(static_cast<float>(x)));
+}
+__host__ __device__ inline cinn::common::float16 ceil(cinn::common::float16 x) {
   return cinn::common::float16(ceilf(static_cast<float>(x)));
 }
-inline cinn::common::float16 floor(cinn::common::float16 x) {
+__host__ __device__ inline cinn::common::float16 floor(cinn::common::float16 x) {
   return cinn::common::float16(floorf(static_cast<float>(x)));
 }
-inline cinn::common::float16 round(cinn::common::float16 x) {
+__host__ __device__ inline cinn::common::float16 round(cinn::common::float16 x) {
   return cinn::common::float16(roundf(static_cast<float>(x)));
 }
-inline cinn::common::float16 trunc(cinn::common::float16 x) {
+__host__ __device__ inline cinn::common::float16 trunc(cinn::common::float16 x) {
   return cinn::common::float16(truncf(static_cast<float>(x)));
 }
-inline cinn::common::float16 sin(cinn::common::float16 x) { return cinn::common::float16(sinf(static_cast<float>(x))); }
-inline cinn::common::float16 cos(cinn::common::float16 x) { return cinn::common::float16(cosf(static_cast<float>(x))); }
-inline cinn::common::float16 exp(cinn::common::float16 x) { return cinn::common::float16(expf(static_cast<float>(x))); }
-inline cinn::common::float16 log(cinn::common::float16 x) { return cinn::common::float16(logf(static_cast<float>(x))); }
-inline cinn::common::float16 log2(cinn::common::float16 x) {
+__host__ __device__ inline cinn::common::float16 sin(cinn::common::float16 x) {
+  return cinn::common::float16(sinf(static_cast<float>(x)));
+}
+__host__ __device__ inline cinn::common::float16 cos(cinn::common::float16 x) {
+  return cinn::common::float16(cosf(static_cast<float>(x)));
+}
+__host__ __device__ inline cinn::common::float16 exp(cinn::common::float16 x) {
+  return cinn::common::float16(expf(static_cast<float>(x)));
+}
+__host__ __device__ inline cinn::common::float16 log(cinn::common::float16 x) {
+  return cinn::common::float16(logf(static_cast<float>(x)));
+}
+__host__ __device__ inline cinn::common::float16 log2(cinn::common::float16 x) {
   return cinn::common::float16(log2f(static_cast<float>(x)));
 }
-inline cinn::common::float16 log10(cinn::common::float16 x) {
+__host__ __device__ inline cinn::common::float16 log10(cinn::common::float16 x) {
   return cinn::common::float16(log10f(static_cast<float>(x)));
 }
-inline cinn::common::float16 sqrt(cinn::common::float16 x) {
+__host__ __device__ inline cinn::common::float16 sqrt(cinn::common::float16 x) {
   return cinn::common::float16(sqrtf(static_cast<float>(x)));
 }
-inline cinn::common::float16 rsqrt(cinn::common::float16 x) {
+__host__ __device__ inline cinn::common::float16 rsqrt(cinn::common::float16 x) {
   return cinn::common::float16(1.0f / sqrtf(static_cast<float>(x)));
 }
-inline bool isnan(cinn::common::float16 a) { return (a.x & 0x7fff) > 0x7c00; }
-inline bool isinf(cinn::common::float16 a) { return (a.x & 0x7fff) == 0x7c00; }
+__host__ __device__ inline bool isnan(cinn::common::float16 a) { return (a.x & 0x7fff) > 0x7c00; }
+__host__ __device__ inline bool isinf(cinn::common::float16 a) { return (a.x & 0x7fff) == 0x7c00; }
 
 #endif  // CINN_CUDA_FP16
 

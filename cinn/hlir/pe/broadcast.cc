@@ -249,8 +249,6 @@ HLIR_IMP_BC_PE(Substract, return a - b;);
 HLIR_IMP_BC_PE(Multiply, return a * b;);
 HLIR_IMP_BC_PE(Divide, return a / b;);
 HLIR_IMP_BC_PE(FloorDivide, return lang::FloorDivide(a, b););
-HLIR_IMP_BC_PE(Remainder, return a.type().is_int() ? a % b : lang::Remainder(a, b););
-HLIR_IMP_BC_PE(Mod, return lang::Mod(a, b););
 HLIR_IMP_BC_PE(Maximum, return ir::Max::Make(a, b););
 HLIR_IMP_BC_PE(Minimum, return ir::Min::Make(a, b););
 HLIR_IMP_BC_PE(LeftShift, return a << b;);
@@ -267,6 +265,9 @@ HLIR_IMP_BC_PE(Equal, return ir::EQ::Make(a, b););
 HLIR_IMP_BC_PE(NotEqual, return ir::NE::Make(a, b););
 HLIR_IMP_BC_PE(GreaterEqual, return a >= b;);
 HLIR_IMP_BC_PE(LessEqual, return a <= b;);
+
+HLIR_IMP_BC_PE(Remainder, return a.type().is_int() ? a % b : lang::Remainder(a, b););
+HLIR_IMP_BC_PE(Mod, return a.type().is_int() ? ir::Select::Make(b < 0, a % b - b, a % b + b) : lang::Mod(a, b););
 
 Tensor Pow(
     const Tensor& A, const Tensor& B, const std::string& output_name, const Expr& axis, const common::Target& target) {
