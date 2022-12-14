@@ -48,13 +48,10 @@ Expr logic_or(const std::vector<Expr>& conds) {
 
 //! extern call op
 #define EXTERN_CALL_IMP(name__, target__) \
-  Expr name__(Expr e) { return ir::Call::Make(e->type(), #target__, {e}, {}, ir::CallType::Extern); }
+  Expr name__(Expr e) { return lang::CallIntrinsic(#target__, e->type(), {e}); }
 
-#define EXTERN_CALL_IMP_NO_VEC(name__, target__)                                                               \
-  Expr name__(Expr e) {                                                                                        \
-    return ir::Call::Make(                                                                                     \
-        e->type(), #target__, {e}, {}, ir::CallType::Extern, ir::FunctionRef(), 0, {{"vectorizable", false}}); \
-  }
+#define EXTERN_CALL_IMP_NO_VEC(name__, target__) \
+  Expr name__(Expr e) { return lang::CallIntrinsic(#target__, e->type(), {e}, {{"vectorizable", false}}); }
 
 EXTERN_CALL_IMP(Exp, exp);
 EXTERN_CALL_IMP_NO_VEC(Erf, erf);
@@ -83,10 +80,15 @@ EXTERN_CALL_IMP_NO_VEC(Atanh, atanh);
 #undef EXTERN_CALL_IMP
 #undef EXTERN_CALL_IMP_NO_VEC
 
-#define EXTERN_BINARY_CALL_IMP(name__, target__) \
-  Expr name__(Expr a, Expr b) { return ir::Call::Make(a->type(), #target__, {a, b}, {}, ir::CallType::Extern); }
+#define EXTERN_BINARY_CALL_IMP(name__, target__)                                                \
+  Expr name__(Expr a, Expr b) {                                                                 \
+    CHECK_EQ(a.type(), b.type()) << #name__ << "'s inputs type not equal, where a:" << a.type() \
+                                 << " but b:" << b.type();                                      \
+    return lang::CallIntrinsic(#target__, a->type(), {a, b});                                   \
+  }
 
 EXTERN_BINARY_CALL_IMP(Remainder, remainder)
+EXTERN_BINARY_CALL_IMP(Mod, fmod)
 
 #undef EXTERN_BINARY_CALL_IMP
 
@@ -97,17 +99,6 @@ Expr One(const Type& type) { return ir::One(type); }
 Expr FloorDivide(Expr a, Expr b) {
   CHECK_EQ(a.type(), b.type()) << "FloorDivide's inputs type not equal, where a:" << a.type() << " but b:" << b.type();
   return a.type().is_float() ? Floor(a / b) : a / b;
-}
-
-Expr Mod(Expr a, Expr b) {
-  CHECK_EQ(a.type(), b.type()) << "FloorDivide's inputs type not equal, where a:" << a.type() << " but b:" << b.type();
-  auto quotient = lang::FloorDivide(a, b);
-  if (a.type().is_int()) {
-    auto zero = Zero(a->type());
-    auto one  = One(a->type());
-    quotient  = ir::Select::Make(a > zero && b < zero, lang::FloorDivide(a - one, b) - one, lang::FloorDivide(a, b));
-  }
-  return a - quotient * b;
 }
 
 Expr min_value(const Type& type) {
@@ -193,7 +184,7 @@ Expr IsNan(Expr e) {
     if (node) {
       return common::make_bool(std::isnan(node->value), type.lanes());
     }
-    return CallExtern("isnan", {e}, {{"vectorizable", false}});
+    return lang::CallIntrinsic("isnan", e->type(), {e}, {{"vectorizable", false}});
   } else {
     LOG(FATAL) << type << "is not supported for isnan op.";
     return e;
@@ -224,7 +215,7 @@ Expr IsInf(Expr e) {
     if (node) {
       return common::make_bool(std::isinf(node->value), type.lanes());
     }
-    return CallExtern("isinf", {e}, {{"vectorizable", false}});
+    return lang::CallIntrinsic("isinf", e->type(), {e}, {{"vectorizable", false}});
   } else {
     LOG(FATAL) << type << "is not supported for isinf op.";
     return e;

@@ -54,29 +54,15 @@ ir::Tensor LogicalRightShift(const ir::Tensor &A,
                              const ir::Tensor &B,
                              const Target &target,
                              const std::string &output_name) {
-  std::string extern_func = "cinn_";
-  if (target == common::DefaultHostTarget()) {
-    extern_func += "host_";
-  } else if (target == common::DefaultNVGPUTarget()) {
-    extern_func += "nvgpu_";
-  } else {
-    CINN_NOT_IMPLEMENTED
-  }
-
-  extern_func += "logical_right_shift";
-
-  if (A->type().is_int(32) || A->type().is_uint(32)) {
-    extern_func += "_int32";
-  } else {
-    CINN_NOT_IMPLEMENTED
-  }
-
+  CHECK_EQ(A->type(), B->type())
+      << "The data type of input tensors of LogicalRightShift op should be equal, but here x:" << A->type()
+      << " != y:" << B->type() << "! Please check.";
   return Compute(
       A->shape,
       [=](const std::vector<Expr> &indices) {
         Expr x = A(indices);
         Expr y = B(indices);
-        return lang::CallExtern(extern_func, {x, y});
+        return lang::CallIntrinsic("logical_right_shift", x->type(), {x, y});
       },
       output_name);
 }

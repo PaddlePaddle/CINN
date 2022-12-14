@@ -50,30 +50,11 @@ using common::CINNValuePack;
 using framework::shape_t;
 
 ir::Tensor Cbrt(const ir::Tensor &input, const Target &target, const std::string &output_name) {
-  std::string extern_func = "cinn_";
-  if (target == common::DefaultHostTarget()) {
-    extern_func += "host_";
-  } else if (target == common::DefaultNVGPUTarget()) {
-    extern_func += "nvgpu_";
-  } else {
-    CINN_NOT_IMPLEMENTED
-  }
-
-  extern_func += "cbrt";
-
-  if (input->type().is_float(32)) {
-    extern_func += "_fp32";
-  } else if (input->type().is_float(64)) {
-    extern_func += "_fp64";
-  } else {
-    CINN_NOT_IMPLEMENTED
-  }
-
   auto res = Compute(
       input->shape,
       [=](const std::vector<Expr> &indices) {
         Expr x = input(indices);
-        return lang::CallExtern(extern_func, {x});
+        return ir::Call::Make(x->type(), "cbrt", {x}, {}, ir::CallType::Intrinsic);
       },
       output_name);
   return res;

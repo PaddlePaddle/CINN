@@ -223,5 +223,12 @@ Expr CallExtern(const std::string &target, const std::vector<Expr> &args, const 
   return call;
 }
 
+Expr CallIntrinsic(const std::string &target,
+                   const common::Type &ret_type,
+                   const std::vector<Expr> &args,
+                   const std::map<std::string, attr_t> &attrs) {
+  return ir::Call::Make(ret_type, target, args, {}, ir::CallType::Intrinsic, ir::FunctionRef(), 0, attrs);
+}
+
 }  // namespace lang
 }  // namespace cinn

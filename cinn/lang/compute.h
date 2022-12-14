@@ -128,5 +128,10 @@ Expr CallExtern(const std::string &target,
                 const std::vector<Expr> &args,
                 const std::map<std::string, attr_t> &attrs = {});
 
+Expr CallIntrinsic(const std::string &target,
+                   const common::Type &ret_type,
+                   const std::vector<Expr> &args,
+                   const std::map<std::string, attr_t> &attrs = {});
+
 }  // namespace lang
 }  // namespace cinn

@@ -41,7 +41,9 @@ Expr operator<<(Expr a, Expr b) {
       return Expr(int_a->value << int_b->value);
     }
   }
-  return lang::CallExtern("left_shift", {a, b}, {{"vectorizable", false}});
+  // return lang::CallIntrinsic("([](auto a, auto b) { return a << b; })", a->type(), {a, b}, {{"vectorizable",
+  // false}});
+  return lang::CallIntrinsic("left_shift", a->type(), {a, b}, {{"vectorizable", false}});
 }
 
 Expr operator>>(Expr a, Expr b) {
@@ -61,7 +63,9 @@ Expr operator>>(Expr a, Expr b) {
       return Expr(int_a->value >> int_b->value);
     }
   }
-  return lang::CallExtern("right_shift", {a, b}, {{"vectorizable", false}});
+  // return lang::CallIntrinsic("([](auto a, auto b) { return a >> b; })", a->type(), {a, b}, {{"vectorizable",
+  // false}});
+  return lang::CallIntrinsic("right_shift", a->type(), {a, b}, {{"vectorizable", false}});
 }
 
 Expr operator|(Expr a, Expr b) {
@@ -76,7 +80,8 @@ Expr operator|(Expr a, Expr b) {
       return Expr(int_a->value | int_b->value);
     }
   }
-  return lang::CallExtern("bitwise_or", {a, b}, {{"vectorizable", false}});
+  // return lang::CallIntrinsic("([](auto a, auto b) { return a | b; })", a->type(), {a, b}, {{"vectorizable", false}});
+  return lang::CallIntrinsic("bitwise_or", a->type(), {a, b}, {{"vectorizable", false}});
 }
 
 Expr operator&(Expr a, Expr b) {
@@ -91,7 +96,8 @@ Expr operator&(Expr a, Expr b) {
       return Expr(int_a->value & int_b->value);
     }
   }
-  return lang::CallExtern("bitwise_and", {a, b}, {{"vectorizable", false}});
+  // return lang::CallIntrinsic("([](auto a, auto b) { return a & b; })", a->type(), {a, b}, {{"vectorizable", false}});
+  return lang::CallIntrinsic("bitwise_and", a->type(), {a, b}, {{"vectorizable", false}});
 }
 
 Expr operator^(Expr a, Expr b) {
@@ -106,12 +112,14 @@ Expr operator^(Expr a, Expr b) {
       return Expr(int_a->value ^ int_b->value);
     }
   }
-  return lang::CallExtern("bitwise_xor", {a, b}, {{"vectorizable", false}});
+  // return lang::CallIntrinsic("([](auto a, auto b) { return a ^ b; })", a->type(), {a, b}, {{"vectorizable", false}});
+  return lang::CallIntrinsic("bitwise_xor", a->type(), {a, b}, {{"vectorizable", false}});
 }
 
 Expr operator~(Expr a) {
   CHECK(a.type().is_int() || a.type().is_uint());
-  return lang::CallExtern("bitwise_not", {a}, {{"vectorizable", false}});
+  // return lang::CallIntrinsic("([](auto a) { return ~a; })", a->type(), {a}, {{"vectorizable", false}});
+  return lang::CallIntrinsic("bitwise_not", a->type(), {a}, {{"vectorizable", false}});
 }
 
 }  // namespace ir

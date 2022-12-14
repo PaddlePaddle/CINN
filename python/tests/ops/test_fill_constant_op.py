@@ -31,7 +31,7 @@ class TestFillConstantOp(OpTest):
         self.init_case()
 
     def init_case(self):
-        self.shape = [32]
+        self.shape = [1]
         self.value = 1.0
         self.dtype = "float32"
 

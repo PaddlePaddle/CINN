@@ -120,6 +120,12 @@ void BindCompute(py::module *m) {
                            const std::vector<ir::Expr> &,
                            const std::map<std::string, absl::variant<int, float, bool, std::string>> &>(
              &lang::CallExtern));
+  m->def("call_instrinsic",
+         py::overload_cast<const std::string &,
+                           const common::Type &,
+                           const std::vector<ir::Expr> &,
+                           const std::map<std::string, absl::variant<int, float, bool, std::string>> &>(
+             &lang::CallIntrinsic));
 }
 
 void BindModule(py::module *m) {

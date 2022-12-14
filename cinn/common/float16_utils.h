@@ -49,13 +49,13 @@ struct is_unsigned<cinn::common::float16> {
   static const bool value = false;
 };
 
-__host__ __device__ inline cinn::common::float16 abs(const cinn::common::float16& a) { return cinn::common::abs(a); }
+__host__ __device__ inline cinn::common::float16 abs(const cinn::common::float16& a) { return ::abs(a); }
 
-inline bool isnan(const cinn::common::float16& a) { return cinn::common::isnan(a); }
+inline bool isnan(const cinn::common::float16& a) { return ::isnan(a); }
 
-inline bool isinf(const cinn::common::float16& a) { return cinn::common::isinf(a); }
+inline bool isinf(const cinn::common::float16& a) { return ::isinf(a); }
 
-inline bool isfinite(const cinn::common::float16& a) { return cinn::common::isfinite(a); }
+inline bool isfinite(const cinn::common::float16& a) { return ::isfinite(a); }
 
 template <>
 struct numeric_limits<cinn::common::float16> {

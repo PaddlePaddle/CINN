@@ -58,6 +58,10 @@ if (WITH_CUDA)
   include_directories(/usr/lib/x86_64-linux-gnu)
   set(CUDA_SEPARABLE_COMPILATION ON)
 
+  message(STATUS "Autodetected CUDA Version: ${CUDA_VERSION}")
+  cuda_select_nvcc_arch_flags(${ARCH_FLAGS} Auto)
+  list(APPEND CUDA_NVCC_FLAGS ${ARCH_FLAGS})
+
   find_library(CUDASTUB libcuda.so HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib64/stubs/ REQUIRED)
   find_library(CUBLAS libcublas.so HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib64 /usr/lib REQUIRED)
   find_library(CUDNN libcudnn.so HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib64 /usr/lib REQUIRED)

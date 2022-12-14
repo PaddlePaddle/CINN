@@ -273,30 +273,7 @@ Tensor Pow(
   CHECK_EQ(A->type(), B->type()) << "The data type of input tensors of pow op should be equal, but here x:" << A->type()
                                  << " != y:" << B->type() << "! Please check.";
 
-  std::string extern_func_name = "cinn_";
-  if (target == common::DefaultNVGPUTarget()) {
-    extern_func_name += "nvgpu_";
-  } else if (target == common::DefaultHostTarget()) {
-    extern_func_name += "host_";
-  } else {
-    LOG(FATAL) << "Pow op only support nvgpu and host now, but here " << target << "! Please check.";
-  }
-
-  extern_func_name += "pow_";
-
-  if (A->type().is_float(64)) {
-    extern_func_name += "fp64";
-  } else if (A->type().is_float(32)) {
-    extern_func_name += "fp32";
-  } else if (A->type().is_float(16)) {
-    extern_func_name += "fp16";
-  } else if (A->type().is_int(32)) {
-    extern_func_name += "int32";
-  } else {
-    LOG(FATAL) << "Pow op only support float16/float64/float32/int32 now, but here " << A->type() << "! Please check.";
-  }
-
-  auto fn = [&](const Expr& a, const Expr& b) { return lang::CallExtern(extern_func_name, {a, b}); };
+  auto fn = [&](const Expr& a, const Expr& b) { return lang::CallIntrinsic("pow", a->type(), {a, b}); };
   return Broadcast(fn, A, B, output_name, axis);
 }
 

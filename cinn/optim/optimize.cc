@@ -61,7 +61,7 @@ Expr Optimize(Expr e, Target target, bool runtime_debug_info) {
 
   RemoveNestedBlock(&copied);
 
-  MapExternCall(&copied, target);
+  // MapExternCall(&copied, target);
   ExternCallMultiOutputShallowStore(&copied);
 
   CastSimplify(&copied);

@@ -24,7 +24,6 @@ add_subdirectory(llvm)
 
 
 if (WITH_CUDA)
-    
     nv_test(test_raw_cuda_code SRCS raw_cuda_code_test.cu DEPS cinncore)
 endif()
 
@@ -44,7 +43,7 @@ if (WITH_CUDA)
   nv_test(test_codegen_debug SRCS codegen_debug_test.cc DEPS cinncore)
 
   if (WITH_TESTING)
-    cc_library(generated1_cuda SRCS generated1.cu DEPS cinncore)
+    nv_library(generated1_cuda SRCS generated1.cu DEPS cinncore)
     add_dependencies(generated1_cuda test_codegen_cuda_generate)
   endif()
 

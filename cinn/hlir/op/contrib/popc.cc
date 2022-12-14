@@ -51,30 +51,11 @@ using framework::shape_t;
 using framework::StrategyFunction;
 
 ir::Tensor Popc(const ir::Tensor &input, const Target &target, const std::string &output_name) {
-  std::string extern_func = "cinn_";
-  if (target == common::DefaultHostTarget()) {
-    extern_func += "host_";
-  } else if (target == common::DefaultNVGPUTarget()) {
-    extern_func += "nvgpu_";
-  } else {
-    CINN_NOT_IMPLEMENTED
-  }
-
-  extern_func += "popc";
-
-  if (input->type().is_int(32) || input->type().is_uint(32)) {
-    extern_func += "_int32";
-  } else if (input->type().is_int(64) || input->type().is_uint(64)) {
-    extern_func += "_int64";
-  } else {
-    CINN_NOT_IMPLEMENTED
-  }
-
   return Compute(
       input->shape,
       [=](const std::vector<Expr> &indices) {
         Expr e = input(indices);
-        return lang::CallExtern(extern_func, {e});
+        return lang::CallIntrinsic("popc", e->type(), {e});
       },
       output_name);
 }
