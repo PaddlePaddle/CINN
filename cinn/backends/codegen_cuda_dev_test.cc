@@ -2509,7 +2509,7 @@ void __launch_bounds__(4) external_function(const float* __restrict__ A, const f
   if (((int)blockIdx.x < 40)) {
     if (((int)threadIdx.x < 4)) {
       for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
-        C[((40 * (int)blockIdx.x) + ((10 * (int)threadIdx.x) + j_inner))] = (cinn_nvgpu_tanh_fp32(A[((40 * (int)blockIdx.x) + ((10 * (int)threadIdx.x) + j_inner))]) + cinn_nvgpu_cos_fp32(B[((40 * (int)blockIdx.x) + ((10 * (int)threadIdx.x) + j_inner))]));
+        C[((40 * (int)blockIdx.x) + ((10 * (int)threadIdx.x) + j_inner))] = (tanh(A[((40 * (int)blockIdx.x) + ((10 * (int)threadIdx.x) + j_inner))]) + cos(B[((40 * (int)blockIdx.x) + ((10 * (int)threadIdx.x) + j_inner))]));
       };
     };
   };
