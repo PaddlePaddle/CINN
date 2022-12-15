@@ -81,6 +81,18 @@ static std::unordered_map<std::string, std::function<void(const Instruction&, In
        (*instr)->attrs          = fill_constant->attrs;
        (*instr)->attrs["dtype"] = cast_dtype;
      }},
+    {"broadcast_to",
+     [](const Instruction& fill_constant, Instruction* instr) -> void {
+       (*instr)->op_type = "fill_constant";
+       (*instr)->inputs.clear();
+       // the outputs keep same
+
+       CHECK((*instr)->attrs.count("out_shape")) << "The cast op should has attribute [out_shape]!";
+       auto out_shape = instr->GetAttrs<std::vector<int>>("out_shape");
+
+       (*instr)->attrs          = fill_constant->attrs;
+       (*instr)->attrs["shape"] = out_shape;
+     }},
     MATH_FUNC_REWRITER(abs),
     MATH_FUNC_REWRITER(log),
     MATH_FUNC_REWRITER(log2),

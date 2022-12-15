@@ -28,6 +28,19 @@ namespace cinn {
 namespace frontend {
 namespace paddle_mappers {
 
+void AssignOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+  CHECK_EQ(op_desc.Input("X").size(), 1UL);
+  auto x_name = op_desc.Input("X").front();
+  CHECK_EQ(op_desc.Output("Out").size(), 1UL);
+  auto out_name = op_desc.Output("Out").front();
+
+  auto x   = ctx.GetVar(x_name);
+  auto out = ctx.Builder()->Identity(x);
+
+  ctx.AddVar(out_name, out);
+  ctx.AddVarModelToProgram(out_name, out->id);
+}
+
 void ShapeOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input("Input").size(), 1UL);
   auto x_name = op_desc.Input("Input").front();
@@ -195,9 +208,11 @@ void AssignValueOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperConte
 }  // namespace cinn
 
 CINN_REGISTER_HELPER(paddle_constant) {
+  CINN_REGISTER_OP_MAPPER(assign, cinn::frontend::paddle_mappers::AssignOpMapper)
   CINN_REGISTER_OP_MAPPER(shape, cinn::frontend::paddle_mappers::ShapeOpMapper)
   CINN_REGISTER_OP_MAPPER(fill_constant, cinn::frontend::paddle_mappers::FillConstantOpMapper)
   CINN_REGISTER_OP_MAPPER(fill_any_like, cinn::frontend::paddle_mappers::FillAnyLikeOpMapper)
   CINN_REGISTER_OP_MAPPER(assign_value, cinn::frontend::paddle_mappers::AssignValueOpMapper)
+
   return true;
 }
