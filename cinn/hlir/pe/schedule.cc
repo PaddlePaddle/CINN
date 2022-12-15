@@ -194,6 +194,12 @@ int GetArrayPackingFactor(int shape, const Type &type, const common::Target &tar
   return split_factor;
 }
 
+void MatmulScheduleCUDA(poly::StageMap stages, const ir::Tensor &output, const common::Target &target) {
+  stages[output]->Split(1, 2);
+  stages[output]->Bind(0, "blockIdx.x");
+  stages[output]->Bind(1, "threadIdx.x");
+}
+
 void MatmulScheduleCPU(poly::StageMap stages,
                        const ir::Tensor &output,
                        const ir::Tensor &packedB,

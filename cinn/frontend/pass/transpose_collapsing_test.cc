@@ -49,7 +49,11 @@ std::vector<std::vector<float>> RunWithProgram(const Program& program,
                                                const Target& target,
                                                const std::vector<std::string>& input_names,
                                                const std::vector<std::string>& out_ids) {
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  std::unordered_set<std::string> fetch_list;
+  for (auto id : out_ids) {
+    fetch_list.insert(id);
+  }
+  auto graph = std::make_shared<hlir::framework::Graph>(program, fetch_list, target);
   auto scope = hlir::framework::BuildScope(target, graph);
 
   for (const auto& in_name : input_names) {
