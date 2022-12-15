@@ -49,36 +49,26 @@ SearchSpace::SearchSpace(const TuneTask& tune_task) : tune_task_(tune_task) {
   sketch_rules_.emplace_back(new SkipRule(target));
 }
 
-SearchState SearchSpace::GetScheduleMutate(const SearchState& state,
-                                           const ExprCostModel& cost_model,
-                                           bool is_sketch_mutate) {
-  SearchState ret;
-  if (!is_sketch_mutate) {
-    ret = RandomTuneMutate(state);
-    if (FLAGS_auto_schedule_use_cost_model) {
-      ret->predicted_cost = cost_model.Predict(ret->ir_schedule.GetModule(), tune_task_.target);
-    }
-  } else {
-    bool has_manual_schedule = false;
-    if (has_manual_schedule) {
-      ret = ManualSketchMutate(state);
-      return ret;
-    }
-    ret = RandomSketchMutate(state);
-    if (FLAGS_auto_schedule_use_cost_model) {
-      ret->predicted_cost = cost_model.Predict(ret->ir_schedule.GetModule(), tune_task_.target);
-    }
+SearchState SearchSpace::GetScheduleMutate(const SearchState& state, const ExprCostModel& cost_model) {
+  bool has_manual_schedule = false;
+  if (has_manual_schedule) {
+    SearchState ret = ManualScheduleMutate(state);
+    return ret;
+  }
+  SearchState ret = RandomScheduleMutate(state);
+  if (FLAGS_auto_schedule_use_cost_model) {
+    ret->predicted_cost = cost_model.Predict(ret->ir_schedule.GetModule(), tune_task_.target);
   }
   VLOG(4) << JoinStatesDebugString("SearchSpace::GetScheduleMutate", {state}, /*verbose=*/VLOG_IS_ON(5));
   return ret;
 }
 
-SearchState SearchSpace::ManualSketchMutate(const SearchState& state) {
+SearchState SearchSpace::ManualScheduleMutate(const SearchState& state) {
   // TODO(zhhsplendid): Add manual schedule mutate
   return state;
 }
 
-SearchState SearchSpace::RandomSketchMutate(const SearchState& state) {
+SearchState SearchSpace::RandomScheduleMutate(const SearchState& state) {
   // 1. Found the schedules which can apply on this Expr
   // 2. Make a distribution on those schedules
   std::map<int, int> weight_to_rule_index;
@@ -127,19 +117,6 @@ SearchState SearchSpace::RandomSketchMutate(const SearchState& state) {
   return ret;
 }
 
-SearchState SearchSpace::RandomTuneMutate(const SearchState& state) {
-  VLOG(6) << "SearchSpace::RandomTuneMutate";
-
-  auto all_blocks        = state->ir_schedule.GetAllBlocks();
-  auto block_sampler     = BlockSampler::Make(all_blocks, false, "probabilistic");
-  std::string block_name = block_sampler->NextBlock();
-  // TODO(BiynXu): Add rules after we have tune mutate, now only simulate with skip rule.
-  std::vector<AutoGenRule*> mutate_rules = {sketch_rules_.back().get()};
-  auto rule_sampler                      = RuleSampler::Make(mutate_rules, false, "probabilistic");
-  auto new_states                        = ApplySketchRule(state, block_name, rule_sampler.get(), 1, false, 1);
-  return new_states.at(0);
-}
-
 std::vector<SearchState> SearchSpace::InitSketchWithRandomStrategy(int num) {
   VLOG(5) << "SearchSpace::GetRandomInitialSketch with num=" << num;
   ir::IRSchedule init_schedule(ir::ModuleExpr(tune_task_.GetLoweredFuncBodyExprs()));
@@ -152,7 +129,7 @@ std::vector<SearchState> SearchSpace::InitSketchWithRandomStrategy(int num) {
     SearchState state(init_schedule, SearchState::NOT_INIT_COST, init_rules);
     for (int i = 0; i < init_sketch_random_depth_; ++i) {
       VLOG(6) << "Generating random sketch with RandomScheduleMutate at depth: " << i;
-      state = RandomSketchMutate(state);
+      state = RandomScheduleMutate(state);
       if (state->applicable_rules.empty()) {
         break;
       }

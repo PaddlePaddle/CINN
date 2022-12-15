@@ -141,7 +141,7 @@ std::vector<SearchState> EvolutionarySearch::Evolve(const std::vector<SearchStat
 
   utils::SizedMultiSet<SearchState> evolution_with_cost(ret_num);
   for (size_t i = 0; i < evolution.size(); ++i) {
-    evolution_with_cost.Push(search_space_->GetScheduleMutate(evolution[i], cost_model_, false));
+    evolution_with_cost.Push(search_space_->GetScheduleMutate(evolution[i], cost_model_));
   }
 
   return evolution_with_cost.ReturnAsContainer<std::vector<SearchState>>();

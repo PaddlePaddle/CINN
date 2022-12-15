@@ -43,9 +43,7 @@ class SearchSpace {
   SearchSpace(const TuneTask& tune_task);
 
   // Sketch mutate, returns the mutated ModuleExpr and estimited cost
-  virtual SearchState GetScheduleMutate(const SearchState& state,
-                                        const ExprCostModel& cost_model,
-                                        bool is_sketch_mutate);
+  virtual SearchState GetScheduleMutate(const SearchState& state, const ExprCostModel& cost_model);
 
   /**
    * \brief Generate sketch as initial population of evolutionary search.
@@ -63,13 +61,10 @@ class SearchSpace {
 
  private:
   // TODO(zhhsplendid): mutate by manual schedule.
-  SearchState ManualSketchMutate(const SearchState& state);
+  SearchState ManualScheduleMutate(const SearchState& state);
 
   // mutate by sketch rules randomly
-  SearchState RandomSketchMutate(const SearchState& state);
-
-  // mutate by tune rules randomly, such as mutate tile size, mutate parallel, which can be applied infinitely
-  SearchState RandomTuneMutate(const SearchState& state);
+  SearchState RandomScheduleMutate(const SearchState& state);
 
   // Generate num sketchs, each with several rounds of SketchMutate
   std::vector<SearchState> InitSketchWithRandomStrategy(int num);
