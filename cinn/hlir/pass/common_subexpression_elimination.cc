@@ -20,7 +20,6 @@
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/pass/use_pass.h"
-#include "cinn/hlir/pe/schedule.h"
 #include "cinn/utils/string.h"
 
 namespace cinn {
@@ -41,7 +40,6 @@ using GroupList = std::vector<GroupPtr>;
 
 using ShapeDict         = absl::flat_hash_map<std::string, shape_t>;
 using ConditionFunction = std::function<bool(const Node*, const Node*)>;
-using OutputToNodeMap   = std::unordered_map<std::string, Node*>;
 using InputToNodeMap    = std::unordered_map<std::string, std::unordered_set<Node*>>;
 
 bool is_same_subexpr(Node* op1, Node* op2) {
@@ -63,12 +61,11 @@ bool is_same_subexpr(Node* op1, Node* op2) {
       return false;
     }
   }
-  for (auto& attr : op1->attrs.attr_store) {
+  return std::all_of(op1->attrs.attr_store.begin(), op1->attrs.attr_store.end(), [&](auto attr) {
     if (!op2->attrs.attr_store.count(attr.first) || op2->attrs.attr_store[attr.first] != attr.second) {
       return false;
     }
-  }
-  return true;
+  });
 }
 
 void remove_node(framework::Graph* graph, GraphNode* node) {
@@ -81,30 +78,12 @@ void remove_node(framework::Graph* graph, GraphNode* node) {
     link->source()->UnLinkSingleTo(link->sink());
   }
   graph->DropNode(node);
+  LOG(INFO) << "remove " << node->id() << " node.";
 }
 
-void CommonSubexpressionEliminationPass(Graph* graph) {
-  VLOG(3) << "CommonSubexpressionEliminationPass...!";
+int remove_common_subexpression(Graph* graph, std::vector<GraphNode*>& store_nodes, InputToNodeMap in2node) {
   std::unordered_map<std::string, std::vector<Node*>> expr_map;
-  std::unordered_map<Node*, Node*> results;
   int remove_num = 0;
-  OutputToNodeMap out2node;
-  InputToNodeMap in2node;
-  auto store_nodes = std::get<0>(graph->topological_order());
-
-  for (auto& graph_node : store_nodes) {
-    auto node = graph_node->safe_as<Node>();
-    if (node) {
-      for (auto& out_edge : node->outlinks_in_order(true)) {
-        auto* sink_node           = out_edge->sink()->safe_as<NodeData>();
-        out2node[sink_node->id()] = node;
-      }
-      for (auto& in_edge : node->inlinks_in_order(true)) {
-        auto* source_node = in_edge->source()->safe_as<NodeData>();
-        in2node[source_node->id()].insert(node);
-      }
-    }
-  }
   for (auto& graph_node : store_nodes) {
     auto node = graph_node->safe_as<Node>();
     if (node) {
@@ -131,7 +110,34 @@ void CommonSubexpressionEliminationPass(Graph* graph) {
       }
     }
   }
-  LOG(INFO) << "Total remove " << remove_num << " node.";
+  return remove_num;
+}
+
+void CommonSubexpressionEliminationPass(Graph* graph) {
+  VLOG(3) << "CommonSubexpressionEliminationPass...!";
+  std::unordered_map<std::string, std::vector<Node*>> expr_map;
+  InputToNodeMap in2node;
+  auto store_nodes = std::get<0>(graph->topological_order());
+
+  for (auto& graph_node : store_nodes) {
+    auto node = graph_node->safe_as<Node>();
+    if (node) {
+      for (auto& in_edge : node->inlinks_in_order(true)) {
+        auto* source_node = in_edge->source()->safe_as<NodeData>();
+        in2node[source_node->id()].insert(node);
+      }
+    }
+  }
+
+  int remove_num      = 0;
+  int last_remove_num = 0;
+  while (last_remove_num || !remove_num) {
+    last_remove_num = remove_common_subexpression(graph, store_nodes, in2node);
+    if (last_remove_num) {
+      remove_num += last_remove_num;
+      store_nodes = std::get<0>(graph->topological_order());
+    }
+  }
   VLOG(3) << "Total remove " << remove_num << " node.";
   VLOG(3) << "CommonSubexpressionEliminationPass Finish...!";
 }
