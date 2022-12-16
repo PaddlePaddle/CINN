@@ -59,9 +59,7 @@ class MockSearchSpace : public SearchSpace {
     return ret;
   }
 
-  SearchState GetScheduleMutate(const SearchState& state,
-                                const ExprCostModel& cost_model,
-                                bool is_sketch_mutate) override {
+  SearchState GetScheduleMutate(const SearchState& state, const ExprCostModel& cost_model) override {
     float cost                  = 0.0f;
     std::vector<ir::Expr> exprs = state->ir_schedule.GetModule().GetExprs();
     for (const ir::Expr& expr : exprs) {
