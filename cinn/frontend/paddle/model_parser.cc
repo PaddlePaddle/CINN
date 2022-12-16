@@ -26,6 +26,31 @@
 
 namespace cinn::frontend::paddle {
 
+using cinn::common::float16;
+
+std::ostream &operator<<(std::ostream &os, const framework_proto::VarType::Type &type) {
+  using Type = framework_proto::VarType::Type;
+#define DO(desc, type)            \
+  case Type::VarType_Type_##desc: \
+    os << #type;                  \
+    break;
+
+  switch (static_cast<int>(type)) {
+    DO(BOOL, bool);
+    DO(FP16, float16);
+    DO(FP32, float);
+    DO(FP64, double);
+    DO(INT8, int8_t);
+    DO(INT16, int16_t);
+    DO(INT32, int);
+    DO(INT64, int64_t);
+#undef DO
+    default:
+      LOG(FATAL) << "unknown data type " << type;
+  }
+  return os;
+}
+
 int SizeOfType(framework_proto::VarType::Type type) {
   using Type = framework_proto::VarType::Type;
   switch (static_cast<int>(type)) {
@@ -33,8 +58,9 @@ int SizeOfType(framework_proto::VarType::Type type) {
   case Type::VarType_Type_##desc: \
     return sizeof(type);
     DO(BOOL, bool);
-    DO(FP16, float);
+    DO(FP16, float16);
     DO(FP32, float);
+    DO(FP64, double);
     DO(INT8, int8_t);
     DO(INT16, int16_t);
     DO(INT32, int);
@@ -50,80 +76,117 @@ void TensorFromStream(std::istream &is, hlir::framework::_Tensor_ *tensor, const
   using Type = framework_proto::VarType::Type;
   uint32_t version;
   is.read(reinterpret_cast<char *>(&version), sizeof(version));
+  is.sync();
+
   CHECK_EQ(version, 0U) << "Only version 0 is supported";
   // read tensor desc
   framework_proto::VarType::TensorDesc desc;
   {
     // int32_t size
     // proto buffer
-    int32_t size;
-    is.read(reinterpret_cast<char *>(&size), sizeof(size));
-    std::unique_ptr<char[]> buf(new char[size]);
-    is.read(reinterpret_cast<char *>(buf.get()), size);
-    CHECK(desc.ParseFromArray(buf.get(), size)) << "Cannot parse tensor desc";
+    int32_t desc_size;
+    is.read(reinterpret_cast<char *>(&desc_size), sizeof(desc_size));
+    is.sync();
+
+    std::unique_ptr<char[]> buf(new char[desc_size]);
+    is.read(reinterpret_cast<char *>(buf.get()), desc_size);
+    is.sync();
+
+    CHECK(desc.ParseFromArray(buf.get(), desc_size)) << "Cannot parse tensor desc";
+    VLOG(3) << "Read tensor desc, which occupy " << desc_size << " bytes";
   }
 
   // read tensor
   std::vector<int32_t> dims_vec;
   std::copy(desc.dims().begin(), desc.dims().end(), std::back_inserter(dims_vec));
+  VLOG(3) << "Tensor shape [" << cinn::utils::Join(dims_vec, ", ") << "] with data type " << desc.data_type();
+
   hlir::framework::Shape dims(dims_vec);
   tensor->Resize(dims);
-  void *buf;
+  void *buf   = nullptr;
   size_t size = tensor->shape().numel() * SizeOfType(desc.data_type());
+
   // alllocate memory
-  if (target.arch == Target::Arch::X86) {
-    switch (static_cast<int>(desc.data_type())) {
 #define SET_TENSOR(desc, type, precision)     \
   case Type::VarType_Type_##desc:             \
     buf = tensor->mutable_data<type>(target); \
     tensor->set_type(precision);              \
-    break
+    break;
 
+  if (target == common::DefaultHostTarget()) {
+    switch (static_cast<int>(desc.data_type())) {
+      SET_TENSOR(BOOL, bool, Bool());
+      SET_TENSOR(FP16, float16, Float(16));
       SET_TENSOR(FP32, float, Float(32));
+      SET_TENSOR(FP64, double, Float(64));
       SET_TENSOR(INT8, int8_t, Int(8));
       SET_TENSOR(INT16, int16_t, Int(16));
       SET_TENSOR(INT32, int32_t, Int(32));
       SET_TENSOR(INT64, int64_t, Int(64));
-#undef SET_TENSOR
       default:
         LOG(FATAL) << "unknown type " << desc.data_type();
     }
     // tensor->set_persistable(true);
     is.read(static_cast<char *>(buf), size);
-  } else if (target.arch == Target::Arch::NVGPU) {
+    is.sync();
+    VLOG(3) << "Readed " << size << " bytes data from Host";
+
+  } else if (target == common::DefaultNVGPUTarget()) {
 #ifdef CINN_WITH_CUDA
-    if (desc.data_type() != Type::VarType_Type_FP32) LOG(FATAL) << "[CUDA] The type is not fp32!!";
-    auto *data = tensor->mutable_data<float>(target);
-    tensor->set_type(Float(32));
-    std::vector<float> temp(tensor->shape().numel());
+    // if (desc.data_type() != Type::VarType_Type_FP32) LOG(FATAL) << "[CUDA] The type is not fp32!!";
+    switch (static_cast<int>(desc.data_type())) {
+      SET_TENSOR(BOOL, bool, Bool());
+      SET_TENSOR(FP16, float16, Float(16));
+      SET_TENSOR(FP32, float, Float(32));
+      SET_TENSOR(FP64, double, Float(64));
+      SET_TENSOR(INT8, int8_t, Int(8));
+      SET_TENSOR(INT16, int16_t, Int(16));
+      SET_TENSOR(INT32, int32_t, Int(32));
+      SET_TENSOR(INT64, int64_t, Int(64));
+      default:
+        LOG(FATAL) << "unknown type " << desc.data_type();
+    }
+
+    std::vector<char> temp(size);
     // LOG(INFO) <<"[CUDA] The tensor's size is "<< tensor->shape().numel();
-    is.read(reinterpret_cast<char *>(temp.data()), size);
-    CUDA_CALL(cudaMemcpy(
-        reinterpret_cast<void *>(data), temp.data(), tensor->shape().numel() * sizeof(float), cudaMemcpyHostToDevice));
+    is.read(temp.data(), size);
+    is.sync();
+
+    CUDA_CALL(cudaMemcpy(buf, temp.data(), size, cudaMemcpyHostToDevice));
+    VLOG(3) << "Readed " << size << " bytes data from NVGPU";
 #else
     LOG(FATAL) << "To use CUDA backends, you need to set WITH_CUDA ON!";
 #endif
   } else {
     CINN_NOT_IMPLEMENTED
   }
+
+#undef SET_TENSOR
 }
 
 void LoadLoDTensor(std::istream &is, hlir::framework::Variable *var, const common::Target &target) {
   auto &tensor = absl::get<hlir::framework::Tensor>(*var);
-  uint32_t version{};
+  uint32_t version{0};
   is.read(reinterpret_cast<char *>(&version), sizeof(version));
+  is.sync();
   VLOG(3) << "model version " << version;
 
   // Load LoD information
-  uint64_t lod_level{};
+  uint64_t lod_level{0};
   is.read(reinterpret_cast<char *>(&lod_level), sizeof(lod_level));
+  is.sync();
+  VLOG(3) << "lod_level " << lod_level;
 
   for (uint64_t i = 0; i < lod_level; ++i) {
     uint64_t size;
     is.read(reinterpret_cast<char *>(&size), sizeof(size));
+    is.sync();
+
     std::vector<uint64_t> tmp(size / sizeof(uint64_t));
     is.read(reinterpret_cast<char *>(tmp.data()), static_cast<std::streamsize>(size));
+    is.sync();
     // lod[i] = tmp;
+    VLOG(4) << "lod_level[" << i << "] size " << size << " and value " << cinn::utils::Join(tmp, ", ");
   }
 
   TensorFromStream(is, tensor.operator->(), target);
@@ -194,6 +257,7 @@ void LoadCombinedParamsPb(const std::string &path,
       auto *var = scope->Var<hlir::framework::Tensor>(utils::TransValidVarName(paramlist[i]));
       // Error checking
       CHECK(static_cast<bool>(is)) << "There is a problem with loading model parameters";
+      LOG(INFO) << "Reading weight: " << paramlist[i];
       LoadLoDTensor(is, var, target);
     }
     is.peek();
@@ -208,6 +272,7 @@ void LoadCombinedParamsPb(const std::string &path,
     std::ifstream fin(path, std::ios::binary);
     CHECK(fin.is_open());
     load_var_func(fin);
+    fin.close();
   }
 }
 
@@ -222,17 +287,27 @@ void LoadModelPb(const std::string &model_dir,
   CHECK(cpp_prog);
   CHECK(scope);
   cpp_prog->ClearBlocks();
-  VLOG(3) << "model_dir is: " << model_dir;
-  VLOG(3) << "model_file is: " << model_file;
-  VLOG(3) << "param_file is: " << param_file;
-  // Load model
-  VLOG(4) << "Start load model program...";
-  std::string prog_path       = model_dir + "/__model__";
-  std::string param_file_temp = param_file;
-  if (combined) {
-    // prog_path = model_file;
-    param_file_temp = model_dir + "/params";
+
+  std::string prog_path = model_dir;
+  if (model_file.empty()) {
+    prog_path += "/__model__";
+  } else {
+    prog_path += "/" + model_file;
   }
+
+  std::string param_path = model_dir;
+  if (param_file.empty()) {
+    param_path += "/params";
+  } else {
+    param_path += "/" + param_file;
+    combined = true;
+  }
+
+  LOG(INFO) << "model_dir is: " << model_dir;
+  LOG(INFO) << "model_file is: " << prog_path;
+  LOG(INFO) << "param_file is: " << param_path;
+  // Load model
+  LOG(INFO) << "Start load model program...";
   framework_proto::ProgramDesc pb_proto_prog = *LoadProgram(prog_path, model_from_memory);
   pb::ProgramDesc pb_prog(&pb_proto_prog);
   // Transform to cpp::ProgramDesc
@@ -240,19 +315,19 @@ void LoadModelPb(const std::string &model_dir,
 
   // Load Params
   // NOTE: Only main block be used now.
-  VLOG(4) << "Start load model params...";
+  LOG(INFO) << "Start load model params...";
   CHECK(!(!combined && model_from_memory)) << "If you want use the model_from_memory,"
                                            << " you should load the combined model using cfg.set_model_buffer "
                                               "interface.";
   if (combined) {
-    LoadCombinedParamsPb(param_file_temp, scope, *cpp_prog, model_from_memory, target);
+    LoadCombinedParamsPb(param_path, scope, *cpp_prog, model_from_memory, target);
   } else {
     auto main_block = pb_proto_prog.blocks(0);
     for (auto &var : main_block.vars()) {
       if (var.name() == "feed" || var.name() == "fetch" || !var.persistable()) continue;
 
       std::string file_path = model_dir + "/" + var.name();
-      VLOG(4) << "reading weight " << var.name();
+      LOG(INFO) << "Reading weight: " << var.name();
 
       std::ifstream file(file_path, std::ios::binary);
       switch (var.type().type()) {
@@ -265,7 +340,7 @@ void LoadModelPb(const std::string &model_dir,
     }
   }
 
-  VLOG(4) << "Load protobuf model in [" << model_dir << "] successfully";
+  LOG(INFO) << "Load protobuf model in [" << model_dir << "] successfully";
 }
 
 }  // namespace cinn::frontend::paddle

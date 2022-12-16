@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
+import sys, argparse, getopt
 import unittest
 import numpy as np
 from ops.op_test import OpTest, OpTestTool
@@ -47,22 +47,32 @@ paddle.enable_static()
 # python test_paddle_model.py "./stack" ON
 # ```
 
-# The second argument(ON/OFF): wether to use GPU
-enable_gpu = sys.argv.pop()
-# The first argument(PATH_TO_MODEL): the inference model directory path
-model_dir = sys.argv.pop()
+parser = argparse.ArgumentParser(description='run paddle model directly')
+parser.add_argument(
+    '--use_gpu', '-g', type=str, help='use cuda or not', default="ON")
+parser.add_argument(
+    '--model_path', '-p', type=str, help='model load path', default="./")
+parser.add_argument(
+    '--model_name',
+    '-n',
+    type=str,
+    help='model name, the name before .pdmodel and .pdiparams',
+    default="")
+parser.add_argument('unittest_args', nargs='*')
+args = vars(parser.parse_args())
 
 
 class TestPaddleModel(OpTest):
     def setUp(self):
-        if enable_gpu == "ON":
+        if args["use_gpu"] == "ON":
             self.target = DefaultNVGPUTarget()
             self.place = paddle.CUDAPlace(0)
         else:
             self.target = DefaultHostTarget()
             self.place = paddle.CPUPlace()
 
-        self.model_dir = model_dir
+        self.model_dir = args["model_path"]
+        self.model_name = args["model_name"]
 
         self.load_paddle_program()
         self.init_case()
@@ -71,6 +81,8 @@ class TestPaddleModel(OpTest):
     def dtype_paddle2str(dtype):
         if dtype == paddle.float32:
             return "float32"
+        elif dtype == paddle.float16:
+            return "float16"
         elif dtype == paddle.int32:
             return "int32"
         elif dtype == paddle.int64:
@@ -96,7 +108,13 @@ class TestPaddleModel(OpTest):
 
             dtype = self.dtype_paddle2str(self.feed_dtypes[i])
             # random int type data should not limited to [0, 1]
-            high = 1 if dtype != "int32" else self.feed_shapes[i][0]
+            high = 1 if dtype not in ["int32", "int64"
+                                      ] else self.feed_shapes[i][0]
+
+            print(
+                "Random generate feed var {}, whose shape {} and datatype [{}]"
+                .format(self.feed_names[i], self.feed_shapes[i], dtype),
+                file=sys.stderr)
 
             # the paddle's feed list need dict not list
             self.feed_data[self.feed_names[i]] = self.random(
@@ -108,8 +126,9 @@ class TestPaddleModel(OpTest):
         self.exe = paddle.static.Executor(self.place)
 
         [self.inference_program, self.feed_names,
-         self.fetch_targets] = paddle.fluid.io.load_inference_model(
-             dirname=self.model_dir, executor=self.exe)
+         self.fetch_targets] = paddle.static.load_inference_model(
+             path_prefix=self.model_dir + "/" + self.model_name,
+             executor=self.exe)
 
         self.feed_shapes = []
         self.feed_dtypes = []
@@ -131,7 +150,14 @@ class TestPaddleModel(OpTest):
 
     def build_cinn_program(self, target):
         convertor = PaddleModelConvertor()
-        prog = convertor(self.target, self.model_dir)
+        model_filename = ""
+        params_filename = ""
+        if self.model_name != "":
+            model_filename = self.model_name + ".pdmodel"
+            params_filename = self.model_name + ".pdiparams"
+
+        prog = convertor(self.target, self.model_dir, model_filename,
+                         params_filename)
 
         # get cinn input list
         inputs = prog.get_inputs()
@@ -165,9 +191,12 @@ class TestPaddleModel(OpTest):
                                                  cinn_feed_datas, cinn_output,
                                                  list())
 
+        print(self.cinn_outputs)
+
     def test_check_results(self):
         self.check_outputs_and_grads()
 
 
 if __name__ == "__main__":
+    sys.argv[1:] = args["unittest_args"]
     unittest.main()

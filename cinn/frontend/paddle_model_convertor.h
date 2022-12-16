@@ -48,7 +48,8 @@ class PaddleModelConvertor {
   // operator() accept the modle's directory, and return the fronted::Program object.
   Program operator()(const common::Target& target,
                      const std::string& model_dir,
-                     bool is_combined                              = false,
+                     const std::string& model_file                 = "",
+                     const std::string& param_file                 = "",
                      std::shared_ptr<hlir::framework::Scope> scope = nullptr);
 
   // return the internal variable map

@@ -680,8 +680,9 @@ void BindFrontend(pybind11::module *m) {
            &PaddleModelConvertor::operator(),
            py::arg("target"),
            py::arg("model_path"),
-           py::arg("is_combined") = false,
-           py::arg("scope")       = nullptr)
+           py::arg("model_filename")  = std::string(),
+           py::arg("params_filename") = std::string(),
+           py::arg("scope")           = nullptr)
       .def("get_fetch_list", &PaddleModelConvertor::GetFetchList)
       .def("get_cinn_name", [](PaddleModelConvertor &self, const std::string &paddle_name) {
         CHECK(self.var_model_to_program_map().count(paddle_name))
