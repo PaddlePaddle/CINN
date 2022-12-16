@@ -56,7 +56,6 @@ bool is_same_subexpr(Node* op1, Node* op2) {
   for (int i = 0; i < op1_inputs_size; ++i) {
     auto* op1_source_node = op1->inlinks_in_order()[i]->source();
     auto* op2_source_node = op2->inlinks_in_order()[i]->source();
-
     if (op1_source_node->id() != op2_source_node->id()) {
       return false;
     }
@@ -65,6 +64,7 @@ bool is_same_subexpr(Node* op1, Node* op2) {
     if (!op2->attrs.attr_store.count(attr.first) || op2->attrs.attr_store[attr.first] != attr.second) {
       return false;
     }
+    return true;
   });
 }
 
@@ -129,16 +129,11 @@ void CommonSubexpressionEliminationPass(Graph* graph) {
     }
   }
 
-  int remove_num      = 0;
-  int last_remove_num = 0;
-  while (last_remove_num || !remove_num) {
-    last_remove_num = remove_common_subexpression(graph, store_nodes, in2node);
-    if (last_remove_num) {
-      remove_num += last_remove_num;
-      store_nodes = std::get<0>(graph->topological_order());
-    }
+  int remove_num = remove_common_subexpression(graph, store_nodes, in2node);
+  while (remove_num) {
+    store_nodes = std::get<0>(graph->topological_order());
+    remove_num  = remove_common_subexpression(graph, store_nodes, in2node);
   }
-  VLOG(3) << "Total remove " << remove_num << " node.";
   VLOG(3) << "CommonSubexpressionEliminationPass Finish...!";
 }
 }  // namespace pass
