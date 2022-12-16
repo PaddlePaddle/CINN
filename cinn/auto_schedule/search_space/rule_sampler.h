@@ -48,11 +48,6 @@ class RuleSampler {
   // Reset associated states to sample at the beginning
   virtual void Reset() = 0;
 
-  // Select a rule to apply.
-  // The param remove is used to determine whether to delete the next rule after selecting it,
-  // If remove == true, it will not be sampled in the future.
-  virtual AutoGenRule* NextRule(bool remove) = 0;
-
   // Select a rule with default remove policy.
   AutoGenRule* NextRule() { return NextRule(default_remove_policy_); }
 
@@ -60,6 +55,11 @@ class RuleSampler {
   // A RuleSampler object should be created with the static function Make()
   RuleSampler(const std::vector<AutoGenRule*>& potential_rules, bool default_remove_policy)
       : potential_rules_(&potential_rules), default_remove_policy_(default_remove_policy) {}
+
+  // Select a rule to apply.
+  // The param remove is used to determine whether to delete the next rule after selecting it,
+  // If remove == true, it will not be sampled in the future.
+  virtual AutoGenRule* NextRule(bool remove) = 0;
 
   // The pointer refers to all potential rules
   const std::vector<AutoGenRule*>* potential_rules_;
@@ -79,6 +79,7 @@ class TraversalRuleSampler : public RuleSampler {
 
   void Reset() override { cur_idx_ = 0; }
 
+ private:
   AutoGenRule* NextRule(bool remove) override;
 
  private:
@@ -97,6 +98,7 @@ class ProbabilisticRuleSampler : public RuleSampler {
 
   void Reset() override {}
 
+ private:
   AutoGenRule* NextRule(bool remove) override;
 
  private:
