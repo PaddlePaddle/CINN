@@ -83,8 +83,6 @@ TEST(common_subexpression_elimination, common_subexpression_elimination_case1) {
   SetRandData<float>(B1, target);
 
   runtime_program->Execute();
-  LOG(INFO) << "Program:\n" << program;
-  LOG(INFO) << "graph:\n" << graph->Visualize();
 }
 
 TEST(common_subexpression_elimination, common_subexpression_elimination_case2) {
@@ -107,7 +105,6 @@ TEST(common_subexpression_elimination, common_subexpression_elimination_case2) {
 
   hlir::framework::ApplyPass(graph.get(), "InferShape");
   hlir::framework::ApplyPass(graph.get(), "CommonSubexpressionEliminationPass");
-  hlir::framework::ApplyPass(graph.get(), "CommonSubexpressionEliminationPass");
   auto scope = BuildScope(target, graph);
 
   hlir::framework::GraphCompiler gc(target, scope, graph);
@@ -126,7 +123,48 @@ TEST(common_subexpression_elimination, common_subexpression_elimination_case2) {
   SetRandData<float>(B1, target);
 
   runtime_program->Execute();
+}
+
+TEST(common_subexpression_elimination, common_subexpression_elimination_case3) {
+  Placeholder A(Float(32), {32, 16}, "A");
+  Placeholder B(Float(32), {32, 1}, "B", true);
+
+  Program program;
+  auto sub_1   = program.elementwise_sub(A, A);
+  auto sub_2   = program.elementwise_sub(A, A);
+  auto const_1 = program.fill_constant<float>({32, 16}, 1.0f, "", false, "const1");
+  auto const_2 = program.fill_constant<float>({32, 16}, 1.0f, "", false, "const2");
+  auto const_3 = program.fill_constant<float>({32, 16}, 2.0f, "", false, "const3");
+  auto out1    = program.add(const_1, const_3);
+  auto out2    = program.add(const_2, const_3);
+
+  Target target = common::DefaultTarget();
+  program.SetInputs({A, B});
+  program.Validate();
   LOG(INFO) << "Program:\n" << program;
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  LOG(INFO) << "graph:\n" << graph->Visualize();
+
+  hlir::framework::ApplyPass(graph.get(), "InferShape");
+  hlir::framework::ApplyPass(graph.get(), "CommonSubexpressionEliminationPass");
+  auto scope = BuildScope(target, graph);
+
+  hlir::framework::GraphCompiler gc(target, scope, graph);
+  auto runtime_program = gc.Build();
+  auto& prerun_instrs  = runtime_program->GetPreRunInstructions();
+  auto& run_instrs     = runtime_program->GetRunInstructions();
+  ASSERT_EQ(prerun_instrs.size(), 0);
+  ASSERT_EQ(run_instrs.size(), 5);
+
+  scope->Var<hlir::framework::Tensor>("A");
+  scope->Var<hlir::framework::Tensor>("B");
+
+  auto A1 = scope->GetTensor("A");
+  auto B1 = scope->GetTensor("B");
+  SetRandData<float>(A1, target);
+  SetRandData<float>(B1, target);
+
+  runtime_program->Execute();
   LOG(INFO) << "graph:\n" << graph->Visualize();
 }
 

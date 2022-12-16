@@ -53,9 +53,11 @@ bool is_same_subexpr(Node* op1, Node* op2) {
   if (op1_attrs_size != op2_attrs_size) {
     return false;
   }
+  auto op1_inlinks = op1->inlinks_in_order(true);
+  auto op2_inlinks = op2->inlinks_in_order(true);
   for (int i = 0; i < op1_inputs_size; ++i) {
-    auto* op1_source_node = op1->inlinks_in_order()[i]->source();
-    auto* op2_source_node = op2->inlinks_in_order()[i]->source();
+    auto* op1_source_node = op1_inlinks[i]->source();
+    auto* op2_source_node = op2_inlinks[i]->source();
     if (op1_source_node->id() != op2_source_node->id()) {
       return false;
     }
@@ -96,9 +98,12 @@ int remove_common_subexpression(Graph* graph, std::vector<GraphNode*>& store_nod
         for (int k = 0; k < node->outlinks_in_order(true).size(); ++k) {
           auto* sink_node           = node->outlinks_in_order(true)[k]->sink()->safe_as<NodeData>();
           auto* candidate_sink_node = candidate_node->outlinks_in_order(true)[k]->sink()->safe_as<NodeData>();
-          for (auto out_node : in2node[sink_node->id()]) {
+          auto out_nodes            = in2node[sink_node->id()];
+          for (auto out_node : out_nodes) {
             sink_node->UnLinkSingleTo(out_node);
             candidate_sink_node->LinkTo(out_node);
+            out_nodes.erase(node);
+            out_nodes.insert(candidate_node);
           }
         }
         remove_node(graph, node);
