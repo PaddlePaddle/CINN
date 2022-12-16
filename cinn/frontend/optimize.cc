@@ -61,24 +61,24 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
   options.graph_passes = {};
 #ifdef CINN_WITH_CUDA
   if (FLAGS_cinn_use_cublas_gemm) {
-    options.graph_passes.push_back("MatmulToCublasCustomCallPass");
+    options.graph_passes.emplace_back("MatmulToCublasCustomCallPass");
   }
 #ifdef CINN_WITH_CUDNN
   if (FLAGS_cinn_use_cudnn_conv) {
-    options.graph_passes.push_back("ConvToCudnnCustomCallPass");
+    options.graph_passes.emplace_back("ConvToCudnnCustomCallPass");
   }
 #endif
 #endif
 
   if (FLAGS_cinn_use_op_fusion) {
-    options.graph_passes.push_back("OpFusionPass");
-    options.graph_passes.push_back("FusionMergePass");
+    options.graph_passes.emplace_back("OpFusionPass");
+    options.graph_passes.emplace_back("FusionMergePass");
   } else {
-    options.graph_passes.push_back("BuildNonFusedGroupsPass");
+    options.graph_passes.emplace_back("BuildNonFusedGroupsPass");
   }
 
   if (FLAGS_cinn_use_common_subexpression_elimination) {
-    options.graph_passes.push_back("CommonSubexpressionEliminationPass");
+    options.graph_passes.emplace_back("CommonSubexpressionEliminationPass");
   }
 
   // WARNING: the pass must be the last pass !!!
