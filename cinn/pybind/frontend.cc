@@ -579,7 +579,12 @@ void BindFrontend(pybind11::module *m) {
            py::arg("scale")            = 1.0f,
            py::arg("bias")             = 0.0f,
            py::arg("bias_after_scale") = true)
-      .def("softmax", &NetBuilder::Softmax, py::arg("x"), py::arg("axis") = -1, py::arg("data_format") = "AnyLayout")
+      .def("softmax",
+           &NetBuilder::Softmax,
+           py::arg("x"),
+           py::arg("axes")        = std::vector<int>{-1},
+           py::arg("mode")        = "fast",
+           py::arg("data_format") = "AnyLayout")
       .def("dropout_infer",
            &NetBuilder::DropoutInfer,
            py::arg("x"),

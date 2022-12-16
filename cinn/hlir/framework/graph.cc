@@ -111,7 +111,18 @@ std::string Graph::DebugGroupedGraph(const std::vector<std::vector<Node*>>& grou
 }
 
 void Graph::VisualizeGroupedGraph(const std::unordered_set<std::string>& fetch_var_ids) {
-  VisualizeGroupedGraph(FusionGroupsToGroups(), fetch_var_ids);
+  for (size_t i = 0; i < fusion_groups.size(); ++i) {
+    std::unordered_set<std::string> fetch_var_ids_ = fetch_var_ids;
+    // mark output node as fetch var ids.
+    for (auto node : fusion_groups[i]->output_nodes) {
+      for (auto& link : node->outlinks()) {
+        auto node_data = link->sink()->safe_as<NodeData>();
+        fetch_var_ids_.insert(node_data->id());
+      }
+    }
+    auto group = fusion_groups[i]->CollectNodes();
+    VisualizeGroupedGraph({group}, fetch_var_ids_);
+  }
 }
 
 void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,

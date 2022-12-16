@@ -778,6 +778,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
     // lowering of new fusion pass is not compatible with the groups from the input options,
     // thus process it seperately
     if (!graph_->fusion_groups.empty()) {
+      graph_->VisualizeGroupedGraph();
       auto& dtype_dict = graph_->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
       auto& shape_dict = graph_->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
 
@@ -811,7 +812,10 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
           local_lowered_funcs.emplace_back(std::move(lowered_func));
         }
       }
+      graph_->VisualizeGroupedGraph(groups, fetch_var_ids_);
     }
+  } else {
+    graph_->VisualizeGroupedGraph(groups, fetch_var_ids_);
   }
   // use the input lowered_funcs in options firstly if exists
   const auto& lowered_funcs = options.lowered_funcs.empty() ? local_lowered_funcs : options.lowered_funcs;
@@ -819,7 +823,6 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   for (auto&& lowered_func : lowered_funcs) {
     this->ProcessFunction(lowered_func);
   }
-  graph_->VisualizeGroupedGraph(groups, fetch_var_ids_);
 
   // compile the module
   // Need to create a new compiler for every call of Build,
