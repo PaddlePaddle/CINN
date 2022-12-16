@@ -22,22 +22,24 @@ namespace cinn {
 namespace auto_schedule {
 
 std::unique_ptr<BlockSampler> BlockSampler::Make(const std::vector<ir::Expr>& all_blocks,
+                                                 bool default_remove_policy,
                                                  const std::string& strategy,
                                                  const std::vector<int>& weights) {
   CHECK_GT(all_blocks.size(), 0) << "Empty block list";
   if (strategy == "traversal") {
     VLOG(6) << "Init TraversalBlockSampler with block num = " << all_blocks.size();
-    return std::make_unique<TraversalBlockSampler>(all_blocks);
+    return std::make_unique<TraversalBlockSampler>(all_blocks, default_remove_policy);
   } else if (strategy == "probabilistic") {
     VLOG(6) << "Init ProbabilisticBlockSampler with block num = " << all_blocks.size();
-    return std::make_unique<ProbabilisticBlockSampler>(all_blocks, weights);
+    return std::make_unique<ProbabilisticBlockSampler>(all_blocks, default_remove_policy, weights);
   }
 
   LOG(FATAL) << "Unimplementd strategy:" << strategy;
   return nullptr;
 }
 
-BlockSampler::BlockSampler(const std::vector<ir::Expr>& all_blocks) {
+BlockSampler::BlockSampler(const std::vector<ir::Expr>& all_blocks, bool default_remove_policy) {
+  default_remove_policy_ = default_remove_policy;
   std::transform(all_blocks.begin(), all_blocks.end(), std::back_inserter(all_blocks_), [](const ir::Expr& block_expr) {
     const ir::ScheduleBlockRealize* block_realize = block_expr.As<ir::ScheduleBlockRealize>();
     const ir::ScheduleBlock* block                = block_realize->schedule_block.As<ir::ScheduleBlock>();
@@ -60,8 +62,9 @@ std::string TraversalBlockSampler::NextBlock(bool remove) {
 }
 
 ProbabilisticBlockSampler::ProbabilisticBlockSampler(const std::vector<ir::Expr>& all_blocks,
+                                                     bool default_remove_policy,
                                                      const std::vector<int>& weights)
-    : BlockSampler(all_blocks), weights_(weights), gen_(rd_()) {
+    : BlockSampler(all_blocks, default_remove_policy), weights_(weights), gen_(rd_()) {
   if (weights.empty()) {
     weights_.resize(all_blocks.size(), 1);
   } else {

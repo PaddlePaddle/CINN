@@ -21,13 +21,14 @@ namespace cinn {
 namespace auto_schedule {
 
 std::unique_ptr<RuleSampler> RuleSampler::Make(const std::vector<AutoGenRule*>& potential_rules,
+                                               bool default_remove_policy,
                                                const std::string& strategy,
                                                const std::vector<int>& weights) {
   CHECK_GT(potential_rules.size(), 0) << "Empty rule list";
   if (strategy == "traversal") {
-    return std::make_unique<TraversalRuleSampler>(potential_rules);
+    return std::make_unique<TraversalRuleSampler>(potential_rules, default_remove_policy);
   } else if (strategy == "probabilistic") {
-    return std::make_unique<ProbabilisticRuleSampler>(potential_rules, weights);
+    return std::make_unique<ProbabilisticRuleSampler>(potential_rules, default_remove_policy, weights);
   }
 
   LOG(FATAL) << "Unimplementd strategy:" << strategy;
@@ -47,8 +48,9 @@ AutoGenRule* TraversalRuleSampler::NextRule(bool remove) {
 }
 
 ProbabilisticRuleSampler::ProbabilisticRuleSampler(const std::vector<AutoGenRule*>& potential_rules,
+                                                   bool default_remove_policy,
                                                    const std::vector<int>& weights)
-    : RuleSampler(potential_rules), weights_(weights), gen_(rd_()) {
+    : RuleSampler(potential_rules, default_remove_policy), weights_(weights), gen_(rd_()) {
   if (weights.empty()) {
     weights_.resize(potential_rules.size(), 1);
   } else {
