@@ -36,10 +36,10 @@ using common::GraphNode;
 using InputToNodeMap = std::unordered_map<std::string, std::unordered_set<Node*>>;
 
 bool is_same_subexpression(Node* op1, Node* op2) {
-  auto op1_inlinks     = op1->inlinks_in_order(true);
-  auto op2_inlinks     = op2->inlinks_in_order(true);
-  auto op1_inputs_size = op1_inlinks.size();
-  auto op2_inputs_size = op2_inlinks.size();
+  auto op1_in_edges    = op1->inlinks_in_order(true);
+  auto op2_in_edges    = op2->inlinks_in_order(true);
+  auto op1_inputs_size = op1_in_edges.size();
+  auto op2_inputs_size = op2_in_edges.size();
   if (op1_inputs_size != op2_inputs_size) {
     return false;
   }
@@ -49,12 +49,10 @@ bool is_same_subexpression(Node* op1, Node* op2) {
     return false;
   }
   for (int i = 0; i < op1_inputs_size; ++i) {
-    LOG(INFO) << op1_inlinks[1]->source()->id();
-    LOG(INFO) << op2_inlinks[1]->source()->id();
-    auto* op1_source_node = op1_inlinks[i]->source();
-    auto* op2_source_node = op2_inlinks[i]->source();
-    LOG(INFO) << op1_source_node->id();
-    LOG(INFO) << op2_source_node->id();
+    auto* op1_source_node = op1_in_edges[i]->source()->safe_as<NodeData>();
+    auto* op2_source_node = op2_in_edges[i]->source()->safe_as<NodeData>();
+    CHECK(op1_source_node);
+    CHECK(op2_source_node);
     if (op1_source_node->id() != op2_source_node->id()) {
       return false;
     }
@@ -67,23 +65,26 @@ bool is_same_subexpression(Node* op1, Node* op2) {
   });
 }
 
-void remove_node(framework::Graph* graph, GraphNode* node) {
-  auto inlinks = node->inlinks();
-  for (auto& link : inlinks) {
-    link->source()->UnLinkSingleTo(link->sink());
+void remove_node(framework::Graph* graph, Node* node) {
+  auto in_edges = node->inlinks();
+  for (auto& edge : in_edges) {
+    auto* in_node = edge->source()->safe_as<NodeData>();
+    in_node->UnLinkSingleTo(node);
   }
-  auto outlinks = node->outlinks();
-  for (auto& link : outlinks) {
-    link->source()->UnLinkSingleTo(link->sink());
+  auto out_edges = node->outlinks();
+  for (auto& edge : out_edges) {
+    auto* out_node = edge->sink()->safe_as<NodeData>();
+    CHECK(out_node);
+    node->UnLinkSingleTo(out_node);
   }
   graph->DropNode(node);
   LOG(INFO) << "remove " << node->id() << " node.";
 }
 
-void replace_inlinks(NodeData* src_new, NodeData* src_old, Node* trt) {
+void replace_node(NodeData* src_new, NodeData* src_old, Node* trt) {
   std::vector<NodeData*> in_nodes;
-  for (auto& in_link : trt->inlinks_in_order(true)) {
-    auto* in_node = in_link->source()->safe_as<NodeData>();
+  for (auto& in_edge : trt->inlinks_in_order(true)) {
+    auto* in_node = in_edge->source()->safe_as<NodeData>();
     if (in_node->id() == src_old->id()) {
       in_nodes.emplace_back(src_new);
     } else {
@@ -109,11 +110,14 @@ int remove_common_subexpression(Graph* graph, std::vector<GraphNode*>& store_nod
         if (!is_same_subexpression(node, candidate_node)) continue;
         found = true;
         for (int k = 0; k < node->outlinks_in_order(true).size(); ++k) {
+          CHECK(node->outlinks_in_order(true).size() == candidate_node->outlinks_in_order(true).size());
           auto* sink_node           = node->outlinks_in_order(true)[k]->sink()->safe_as<NodeData>();
           auto* candidate_sink_node = candidate_node->outlinks_in_order(true)[k]->sink()->safe_as<NodeData>();
-          auto out_nodes            = in2node[sink_node->id()];
+          CHECK(sink_node);
+          CHECK(candidate_sink_node);
+          auto out_nodes = in2node[sink_node->id()];
           for (auto out_node : out_nodes) {
-            replace_inlinks(candidate_sink_node, sink_node, out_node);
+            replace_node(candidate_sink_node, sink_node, out_node);
             out_nodes.erase(node);
             out_nodes.insert(candidate_node);
           }
@@ -129,7 +133,7 @@ int remove_common_subexpression(Graph* graph, std::vector<GraphNode*>& store_nod
   }
   return remove_num;
 }
-
+//
 void CommonSubexpressionEliminationPass(Graph* graph) {
   VLOG(3) << "CommonSubexpressionEliminationPass...!";
   std::unordered_map<std::string, std::vector<Node*>> expr_map;
