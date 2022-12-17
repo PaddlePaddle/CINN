@@ -154,7 +154,7 @@ TEST(common_subexpression_elimination, common_subexpression_elimination_case3) {
   auto& prerun_instrs  = runtime_program->GetPreRunInstructions();
   auto& run_instrs     = runtime_program->GetRunInstructions();
   ASSERT_EQ(prerun_instrs.size(), 0);
-  ASSERT_EQ(run_instrs.size(), 5);
+  ASSERT_EQ(run_instrs.size(), 4);
 
   scope->Var<hlir::framework::Tensor>("A");
   scope->Var<hlir::framework::Tensor>("B");

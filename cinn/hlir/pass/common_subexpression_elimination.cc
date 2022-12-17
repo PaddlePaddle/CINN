@@ -42,7 +42,7 @@ using ShapeDict         = absl::flat_hash_map<std::string, shape_t>;
 using ConditionFunction = std::function<bool(const Node*, const Node*)>;
 using InputToNodeMap    = std::unordered_map<std::string, std::unordered_set<Node*>>;
 
-bool is_same_subexpr(Node* op1, Node* op2) {
+bool is_same_subexpression(Node* op1, Node* op2) {
   auto op1_inputs_size = op1->inlinks_in_order().size();
   auto op2_inputs_size = op2->inlinks_in_order().size();
   if (op1_inputs_size != op2_inputs_size) {
@@ -58,6 +58,10 @@ bool is_same_subexpr(Node* op1, Node* op2) {
   for (int i = 0; i < op1_inputs_size; ++i) {
     auto* op1_source_node = op1_inlinks[i]->source();
     auto* op2_source_node = op2_inlinks[i]->source();
+    LOG(INFO) << op1_source_node->id();
+    LOG(INFO) << op2_source_node->id();
+    LOG(INFO) << op1_inlinks[1]->source()->id();
+    LOG(INFO) << op2_inlinks[1]->source()->id();
     if (op1_source_node->id() != op2_source_node->id()) {
       return false;
     }
@@ -83,6 +87,22 @@ void remove_node(framework::Graph* graph, GraphNode* node) {
   LOG(INFO) << "remove " << node->id() << " node.";
 }
 
+void replace_inlinks(NodeData* src_new, NodeData* src_old, Node* trt) {
+  std::vector<NodeData*> in_nodes;
+  for (auto& in_link : trt->inlinks_in_order(true)) {
+    auto* in_node = in_link->source()->safe_as<NodeData>();
+    if (in_node->id() == src_old->id()) {
+      in_nodes.emplace_back(src_new);
+    } else {
+      in_nodes.emplace_back(in_node);
+    }
+    in_node->UnLinkSingleTo(trt);
+  }
+  for (auto in_node : in_nodes) {
+    in_node->LinkTo(trt);
+  }
+}
+
 int remove_common_subexpression(Graph* graph, std::vector<GraphNode*>& store_nodes, InputToNodeMap in2node) {
   std::unordered_map<std::string, std::vector<Node*>> expr_map;
   int remove_num = 0;
@@ -93,15 +113,23 @@ int remove_common_subexpression(Graph* graph, std::vector<GraphNode*>& store_nod
       auto& candidates = expr_map[node_type];
       bool found       = false;
       for (auto* candidate_node : candidates) {
-        if (!is_same_subexpr(node, candidate_node)) continue;
+        if (!is_same_subexpression(node, candidate_node)) continue;
         found = true;
         for (int k = 0; k < node->outlinks_in_order(true).size(); ++k) {
           auto* sink_node           = node->outlinks_in_order(true)[k]->sink()->safe_as<NodeData>();
           auto* candidate_sink_node = candidate_node->outlinks_in_order(true)[k]->sink()->safe_as<NodeData>();
           auto out_nodes            = in2node[sink_node->id()];
           for (auto out_node : out_nodes) {
-            sink_node->UnLinkSingleTo(out_node);
-            candidate_sink_node->LinkTo(out_node);
+            auto op2_inlinks = out_node->inlinks_in_order(true);
+            LOG(INFO) << op2_inlinks[0]->source()->id();
+            LOG(INFO) << op2_inlinks[1]->source()->id();
+
+            replace_inlinks(candidate_sink_node, sink_node, out_node);
+
+            op2_inlinks = out_node->inlinks_in_order(true);
+            LOG(INFO) << op2_inlinks[0]->source()->id();
+            LOG(INFO) << op2_inlinks[1]->source()->id();
+
             out_nodes.erase(node);
             out_nodes.insert(candidate_node);
           }
