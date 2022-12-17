@@ -29,22 +29,17 @@ namespace pass {
 using framework::Graph;
 using framework::Node;
 using framework::NodeData;
-using framework::OpPatternKind;
-using framework::shape_t;
 
 using common::GraphEdge;
 using common::GraphNode;
 
-using GroupPtr  = std::shared_ptr<Graph::Group>;
-using GroupList = std::vector<GroupPtr>;
-
-using ShapeDict         = absl::flat_hash_map<std::string, shape_t>;
-using ConditionFunction = std::function<bool(const Node*, const Node*)>;
-using InputToNodeMap    = std::unordered_map<std::string, std::unordered_set<Node*>>;
+using InputToNodeMap = std::unordered_map<std::string, std::unordered_set<Node*>>;
 
 bool is_same_subexpression(Node* op1, Node* op2) {
-  auto op1_inputs_size = op1->inlinks_in_order().size();
-  auto op2_inputs_size = op2->inlinks_in_order().size();
+  auto op1_inlinks     = op1->inlinks_in_order(true);
+  auto op2_inlinks     = op2->inlinks_in_order(true);
+  auto op1_inputs_size = op1_inlinks.size();
+  auto op2_inputs_size = op2_inlinks.size();
   if (op1_inputs_size != op2_inputs_size) {
     return false;
   }
@@ -53,15 +48,13 @@ bool is_same_subexpression(Node* op1, Node* op2) {
   if (op1_attrs_size != op2_attrs_size) {
     return false;
   }
-  auto op1_inlinks = op1->inlinks_in_order(true);
-  auto op2_inlinks = op2->inlinks_in_order(true);
   for (int i = 0; i < op1_inputs_size; ++i) {
+    LOG(INFO) << op1_inlinks[1]->source()->id();
+    LOG(INFO) << op2_inlinks[1]->source()->id();
     auto* op1_source_node = op1_inlinks[i]->source();
     auto* op2_source_node = op2_inlinks[i]->source();
     LOG(INFO) << op1_source_node->id();
     LOG(INFO) << op2_source_node->id();
-    LOG(INFO) << op1_inlinks[1]->source()->id();
-    LOG(INFO) << op2_inlinks[1]->source()->id();
     if (op1_source_node->id() != op2_source_node->id()) {
       return false;
     }
@@ -120,16 +113,7 @@ int remove_common_subexpression(Graph* graph, std::vector<GraphNode*>& store_nod
           auto* candidate_sink_node = candidate_node->outlinks_in_order(true)[k]->sink()->safe_as<NodeData>();
           auto out_nodes            = in2node[sink_node->id()];
           for (auto out_node : out_nodes) {
-            auto op2_inlinks = out_node->inlinks_in_order(true);
-            LOG(INFO) << op2_inlinks[0]->source()->id();
-            LOG(INFO) << op2_inlinks[1]->source()->id();
-
             replace_inlinks(candidate_sink_node, sink_node, out_node);
-
-            op2_inlinks = out_node->inlinks_in_order(true);
-            LOG(INFO) << op2_inlinks[0]->source()->id();
-            LOG(INFO) << op2_inlinks[1]->source()->id();
-
             out_nodes.erase(node);
             out_nodes.insert(candidate_node);
           }
