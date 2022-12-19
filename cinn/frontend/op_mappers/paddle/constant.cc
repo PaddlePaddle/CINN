@@ -195,8 +195,12 @@ void AssignValueOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperConte
     } else {
       out = ctx.Builder()->Constant(int64_values, cinn_out_name);
     }
-  } else {
-    LOG(FATAL) << "assign_value's input should not empty! Please check.";
+  }
+
+  CHECK(out) << "assign_value's input should not empty, but " << out_name << "not! Please check.";
+  const auto& shape = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "shape", out.value()->shape);
+  if (shape != out.value()->shape) {
+    out = ctx.Builder()->Reshape(out.value(), shape);
   }
 
   ctx.AddVar(out_name, out.value());
