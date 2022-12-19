@@ -383,14 +383,19 @@ class NetBuilder {
 
     // flatten n-dims vector to 1-dim vector
     auto all_datas = cinn::utils::Flatten(value);
+    CHECK(!all_datas.empty()) << "The value of Constant should not be None or empty list! Please check.";
 
     VLOG(4) << "Constant with values: " << cinn::utils::Join(all_datas, ", ");
 
     using TYPE      = typename decltype(all_datas)::value_type;
     auto true_dtype = dtype.empty() ? common::Type2Str(common::type_of<TYPE>()) : dtype;
-    auto assign_out = CustomInstr("assign_value", {}, {{"values", all_datas}, {"dtype", true_dtype}}).front();
 
-    auto out = Reshape(assign_out, GetVectorShape(value));
+    if (all_datas.size() == 1UL) {
+      return Constant<TYPE>(all_datas[0], name, true_dtype);
+    }
+
+    auto assign_out = CustomInstr("assign_value", {}, {{"values", all_datas}, {"dtype", true_dtype}}).front();
+    auto out        = Reshape(assign_out, GetVectorShape(value));
 
     // set the name correctly
     out.set_id(name);

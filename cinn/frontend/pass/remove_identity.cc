@@ -24,14 +24,12 @@ namespace cinn {
 namespace frontend {
 namespace pass {
 
-#define REDUCE_FUNC_REMOVE(op_name)                \
+#define SHAPE_SAME_REMOVE(op_name)                 \
   {                                                \
 #op_name, [](const Instruction& instr) -> bool { \
     const auto& input_shape = instr->inputs[0]->shape; \
     const auto& output_shape = instr->outputs[0]->shape; \
-    bool input_one = input_shape.size() == 1 && input_shape[0] == 1; \
-    bool output_one= output_shape.size() == 1 && output_shape[0] == 1;      \
-    return input_one && output_one; \
+    return input_shape == output_shape; \
   } \
   }
 
@@ -55,12 +53,6 @@ static std::unordered_map<std::string, std::function<bool(const Instruction&)>> 
        const auto& output_dtype = instr->outputs[0]->type;
        return input_dtype == output_dtype;
      }},
-    {"broadcast_to",
-     [](const Instruction& instr) -> bool {
-       const auto& input_shape  = instr->inputs[0]->shape;
-       const auto& output_shape = instr->outputs[0]->shape;
-       return input_shape == output_shape;
-     }},
     {"transpose",
      [](const Instruction& instr) -> bool {
        const auto& input_shape = instr->inputs[0]->shape;
@@ -80,19 +72,16 @@ static std::unordered_map<std::string, std::function<bool(const Instruction&)>> 
      }},
     {"concat", [](const Instruction& instr) -> bool { return (instr->inputs.size() == 1); }},
     {"split", [](const Instruction& instr) -> bool { return (instr->outputs.size() == 1); }},
-    REDUCE_FUNC_REMOVE(reduce_sum),
-    REDUCE_FUNC_REMOVE(reduce_prod),
-    REDUCE_FUNC_REMOVE(reduce_max),
-    REDUCE_FUNC_REMOVE(reduce_min),
-    REDUCE_FUNC_REMOVE(reduce_all),
-    REDUCE_FUNC_REMOVE(reduce_any),
-    {"slice", [](const Instruction& instr) -> bool {
-       const auto& input_shape  = instr->inputs[0]->shape;
-       const auto& output_shape = instr->outputs[0]->shape;
-       return input_shape == output_shape;
-     }}};
+    SHAPE_SAME_REMOVE(broadcast_to),
+    SHAPE_SAME_REMOVE(reduce_sum),
+    SHAPE_SAME_REMOVE(reduce_prod),
+    SHAPE_SAME_REMOVE(reduce_max),
+    SHAPE_SAME_REMOVE(reduce_min),
+    SHAPE_SAME_REMOVE(reduce_all),
+    SHAPE_SAME_REMOVE(reduce_any),
+    SHAPE_SAME_REMOVE(slice)};
 
-#undef REDUCE_FUNC_REMOVE
+#undef SHAPE_SAME_REMOVE
 
 // RemoveIdentityPass will remove the identity instructions in following patterns:
 //
