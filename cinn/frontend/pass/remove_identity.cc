@@ -24,6 +24,17 @@ namespace cinn {
 namespace frontend {
 namespace pass {
 
+#define REDUCE_FUNC_REMOVE(op_name)                \
+  {                                                \
+#op_name, [](const Instruction& instr) -> bool { \
+    const auto& input_shape = instr->inputs[0]->shape; \
+    const auto& output_shape = instr->outputs[0]->shape; \
+    bool input_one = input_shape.size() == 1 && input_shape[0] == 1; \
+    bool output_one= output_shape.size() == 1 && output_shape[0] == 1;      \
+    return input_one && output_one; \
+  } \
+  }
+
 static std::unordered_map<std::string, std::function<bool(const Instruction&)>> identity_ops = {
     {"identity", [](const Instruction& instr) -> bool { return true; }},
     {"reshape",
@@ -68,7 +79,15 @@ static std::unordered_map<std::string, std::function<bool(const Instruction&)>> 
        return can_remove;
      }},
     {"concat", [](const Instruction& instr) -> bool { return (instr->inputs.size() == 1); }},
-    {"split", [](const Instruction& instr) -> bool { return (instr->outputs.size() == 1); }}};
+    {"split", [](const Instruction& instr) -> bool { return (instr->outputs.size() == 1); }},
+    REDUCE_FUNC_REMOVE(reduce_sum),
+    REDUCE_FUNC_REMOVE(reduce_prod),
+    REDUCE_FUNC_REMOVE(reduce_max),
+    REDUCE_FUNC_REMOVE(reduce_min),
+    REDUCE_FUNC_REMOVE(reduce_all),
+    REDUCE_FUNC_REMOVE(reduce_any)};
+
+#undef REDUCE_FUNC_REMOVE
 
 // RemoveIdentityPass will remove the identity instructions in following patterns:
 //

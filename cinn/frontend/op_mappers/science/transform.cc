@@ -17,6 +17,7 @@
 
 #include "cinn/frontend/op_mapper_registry.h"
 #include "cinn/frontend/op_mappers/common_utils.h"
+#include "cinn/frontend/var_type_utils.h"
 
 namespace cinn {
 namespace frontend {
@@ -212,33 +213,20 @@ void ReduceOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
 
   // now paddle science only need reduce sum
   Variable out;
-  if (std::accumulate(x->shape.begin(), x->shape.end(), 1, std::multiplies<cinn::utils::DimType>()) == 1) {
-    out = ctx.Builder()->Identity(x);
-    if (!keepdim) {
-      ShapeType new_out_shape;
-      for (int i = 0; i < x->shape.size(); ++i) {
-        if (std::find(axis.begin(), axis.end(), static_cast<cinn::utils::DimType>(i)) == axis.end()) {
-          new_out_shape.emplace_back(x->shape[i]);
-        }
-      }
-      out->shape = new_out_shape;
-    }
+  if (reduce_type == "Sum") {
+    out = ctx.Builder()->ReduceSum(x, axis, keepdim);
+  } else if (reduce_type == "Prod") {
+    out = ctx.Builder()->ReduceProd(x, axis, keepdim);
+  } else if (reduce_type == "Max") {
+    out = ctx.Builder()->ReduceMax(x, axis, keepdim);
+  } else if (reduce_type == "Min") {
+    out = ctx.Builder()->ReduceMin(x, axis, keepdim);
+  } else if (reduce_type == "All") {
+    out = ctx.Builder()->ReduceAll(x, axis, keepdim);
+  } else if (reduce_type == "Any") {
+    out = ctx.Builder()->ReduceAny(x, axis, keepdim);
   } else {
-    if (reduce_type == "Sum") {
-      out = ctx.Builder()->ReduceSum(x, axis, keepdim);
-    } else if (reduce_type == "Prod") {
-      out = ctx.Builder()->ReduceProd(x, axis, keepdim);
-    } else if (reduce_type == "Max") {
-      out = ctx.Builder()->ReduceMax(x, axis, keepdim);
-    } else if (reduce_type == "Min") {
-      out = ctx.Builder()->ReduceMin(x, axis, keepdim);
-    } else if (reduce_type == "All") {
-      out = ctx.Builder()->ReduceAll(x, axis, keepdim);
-    } else if (reduce_type == "Any") {
-      out = ctx.Builder()->ReduceAny(x, axis, keepdim);
-    } else {
-      LOG(FATAL) << "Not support Reduce " << reduce_type << "! Please check.";
-    }
+    LOG(FATAL) << "Not support Reduce " << reduce_type << "! Please check.";
   }
 
   ctx.AddVar(out_name, out);
@@ -362,7 +350,10 @@ void CastOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
 
   auto x = ctx.GetVar(x_name);
 
-  auto dtype = utils::GetAttrOrDefault<std::string>(op_desc, "dtype", cinn::common::Type2Str(x->type));
+  auto dtype_id = utils::GetAttrOrDefault<int>(op_desc, "dtype", static_cast<int>(paddle::cpp::VarDescAPI::Type::FP32));
+  auto dtype_pd = static_cast<paddle::cpp::VarDescAPI::Type>(dtype_id);
+  auto dtype_cinn = utils::CppVarType2CommonType(dtype_pd);
+  auto dtype      = common::Type2Str(dtype_cinn);
 
   VLOG(4) << out_name << " = cast(" << x_name << ", dtype=" << dtype << ")";
 
