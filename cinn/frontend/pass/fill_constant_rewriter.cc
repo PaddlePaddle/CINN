@@ -93,6 +93,15 @@ static std::unordered_map<std::string, std::function<void(const Instruction&, In
        (*instr)->attrs          = fill_constant->attrs;
        (*instr)->attrs["shape"] = out_shape;
      }},
+    {"slice",
+     [](const Instruction& fill_constant, Instruction* instr) -> void {
+       (*instr)->op_type = "fill_constant";
+       (*instr)->inputs.clear();
+       // the outputs keep same
+
+       (*instr)->attrs          = fill_constant->attrs;
+       (*instr)->attrs["shape"] = (*instr)->outputs[0]->shape;
+     }},
     MATH_FUNC_REWRITER(abs),
     MATH_FUNC_REWRITER(log),
     MATH_FUNC_REWRITER(log2),
