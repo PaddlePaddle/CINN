@@ -85,7 +85,12 @@ static std::unordered_map<std::string, std::function<bool(const Instruction&)>> 
     REDUCE_FUNC_REMOVE(reduce_max),
     REDUCE_FUNC_REMOVE(reduce_min),
     REDUCE_FUNC_REMOVE(reduce_all),
-    REDUCE_FUNC_REMOVE(reduce_any)};
+    REDUCE_FUNC_REMOVE(reduce_any),
+    {"slice", [](const Instruction& instr) -> bool {
+       const auto& input_shape  = instr->inputs[0]->shape;
+       const auto& output_shape = instr->outputs[0]->shape;
+       return input_shape == output_shape;
+     }}};
 
 #undef REDUCE_FUNC_REMOVE
 

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <absl/types/optional.h>
+
 #include <functional>
 #include <numeric>
 
@@ -191,10 +193,15 @@ void SliceAssignOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperConte
           << cinn::utils::Join(starts, ",") << "], ends [" << cinn::utils::Join(ends, ",") << "], axis ["
           << cinn::utils::Join(axes, ",") << "], strides [" << cinn::utils::Join(strides, ",") << "].";
 
-  auto out = ctx.Builder()->SliceAssign(x, assign, axes, starts, ends, strides);
+  absl::optional<Variable> out;
+  if (x->shape == assign->shape) {
+    out = ctx.Builder()->Identity(assign);
+  } else {
+    out = ctx.Builder()->SliceAssign(x, assign, axes, starts, ends, strides);
+  }
 
-  ctx.AddVar(out_name, out);
-  ctx.AddVarModelToProgram(out_name, out->id);
+  ctx.AddVar(out_name, out.value());
+  ctx.AddVarModelToProgram(out_name, out.value()->id);
 }
 
 void ReduceOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx, const std::string& reduce_type) {
@@ -212,7 +219,7 @@ void ReduceOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
           << "), with axis [" << cinn::utils::Join(axis, ",") << "], keepdim " << keepdim;
 
   // now paddle science only need reduce sum
-  Variable out;
+  absl::optional<Variable> out;
   if (reduce_type == "Sum") {
     out = ctx.Builder()->ReduceSum(x, axis, keepdim);
   } else if (reduce_type == "Prod") {
@@ -225,12 +232,12 @@ void ReduceOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
     out = ctx.Builder()->ReduceAll(x, axis, keepdim);
   } else if (reduce_type == "Any") {
     out = ctx.Builder()->ReduceAny(x, axis, keepdim);
-  } else {
-    LOG(FATAL) << "Not support Reduce " << reduce_type << "! Please check.";
   }
 
-  ctx.AddVar(out_name, out);
-  ctx.AddVarModelToProgram(out_name, out->id);
+  CHECK(out) << "Not support Reduce " << reduce_type << "! Please check.";
+
+  ctx.AddVar(out_name, out.value());
+  ctx.AddVarModelToProgram(out_name, out.value()->id);
 }
 
 #define EXPAND_REDUCE_OPMAPPER(ReduceType)                                                            \
