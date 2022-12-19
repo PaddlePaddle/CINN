@@ -35,12 +35,6 @@ namespace pass {
 
 static std::unordered_map<std::string, std::function<bool(const Instruction&)>> identity_ops = {
     {"identity", [](const Instruction& instr) -> bool { return true; }},
-    {"reshape",
-     [](const Instruction& instr) -> bool {
-       auto& input_var  = instr->inputs[0];
-       auto& output_var = instr->outputs[0];
-       return (input_var->id != output_var->id) && (input_var->shape == output_var->shape);
-     }},
     {"scale",
      [](const Instruction& instr) -> bool {
        bool bias_zero = !instr->attrs.count("bias") || instr.GetAttrs<float>("bias") == 0.0f;
@@ -79,7 +73,8 @@ static std::unordered_map<std::string, std::function<bool(const Instruction&)>> 
     SHAPE_SAME_REMOVE(reduce_min),
     SHAPE_SAME_REMOVE(reduce_all),
     SHAPE_SAME_REMOVE(reduce_any),
-    SHAPE_SAME_REMOVE(slice)};
+    SHAPE_SAME_REMOVE(slice),
+    SHAPE_SAME_REMOVE(reshape)};
 
 #undef SHAPE_SAME_REMOVE
 
