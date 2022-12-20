@@ -127,18 +127,7 @@ void PaddleModelToProgram::AddOpMapper_mul() {
     VLOG(4) << "x shape: " << utils::Join(x->shape, ",");
     VLOG(4) << "y shape: " << utils::Join(y->shape, ",");
 
-    // Step2: transpose y
-    std::vector<int> new_shape;
-    for (int i = y_num_col_dims; i < y->shape.size(); ++i) {
-      new_shape.emplace_back(i);
-    }
-    for (int i = 0; i < y_num_col_dims; ++i) {
-      new_shape.emplace_back(i);
-    }
-    auto trans_y = net_builder_->Transpose(y, new_shape);
-
-    // Step3: matmul
-    const auto& out = net_builder_->Mul(x, trans_y, x_num_col_dims, y->shape.size() - y_num_col_dims);
+    const auto& out = net_builder_->Mul(x, y, x_num_col_dims, y_num_col_dims, true);
 
     CHECK_EQ(op_desc.Output("Out").size(), 1UL);
     auto out_name = op_desc.Output("Out").front();

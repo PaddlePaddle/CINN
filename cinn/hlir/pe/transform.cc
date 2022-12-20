@@ -184,7 +184,8 @@ std::vector<std::vector<int>> GetMatmulNewShapes(const std::vector<std::vector<i
 
 std::vector<std::vector<int>> GetMulNewShapes(const std::vector<std::vector<int>>& inputs_shape,
                                               int x_num_col_dims,
-                                              int y_num_col_dims) {
+                                              int y_num_col_dims,
+                                              bool is_infer) {
   CHECK_EQ(inputs_shape.size(), 2UL) << "The mul should only have two inputs.";
   const auto &x_shape = inputs_shape[0], &y_shape = inputs_shape[1];
   CHECK(!x_shape.empty()) << "The shape of mul input 'x' should not empty.";
@@ -233,8 +234,14 @@ std::vector<std::vector<int>> GetMulNewShapes(const std::vector<std::vector<int>
   for (int i = 0; i < x_num_col_dims; ++i) {
     out_shape.emplace_back(x_shape[i]);
   }
-  for (int i = y_num_col_dims; i < y_shape.size(); ++i) {
-    out_shape.emplace_back(y_shape[i]);
+  if (is_infer) {
+    for (int i = 0; i < y_num_col_dims; ++i) {
+      out_shape.emplace_back(y_shape[i]);
+    }
+  } else {
+    for (int i = y_num_col_dims; i < y_shape.size(); ++i) {
+      out_shape.emplace_back(y_shape[i]);
+    }
   }
 
   return new_shape;

@@ -61,13 +61,60 @@ TEST(SkipRule, Basic) {
 
   SkipRule skip_rule(target);
   ir::IRSchedule ir_schedule(ir::ModuleExpr({ast_expr}));
-  EXPECT_EQ(skip_rule.Init(&ir_schedule), RuleApplyType::kApply);
+  SearchState state(ir_schedule, 0, {});
 
+  EXPECT_EQ(skip_rule.Init(&ir_schedule), RuleApplyType::kApply);
   EXPECT_EQ(skip_rule.NumberApplicable(), 1);
   skip_rule.ApplyRandomly();
-  std::vector<ir::Expr> exprs = ir_schedule.GetModule().GetExprs();
-  EXPECT_EQ(exprs.size(), 1UL);
 
+  // ApplyOnBlock
+  EXPECT_EQ(skip_rule.AnalyseApplyType(state, "C"), RuleApplyType::kApply);
+  std::vector<cinn::auto_schedule::SearchState> states = skip_rule.ApplyOnBlock(state, "C");
+
+  auto test_func = [&ast_expr](ir::IRSchedule* ir_sch) {
+    std::vector<ir::Expr> exprs = ir_sch->GetModule().GetExprs();
+    EXPECT_EQ(exprs.size(), 1UL);
+    EXPECT_EQ(ast_expr, exprs[0]);
+  };
+
+  test_func(&ir_schedule);
+  test_func(&states[0]->ir_schedule);
+}
+
+TEST(SkipRule, ApplyOnSpecificBlock) {
+  srand(0);
+  Context::Global().ResetNameId();
+#ifdef CINN_WITH_CUDA
+  Target target = common::DefaultNVGPUTarget();
+#else
+  Target target = common::DefaultHostTarget();
+#endif
+
+  Expr M(32);
+  Expr N(128);
+
+  Placeholder<float> A("A", {M});
+  Placeholder<float> B("B", {N});
+
+  ir::Tensor C = Compute(
+      {M, N}, [&](Var i, Var j) { return A(i) + B(j); }, "C");
+
+  poly::StageMap stages              = CreateStages({C});
+  std::vector<ir::LoweredFunc> funcs = lang::LowerVec("TestSkipRule_Basic", stages, {C}, {}, {}, nullptr, target, true);
+
+  ir::Expr ast_expr = funcs[0]->body;
+  VLOG(6) << "Expr before SkipRule: ";
+  VLOG(6) << ast_expr;
+
+  SkipRule skip_rule(target);
+  ir::IRSchedule ir_schedule(ir::ModuleExpr({ast_expr}));
+  SearchState state(ir_schedule, 0, {});
+
+  EXPECT_EQ(skip_rule.AnalyseApplyType(state, "C"), RuleApplyType::kApply);
+  std::vector<cinn::auto_schedule::SearchState> states = skip_rule.ApplyOnBlock(state, "C");
+
+  std::vector<ir::Expr> exprs = states[0]->ir_schedule.GetModule().GetExprs();
+  EXPECT_EQ(exprs.size(), 1UL);
   EXPECT_EQ(ast_expr, exprs[0]);
 }
 
