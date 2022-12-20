@@ -151,15 +151,34 @@ std::vector<common::CINNValue> IRCudaScheduleMatMul(const common::CINNValuePack 
   ir::ModuleExpr mod_expr(vec_ast);
   ir::IRSchedule ir_sch(mod_expr);
   ir_sch.MergeExprs();
-  auto blocks = ir_sch.GetAllBlocks();
+  // Generally, there are 2 ScheduleBlocks in the lowered function,
+  // the first is for reduce_init and the second is the real compute block,
+  // here we use loops of the first block to Bind GPU index in top spatial axies
+  auto init_block = ir_sch.GetAllBlocks().front();
+  VLOG(3) << "Matmul lowered expr:\n" << ir_sch.GetModule().GetExprs().front();
 
   int prod_size = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>());
   if (prod_size > 1) {
-    if (ir_sch.GetLoops(blocks[0]).size() == 1) {
-      ir_sch.Bind(ir_sch.GetLoops(blocks[0])[0], "threadIdx.x");
+    int num_thread = target.max_num_threads();
+    auto loops     = ir_sch.GetLoops(init_block);
+    if (loops.size() == 1) {
+      if (ir::GetLoopExtent(loops[0]) > num_thread) {
+        auto splited = ir_sch.Split(loops[0], {-1, num_thread});
+        ir_sch.Bind(splited[0], "blockIdx.x");
+        ir_sch.Bind(splited[1], "threadIdx.x");
+      } else {
+        ir_sch.Bind(loops[0], "threadIdx.x");
+      }
     } else {
-      ir_sch.Bind(ir_sch.GetLoops(blocks[0])[0], "blockIdx.x");
-      ir_sch.Bind(ir_sch.GetLoops(blocks[0])[1], "threadIdx.x");
+      if (ir::GetLoopExtent(loops[1]) > num_thread) {
+        ir_sch.Split(loops[1], {-1, num_thread});
+        init_block = ir_sch.GetAllBlocks().front();
+        ir_sch.Fuse(init_block, {0, 1});
+        init_block = ir_sch.GetAllBlocks().front();
+        loops      = ir_sch.GetLoops(init_block);
+      }
+      ir_sch.Bind(loops[0], "blockIdx.x");
+      ir_sch.Bind(loops[1], "threadIdx.x");
     }
   }
 
@@ -791,20 +810,28 @@ void IRCudaScheduleConv(ir::IRSchedule &ir_sch, const common::Target &target) {
     CHECK_GE(loops.size(), 7U);
     ir_sch.Split(loops[6], {-1, rc_factor});
   }
-  {
-    loops = ir_sch.GetLoops(reduce_init_name);
-    // If loops size is less than 4, it means a 1-loop is eliminated. We need to add one.
-    if (loops.size() < 4U) {
-      loops = ir_sch.GetLoops(reduce_init_name);
-      ir_sch.Split(loops[0], {1, -1});
-    }
-  }
+  //{
+  //  loops = ir_sch.GetLoops(reduce_init_name);
+  //  // If loops size is less than 4, it means a 1-loop is eliminated. We need to add one.
+  //  if (loops.size() < 4U) {
+  //    loops = ir_sch.GetLoops(reduce_init_name);
+  //    ir_sch.Split(loops[0], {1, -1});
+  //  }
+  //}
   {
     // Do Split
-    loops = ir_sch.GetLoops(reduce_init_name);
-    // When loops size is still < 4, add unit loops at the end till loops size == 4.
+    auto reduce_init                            = ir_sch.GetBlock(reduce_init_name);
+    ir::ScheduleBlockRealize *reduce_init_block = reduce_init.As<ir::ScheduleBlockRealize>();
+    loops                                       = ir_sch.GetLoops(reduce_init_name);
+    // If loops size is less than 4, it means one or more 1-loops are eliminated in the lowering process.
+    // Here we restore them by identifying the constant iter value in the ScheduleBlock
     while (loops.size() < 4U) {
-      ir_sch.Split(loops.back(), {-1, 1});
+      for (int i = 0; i < reduce_init_block->iter_values.size(); ++i) {
+        auto &v = reduce_init_block->iter_values[i];
+        if (v.is_constant()) {
+          ir_sch.Split(loops[i], {1, -1});
+        }
+      }
       loops = ir_sch.GetLoops(reduce_init_name);
     }
     CHECK_EQ(loops.size(), 4U);
@@ -816,12 +843,13 @@ void IRCudaScheduleConv(ir::IRSchedule &ir_sch, const common::Target &target) {
     CHECK_GE(loops.size(), 6U);
     ir_sch.Reorder({loops[1], loops[4], loops[2], loops[5], loops[3]});
   }
+  VLOG(3) << "After Reorder with expr: " << ir_sch.GetModule().GetExprs().at(0);
   {
     // Do SimpleComputeAt
-    all_blocks = ir_sch.GetAllBlocks();
-    loops      = ir_sch.GetLoops(reduce_init_name);
+    auto reduce_init = ir_sch.GetBlock(reduce_init_name);
+    loops            = ir_sch.GetLoops(temp_output_name);
     CHECK_GE(loops.size(), 6U);
-    ir_sch.SimpleComputeAt(all_blocks[0], loops[5]);
+    ir_sch.SimpleComputeAt(reduce_init, loops[5]);
   }
   {
     // Do Bind
