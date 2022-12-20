@@ -112,8 +112,8 @@ class GraphCompiler final {
 
   // Compile with a packing option and result, to be extended easily.
   CompilationResult Build(const CompileOptions& options,
-                          std::unordered_set<std::string>&& fetch_var_ids = {},
-                          void* stream                                    = nullptr);
+                          const std::unordered_set<std::string>& fetch_var_ids = {},
+                          void* stream                                         = nullptr);
   void ExportObject(const std::string& path) { compiler_->ExportObject(path); }
 
   std::unique_ptr<Program> Build(const std::string& code = "");

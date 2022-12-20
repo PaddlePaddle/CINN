@@ -157,35 +157,45 @@ void BindFrontend(pybind11::module *m) {
               fetch_ids.insert(out->id);
             }
 
-            std::vector<std::string> program_passes, graph_passes;
-
+            OptimizeOptions options;
             const auto &default_program_pass = DefaultTrainingOptimizeOptions().program_passes;
             const auto &default_graph_pass   = DefaultTrainingOptimizeOptions().graph_passes;
             for (const auto &pass : passes) {
               if (std::find(default_program_pass.begin(), default_program_pass.end(), pass) !=
                   default_program_pass.end()) {
-                program_passes.emplace_back(pass);
+                options.program_passes.emplace_back(pass);
               } else if (std::find(default_graph_pass.begin(), default_graph_pass.end(), pass) !=
                          default_graph_pass.end()) {
-                graph_passes.emplace_back(pass);
+                options.graph_passes.emplace_back(pass);
               } else {
                 LOG(WARNING) << "Cannot find pass: " << pass << " in CINN! Please check.";
               }
             }
-            if (program_passes.empty()) {
-              program_passes = default_program_pass;
+            if (options.program_passes.empty()) {
+              options.program_passes = default_program_pass;
             }
-            if (graph_passes.empty()) {
-              graph_passes = default_graph_pass;
+            if (options.graph_passes.empty()) {
+              options.graph_passes = default_graph_pass;
             }
 
-            frontend::ProgramPass::Apply(&self, fetch_ids, target, program_passes);
-            auto graph = std::make_shared<hlir::framework::Graph>(self, fetch_ids, target);
-            hlir::framework::ApplyPasses(graph.get(), graph_passes);
+            auto graph = Optimize(&self, fetch_ids, target, options);
 
             scope = hlir::framework::BuildScope(target, graph, scope);
             hlir::framework::GraphCompiler gc(target, scope, graph);
-            auto program = gc.Build();
+
+            hlir::framework::GraphCompiler::CompileOptions compile_options;
+            compile_options.with_instantiate_variables = true;
+
+            void *stream = nullptr;
+#ifdef CINN_WITH_CUDA
+            if (target == common::DefaultNVGPUTarget()) {
+              auto cuda_stream = static_cast<cudaStream_t>(stream);
+              cudaStreamCreate(&cuda_stream);
+              stream = cuda_stream;
+            }
+#endif
+
+            auto program = gc.Build(compile_options, fetch_ids, stream);
 
             for (size_t i = 0; i < tensor_inputs.size(); i++) {
               auto in_tensor = scope->GetTensor(tensor_inputs[i]->id);
@@ -194,21 +204,31 @@ void BindFrontend(pybind11::module *m) {
               CHECK_EQ(input_data[i].size(), in_tensor->shape().numel())
                   << "The size of tensor [" << tensor_inputs[i]->id
                   << "] is different with the input data's size! Please check.";
-              if (target.arch == Target::Arch::NVGPU) {
+              if (target == common::DefaultNVGPUTarget()) {
 #ifdef CINN_WITH_CUDA
-                CUDA_CALL(cudaMemcpy(
-                    data, input_data[i].data(), in_tensor->shape().numel() * dtype.bytes(), cudaMemcpyHostToDevice));
+                CUDA_CALL(cudaMemcpyAsync(data,
+                                          input_data[i].data(),
+                                          in_tensor->shape().numel() * dtype.bytes(),
+                                          cudaMemcpyHostToDevice,
+                                          static_cast<cudaStream_t>(stream)));
 #else
                  LOG(FATAL) <<"To use CUDA backends, you need to set WITH_CUDA ON!";
 #endif
-              } else if (target.arch == Target::Arch::X86) {
+              } else if (target == common::DefaultHostTarget()) {
                 memcpy(data, input_data[i].data(),
                        in_tensor->shape().numel() * dtype.bytes());  // All random data
               } else {
                 CINN_NOT_IMPLEMENTED
               }
             }
-            program->Execute();
+            program.runtime_program->Execute(nullptr, stream);
+
+#ifdef CINN_WITH_CUDA
+            if (target == common::DefaultNVGPUTarget()) {
+              cudaStreamSynchronize(static_cast<cudaStream_t>(stream));
+              cudaStreamDestroy(static_cast<cudaStream_t>(stream));
+            }
+#endif
 
             std::vector<hlir::framework::Tensor> outputs;
             for (size_t i = 0; i < tensor_outputs.size(); i++) {

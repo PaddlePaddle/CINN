@@ -149,9 +149,9 @@ void BindFramework(pybind11::module *m) {
              py::array::ShapeContainer shape(self->shape().data().begin(), self->shape().data().end());
              py::array array(std::move(dt), std::move(shape));
              void *array_data = array.mutable_data();
-             if (target.arch == Target::Arch::X86) {
+             if (target == common::DefaultHostTarget()) {
                std::memcpy(array_data, self->data<void>(), self->shape().numel() * self->type().bytes());
-             } else if (target.arch == Target::Arch::NVGPU) {
+             } else if (target == common::DefaultNVGPUTarget()) {
 #ifdef CINN_WITH_CUDA
                CUDA_CALL(cudaMemcpy(array_data,
                                     self->data<void>(),
@@ -173,9 +173,9 @@ void BindFramework(pybind11::module *m) {
         CHECK_EQ(std::accumulate(shape.begin(), shape.end(), 1, [](int32_t a, int32_t b) { return a * b; }),
                  self->shape().numel());
         auto *data = self->mutable_data(target, self->type());
-        if (target.arch == Target::Arch::X86) {
+        if (target == common::DefaultHostTarget()) {
           std::memcpy(data, array.data(), self->shape().numel() * self->type().bytes());
-        } else if (target.arch == Target::Arch::NVGPU) {
+        } else if (target == common::DefaultNVGPUTarget()) {
 #ifdef CINN_WITH_CUDA
           CUDA_CALL(cudaMemcpy(reinterpret_cast<void *>(data),
                                reinterpret_cast<const void *>(array.data()),

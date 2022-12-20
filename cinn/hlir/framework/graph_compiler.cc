@@ -703,7 +703,7 @@ void GraphCompiler::CompileOptions::Apply(const auto_schedule::TuningResult& tun
 }
 
 GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::CompileOptions& options,
-                                                      std::unordered_set<std::string>&& fetch_var_ids,
+                                                      const std::unordered_set<std::string>& fetch_var_ids,
                                                       void* stream) {
   if (FLAGS_cinn_parallel_compile_size) {
     if (options.with_instantiate_variables) {
