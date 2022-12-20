@@ -35,7 +35,26 @@ using common::GraphNode;
 
 using InputToNodeMap = std::unordered_map<std::string, std::unordered_set<Node*>>;
 
-bool is_same_subexpression(Node* op1, Node* op2) {
+std::unordered_set<std::string> unordered_ops = {
+    "elementwise_add",
+    "elementwise_mul",
+    "max",
+    "min",
+    "logical_and",
+    "logical_or",
+    "logical_xor",
+    "equal",
+    "not_equal",
+    "bitwise_or",
+    "bitwise_xor",
+    "bitwise_and",
+    "reduce_sum",
+    "reduce_prod",
+    "reduce_max",
+    "reduce_min",
+};
+
+bool IsSameSubexpression(Node* op1, Node* op2, const absl::flat_hash_map<std::string, framework::shape_t>& shape_dict) {
   auto op1_in_edges    = op1->inlinks_in_order(true);
   auto op2_in_edges    = op2->inlinks_in_order(true);
   auto op1_inputs_size = op1_in_edges.size();
@@ -48,13 +67,31 @@ bool is_same_subexpression(Node* op1, Node* op2) {
   if (op1_attrs_size != op2_attrs_size) {
     return false;
   }
-  for (int i = 0; i < op1_inputs_size; ++i) {
-    auto* op1_source_node = op1_in_edges[i]->source()->safe_as<NodeData>();
-    auto* op2_source_node = op2_in_edges[i]->source()->safe_as<NodeData>();
-    CHECK(op1_source_node);
-    CHECK(op2_source_node);
-    if (op1_source_node->id() != op2_source_node->id()) {
-      return false;
+  if (unordered_ops.count(op1->op()->name)) {
+    for (auto& op1_edge : op1_in_edges) {
+      auto* op1_source_node = op1_edge->source()->safe_as<NodeData>();
+      CHECK(op1_source_node);
+      bool op1_equal_op2 = std::any_of(op2_in_edges.begin(), op2_in_edges.end(), [&](common::Shared<GraphEdge>& edge) {
+        auto* op2_source_node = edge->source()->safe_as<NodeData>();
+        CHECK(op2_source_node);
+        if (op1_source_node->id() == op2_source_node->id()) {
+          return true;
+        }
+        return false;
+      });
+      if (!op1_equal_op2) {
+        return false;
+      }
+    }
+  } else {
+    for (int i = 0; i < op1_inputs_size; ++i) {
+      auto* op1_source_node = op1_in_edges[i]->source()->safe_as<NodeData>();
+      auto* op2_source_node = op2_in_edges[i]->source()->safe_as<NodeData>();
+      CHECK(op1_source_node);
+      CHECK(op2_source_node);
+      if (op1_source_node->id() != op2_source_node->id()) {
+        return false;
+      }
     }
   }
   return std::all_of(op1->attrs.attr_store.begin(), op1->attrs.attr_store.end(), [&](auto attr) {
@@ -65,7 +102,7 @@ bool is_same_subexpression(Node* op1, Node* op2) {
   });
 }
 
-void remove_node(framework::Graph* graph, Node* node) {
+void RemoveNode(framework::Graph* graph, Node* node) {
   auto in_edges = node->inlinks();
   for (auto& edge : in_edges) {
     auto* in_node = edge->source()->safe_as<NodeData>();
@@ -81,7 +118,7 @@ void remove_node(framework::Graph* graph, Node* node) {
   LOG(INFO) << "remove " << node->id() << " node.";
 }
 
-void replace_node(NodeData* src_new, NodeData* src_old, Node* trt) {
+void ReplaceNode(NodeData* src_new, NodeData* src_old, Node* trt) {
   std::vector<NodeData*> in_nodes;
   for (auto& in_edge : trt->inlinks_in_order(true)) {
     auto* in_node = in_edge->source()->safe_as<NodeData>();
@@ -97,9 +134,10 @@ void replace_node(NodeData* src_new, NodeData* src_old, Node* trt) {
   }
 }
 
-int remove_common_subexpression(Graph* graph, std::vector<GraphNode*>& store_nodes, InputToNodeMap in2node) {
+int CommonSubexpressionElimination(Graph* graph, std::vector<GraphNode*>& store_nodes, InputToNodeMap in2node) {
   std::unordered_map<std::string, std::vector<Node*>> expr_map;
-  int remove_num = 0;
+  auto& shape_dict = graph->GetAttrs<absl::flat_hash_map<std::string, framework::shape_t>>("infershape");
+  int remove_num   = 0;
   for (auto& graph_node : store_nodes) {
     auto node = graph_node->safe_as<Node>();
     if (node) {
@@ -107,7 +145,7 @@ int remove_common_subexpression(Graph* graph, std::vector<GraphNode*>& store_nod
       auto& candidates = expr_map[node_type];
       bool found       = false;
       for (auto* candidate_node : candidates) {
-        if (!is_same_subexpression(node, candidate_node)) continue;
+        if (!IsSameSubexpression(node, candidate_node, shape_dict)) continue;
         found = true;
         for (int k = 0; k < node->outlinks_in_order(true).size(); ++k) {
           CHECK(node->outlinks_in_order(true).size() == candidate_node->outlinks_in_order(true).size());
@@ -117,12 +155,12 @@ int remove_common_subexpression(Graph* graph, std::vector<GraphNode*>& store_nod
           CHECK(candidate_sink_node);
           auto out_nodes = in2node[sink_node->id()];
           for (auto out_node : out_nodes) {
-            replace_node(candidate_sink_node, sink_node, out_node);
+            ReplaceNode(candidate_sink_node, sink_node, out_node);
             out_nodes.erase(node);
             out_nodes.insert(candidate_node);
           }
         }
-        remove_node(graph, node);
+        RemoveNode(graph, node);
         remove_num++;
         break;
       }
@@ -150,10 +188,10 @@ void CommonSubexpressionEliminationPass(Graph* graph) {
     }
   }
 
-  int remove_num = remove_common_subexpression(graph, store_nodes, in2node);
+  int remove_num = CommonSubexpressionElimination(graph, store_nodes, in2node);
   while (remove_num) {
     store_nodes = std::get<0>(graph->topological_order());
-    remove_num  = remove_common_subexpression(graph, store_nodes, in2node);
+    remove_num  = CommonSubexpressionElimination(graph, store_nodes, in2node);
   }
   VLOG(3) << "CommonSubexpressionEliminationPass Finish...!";
 }

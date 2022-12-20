@@ -53,8 +53,11 @@ TEST(common_subexpression_elimination, common_subexpression_elimination_case1) {
 
   Program program;
   auto add_1 = program.add(A, B);
-  auto add_2 = program.add(A, B);
+  auto add_2 = program.add(B, A);
   auto add   = program.add(add_1, add_2);
+  auto max_1 = program.reduce_max(add, {-1}, false);
+  auto max_2 = program.reduce_max(add, {1}, false);
+  auto max   = program.reduce_max(add, {0}, true);
 
   Target target = common::DefaultTarget();
   program.SetInputs({A, B});
@@ -93,7 +96,7 @@ TEST(common_subexpression_elimination, common_subexpression_elimination_case2) {
   auto sub_1 = program.elementwise_sub(A, A);
   auto sub_2 = program.elementwise_sub(A, A);
   auto add_1 = program.add(B, sub_1);
-  auto add_2 = program.add(B, sub_2);
+  auto add_2 = program.add(sub_2, B);
   auto add   = program.add(add_1, add_2);
 
   Target target = common::DefaultTarget();

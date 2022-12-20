@@ -94,7 +94,6 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
     // error and exited.
     options.graph_passes.emplace_back("CheckFusionAccuracyPass");
   }
-
   return options;
 }
 
