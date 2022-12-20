@@ -390,12 +390,14 @@ class NetBuilder {
     using TYPE      = typename decltype(all_datas)::value_type;
     auto true_dtype = dtype.empty() ? common::Type2Str(common::type_of<TYPE>()) : dtype;
 
-    if (all_datas.size() == 1UL) {
+    const auto& real_shape = GetVectorShape(value);
+
+    if (real_shape == std::vector<int>{1}) {
       return Constant<TYPE>(all_datas[0], name, true_dtype);
     }
 
     auto assign_out = CustomInstr("assign_value", {}, {{"values", all_datas}, {"dtype", true_dtype}}).front();
-    auto out        = Reshape(assign_out, GetVectorShape(value));
+    auto out        = Reshape(assign_out, real_shape);
 
     // set the name correctly
     out.set_id(name);
