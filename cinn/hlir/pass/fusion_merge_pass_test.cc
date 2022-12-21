@@ -276,7 +276,7 @@ TEST(FusionMergePass, Broadcast_Test_3) {
   hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
   CHECK_EQ(graph->fusion_groups.size(), 3);
   hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-  CHECK_EQ(graph->fusion_groups.size(), 2);
+  CHECK_EQ(graph->fusion_groups.size(), 3);
 }
 
 TEST(FusionMergePass, Broadcast_Test_4) {
