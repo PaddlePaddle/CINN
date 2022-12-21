@@ -34,6 +34,7 @@ using common::GraphEdge;
 using common::GraphNode;
 
 using InputToNodeMap = std::unordered_map<std::string, std::unordered_set<Node*>>;
+using shape_dict_t   = absl::flat_hash_map<std::string, framework::shape_t>;
 
 std::unordered_set<std::string> unordered_ops = {
     "elementwise_add",
@@ -54,7 +55,7 @@ std::unordered_set<std::string> unordered_ops = {
     "reduce_min",
 };
 
-bool IsSameSubexpression(Node* op1, Node* op2, const absl::flat_hash_map<std::string, framework::shape_t>& shape_dict) {
+bool IsSameSubexpression(Node* op1, Node* op2, shape_dict_t& shape_dict) {
   auto op1_in_edges    = op1->inlinks_in_order(true);
   auto op2_in_edges    = op2->inlinks_in_order(true);
   auto op1_inputs_size = op1_in_edges.size();
@@ -94,12 +95,34 @@ bool IsSameSubexpression(Node* op1, Node* op2, const absl::flat_hash_map<std::st
       }
     }
   }
-  return std::all_of(op1->attrs.attr_store.begin(), op1->attrs.attr_store.end(), [&](auto attr) {
-    if (!op2->attrs.attr_store.count(attr.first) || op2->attrs.attr_store[attr.first] != attr.second) {
+  if (op1->op()->name == "reshape") {
+    auto* op1_sink_node = op1->outlinks_in_order(true)[0]->sink()->safe_as<NodeData>();
+    auto* op2_sink_node = op2->outlinks_in_order(true)[0]->sink()->safe_as<NodeData>();
+    return shape_dict[op1_sink_node->id()] == shape_dict[op2_sink_node->id()];
+  } else {
+    auto* op1_sink_node = op1->outlinks_in_order(true)[0]->sink()->safe_as<NodeData>();
+    auto* op2_sink_node = op2->outlinks_in_order(true)[0]->sink()->safe_as<NodeData>();
+    if (shape_dict[op1_sink_node->id()].size() != shape_dict[op2_sink_node->id()].size()) {
       return false;
     }
-    return true;
-  });
+    return std::all_of(op1->attrs.attr_store.begin(), op1->attrs.attr_store.end(), [&](auto attr) {
+      if (!op2->attrs.attr_store.count(attr.first) || op2->attrs.attr_store[attr.first] != attr.second) {
+        if (attr.first == "axis" || attr.first == "dim") {
+          auto op1_axis = absl::get<int>(attr.second);
+          auto op2_axis = absl::get<int>(op2->attrs.attr_store[attr.first]);
+          if (op1_axis < 0) {
+            op1_axis += shape_dict[op1_sink_node->id()].size();
+          }
+          if (op2_axis < 0) {
+            op2_axis += shape_dict[op1_sink_node->id()].size();
+          }
+          return op2_axis == op1_axis;
+        }
+        return false;
+      }
+      return true;
+    });
+  }
 }
 
 void RemoveNode(framework::Graph* graph, Node* node) {
@@ -136,8 +159,8 @@ void ReplaceNode(NodeData* src_new, NodeData* src_old, Node* trt) {
 
 int CommonSubexpressionElimination(Graph* graph, std::vector<GraphNode*>& store_nodes, InputToNodeMap in2node) {
   std::unordered_map<std::string, std::vector<Node*>> expr_map;
-  auto& shape_dict = graph->GetAttrs<absl::flat_hash_map<std::string, framework::shape_t>>("infershape");
-  int remove_num   = 0;
+  auto shape_dict = graph->GetAttrs<absl::flat_hash_map<std::string, framework::shape_t>>("infershape");
+  int remove_num  = 0;
   for (auto& graph_node : store_nodes) {
     auto node = graph_node->safe_as<Node>();
     if (node) {
