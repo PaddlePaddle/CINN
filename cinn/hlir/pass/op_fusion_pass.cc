@@ -223,7 +223,7 @@ class OpFusionPassHelper : public FusionHelperBase {
                return true;
              }
 
-             if (helper->IsConstOp(producer)) {
+             if (helper->IsConstOp(producer) && !helper->output_nodes_set_.count(producer)) {
                return true;
              }
 
