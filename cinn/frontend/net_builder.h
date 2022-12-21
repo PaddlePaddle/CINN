@@ -696,7 +696,10 @@ class NetBuilder {
    * An optional string from: "AnyLayout", "NHWC", "NCHW". Default: "AnyLayout".
    * @return Output of softmax. The data type and shape are the same as input .
    */
-  Variable Softmax(const Variable& x, int axis = -1, const std::string& data_format = "AnyLayout");
+  Variable Softmax(const Variable& x,
+                   const std::vector<int>& axes   = {-1},
+                   const std::string& mode        = "fast",
+                   const std::string& data_format = "AnyLayout");
 
   // *******************************************
   // Type converter Operator
