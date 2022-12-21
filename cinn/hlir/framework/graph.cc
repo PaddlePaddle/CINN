@@ -253,43 +253,8 @@ std::unordered_set<NodeData*> Graph::Group::GetInputNodeDatas() {
   return group_inputs;
 }
 
-std::unordered_set<NodeData*> Graph::Group::GetOutputNodeDatas(const std::vector<NodeData*>& graph_outputs) {
+std::unordered_set<NodeData*> Graph::Group::GetOutputNodeDatas() {
   std::unordered_set<NodeData*> group_outputs;
-
-  auto group_nodes = this->CollectNodes();
-  auto nodes       = std::unordered_set<Node*>(group_nodes.begin(), group_nodes.end());
-  // count all node's output data
-  for (auto node : group_nodes) {
-    for (auto& out_edge : node->outlinks_in_order()) {
-      auto output_data = out_edge->sink()->safe_as<NodeData>();
-      if (!output_data) {
-        continue;
-      }
-
-      if (std::find(graph_outputs.begin(), graph_outputs.end(), output_data) != graph_outputs.end()) {
-        // if the output data is the graph's output data, it's also the group's output
-        group_outputs.insert(output_data);
-        continue;
-      }
-
-      if (std::find(this->output_names.begin(), this->output_names.end(), output_data->id()) !=
-          this->output_names.end()) {
-        // if the output data in group's output_names
-        group_outputs.insert(output_data);
-        continue;
-      }
-
-      for (auto out_edge : output_data->outlinks()) {
-        auto out_node = out_edge->sink()->safe_as<Node>();
-
-        // check whether the output data's output op in group.output_nodes,
-        // if true, the output data is the group's output data
-        if (!nodes.count(out_node)) {
-          group_outputs.insert(output_data);
-        }
-      }
-    }
-  }
 
   for (auto node : this->output_nodes) {
     for (auto& link : node->outlinks_in_order(true)) {
