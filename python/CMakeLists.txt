@@ -22,9 +22,9 @@ message(STATUS "PYTHON_EXECUTABLE: ${PYTHON_EXECUTABLE}")
 # function defined in build.sh. So, we need to copy the directory ${CINN_PYTHON_DIR} first and
 # then core_api.so.
 ADD_CUSTOM_COMMAND(OUTPUT ${CINN_CORE_API} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CINN_PYTHON_DIR} ${CMAKE_BINARY_DIR}/python/cinn
-    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/cinn/pybind/core_api.so ${CINN_CORE_API}
-    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CINN_PYTHON_TEST_DIR} ${CMAKE_BINARY_DIR}/python/tests
+    COMMAND cp -rf --remove-destination ${CINN_PYTHON_DIR} ${CMAKE_BINARY_DIR}/python/cinn
+    COMMAND cp --remove-destination ${CMAKE_BINARY_DIR}/cinn/pybind/core_api.so ${CINN_CORE_API}
+    COMMAND cp -rf --remove-destination ${CINN_PYTHON_TEST_DIR} ${CMAKE_BINARY_DIR}/python/tests
     COMMAND cd ${CMAKE_CURRENT_BINARY_DIR} && ${PYTHON_EXECUTABLE} setup.py bdist_wheel
     DEPENDS core_api ${CINN_PY_FILES})
 
