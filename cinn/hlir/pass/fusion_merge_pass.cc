@@ -91,8 +91,6 @@ class FusionMergePassHelper : public FusionHelperBase {
       // do horizontal fusion.
       updated |= HorizontalFusion(producer, producer->consumer_groups);
     }
-    // fuse input consumers
-    updated |= FuseInputToConsumers();
 
     if (updated) {
       UpdateFusionGroup();
@@ -114,6 +112,9 @@ class FusionMergePassHelper : public FusionHelperBase {
       updated |= HorizontalFusion(producer, producer->consumer_groups);
       updated |= VerticalFusion(producer, producer->consumer_groups);
     }
+    // fuse input consumers
+    updated |= FuseInputToConsumers();
+
     if (updated) {
       UpdateFusionGroup();
     }
@@ -644,7 +645,8 @@ class FusionMergePassHelper : public FusionHelperBase {
     }
 
     // if fusionable consumers contains elementwise/horizontal, others to be removed.
-    if (producer->consumer_groups.size() > 1) {
+    // do recompute.
+    if (producer->consumer_groups.size() > fusionable_consumers.size()) {
       std::unordered_set<GroupPtr, Hasher, Comparator> candidates;
       for (auto& consumer : fusionable_consumers) {
         if (consumer->op_pattern_kind == framework::kElementWise) {
@@ -660,6 +662,10 @@ class FusionMergePassHelper : public FusionHelperBase {
       }
 
       fusionable_consumers = std::move(candidates);
+    } else {
+      if (producer->op_pattern_kind == framework::kElementWise && producer->CollectNodes().size() <= 32) {
+        return;
+      }
     }
 
     if (fusionable_consumers.size() > 1) {
