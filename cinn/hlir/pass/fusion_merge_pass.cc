@@ -662,16 +662,17 @@ class FusionMergePassHelper : public FusionHelperBase {
       }
 
       fusionable_consumers = std::move(candidates);
+      if (fusionable_consumers.size() > 1) {
+        auto first = *fusionable_consumers.begin();
+        fusionable_consumers.clear();
+        fusionable_consumers.insert(first);
+      }
     } else {
       if (producer->op_pattern_kind == framework::kElementWise && producer->CollectNodes().size() <= 32) {
         return;
+      } else {
+        fusionable_consumers.clear();
       }
-    }
-
-    if (fusionable_consumers.size() > 1) {
-      auto first = *fusionable_consumers.begin();
-      fusionable_consumers.clear();
-      fusionable_consumers.insert(first);
     }
   }
 
