@@ -134,6 +134,38 @@ void IRCudaScheduleInjective(ir::IRSchedule &ir_sch,
   VLOG(3) << "After IRCudaScheduleInjective, new ir is : " << ir_sch.GetModule().GetExprs().at(0);
 }
 
+std::vector<common::CINNValue> IRCudaScheduleMatMul(const common::CINNValuePack &arg_pack,
+                                                    const std::vector<int> &output_shape,
+                                                    const common::Target &target) {
+  if (target.arch == Target::Arch::X86) {
+    CINN_NOT_IMPLEMENTED
+  }
+  std::vector<Expr> vec_ast;
+  for (int i = 0; i < arg_pack.size(); i++) {
+    if (arg_pack[i].is_expr()) {
+      Expr temp = arg_pack[i];
+      vec_ast.emplace_back(temp);
+    }
+  }
+  CHECK(!vec_ast.empty());
+  ir::ModuleExpr mod_expr(vec_ast);
+  ir::IRSchedule ir_sch(mod_expr);
+  ir_sch.MergeExprs();
+  auto blocks = ir_sch.GetAllBlocks();
+
+  int prod_size = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>());
+  if (prod_size > 1) {
+    if (ir_sch.GetLoops(blocks[0]).size() == 1) {
+      ir_sch.Bind(ir_sch.GetLoops(blocks[0])[0], "threadIdx.x");
+    } else {
+      ir_sch.Bind(ir_sch.GetLoops(blocks[0])[0], "blockIdx.x");
+      ir_sch.Bind(ir_sch.GetLoops(blocks[0])[1], "threadIdx.x");
+    }
+  }
+
+  return {common::CINNValue(ir_sch.GetModule().GetExprs().at(0))};
+}
+
 void IRCudaScheduleMul(ir::IRSchedule &ir_sch, const std::vector<int> &output_shape, const common::Target &target) {
   auto all_blocks = ir_sch.GetAllBlocks();
   auto loops      = ir_sch.GetLoops(all_blocks.back());

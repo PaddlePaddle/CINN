@@ -77,20 +77,30 @@ TEST(AutoUnroll, UnrollableApply) {
 
   AutoUnroll test_rule(target);
   ir::IRSchedule ir_schedule(ir::ModuleExpr({ast_expr}));
+  SearchState state(ir_schedule, 0, {});
   ASSERT_EQ(test_rule.Init(&ir_schedule), RuleApplyType::kApplyAndSkipThisRule);
   EXPECT_EQ(test_rule.NumberApplicable(), 1);
   test_rule.ApplyRandomly();
 
-  Expr applied_expr            = ir_schedule.GetModule().GetExprs().front();
-  auto* applied_block_realize  = applied_expr.As<ir::Block>()->stmts.front().As<ir::ScheduleBlockRealize>();
-  auto* applied_schedule_block = applied_block_realize->schedule_block.As<ir::ScheduleBlock>();
-  ASSERT_FALSE(applied_schedule_block->attrs.empty());
-  EXPECT_EQ(applied_schedule_block->attrs.count(ir::attr::auto_unroll_max_step), 1);
-  const auto& attr_value = applied_schedule_block->attrs.at(ir::attr::auto_unroll_max_step);
-  const int* max_step    = absl::get_if<int>(&attr_value);
-  EXPECT_NE(max_step, nullptr);
-  EXPECT_LE(*max_step, 128);
-  VLOG(6) << "After auto-unroll:max_step=" << *max_step << ", Ast:\n" << ir_schedule.GetModule().GetExprs().front();
+  // ApplyOnBlock
+  EXPECT_EQ(test_rule.AnalyseApplyType(state, "C"), RuleApplyType::kApplyAndSkipThisRule);
+  std::vector<cinn::auto_schedule::SearchState> states = test_rule.ApplyOnBlock(state, "C");
+
+  auto test_func = [](IRSchedule* ir_sch) {
+    Expr applied_expr            = ir_sch->GetModule().GetExprs().front();
+    auto* applied_block_realize  = applied_expr.As<ir::Block>()->stmts.front().As<ir::ScheduleBlockRealize>();
+    auto* applied_schedule_block = applied_block_realize->schedule_block.As<ir::ScheduleBlock>();
+    ASSERT_FALSE(applied_schedule_block->attrs.empty());
+    EXPECT_EQ(applied_schedule_block->attrs.count(ir::attr::auto_unroll_max_step), 1);
+    const auto& attr_value = applied_schedule_block->attrs.at(ir::attr::auto_unroll_max_step);
+    const int* max_step    = absl::get_if<int>(&attr_value);
+    EXPECT_NE(max_step, nullptr);
+    EXPECT_LE(*max_step, 128);
+    VLOG(6) << "After auto-unroll:max_step=" << *max_step << ", Ast:\n" << ir_sch->GetModule().GetExprs().front();
+  };
+
+  test_func(&ir_schedule);
+  test_func(&states[0]->ir_schedule);
 }
 
 }  // namespace auto_schedule

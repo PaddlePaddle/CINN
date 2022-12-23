@@ -103,11 +103,8 @@ function prepare_ci {
     apt install -y python${py_version}-venv
     python${py_version} -m venv $build_dir/ci-env
   fi
-  proxy_off
   source $build_dir/ci-env/bin/activate
-  pip install -U pip --trusted-host mirrors.aliyun.com --index-url https://mirrors.aliyun.com/pypi/simple/
-  pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/
-  pip config set global.trusted-host mirrors.aliyun.com
+  pip install -U pip
   pip install pre-commit
   pip install clang-format==9.0
   pip install wheel

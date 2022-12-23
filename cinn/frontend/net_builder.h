@@ -451,7 +451,8 @@ class NetBuilder {
    * `x_num_col_dims` for more details. Default is 1.
    * @return The result variable.
    */
-  Variable Mul(const Variable& x, const Variable& y, int x_num_col_dims = 1, int y_num_col_dims = 1);
+  Variable Mul(
+      const Variable& x, const Variable& y, int x_num_col_dims = 1, int y_num_col_dims = 1, bool is_infer = false);
 
   /**
    * @brief Applies matrix multiplication to two variable. Matmul follows the complete broadcast rules, and its behavior

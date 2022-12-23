@@ -427,8 +427,7 @@ Expr MakeCacheBlock(const std::vector<IterRange>& buffer_ranges,
     optim::ReplaceVarWithExpr(&body, axis_vars[i], block_vars[i]);
   }
   Expr block = ir::ScheduleBlockRealize::Make(
-      iter_values,
-      ir::ScheduleBlock::Make(block_vars, {}, {}, common::UniqName(new_tensor->name), Block::Make({body})));
+      iter_values, ir::ScheduleBlock::Make(block_vars, {}, {}, new_tensor->name, Block::Make({body})));
   Expr new_body = block;
   for (int i = (int)loop_vars.size() - 1; i >= 0; i--) {
     new_body = For::Make(loop_vars[i],

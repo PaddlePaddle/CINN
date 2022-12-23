@@ -21,8 +21,11 @@
 namespace cinn {
 namespace ir {
 
-struct IrEqualVisitor : public IRVisitorBase<bool, const Expr*> {
+// Determine whether two ir AST trees are euqal by comparing their struct and fields of each node through dfs visitor
+class IrEqualVisitor : public IRVisitorBase<bool, const Expr*> {
+ public:
   explicit IrEqualVisitor(bool allow_name_suffix_diff = false) : allow_name_suffix_diff_(allow_name_suffix_diff) {}
+  // Return true if they are euqal, otherwise false;
   bool Compare(const Expr& lhs, const Expr& rhs);
 
  private:

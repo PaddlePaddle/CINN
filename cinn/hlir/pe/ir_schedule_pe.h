@@ -44,6 +44,10 @@ void IRCudaScheduleInjective(ir::IRSchedule &ir_sch,
                              const std::vector<int> &output_shape,
                              const common::Target &target);
 
+std::vector<common::CINNValue> IRCudaScheduleMatMul(const common::CINNValuePack &arg_pack,
+                                                    const std::vector<int> &output_shape,
+                                                    const common::Target &target);
+
 void IRCudaScheduleMul(ir::IRSchedule &ir_sch, const std::vector<int> &output_shape, const common::Target &target);
 
 void IRMulScheduleCPU(ir::IRSchedule &ir_sch, const std::vector<int> &reduce_first_shape, const common::Target &target);

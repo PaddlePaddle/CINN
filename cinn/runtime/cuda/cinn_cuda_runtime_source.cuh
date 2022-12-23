@@ -39,9 +39,6 @@ __device__ inline bool FN_FP32(isfinite)(float x) { return isfinite(x); }
 __device__ inline bool FN_FP32(isinf)(float x) { return isinf(x); }
 __device__ inline bool FN_FP32(isnan)(float x) { return isnan(x); }
 
-__device__ inline float FN_FP32(max)(float a, float b) { return max(a, b); }
-__device__ inline float FN_FP32(min)(float a, float b) { return min(a, b); }
-
 __device__ inline float FN_FP32(pow)(float a, float b) { return powf(a, b); }
 
 __device__ inline float FN_FP32(remainder)(float a, float b) { return remainderf(a, b); }
@@ -127,9 +124,6 @@ __device__ inline float16 FN_FP16(atanh)(float16 x) { return float16(FN_FP32(ata
 
 __device__ inline float16 FN_FP16(sigmoid)(float16 x) { return float16(FN_FP32(sigmoid)(static_cast<float>(x))); }
 
-__device__ inline float16 FN_FP16(max)(float16 a, float16 b) { return a > b ? a : b; }
-__device__ inline float16 FN_FP16(min)(float16 a, float16 b) { return a < b ? a : b; }
-
 __device__ inline float16 FN_FP16(remainder)(float16 a, float16 b) {
   return float16(FN_FP32(remainder)(static_cast<float>(a), static_cast<float>(b)));
 }
@@ -149,8 +143,8 @@ __device__ inline float16 FN_FP16(pow)(float16 a, float16 b) {
 
 __device__ inline float cinn_sum_fp32(const float left, const float right) { return left + right; }
 __device__ inline float cinn_prod_fp32(const float left, const float right) { return left * right; }
-__device__ inline float cinn_max_fp32(const float left, const float right) { return FN_FP32(max)(left, right); }
-__device__ inline float cinn_min_fp32(const float left, const float right) { return FN_FP32(min)(left, right); }
+__device__ inline float cinn_max_fp32(const float left, const float right) { return max(left, right); }
+__device__ inline float cinn_min_fp32(const float left, const float right) { return min(left, right); }
 
 #ifdef CINN_CUDA_FP16
 
@@ -162,8 +156,8 @@ __device__ inline float cinn_min_fp32(const float left, const float right) { ret
 
 __device__ inline float16 cinn_sum_fp16(const float16 left, const float16 right) { return left + right; }
 __device__ inline float16 cinn_prod_fp16(const float16 left, const float16 right) { return left * right; }
-__device__ inline float16 cinn_max_fp16(const float16 left, const float16 right) { return FN_FP16(max)(left, right); }
-__device__ inline float16 cinn_min_fp16(const float16 left, const float16 right) { return FN_FP16(min)(left, right); }
+__device__ inline float16 cinn_max_fp16(const float16 left, const float16 right) { return max(left, right); }
+__device__ inline float16 cinn_min_fp16(const float16 left, const float16 right) { return min(left, right); }
 #endif
 
 #define EXPAND_REDUCE_BOOL_MACRO(MACRO, ...) \

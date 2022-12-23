@@ -566,44 +566,42 @@ class FusionMergePassHelper : public FusionHelperBase {
       CHECK(fused_group->output_nodes.size()) << "No output node is found, " << fused_group->group_id;
     }
 
-    if (producer->consumer_groups.size() > fusionable_consumers.size()) {
-      for (auto& node : producer->output_nodes) {
-        bool be_output = true;
-        for (auto& consumer : producer->consumer_groups) {
-          // if consumer is in fusionable.
-          if (fusionable_consumers.count(consumer)) {
-            if (consumer->input_nodes.count(node)) {
-              be_output = false;
-            }
-            continue;
-          }
-          // if consumer is not in fusionable.
-          if (consumer->input_nodes.count(node)) {
-            be_output = true;
-            break;
-          }
-          // others node is as graph output.
-        }
-
-        if (output_nodes_set_.count(node)) {
-          be_output = true;
-        }
-
-        if (be_output) {
-          VLOG(4) << "Insert Id " << node->id() << " Into Group " << master_fuesd_group->group_id;
-          master_fuesd_group->output_nodes.insert(node);
-        }
-      }
-      // insert unfusionable consumer groups
+    for (auto& node : producer->output_nodes) {
+      bool be_output = true;
       for (auto& consumer : producer->consumer_groups) {
+        // if consumer is in fusionable.
         if (fusionable_consumers.count(consumer)) {
+          if (consumer->input_nodes.count(node)) {
+            be_output = false;
+          }
           continue;
         }
-        master_fuesd_group->consumer_groups.insert(consumer);
-        // update consumer's producer
-        consumer->producer_groups.erase(producer);
-        consumer->producer_groups.insert(master_fuesd_group);
+        // if consumer is not in fusionable.
+        if (consumer->input_nodes.count(node)) {
+          be_output = true;
+          break;
+        }
+        // others node is as graph output.
       }
+
+      if (output_nodes_set_.count(node)) {
+        be_output = true;
+      }
+
+      if (be_output) {
+        VLOG(4) << "Insert Id " << node->id() << " Into Group " << master_fuesd_group->group_id;
+        master_fuesd_group->output_nodes.insert(node);
+      }
+    }
+    // insert unfusionable consumer groups
+    for (auto& consumer : producer->consumer_groups) {
+      if (fusionable_consumers.count(consumer)) {
+        continue;
+      }
+      master_fuesd_group->consumer_groups.insert(consumer);
+      // update consumer's producer
+      consumer->producer_groups.erase(producer);
+      consumer->producer_groups.insert(master_fuesd_group);
     }
   }
 
@@ -838,19 +836,19 @@ class FusionMergePassHelper : public FusionHelperBase {
     {
       auto& relation = fusion_relation_map_[OpPatternKind::kElementWise];
       // horizontal
-      relation.horizontal_relation = {{framework::kElementWise, is_same_shape},
+      relation.horizontal_relation = {{framework::kElementWise, is_same_size},
                                       // element-wise and broadcast op must be horizontal relation.
-                                      {OpPatternKind::kBroadcast, is_same_shape},
+                                      {OpPatternKind::kBroadcast, is_same_size},
                                       // element-wise and injective op must be horizontal relation.
-                                      {OpPatternKind::kInjective, is_same_shape},
+                                      {OpPatternKind::kInjective, is_same_size},
                                       // element-wise and reduce op must be horizontal relation.
-                                      {OpPatternKind::kReduction, is_same_shape}};
+                                      {OpPatternKind::kReduction, is_same_size}};
       // vertical
-      relation.vertical_relation = {{OpPatternKind::kElementWise, is_same_shape},
+      relation.vertical_relation = {{OpPatternKind::kElementWise, is_same_size},
                                     // element-wise and broadcast can be vertical/horizontal relation.
                                     {OpPatternKind::kBroadcast, elementwise_fuse_broadcast},
                                     // element-wise and injective op must be horizontal relation.
-                                    {OpPatternKind::kInjective, is_same_shape},
+                                    {OpPatternKind::kInjective, is_horizontal_with_consumer},
                                     // element-wise and reduce can be vertical/horizontal relation.
                                     {OpPatternKind::kReduction, elementwise_fuse_reduce}};
     }
@@ -859,20 +857,20 @@ class FusionMergePassHelper : public FusionHelperBase {
       auto& relation = fusion_relation_map_[OpPatternKind::kBroadcast];
       // horizontal
       relation.horizontal_relation = {// broadcast and element-wise op must be horizontal relation.
-                                      {framework::kElementWise, is_same_shape},
+                                      {framework::kElementWise, is_same_size},
                                       // broadcast and broadcast op must be horizontal relation.
-                                      {framework::kBroadcast, is_same_shape},
+                                      {framework::kBroadcast, is_same_size},
                                       // broadcast and injective op must be horizontal relation.
-                                      {OpPatternKind::kInjective, is_same_shape},
+                                      {OpPatternKind::kInjective, is_same_size},
                                       // broadcast and reduce op must be horizontal relation.
-                                      {OpPatternKind::kReduction, is_same_shape}};
+                                      {OpPatternKind::kReduction, is_same_size}};
       // vertical
       relation.vertical_relation = {// broadcast and element-wise op must be vertical relation.
-                                    {OpPatternKind::kElementWise, is_same_shape},
+                                    {OpPatternKind::kElementWise, is_same_size},
                                     // broadcast and broadcast op must be horizontal relation.
-                                    {OpPatternKind::kBroadcast, is_same_shape},
+                                    {OpPatternKind::kBroadcast, is_same_size},
                                     // broadcast and injective op must be horizontal relation.
-                                    {OpPatternKind::kInjective, is_same_shape},
+                                    {OpPatternKind::kInjective, is_horizontal_with_consumer},
                                     // broadcast and reduce must be vertical relation.
                                     {OpPatternKind::kReduction, broadcast_fuse_reduce}};
     }
@@ -881,20 +879,20 @@ class FusionMergePassHelper : public FusionHelperBase {
       auto& relation = fusion_relation_map_[OpPatternKind::kInjective];
       // horizontal
       relation.horizontal_relation = {// injective and element-wise op must be horizontal relation.
-                                      {OpPatternKind::kElementWise, is_same_shape},
+                                      {OpPatternKind::kElementWise, is_same_size},
                                       // injective and broadcast op must be horizontal relation.
-                                      {OpPatternKind::kBroadcast, is_same_shape},
+                                      {OpPatternKind::kBroadcast, is_same_size},
                                       // injective and injective op must be horizontal relation.
-                                      {OpPatternKind::kInjective, is_same_shape},
+                                      {OpPatternKind::kInjective, is_same_size},
                                       // injective and reduce must be horizontal relation.
-                                      {OpPatternKind::kReduction, is_same_shape}};
+                                      {OpPatternKind::kReduction, is_same_size}};
       // vertical
       relation.vertical_relation = {// injective and element-wise op must be horizontal relation.
-                                    {OpPatternKind::kElementWise, is_same_shape},
+                                    {OpPatternKind::kElementWise, is_same_size},
                                     // injective and broadcast op must be horizontal relation.
-                                    {OpPatternKind::kBroadcast, is_same_shape},
+                                    {OpPatternKind::kBroadcast, is_same_size},
                                     // injective and injective op must be horizontal relation.
-                                    {OpPatternKind::kInjective, is_same_shape},
+                                    {OpPatternKind::kInjective, is_horizontal_with_consumer},
                                     // injective and reduce can be horizontal/vertical relation.
                                     {OpPatternKind::kReduction, elementwise_fuse_reduce}};
     }
@@ -903,20 +901,20 @@ class FusionMergePassHelper : public FusionHelperBase {
       auto& relation = fusion_relation_map_[OpPatternKind::kReduction];
       // horizontal
       relation.horizontal_relation = {// reduce and element-wise op must be horizontal relation.
-                                      {OpPatternKind::kElementWise, is_same_shape},
+                                      {OpPatternKind::kElementWise, is_same_size},
                                       // reduce and broadcast op must be horizontal relation.
-                                      {OpPatternKind::kBroadcast, is_same_shape},
+                                      {OpPatternKind::kBroadcast, is_same_size},
                                       // reduce and injective op must be horizontal relation.
-                                      {OpPatternKind::kInjective, is_same_shape},
+                                      {OpPatternKind::kInjective, is_same_size},
                                       // reduce and reduce must be horizontal relation.
                                       {OpPatternKind::kReduction, reduce_fuse_reduce}};
       // vertical
       relation.vertical_relation = {// reduce and elementwise can be horizontal/vertical relation.
                                     {OpPatternKind::kElementWise, reduce_fuse_elementwise},
                                     // reduce and broadcast op must be horizontal relation.
-                                    {OpPatternKind::kBroadcast, is_same_shape},
+                                    {OpPatternKind::kBroadcast, is_same_size},
                                     // reduce and injective op must be horizontal relation.
-                                    {OpPatternKind::kInjective, is_same_shape},
+                                    {OpPatternKind::kInjective, is_horizontal_with_consumer},
                                     // reduce and reduce must be horizontal relation.
                                     {OpPatternKind::kReduction, reduce_fuse_reduce}};
     }
@@ -935,7 +933,6 @@ class FusionMergePassHelper : public FusionHelperBase {
 
 void FusionMergePassInternal(Graph* graph) {
   VLOG(3) << "Before FusionMergePass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
-  ;
   if (graph->fusion_groups.size() <= 1) {
     VLOG(3) << "Don't do Fusoin Merge Pass...!";
     return;

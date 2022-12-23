@@ -58,9 +58,6 @@ RuleApplyType AddCacheWrite::Init(ir::IRSchedule* ir_schedule) {
   }
   VLOG(6) << "Collect applicable_schedule_blocks_:" << num_applicable_;
 
-  // Select a cache memory type
-  cache_memory_type_ = kMemoryTypes.at(target_->arch);
-
   if (num_applicable_ > 0) {
     if (*target_ == common::DefaultNVGPUTarget()) return RuleApplyType::kApplyAndSkipAllRules;
     if (*target_ == common::DefaultHostTarget()) return RuleApplyType::kApplyAndSkipThisRule;
@@ -69,14 +66,15 @@ RuleApplyType AddCacheWrite::Init(ir::IRSchedule* ir_schedule) {
   return RuleApplyType::kCannotApply;
 }
 
-ir::Expr AddCacheWrite::GetFirstSpatialLoopOutofOutermostReduce(const ir::Expr& block) const {
-  std::vector<ir::Expr> for_exprs = ir_schedule_->GetLoops(block);
+ir::Expr AddCacheWrite::GetFirstSpatialLoopOutofOutermostReduce(ir::IRSchedule* ir_schedule,
+                                                                const ir::Expr& block) const {
+  VLOG(6) << block;
+  std::vector<ir::Expr> for_exprs = ir_schedule->GetLoops(block);
   ir::Expr spatial_loop(nullptr);
   for (auto& for_expr : for_exprs) {
     ir::Var for_node_var          = for_expr.As<ir::For>()->loop_var;
     std::string for_loop_var_name = for_node_var->name;
     if (for_loop_var_name.substr(0, 6) == "reduce") {
-      VLOG(6) << "get target loop: " << for_expr;
       return spatial_loop;
     }
     spatial_loop = for_expr;
@@ -90,13 +88,7 @@ void AddCacheWrite::Apply(int index) {
   ir::Expr sch_block_expr = applicable_schedule_blocks_[index];
 
   // Schedule
-  ir::Expr cache_block = ir_schedule_->CacheWrite(sch_block_expr, 0, cache_memory_type_);
-  VLOG(6) << "cache block: " << cache_block;
-  ir::Expr target_loop = GetFirstSpatialLoopOutofOutermostReduce(cache_block);
-  VLOG(6) << "target_loop: " << target_loop;
-  const std::string block_name =
-      sch_block_expr.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->name;
-  ir_schedule_->ReverseComputeAt(ir_schedule_->GetBlock(block_name), target_loop);
+  Apply(ir_schedule_, sch_block_expr);
 }
 
 bool AddCacheWrite::MeetCondition(const ir::Expr& block_expr) const {
@@ -104,6 +96,35 @@ bool AddCacheWrite::MeetCondition(const ir::Expr& block_expr) const {
   const ir::ScheduleBlock* sch_block                = sch_block_realize->schedule_block.As<ir::ScheduleBlock>();
 
   return NeedsMultiLevelTiling(*sch_block_realize);
+}
+
+RuleApplyType AddCacheWrite::AnalyseApplyType(SearchState state, const std::string& block_name) const {
+  Expr block_expr     = state->ir_schedule.GetBlock(block_name);
+  auto* block_realize = block_expr.As<ir::ScheduleBlockRealize>();
+  CHECK(block_realize) << "stmt is not a ScheduleBlockRealize:" << block_expr;
+  // Prepare the read/write buffer information of the block,
+  // which will be used to analyze which buffers can be cached.
+  AnalyzeScheduleBlockReadWriteBuffer(block_realize->schedule_block.As<ir::ScheduleBlock>());
+  return MeetCondition(block_realize) ? RuleApplyType::kApplyAndSkipAllRules : RuleApplyType::kCannotApply;
+}
+
+std::vector<SearchState> AddCacheWrite::ApplyOnBlock(SearchState state, const std::string& block_name) {
+  SearchState new_state   = state.Copy();
+  ir::IRSchedule* ir_sch  = &new_state->ir_schedule;
+  ir::Expr sch_block_expr = ir_sch->GetBlock(block_name);
+  Apply(ir_sch, sch_block_expr);
+
+  return {new_state};
+}
+
+void AddCacheWrite::Apply(ir::IRSchedule* ir_schedule, ir::Expr& block_expr) {
+  ir::Expr cache_block = ir_schedule->CacheWrite(block_expr, 0, cache_memory_type_);
+  VLOG(6) << "cache block: " << cache_block;
+  ir::Expr target_loop = GetFirstSpatialLoopOutofOutermostReduce(ir_schedule, cache_block);
+  VLOG(6) << "target_loop: " << target_loop;
+  const std::string block_name =
+      block_expr.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->name;
+  ir_schedule->ReverseComputeAt(ir_schedule->GetBlock(block_name), target_loop);
 }
 
 const std::unordered_map<common::Target::Arch, std::string> AddCacheWrite::kMemoryTypes{

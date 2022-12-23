@@ -87,11 +87,39 @@ void MultiLevelTiling::Apply(int index) {
       << "Invalid index for MultiLevelTiling::Apply, the index needs 0 <= index && index < NumberApplicable(), "
       << "Currently index = " << index << ",  NumberApplicable() = " << num_applicable_;
 
-  int apply_index                              = applicable_indices_[index];
-  ir::ScheduleBlockRealize* sche_block_realize = all_block_realizes_[apply_index].As<ir::ScheduleBlockRealize>();
+  int apply_index = applicable_indices_[index];
+  Apply(ir_schedule_, all_block_realizes_[apply_index]);
+
+  VLOG(4) << "Returning the result of MultiLevelTiling";
+  return;
+}
+
+std::string MultiLevelTiling::GetRuleName() const { return "MultiLevelTiling"; }
+
+RuleApplyType MultiLevelTiling::AnalyseApplyType(SearchState state, const std::string& block_name) const {
+  Expr block_expr     = state->ir_schedule.GetBlock(block_name);
+  auto* block_realize = block_expr.As<ir::ScheduleBlockRealize>();
+  CHECK(block_realize) << "stmt is not a ScheduleBlockRealize:" << block_expr;
+  AnalyzeScheduleBlockReadWriteBuffer(block_realize->schedule_block.As<ir::ScheduleBlock>());
+
+  return NeedsMultiLevelTiling(*block_realize) ? RuleApplyType::kApplyAndSkipThisRule : RuleApplyType::kCannotApply;
+}
+
+std::vector<SearchState> MultiLevelTiling::ApplyOnBlock(SearchState state, const std::string& block_name) {
+  SearchState new_state  = state.Copy();
+  ir::IRSchedule* ir_sch = &new_state->ir_schedule;
+  Expr block_expr        = ir_sch->GetBlock(block_name);
+  Apply(ir_sch, block_expr);
+
+  VLOG(4) << "Returning the result of MultiLevelTiling";
+  return {new_state};
+}
+
+void MultiLevelTiling::Apply(ir::IRSchedule* ir_schedule, ir::Expr& block_expr) {
+  ir::ScheduleBlockRealize* sche_block_realize = block_expr.As<ir::ScheduleBlockRealize>();
   ir::ScheduleBlock* sche_block                = sche_block_realize->schedule_block.As<ir::ScheduleBlock>();
 
-  std::vector<Expr> for_exprs = ir_schedule_->GetLoops(Expr(sche_block_realize));
+  std::vector<Expr> for_exprs = ir_schedule->GetLoops(Expr(sche_block_realize));
   std::vector<std::vector<Expr>> tiles(s_indices_.size() + r_indices_.size());
 
   VLOG(5) << "The number of loops to split in MultiLevelTiling is " << for_exprs.size();
@@ -110,7 +138,7 @@ void MultiLevelTiling::Apply(int index) {
     int num_split                      = idx->size();
     std::vector<int> tile_split_factor = SampleTileSplit<int>(extent, num_split);
 
-    std::vector<Expr> splited = ir_schedule_->Split(Expr(ir_for), tile_split_factor);
+    std::vector<Expr> splited = ir_schedule->Split(Expr(ir_for), tile_split_factor);
     VLOG(6) << "Finish Split for MultiLevelTiling on above loop";
     for (int j = 0; j < num_split; ++j) {
       tiles[idx->at(j)].push_back(splited[j]);
@@ -119,7 +147,7 @@ void MultiLevelTiling::Apply(int index) {
   VLOG(5) << "Finish Split in MultiLevelTiling, before Reorder.";
 
   // Have to GetLoops again because Split can change Block Expr(s)
-  for_exprs = ir_schedule_->GetLoops(sche_block->name);
+  for_exprs = ir_schedule->GetLoops(sche_block->name);
   std::unordered_map<std::string, int> loop_var_name_to_idx;
   for (int i = 0; i < for_exprs.size(); ++i) {
     loop_var_name_to_idx[for_exprs[i].As<ir::For>()->loop_var->name] = i;
@@ -137,13 +165,13 @@ void MultiLevelTiling::Apply(int index) {
     }
   }
 
-  Expr reordered_expr = ir_schedule_->Reorder(splited_loops);
+  Expr reordered_expr = ir_schedule->Reorder(splited_loops);
   VLOG(5) << "Finish Reorder in MultiLevelTiling, now do Fuse and Binding on the main loop chain";
 
   int num_binds = std::min(bind_axis_.size(), tiles.size());
   for (int i = 0; i < num_binds; ++i) {
     loop_var_name_to_idx.clear();
-    for_exprs = ir_schedule_->GetLoops(sche_block->name);
+    for_exprs = ir_schedule->GetLoops(sche_block->name);
     for (int j = 0; j < for_exprs.size(); ++j) {
       loop_var_name_to_idx[for_exprs[j].As<ir::For>()->loop_var->name] = j;
     }
@@ -171,23 +199,23 @@ void MultiLevelTiling::Apply(int index) {
     }
 
     if (extent_prod <= max_factor_) {
-      Expr fused = ir_schedule_->Fuse(tiles[i]);
-      ir_schedule_->Bind(fused, bind_axis_[i]);
+      Expr fused = ir_schedule->Fuse(tiles[i]);
+      ir_schedule->Bind(fused, bind_axis_[i]);
     } else if (first_idx_less_than_max_factor != -1) {
-      ir_schedule_->Bind(for_exprs[first_idx_less_than_max_factor], bind_axis_[i]);
+      ir_schedule->Bind(for_exprs[first_idx_less_than_max_factor], bind_axis_[i]);
     }
   }
 
   VLOG(5) << "Do Fuse and Binding on the non-main loop chains";
-  Expr sche_block_top_loop = ir_schedule_->GetLoops(sche_block->name)[0];
+  Expr sche_block_top_loop = ir_schedule->GetLoops(sche_block->name)[0];
 
   if (reordered_expr.As<ir::Block>()) {
     for (Expr& top_loop : reordered_expr.As<ir::Block>()->stmts) {
       if (top_loop != sche_block_top_loop) {
-        std::vector<Expr> scan_loop_blocks = ir_schedule_->GetAllBlocks();
+        std::vector<Expr> scan_loop_blocks = ir_schedule->GetAllBlocks();
         Expr other_loop_chain_schedule;
         for (Expr& block : scan_loop_blocks) {
-          std::vector<Expr> loop_chain = ir_schedule_->GetLoops(block);
+          std::vector<Expr> loop_chain = ir_schedule->GetLoops(block);
           if (loop_chain[0] == top_loop) {
             other_loop_chain_schedule = block;
             break;
@@ -203,7 +231,7 @@ void MultiLevelTiling::Apply(int index) {
         VLOG(6) << "Found other_loop_schedule_name = " << other_loop_schedule_name;
         int fuse_index = 0;
         for (int i = 0; i < num_binds; ++i) {
-          for_exprs = ir_schedule_->GetLoops(other_loop_schedule_name);
+          for_exprs = ir_schedule->GetLoops(other_loop_schedule_name);
 
           // Some loops extent may exceed the limited max factor (For example,
           // exceed the limit number of CUDA threads), here we check whether
@@ -224,23 +252,18 @@ void MultiLevelTiling::Apply(int index) {
           if (extent_prod <= max_factor_) {
             std::vector<Expr> loops_to_fuse(for_exprs.begin() + fuse_index,
                                             for_exprs.begin() + fuse_index + tiles[i].size());
-            Expr fused = ir_schedule_->Fuse(loops_to_fuse);
-            ir_schedule_->Bind(fused, bind_axis_[i]);
+            Expr fused = ir_schedule->Fuse(loops_to_fuse);
+            ir_schedule->Bind(fused, bind_axis_[i]);
             fuse_index += 1;
           } else if (first_idx_less_than_max_factor != -1) {
-            ir_schedule_->Bind(for_exprs[first_idx_less_than_max_factor], bind_axis_[i]);
+            ir_schedule->Bind(for_exprs[first_idx_less_than_max_factor], bind_axis_[i]);
             fuse_index += tiles[i].size();
           }
         }
       }
     }
   }
-
-  VLOG(4) << "Returning the result of MultiLevelTiling";
-  return;
 }
-
-std::string MultiLevelTiling::GetRuleName() const { return "MultiLevelTiling"; }
 
 }  // namespace auto_schedule
 }  // namespace cinn
