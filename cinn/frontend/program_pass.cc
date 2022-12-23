@@ -28,13 +28,13 @@ void ProgramPass::Apply(Program* prog,
     const auto* pass = ProgramPassRegistry::Global()->Get(name);
     fpass.push_back(pass);
   }
-  int i = 0;
   for (const auto* pass : fpass) {
     int before = prog->size();
-    VLOG(3) << "Before ApplyPass: " << pass->name();
+    VLOG(1) << "Before ApplyPass: " << pass->name();
     pass->ApplyImpl(prog, fetch_ids, target);
+    const_cast<ProgramPass*>(pass)->Clear();
     int after = prog->size();
-    VLOG(1) << "Apply " << passes[i++] << " pass, program size: " << before << " -> " << after
+    VLOG(1) << "Apply " << pass->name() << " pass, program size: " << before << " -> " << after
             << ", diff: " << after - before;
   }
 }

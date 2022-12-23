@@ -144,7 +144,7 @@ class IRSchedule {
   Expr Fuse(const Expr& block, const std::vector<int>& loops_index);
 
   /**
-   * \brief Move a block's location under a loop.
+   * \brief Move a producer block's location under a specific loop.
    * @param block The block we want to move its computation location.
    * @param loop The loop we will move the block to.
    */
@@ -156,6 +156,13 @@ class IRSchedule {
    * @param loop The loop we will move the block to.
    */
   void SimpleComputeAt(const Expr& block, const Expr& loop);
+
+  /**
+   * \brief Move a consumer block's location under a specific loop.
+   * @param block The block we want to move its computation location.
+   * @param loop The loop we will move the block to.
+   */
+  void ReverseComputeAt(const Expr& block, const Expr& loop);
 
   /**
    * \brief Find an expr's root ScheduleBlockRealize node

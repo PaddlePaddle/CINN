@@ -464,7 +464,7 @@ TEST(TransposeFoldingOutput, BatchedComplex) {
   auto passes = std::make_pair(
       std::vector<std::string>{"Decomposer", "RemoveIdentity"},
       std::vector<std::string>{"TransposeFoldingInput", "GemmRewriter", "TransposeFoldingOutput", "GemmRewriter"});
-  CompareResult(&program, target, input_ids, {out->id}, 4, passes, 123, false);
+  CompareResult(&program, target, input_ids, {out->id}, 5, passes, 123, false);
 }
 
 TEST(TransposeFoldingOutput, Complex) {

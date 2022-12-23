@@ -19,6 +19,7 @@
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
+#include "cinn/hlir/op/op_util.h"
 #include "cinn/hlir/pe/broadcast.h"
 #include "cinn/hlir/pe/elementwise.h"
 #include "cinn/hlir/pe/ir_schedule_pe.h"
@@ -63,7 +64,7 @@ std::shared_ptr<OpStrategy> StrategyForRelu(const framework::NodeAttr &attrs,
 
   auto strategy = std::make_shared<framework::OpStrategy>();
   CHECK(out_type.size()) << "Out_type of relu op is empty! Please check.";
-  strategy->AddImpl(relu_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.relu.x86", 1);
+  strategy->AddImpl(relu_compute, GetInjectiveScheduleFunc(output_shapes, target), "strategy.relu.x86", 1);
   return strategy;
 }
 
@@ -104,7 +105,7 @@ std::shared_ptr<OpStrategy> StrategyForRelu6(const framework::NodeAttr &attrs,
 
   auto strategy = std::make_shared<framework::OpStrategy>();
   CHECK(out_type.size()) << "Out_type of relu6 op is empty! Please check.";
-  strategy->AddImpl(relu6_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.relu6.x86", 1);
+  strategy->AddImpl(relu6_compute, GetInjectiveScheduleFunc(output_shapes, target), "strategy.relu6.x86", 1);
   return strategy;
 }
 
@@ -1068,8 +1069,7 @@ std::shared_ptr<OpStrategy> StrategyForBatchNorm(const framework::NodeAttr &attr
   auto strategy = std::make_shared<framework::OpStrategy>();
   CHECK(out_type.size()) << "Out_type of batchnorm op is empty! Please check.";
   if (out_type[0] == Float(32)) {
-    strategy->AddImpl(
-        batchnorm_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.batchnorm.x86", 1);
+    strategy->AddImpl(batchnorm_compute, GetInjectiveScheduleFunc(output_shapes, target), "strategy.batchnorm.x86", 1);
   } else {
     LOG(FATAL) << "BatchNorm op with dtype != float32 is not implemented yet!";
   }
@@ -2028,10 +2028,8 @@ std::shared_ptr<OpStrategy> StrategyForDropoutInfer(const framework::NodeAttr &a
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(dropout_infer_compute,
-                    framework::GetInjectiveScheduleFunc(output_shapes, target),
-                    "strategy.dropout_infer.x86",
-                    1);
+  strategy->AddImpl(
+      dropout_infer_compute, GetInjectiveScheduleFunc(output_shapes, target), "strategy.dropout_infer.x86", 1);
 
   return strategy;
 }
@@ -2093,8 +2091,7 @@ std::shared_ptr<OpStrategy> StrategyForSelect(const framework::NodeAttr &attrs,
 
   auto strategy = std::make_shared<framework::OpStrategy>();
   CHECK(out_type.size()) << "Out_type of select op is empty! Please check.";
-  strategy->AddImpl(
-      select_compute, framework::GetInjectiveScheduleFunc(output_shapes, target, false), "strategy.select.x86", 1);
+  strategy->AddImpl(select_compute, GetInjectiveScheduleFunc(output_shapes, target, false), "strategy.select.x86", 1);
   return strategy;
 }
 

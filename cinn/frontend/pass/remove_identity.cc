@@ -32,11 +32,43 @@ static std::unordered_map<std::string, std::function<bool(const Instruction&)>> 
        auto& output_var = instr->outputs[0];
        return (input_var->id != output_var->id) && (input_var->shape == output_var->shape);
      }},
-    {"scale", [](const Instruction& instr) -> bool {
+    {"scale",
+     [](const Instruction& instr) -> bool {
        bool bias_zero = !instr->attrs.count("bias") || instr.GetAttrs<float>("bias") == 0.0f;
        bool scale_one = !instr->attrs.count("scale") || instr.GetAttrs<float>("scale") == 1.0f;
        return bias_zero && scale_one;
-     }}};
+     }},
+    {"cast",
+     [](const Instruction& instr) -> bool {
+       const auto& input_dtype  = instr->inputs[0]->type;
+       const auto& output_dtype = instr->outputs[0]->type;
+       return input_dtype == output_dtype;
+     }},
+    {"broadcast_to",
+     [](const Instruction& instr) -> bool {
+       const auto& input_shape  = instr->inputs[0]->shape;
+       const auto& output_shape = instr->outputs[0]->shape;
+       return input_shape == output_shape;
+     }},
+    {"transpose",
+     [](const Instruction& instr) -> bool {
+       const auto& input_shape = instr->inputs[0]->shape;
+       const auto& axis        = instr.GetAttrs<std::vector<int>>("axis");
+
+       bool can_remove = (input_shape.size() == axis.size());
+       if (can_remove) {
+         for (int i = 0; i < axis.size(); ++i) {
+           if (axis[i] != i) {
+             can_remove = false;
+             break;
+           }
+         }
+       }
+
+       return can_remove;
+     }},
+    {"concat", [](const Instruction& instr) -> bool { return (instr->inputs.size() == 1); }},
+    {"split", [](const Instruction& instr) -> bool { return (instr->outputs.size() == 1); }}};
 
 // RemoveIdentityPass will remove the identity instructions in following patterns:
 //
@@ -104,6 +136,12 @@ class RemoveIdentityPass : public ProgramPass {
     VLOG(3) << "After RemoveIdentityPass: " << *program;
   }
 
+  void Clear() override {
+    remove_idxs_.clear();
+    origin2new_.clear();
+    replace_identity_idxs_.clear();
+  }
+
  private:
   void CollectInfo(const Program& program, const std::unordered_set<std::string>& fetch_ids) {
     remove_idxs_.clear();
@@ -118,12 +156,12 @@ class RemoveIdentityPass : public ProgramPass {
       if (!identity_ops.count(instr->op_type)) {
         continue;
       }
-      CHECK_EQ(instr->inputs.size(), 1) << "identity should have only 1 input.";
-      CHECK_EQ(instr->outputs.size(), 1) << "identity should have only 1 output.";
 
       if (!identity_ops.at(instr->op_type)(instr)) {
         continue;
       }
+      CHECK_EQ(instr->inputs.size(), 1) << instr->op_type << " should have only 1 input. But here " << instr;
+      CHECK_EQ(instr->outputs.size(), 1) << instr->op_type << " should have only 1 output. But here " << instr;
 
       auto& input_var  = instr->inputs[0];
       auto& output_var = instr->outputs[0];
