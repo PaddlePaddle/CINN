@@ -27,6 +27,7 @@
 #include "cinn/hlir/framework/op.h"
 #include "cinn/utils/functional.h"
 #include "cinn/utils/type_defs.h"
+#include "ginac/idx.h"
 
 namespace cinn {
 namespace frontend {
@@ -952,6 +953,15 @@ class NetBuilder {
    * @return `The concatenated variable of selected values`.
    */
   Variable LookupTable(const Variable& table, const Variable& ids, int64_t padding_idx);
+
+  /**
+   * @brief Compute cholesky decomposition of a positive definite symmetric matrix.
+   * @param x Positive definite symmetric matrix.
+   * @param upper When upper is true, calculate and return the upper triangular matrix.
+                  When upper is false, calculate and return the lower triangular matrix.
+   * @return Triangular matrix, shape is same as input.
+   */
+   Variable Cholesky(const Variable& x, bool upper);
 
  private:
   CINN_DISALLOW_COPY_AND_ASSIGN(NetBuilder);

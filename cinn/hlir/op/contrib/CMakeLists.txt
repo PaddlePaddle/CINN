@@ -15,6 +15,7 @@ gather_srcs(cinnapi_src SRCS
         popc.cc
         reciprocal.cc
         logical_right_shift.cc
+        cholesky.cc
         )
 
 cc_test(test_gather_nd SRCS gather_nd_test.cc DEPS cinncore)
@@ -31,3 +32,4 @@ cc_test(test_clz SRCS clz_test.cc DEPS cinncore)
 cc_test(test_popc SRCS popc_test.cc DEPS cinncore)
 cc_test(test_reciprocal SRCS reciprocal_test.cc DEPS cinncore)
 cc_test(test_logical_right_shift SRCS logical_right_shift_test.cc DEPS cinncore)
+cc_test(test_cholesky SRCS cholesky_test.cc DEPS cinncore)
