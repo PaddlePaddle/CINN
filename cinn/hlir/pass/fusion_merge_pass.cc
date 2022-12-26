@@ -652,6 +652,7 @@ class FusionMergePassHelper : public FusionHelperBase {
       for (auto& consumer : fusionable_consumers) {
         if (consumer->op_pattern_kind == framework::kElementWise) {
           candidates.insert(consumer);
+          continue;
         }
 
         auto shape0 = this->GetNodeDataShape(*producer->output_nodes.begin());
@@ -663,8 +664,8 @@ class FusionMergePassHelper : public FusionHelperBase {
         }
       }
 
+      fusionable_consumers.clear();
       if (candidates.size()) {
-        fusionable_consumers.clear();
         fusionable_consumers.insert(*candidates.begin());
       }
     }
