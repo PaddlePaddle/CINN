@@ -80,7 +80,6 @@ function(cc_test TARGET_NAME)
     set_tests_properties(${TARGET_NAME} PROPERTIES TIMEOUT 6000)
     remove_gflags(${TARGET_NAME})
   endif()
-
 endfunction()
 
 function(nv_library TARGET_NAME)
@@ -161,7 +160,19 @@ function(nv_test TARGET_NAME)
   endif()
 endfunction(nv_test)
 
-
+# Add dependency that TARGET will depend on test result of DEP, this function executes the DEP during make.
+function(add_run_test_dependency TARGET_NAME DEP_NAME)
+  if (WITH_TESTING)
+    set(custom_target_name ${TARGET_NAME}_TEST_OUTPUT_DEPENDENCY_ON_${DEP_NAME})
+    add_custom_target(
+	${custom_target_name}
+	COMMAND cd ${CMAKE_CURRENT_BINARY_DIR} && ./${DEP_NAME} --cinn_x86_builtin_code_root=${CMAKE_SOURCE_DIR}/cinn/backends
+	COMMAND cd ${CMAKE_BINARY_DIR}
+	DEPENDS ${DEP_NAME}
+    )
+    add_dependencies(${TARGET_NAME} ${DEP_NAME} ${custom_target_name})
+  endif (WITH_TESTING)
+endfunction(add_run_test_dependency)
 
 # find all third_party modules is used for paddle static library
 # for reduce the dependency when building the inference libs.
