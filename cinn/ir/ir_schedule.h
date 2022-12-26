@@ -336,6 +336,13 @@ class IRSchedule {
   void Annotate(const Expr& block, const std::string& key, const attr_t& value);
 
   /*!
+   * \brief Unannotate a block with a key-value pair to set as its attribute
+   * \param block The block to be annotated
+   * \param key The attribute key
+   */
+  void Unannotate(const Expr& block, const std::string& key);
+
+  /*!
    * \brief flatten the loops in one dim.
    * \param loops  the loops to be flatted.
    * \param force_flat force to flat the right value.
