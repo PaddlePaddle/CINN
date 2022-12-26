@@ -383,7 +383,7 @@ class FusionMergePassHelper : public FusionHelperBase {
   }
 
   bool VerticalFusion(GroupPtr& producer, std::unordered_set<GroupPtr, Hasher, Comparator>& consumers) {
-    VLOG(3) << "VerticalFusion...!";
+    VLOG(3) << "VerticalFusion, Number of Consumers : " << consumers.size();
     auto& relation = fusion_relation_map_[producer->op_pattern_kind];
     // if producer can't fuse others
     if (!relation.vertical_relation.size()) {
@@ -644,34 +644,28 @@ class FusionMergePassHelper : public FusionHelperBase {
       return;
     }
 
-    // if fusionable consumers contains elementwise/horizontal, others to be removed.
-    // do recompute.
-    if (producer->consumer_groups.size() > fusionable_consumers.size()) {
+    // 1 to 1 fusion.
+    if (producer->consumer_groups.size() == 1) {
+      return;
+    } else {
       std::unordered_set<GroupPtr, Hasher, Comparator> candidates;
       for (auto& consumer : fusionable_consumers) {
         if (consumer->op_pattern_kind == framework::kElementWise) {
           candidates.insert(consumer);
-        } else {
-          auto inshape  = this->GetNodeDataShape(*producer->output_nodes.begin());
-          auto outshape = this->GetNodeDataShape(*consumer->output_nodes.begin());
-          // horizontal fusion
-          if (inshape == outshape) {
-            candidates.insert(consumer);
-          }
+        }
+
+        auto shape0 = this->GetNodeDataShape(*producer->output_nodes.begin());
+        auto shape1 = this->GetNodeDataShape(*consumer->output_nodes.begin());
+
+        if (std::accumulate(shape0.begin(), shape0.end(), 1, std::multiplies<int>()) ==
+            std::accumulate(shape1.begin(), shape1.end(), 1, std::multiplies<int>())) {
+          candidates.insert(consumer);
         }
       }
 
-      fusionable_consumers = std::move(candidates);
-      if (fusionable_consumers.size() > 1) {
-        auto first = *fusionable_consumers.begin();
+      if (candidates.size()) {
         fusionable_consumers.clear();
-        fusionable_consumers.insert(first);
-      }
-    } else {
-      if (producer->op_pattern_kind == framework::kElementWise && producer->CollectNodes().size() <= 32) {
-        return;
-      } else {
-        fusionable_consumers.clear();
+        fusionable_consumers.insert(*candidates.begin());
       }
     }
   }
