@@ -194,14 +194,10 @@ CONDITION_FUNC(reduce_fuse_elementwise) {
   return true;
 }
 
-CONDITION_FUNC(horizontal_with_injective) {
-  if (is_const_group(helper, first)) {
-    return true;
-  }
-
-  if (!is_same_size(helper, first, second)) {
-    return false;
-  }
+bool horizontal_relation(const FusionHelperBase* helper,
+                         const std::shared_ptr<Graph::Group>& first,
+                         const std::shared_ptr<Graph::Group>& second,
+                         const framework::OpPatternKind op_pattern_kind) {
   // merge injective
   auto merge_nodes_set = [](const std::shared_ptr<Graph::Group>& group) {
     std::unordered_set<Node*> nodes_set = group->nodes_set;
@@ -222,7 +218,7 @@ CONDITION_FUNC(horizontal_with_injective) {
     }
     return selected;
   };
-  auto selected_nodes = select_node_set(second_set, second->op_pattern_kind);
+  auto selected_nodes = select_node_set(second_set, op_pattern_kind);
 
   auto check_depency = [&](const Node* node) {
     std::queue<const Node*> candidates;
@@ -262,15 +258,28 @@ CONDITION_FUNC(horizontal_with_injective) {
   return true;
 }
 
+CONDITION_FUNC(horizontal_with_injective) {
+  if (is_const_group(helper, first)) {
+    return true;
+  }
+
+  if (!is_same_size(helper, first, second)) {
+    return false;
+  }
+  return horizontal_relation(helper, first, second, framework::OpPatternKind::kInjective);
+}
+
 CONDITION_FUNC(injective_horizontal_with_reduce) {
-  if (!horizontal_with_injective(helper, first, second)) {
+  // check injective with injective.
+  if (!horizontal_relation(helper, first, second, framework::OpPatternKind::kInjective)) {
     return false;
   }
   return elementwise_fuse_reduce(helper, first, second);
 }
 
 CONDITION_FUNC(reduce_fuse_reduce) {
-  if (!horizontal_with_injective(helper, first, second)) {
+  // check reduce horizontal with reduce.
+  if (!horizontal_relation(helper, first, second, framework::OpPatternKind::kReduction)) {
     return false;
   }
   if (!limit_args(helper, first, second)) {
