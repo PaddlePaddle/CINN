@@ -222,7 +222,7 @@ CONDITION_FUNC(horizontal_with_injective) {
     }
     return selected;
   };
-  auto selected_nodes = select_node_set(second_set, framework::kInjective);
+  auto selected_nodes = select_node_set(second_set, second->op_pattern_kind);
 
   auto check_depency = [&](const Node* node) {
     std::queue<const Node*> candidates;
@@ -270,7 +270,7 @@ CONDITION_FUNC(injective_horizontal_with_reduce) {
 }
 
 CONDITION_FUNC(reduce_fuse_reduce) {
-  if (!is_same_size(helper, first, second)) {
+  if (!horizontal_with_injective(helper, first, second)) {
     return false;
   }
   if (!limit_args(helper, first, second)) {
