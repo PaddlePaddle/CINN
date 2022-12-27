@@ -235,7 +235,7 @@ CONDITION_FUNC(horizontal_or_can_inline) {
     }
   }
 
-  return true;
+  return helper->output_nodes_set_.count(producer) == 0;
 }
 
 CONDITION_FUNC(horizontal_with_same_size) {
