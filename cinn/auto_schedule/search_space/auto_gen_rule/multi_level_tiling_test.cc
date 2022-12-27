@@ -107,18 +107,26 @@ TEST(MultiLevelTile, SimpleLoops) {
 
   MultiLevelTiling multi_level_tiling(target);
   ir::IRSchedule ir_schedule(ir::ModuleExpr({ast_expr}));
+  SearchState state(ir_schedule, 0, {});
   EXPECT_EQ(multi_level_tiling.Init(&ir_schedule), RuleApplyType::kApplyAndSkipThisRule);
-
   EXPECT_EQ(multi_level_tiling.NumberApplicable(), 1);
   multi_level_tiling.ApplyRandomly();
-  std::vector<ir::Expr> exprs = ir_schedule.GetModule().GetExprs();
-  EXPECT_EQ(exprs.size(), 1UL);
 
-  std::stringstream ss;
-  ss << exprs[0];
+  // ApplyOnBlock
+  EXPECT_EQ(multi_level_tiling.AnalyseApplyType(state, "C"), RuleApplyType::kApplyAndSkipThisRule);
+  auto new_states = multi_level_tiling.ApplyOnBlock(state, "C");
 
-  std::string expr_str = ss.str();
-  VLOG(6) << expr_str;
+  auto test_func = [](ir::IRSchedule* ir_sch) {
+    std::vector<ir::Expr> exprs = ir_sch->GetModule().GetExprs();
+    EXPECT_EQ(exprs.size(), 1UL);
+    std::stringstream ss;
+    ss << exprs[0];
+    std::string expr_str = ss.str();
+    VLOG(6) << expr_str;
+  };
+
+  test_func(&ir_schedule);
+  test_func(&new_states[0]->ir_schedule);
 }
 
 TEST(MulitLevelTile, MatrixMultiply) {
@@ -151,105 +159,26 @@ TEST(MulitLevelTile, MatrixMultiply) {
 
   MultiLevelTiling multi_level_tiling(target);
   ir::IRSchedule ir_schedule(ir::ModuleExpr({ast_expr}));
+  SearchState state(ir_schedule, 0, {});
   EXPECT_EQ(multi_level_tiling.Init(&ir_schedule), RuleApplyType::kApplyAndSkipThisRule);
-
   EXPECT_EQ(multi_level_tiling.NumberApplicable(), 1);
-
   multi_level_tiling.ApplyRandomly();
-  std::vector<ir::Expr> exprs = ir_schedule.GetModule().GetExprs();
-  EXPECT_EQ(exprs.size(), 1UL);
 
-  std::stringstream ss;
-  ss << exprs[0];
-
-  std::string expr_str = ss.str();
-  VLOG(6) << expr_str;
-}
-
-TEST(MultiLevelTile, SimpleLoopsApplyOnBlock) {
-  srand(0);
-  Context::Global().ResetNameId();
-#ifdef CINN_WITH_CUDA
-  Target target = common::DefaultNVGPUTarget();
-#else
-  Target target = common::DefaultHostTarget();
-#endif
-
-  Expr M(32);
-  Expr N(128);
-
-  Placeholder<float> A("A", {M});
-  Placeholder<float> B("B", {N});
-
-  ir::Tensor C = Compute(
-      {M, N}, [&](Var i, Var j) { return A(i) + B(j); }, "C");
-
-  poly::StageMap stages = CreateStages({C});
-  std::vector<ir::LoweredFunc> funcs =
-      lang::LowerVec("TestMultiLevelTile_SimpleLoops", stages, {C}, {}, {}, nullptr, target, true);
-
-  ir::Expr ast_expr = funcs[0]->body;
-  VLOG(6) << "Expr before MultiLevelTiling: ";
-  VLOG(6) << ast_expr;
-
-  MultiLevelTiling multi_level_tiling(target);
-  ir::IRSchedule ir_schedule(ir::ModuleExpr({ast_expr}));
-  SearchState state(ir_schedule, 0, {});
-
+  // ApplyOnBlock
   EXPECT_EQ(multi_level_tiling.AnalyseApplyType(state, "C"), RuleApplyType::kApplyAndSkipThisRule);
-  auto new_states             = multi_level_tiling.ApplyOnBlock(state, "C");
-  std::vector<ir::Expr> exprs = new_states[0]->ir_schedule.GetModule().GetExprs();
-  EXPECT_EQ(exprs.size(), 1UL);
+  auto new_states = multi_level_tiling.ApplyOnBlock(state, "C");
 
-  std::stringstream ss;
-  ss << exprs[0];
+  auto test_func = [](ir::IRSchedule* ir_sch) {
+    std::vector<ir::Expr> exprs = ir_sch->GetModule().GetExprs();
+    EXPECT_EQ(exprs.size(), 1UL);
+    std::stringstream ss;
+    ss << exprs[0];
+    std::string expr_str = ss.str();
+    VLOG(6) << expr_str;
+  };
 
-  std::string expr_str = ss.str();
-  VLOG(6) << expr_str;
-}
-
-TEST(MulitLevelTile, MatrixMultiplyApplyOnBlock) {
-  srand(0);
-  Context::Global().ResetNameId();
-#ifdef CINN_WITH_CUDA
-  Target target = common::DefaultNVGPUTarget();
-#else
-  Target target = common::DefaultHostTarget();
-#endif
-
-  Expr M(32);
-  Expr N(32);
-  Expr K(32);
-
-  Placeholder<float> A("A", {M, K});
-  Placeholder<float> B("B", {K, N});
-
-  Var k(K.as_int32(), "reduce_axis_k");
-  ir::Tensor C = Compute(
-      {M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k) * B(k, j), {k}); }, "C");
-
-  poly::StageMap stages = CreateStages({C});
-  std::vector<ir::LoweredFunc> funcs =
-      lang::LowerVec("TestMultiLevelTile_MatrixMultiply", stages, {C}, {}, {}, nullptr, target, true);
-
-  ir::Expr ast_expr = funcs[0]->body;
-  VLOG(6) << "Expr before MultiLevelTiling: ";
-  VLOG(6) << ast_expr;
-
-  MultiLevelTiling multi_level_tiling(target);
-  ir::IRSchedule ir_schedule(ir::ModuleExpr({ast_expr}));
-  SearchState state(ir_schedule, 0, {});
-
-  EXPECT_EQ(multi_level_tiling.AnalyseApplyType(state, "C"), RuleApplyType::kApplyAndSkipThisRule);
-  auto new_states             = multi_level_tiling.ApplyOnBlock(state, "C");
-  std::vector<ir::Expr> exprs = new_states[0]->ir_schedule.GetModule().GetExprs();
-  EXPECT_EQ(exprs.size(), 1UL);
-
-  std::stringstream ss;
-  ss << exprs[0];
-
-  std::string expr_str = ss.str();
-  VLOG(6) << expr_str;
+  test_func(&ir_schedule);
+  test_func(&new_states[0]->ir_schedule);
 }
 
 }  // namespace auto_schedule

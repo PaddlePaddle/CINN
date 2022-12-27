@@ -32,37 +32,43 @@ std::vector<AutoGenRule*> GenerateTestRules() { return {new AutoUnroll(target), 
 
 TEST(RuleSampler, Make) {
   std::vector<AutoGenRule*> rules = GenerateTestRules();
-  auto traversal_block_sampler    = RuleSampler::Make(rules, "traversal");
+  auto traversal_block_sampler    = RuleSampler::Make(rules, true, "traversal");
   ASSERT_STREQ(traversal_block_sampler->Name(), "traversal");
-  auto probabilistic_block_sampler = RuleSampler::Make(rules, "probabilistic");
+  auto probabilistic_block_sampler = RuleSampler::Make(rules, true, "probabilistic");
   ASSERT_STREQ(probabilistic_block_sampler->Name(), "probabilistic");
 }
 
 TEST(TraversalRuleSampler, NextRule) {
   std::vector<AutoGenRule*> rules = GenerateTestRules();
-  auto traversal_rule_sampler     = RuleSampler::Make(rules, "traversal");
+  auto traversal_rule_sampler     = RuleSampler::Make(rules, true, "traversal");
   AutoGenRule* rule               = traversal_rule_sampler->NextRule();
   ASSERT_EQ("AutoUnroll", rule->GetRuleName());
-  rule = traversal_rule_sampler->NextRule(false);
-  ASSERT_EQ("SkipRule", rule->GetRuleName());
   rule = traversal_rule_sampler->NextRule();
   ASSERT_EQ("SkipRule", rule->GetRuleName());
   traversal_rule_sampler->Reset();
+  rule = traversal_rule_sampler->NextRule();
+  ASSERT_EQ("AutoUnroll", rule->GetRuleName());
+
+  traversal_rule_sampler = RuleSampler::Make(rules, false, "traversal");
+  rule                   = traversal_rule_sampler->NextRule();
+  ASSERT_EQ("AutoUnroll", rule->GetRuleName());
   rule = traversal_rule_sampler->NextRule();
   ASSERT_EQ("AutoUnroll", rule->GetRuleName());
 }
 
 TEST(ProbabilisticRuleSampler, NextRule) {
   std::vector<AutoGenRule*> rules = GenerateTestRules();
-  auto probabilistic_rule_sampler = RuleSampler::Make(rules, "probabilistic", {4, 1});
+  auto probabilistic_rule_sampler = RuleSampler::Make(rules, false, "probabilistic", {4, 1});
   AutoGenRule* rule;
   for (int i = 0; i < 20; ++i) {
-    rule = probabilistic_rule_sampler->NextRule(false);
+    rule = probabilistic_rule_sampler->NextRule();
     VLOG(6) << "next rule name: " << rule->GetRuleName();
   }
-  probabilistic_rule_sampler->NextRule(true);
-  probabilistic_rule_sampler->NextRule(true);
-  ASSERT_EQ(nullptr, probabilistic_rule_sampler->NextRule(true));
+
+  probabilistic_rule_sampler = RuleSampler::Make(rules, true, "probabilistic", {4, 1});
+  probabilistic_rule_sampler->NextRule();
+  probabilistic_rule_sampler->NextRule();
+  ASSERT_EQ(nullptr, probabilistic_rule_sampler->NextRule());
 }
 
 }  // namespace auto_schedule

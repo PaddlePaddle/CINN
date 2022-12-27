@@ -324,6 +324,15 @@ Tensor BroadcastTo(const Tensor& A,
   auto A_shape = A->shape;
   CHECK_EQ(A_shape.size(), broadcast_axes.size()) << "broadcast_axes's size should be same with the input shape's size";
   CHECK_GE(out_shape.size(), broadcast_axes.size()) << "broadcast_axes's size should be no more than out_shape's size";
+  auto axes = broadcast_axes;
+  for (auto& axis : axes) {
+    // if axis < 0, plus out_shape.size
+    if (axis < 0) {
+      axis = out_shape.size() + axis;
+    }
+    CHECK_LT(axis, out_shape.size());
+  }
+  std::sort(axes.begin(), axes.end());
 
   auto axes = broadcast_axes;
   for (auto& axis : axes) {

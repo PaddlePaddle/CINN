@@ -77,6 +77,9 @@ class IRSchedule {
   //! Get the ModuleExpr stored in ScheduleImpl.
   const ModuleExpr& GetModule() const;
 
+  //! Determine whether a specific block is included
+  bool HasBlock(const std::string& block_name) const;
+
   //! Merge multiple Exprs in a ModuleExpr to be one
   void MergeExprs();
 
