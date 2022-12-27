@@ -91,7 +91,7 @@ void softmax(const Instruction& instr, const DecomposerContext& context) {
   auto mode = instr.GetAttrs<std::string>("mode");
   if (mode == "fast") {
     // x_sum = sum(exp(x))
-    auto x_sum = builder->BroadcastTo(builder->ReduceMax(builder->Exp(x), axes), x->shape, b_axes);
+    auto x_sum = builder->BroadcastTo(builder->ReduceSum(builder->Exp(x), axes), x->shape, b_axes);
     // x_exp / x_sum
     auto out = builder->Divide(builder->Exp(x), x_sum);
   } else {
@@ -102,7 +102,7 @@ void softmax(const Instruction& instr, const DecomposerContext& context) {
     // x_sum = sum(x_exp)
     auto x_sum = builder->BroadcastTo(builder->ReduceSum(x_exp, axes), x->shape, b_axes);
     // x_exp / x_sum
-    auto out = builder->Divide(x_exp, x_sum);
+    auto out = builder->Divide(builder->Exp(builder->Subtract(x, x_max)), x_sum);
 
     // map the the output of decomposed operator to the original.
     context.MapOutToOrigin(out, output);
