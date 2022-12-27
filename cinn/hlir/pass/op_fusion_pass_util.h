@@ -223,7 +223,19 @@ CONDITION_FUNC(horizontal_or_can_inline) {
     return true;
   }
   // vertical relation: 1.can compute inline
-  return helper->GetNodeData(producer)->outlinks().size() == 1 && helper->output_nodes_set_.count(producer) == 0;
+  if (helper->GetNodeData(producer)->outlinks().size() == 1 && helper->output_nodes_set_.count(producer) == 0) {
+    return true;
+  }
+
+  // link to same node.
+  auto& out_links = helper->GetNodeData(producer)->outlinks();
+  for (auto link : out_links) {
+    if ((*out_links.begin())->sink() != link->sink()) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 CONDITION_FUNC(horizontal_with_same_size) {
