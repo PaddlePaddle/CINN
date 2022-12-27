@@ -62,6 +62,8 @@ class ScheduleImpl {
 
   void SetExprs(const std::vector<Expr>& exprs) { module_expr_.SetExprs(exprs); }
 
+  bool HasBlock(const std::string& block_name) const;
+
   std::vector<Expr> GetLoops(const Expr& block) const;
   std::vector<Expr> GetLoops(const std::string& block_name) const;
   std::vector<Expr> GetAllBlocks() const;
@@ -1470,6 +1472,19 @@ std::vector<Expr> ScheduleImpl::GetAllBlocks() const {
   return result;
 }
 
+bool ScheduleImpl::HasBlock(const std::string& block_name) const {
+  auto exprs = module_expr_.GetExprs();
+  for (auto& it_expr : exprs) {
+    ir::FindBlocksVisitor visitor(block_name);
+    auto find_blocks = visitor(&it_expr);
+    if (!find_blocks.empty()) {
+      CHECK_EQ(find_blocks.size(), 1U) << "There should not be more than 1 block with identical name!";
+      return true;
+    }
+  }
+  return false;
+}
+
 Expr ScheduleImpl::GetBlock(const std::string& block_name) const {
   Expr result;
   auto exprs = module_expr_.GetExprs();
@@ -1797,6 +1812,11 @@ void IRSchedule::SetExprs(const std::vector<Expr>& exprs) {
 
 const ModuleExpr& IRSchedule::GetModule() const {
   return impl_->GetModule();
+  // no need to trace
+}
+
+bool IRSchedule::HasBlock(const std::string& block_name) const {
+  return impl_->HasBlock(block_name);
   // no need to trace
 }
 

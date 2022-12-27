@@ -20,6 +20,7 @@
 
 #include "cinn/auto_schedule/cost_model/expr_cost_model.h"
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
+#include "cinn/auto_schedule/search_space/rule_sampler.h"
 #include "cinn/auto_schedule/search_space/search_state.h"
 #include "cinn/auto_schedule/task/tune_task.h"
 #include "cinn/ir/ir_base.h"
@@ -41,18 +42,57 @@ class SearchSpace {
  public:
   SearchSpace(const TuneTask& tune_task);
 
-  // Generate sketch as initial population of evolutionary search
-  virtual std::vector<SearchState> GetRandomInitialSketch(int num);
-
-  // Evolutionary search mutate, returns the mutated ModuleExpr and estimited cost
+  // Sketch mutate, returns the mutated ModuleExpr and estimited cost
   virtual SearchState GetScheduleMutate(const SearchState& state, const ExprCostModel& cost_model);
+
+  /**
+   * \brief Generate sketch as initial population of evolutionary search.
+   * @param num The number of sketches to generate.
+   * @param strategy The strategy to generate sketchs,
+   *        Current optional strategies are "rule_prune" or "random_prune" or "random".
+   * - "rule_prune": will use rules to prune and generate sketches as efficiently as possible.
+   * - "random_prune": will use the new interface ApplySketchRules() to simulate the random generation of sketches,
+   *    and supports the function of a rule returning multiple SearchStates and random pruning by probability.
+   * - "random": will randomly select a block and a rule to apply and repeat this step several times,
+   *    however, each rule can only be used on one SearchState at most once.
+   * @return  Generated sketchs.
+   */
+  virtual std::vector<SearchState> GenerateSketches(int num, const std::string& strategy);
 
  private:
   // TODO(zhhsplendid): mutate by manual schedule.
   SearchState ManualScheduleMutate(const SearchState& state);
 
+  // mutate by sketch rules randomly
   SearchState RandomScheduleMutate(const SearchState& state);
 
+  // Generate num sketchs, each with several rounds of SketchMutate
+  std::vector<SearchState> InitSketchWithRandomStrategy(int num);
+
+  // Generate sketch pruned randomly as initial population of evolutionary search
+  std::vector<SearchState> InitSketchWithRandomPrunedStrategy();
+
+  // Generate sketch pruned by rules as initial population of evolutionary search
+  std::vector<SearchState> InitiSketchWithRulePrunedStrategy();
+
+  /**
+   * @brief Collect the new states that may be transferred to after applying several rules on a block from a certain
+   * state.
+   * @param state Starting point of state transition.
+   * @param block_name Name of the block to apply the rules to.
+   * @param rule_sampler Sampler that samples the new rule to apply on the block.
+   * @param steps Number of steps to apply the rule.
+   * @param prune_by_rule If true, prune the state transition tree by rule, otherwise prune randomly.
+   * @param prune_probability Pruning probability of random pruning.
+   */
+  std::vector<SearchState> ApplySketchRule(const SearchState& state,
+                                           const std::string& block_name,
+                                           RuleSampler* rule_sampler,
+                                           int steps,
+                                           bool prune_by_rule,
+                                           double prune_probability = 1);
+
+ private:
   const TuneTask& tune_task_;
   int init_sketch_random_depth_ = 6;
   // supported AutoGenRules, every task holds a set
