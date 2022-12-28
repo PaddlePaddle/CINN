@@ -404,7 +404,7 @@ std::shared_ptr<OpStrategy> StrategyForConcat(const framework::NodeAttr &attrs,
     CHECK(!out_type.empty()) << "Output type of Concat is empty! Please check.\n";
     CINNValuePack pack_args = args[0];
     int input_size          = FLAGS_cinn_ir_schedule ? pack_args.size() - 1 : pack_args.size();
-    CHECK_GE(input_size, 2U) << "at least 2 input tensors for Concat compute\n";
+    CHECK_GE(input_size, 1UL) << "at least 2 input tensors for Concat compute\n";
     CHECK(!output_shapes.empty());
     int axis = 0;
     if (attrs.attr_store.count("axis")) {
@@ -438,7 +438,7 @@ std::shared_ptr<OpStrategy> StrategyForConcat(const framework::NodeAttr &attrs,
 
 std::vector<std::vector<int>> InferShapeForConcat(const std::vector<std::vector<int>> &inputs_shape,
                                                   const framework::AttrMapType &attrs) {
-  CHECK_GE(inputs_shape.size(), 2U) << "The input's shape size should be no less than 2! Please check again.";
+  CHECK_GE(inputs_shape.size(), 1UL) << "The input's shape size should be no less than 2! Please check again.";
   int axis = 0;
   for (auto &iter : attrs) {
     if (iter.first == "axis") {
@@ -472,7 +472,7 @@ std::vector<std::vector<std::string>> InferLayoutForConcat(const std::vector<fra
                                                            const std::vector<std::string> &input_layouts,
                                                            const framework::NodeAttr &attrs,
                                                            const Target &target) {
-  CHECK_GE(input_layouts.size(), 2U) << "The input's layout size is less than 2! Please check again.";
+  CHECK_GE(input_layouts.size(), 1UL) << "The input's layout size is less than 2! Please check again.";
   return {{input_layouts[0]}, input_layouts};
 }
 
