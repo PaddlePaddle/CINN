@@ -24,14 +24,17 @@ namespace cinn {
 namespace frontend {
 namespace pass {
 
+#define SHAPE_SAME_REMOVE(op_name)                 \
+  {                                                \
+#op_name, [](const Instruction& instr) -> bool { \
+    const auto& input_shape = instr->inputs[0]->shape; \
+    const auto& output_shape = instr->outputs[0]->shape; \
+    return input_shape == output_shape; \
+  } \
+  }
+
 static std::unordered_map<std::string, std::function<bool(const Instruction&)>> identity_ops = {
     {"identity", [](const Instruction& instr) -> bool { return true; }},
-    {"reshape",
-     [](const Instruction& instr) -> bool {
-       auto& input_var  = instr->inputs[0];
-       auto& output_var = instr->outputs[0];
-       return (input_var->id != output_var->id) && (input_var->shape == output_var->shape);
-     }},
     {"scale",
      [](const Instruction& instr) -> bool {
        bool bias_zero = !instr->attrs.count("bias") || instr.GetAttrs<float>("bias") == 0.0f;
@@ -43,12 +46,6 @@ static std::unordered_map<std::string, std::function<bool(const Instruction&)>> 
        const auto& input_dtype  = instr->inputs[0]->type;
        const auto& output_dtype = instr->outputs[0]->type;
        return input_dtype == output_dtype;
-     }},
-    {"broadcast_to",
-     [](const Instruction& instr) -> bool {
-       const auto& input_shape  = instr->inputs[0]->shape;
-       const auto& output_shape = instr->outputs[0]->shape;
-       return input_shape == output_shape;
      }},
     {"transpose",
      [](const Instruction& instr) -> bool {
@@ -68,7 +65,18 @@ static std::unordered_map<std::string, std::function<bool(const Instruction&)>> 
        return can_remove;
      }},
     {"concat", [](const Instruction& instr) -> bool { return (instr->inputs.size() == 1); }},
-    {"split", [](const Instruction& instr) -> bool { return (instr->outputs.size() == 1); }}};
+    {"split", [](const Instruction& instr) -> bool { return (instr->outputs.size() == 1); }},
+    SHAPE_SAME_REMOVE(broadcast_to),
+    SHAPE_SAME_REMOVE(reduce_sum),
+    SHAPE_SAME_REMOVE(reduce_prod),
+    SHAPE_SAME_REMOVE(reduce_max),
+    SHAPE_SAME_REMOVE(reduce_min),
+    SHAPE_SAME_REMOVE(reduce_all),
+    SHAPE_SAME_REMOVE(reduce_any),
+    SHAPE_SAME_REMOVE(slice),
+    SHAPE_SAME_REMOVE(reshape)};
+
+#undef SHAPE_SAME_REMOVE
 
 // RemoveIdentityPass will remove the identity instructions in following patterns:
 //
