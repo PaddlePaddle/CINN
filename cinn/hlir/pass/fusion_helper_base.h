@@ -58,7 +58,7 @@ class FusionHelperBase {
     return kind;
   }
 
-  bool IsConstOp(const framework::Node* node) const {
+  static bool IsConstOp(const framework::Node* node) {
     static std::unordered_set<std::string> const_op_type = {"const_scalar", "fill_constant", "arange"};
     if (const_op_type.count(node->op()->name)) {
       return true;

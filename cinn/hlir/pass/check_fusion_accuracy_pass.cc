@@ -25,6 +25,7 @@
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/framework/visualize_helper.h"
+#include "cinn/hlir/pass/fusion_helper_base.h"
 
 namespace cinn::hlir::pass {
 
@@ -127,6 +128,7 @@ class CheckFusionAccuracyPass {
  private:
   Graph* graph_;
   std::unordered_map<NodeData*, NodeData*> old2new_nodedata_map_;
+  std::unordered_map<NodeData*, NodeData*> constnode_old2new_map_;
 
   ShapeDict& shape_dict_;
   DtypeDict& dtype_dict_;
@@ -164,7 +166,11 @@ void CheckFusionAccuracyPass::CreateCheckNodeOutputs(Node* old_node, NodePtr new
 
     const auto& out_node_id = out_node->id();
     // If the check node's output variable node not created
-    CHECK_EQ(old2new_nodedata_map_.count(out_node), 0) << "The graph is not a SSA graph! Please check.";
+    if (!FusionHelperBase::IsConstOp(old_node)) {
+      // note the const op will recompute in group, so that the op may disappear in many group
+      CHECK_EQ(old2new_nodedata_map_.count(out_node), 0)
+          << "Var " << out_node_id << " repeated! The graph is not a SSA graph! Please check.";
+    }
 
     const auto& check_out_node_id = utils::GenerateCheckFusionAccuracyNodeId(out_node_id);
 
@@ -486,7 +492,7 @@ GroupList CheckFusionAccuracyPass::Apply() {
     auto input_list = serial_name(input_datas);
     VLOG(4) << "Group " << group->GetFuncName() << "'s input is [" << input_list << "]";
 
-    auto output_datas = group->GetOutputNodeDatas(graph_->outputs);
+    auto output_datas = group->GetOutputNodeDatas();
 
     auto output_list = serial_name(output_datas);
     VLOG(4) << "Group " << group->GetFuncName() << "'s output is [" << output_list << "]";
@@ -498,6 +504,8 @@ GroupList CheckFusionAccuracyPass::Apply() {
     msg.SetMsg("Input list", input_list);
     msg.SetMsg("Output list", output_list);
     msg.SetMsg("Group graph", graph_->DebugGroupedGraph({ordered_nodes}));
+
+    LOG(INFO) << msg.str();
 
     // link the group's output data node to assert all close node
     const auto& assert_group = LinkToAssertAllClose(output_datas, &msg);

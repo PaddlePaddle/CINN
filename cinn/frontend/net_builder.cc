@@ -100,6 +100,17 @@ Variable NetBuilder::UnaryOp(const std::string& op_type, const Variable& operand
 }
 
 Variable NetBuilder::Reduce(const std::string& op_type, const Variable& x, const std::vector<int>& dim, bool keep_dim) {
+  // TODO(thisjiang): move the reduce simplify to frontend pass
+  auto product = std::accumulate(x->shape.begin(), x->shape.end(), 1, std::multiplies<int>());
+  if (product == 1) {
+    if (keep_dim) {
+      return Identity(x);
+    } else {
+      int new_rank = dim.empty() ? 1 : x->shape.size() - dim.size() + 1;
+      std::vector<int> new_shape(new_rank, 1);
+      return Reshape(x, new_shape);
+    }
+  }
   return CustomInstr(op_type, {x}, {{"dim", dim}, {"keep_dim", keep_dim}}).front();
 }
 
