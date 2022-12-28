@@ -1444,15 +1444,15 @@ std::vector<ir::LoweredFunc> GetFuncFromImpl(const std::shared_ptr<OpImpl>& impl
   CHECK_EQ(funcs_after_schedule.size(), expr_pack.size());
   std::vector<ir::LoweredFunc> res;
   for (int i = 0; i < funcs_after_schedule.size(); i++) {
+#ifdef CINN_WITH_CUDA
+    optim::OptimizeExprGPU(&(funcs_after_schedule[i]->body));
+#endif
     auto temp_buffers                  = lang::GetTempBuffers(all_arg_tensors, stages, funcs_after_schedule[i]->body);
     funcs_after_schedule[i]->temp_bufs = temp_buffers;
     funcs_after_schedule[i]            = ir::_LoweredFunc_::Make(funcs_after_schedule[i]->name,
                                                       funcs_after_schedule[i]->args,
                                                       funcs_after_schedule[i]->body,
                                                       funcs_after_schedule[i]->temp_bufs);
-#ifdef CINN_WITH_CUDA
-    optim::OptimizeExprGPU(&(funcs_after_schedule[i]->body));
-#endif
     res.emplace_back(optim::Optimize(Expr(funcs_after_schedule[i]), target, false).as_lowered_func_ref());
   }
   // 5. Return the result.

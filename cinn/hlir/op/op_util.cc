@@ -31,7 +31,6 @@ std::vector<int> GetPositiveAxes(const std::vector<int>& axes, int rank) {
                                     << " not.";
     new_axes[i] = axis;
   }
-  std::sort(new_axes.begin(), new_axes.end());
   return new_axes;
 }
 

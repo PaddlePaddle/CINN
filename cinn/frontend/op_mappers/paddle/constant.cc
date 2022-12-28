@@ -28,6 +28,19 @@ namespace cinn {
 namespace frontend {
 namespace paddle_mappers {
 
+void AssignOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+  CHECK_EQ(op_desc.Input("X").size(), 1UL);
+  auto x_name = op_desc.Input("X").front();
+  CHECK_EQ(op_desc.Output("Out").size(), 1UL);
+  auto out_name = op_desc.Output("Out").front();
+
+  auto x   = ctx.GetVar(x_name);
+  auto out = ctx.Builder()->Identity(x);
+
+  ctx.AddVar(out_name, out);
+  ctx.AddVarModelToProgram(out_name, out->id);
+}
+
 void ShapeOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input("Input").size(), 1UL);
   auto x_name = op_desc.Input("Input").front();
@@ -182,8 +195,12 @@ void AssignValueOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperConte
     } else {
       out = ctx.Builder()->Constant(int64_values, cinn_out_name);
     }
-  } else {
-    LOG(FATAL) << "assign_value's input should not empty! Please check.";
+  }
+
+  CHECK(out) << "assign_value's input should not empty, but " << out_name << "not! Please check.";
+  const auto& shape = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "shape", out.value()->shape);
+  if (shape != out.value()->shape) {
+    out = ctx.Builder()->Reshape(out.value(), shape);
   }
 
   ctx.AddVar(out_name, out.value());
@@ -195,9 +212,11 @@ void AssignValueOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperConte
 }  // namespace cinn
 
 CINN_REGISTER_HELPER(paddle_constant) {
+  CINN_REGISTER_OP_MAPPER(assign, cinn::frontend::paddle_mappers::AssignOpMapper)
   CINN_REGISTER_OP_MAPPER(shape, cinn::frontend::paddle_mappers::ShapeOpMapper)
   CINN_REGISTER_OP_MAPPER(fill_constant, cinn::frontend::paddle_mappers::FillConstantOpMapper)
   CINN_REGISTER_OP_MAPPER(fill_any_like, cinn::frontend::paddle_mappers::FillAnyLikeOpMapper)
   CINN_REGISTER_OP_MAPPER(assign_value, cinn::frontend::paddle_mappers::AssignValueOpMapper)
+
   return true;
 }

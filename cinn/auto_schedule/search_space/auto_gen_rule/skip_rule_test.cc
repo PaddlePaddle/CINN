@@ -61,14 +61,24 @@ TEST(SkipRule, Basic) {
 
   SkipRule skip_rule(target);
   ir::IRSchedule ir_schedule(ir::ModuleExpr({ast_expr}));
-  EXPECT_EQ(skip_rule.Init(&ir_schedule), RuleApplyType::kApply);
+  SearchState state(ir_schedule, 0, {});
 
+  EXPECT_EQ(skip_rule.Init(&ir_schedule), RuleApplyType::kApply);
   EXPECT_EQ(skip_rule.NumberApplicable(), 1);
   skip_rule.ApplyRandomly();
-  std::vector<ir::Expr> exprs = ir_schedule.GetModule().GetExprs();
-  EXPECT_EQ(exprs.size(), 1UL);
 
-  EXPECT_EQ(ast_expr, exprs[0]);
+  // ApplyOnBlock
+  EXPECT_EQ(skip_rule.AnalyseApplyType(state, "C"), RuleApplyType::kApply);
+  std::vector<cinn::auto_schedule::SearchState> states = skip_rule.ApplyOnBlock(state, "C");
+
+  auto test_func = [&ast_expr](ir::IRSchedule* ir_sch) {
+    std::vector<ir::Expr> exprs = ir_sch->GetModule().GetExprs();
+    EXPECT_EQ(exprs.size(), 1UL);
+    EXPECT_EQ(ast_expr, exprs[0]);
+  };
+
+  test_func(&ir_schedule);
+  test_func(&states[0]->ir_schedule);
 }
 
 TEST(SkipRule, ApplyOnSpecificBlock) {
