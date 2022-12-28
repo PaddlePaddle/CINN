@@ -405,7 +405,9 @@ ir::Tensor IsClose(
         // T left = (a > b ? a - b : b - a);
         auto left = ir::Select::Make(a > b, a - b, b - a);
         // T right = atol + (b > 0 ? rtol * b : (-rtol) * b);
-        auto right = atol + ir::Select::Make(b > ir::Zero(b->type()), rtol * b, (-rtol) * b);
+        auto right = ir::Cast::Make(b->type(), atol) + ir::Select::Make(b > ir::Zero(b->type()),
+                                                                        ir::Cast::Make(b->type(), rtol) * b,
+                                                                        ir::Cast::Make(b->type(), (-rtol)) * b);
         // T diff = (left > right ? left - right : right - left);
         auto diff = ir::Select::Make(left > right, left - right, right - left);
         // out = a == b || left <= right || diff <= 1e-15;
