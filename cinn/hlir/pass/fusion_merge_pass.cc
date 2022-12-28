@@ -347,19 +347,13 @@ class FusionMergePassHelper : public FusionHelperBase {
       }
     }
 
-    // update master node for lowering
-    auto iter = --consumers.end();
-    for (int idx = 0; idx < consumers.size(); ++idx) {
-      auto consumer = *iter;
-      // group is elementwise/broadcast/injective
-      if (consumer->op_pattern_kind == framework::kElementWise || consumer->op_pattern_kind == framework::kBroadcast ||
-          consumer->op_pattern_kind == framework::kInjective) {
-        for (auto& node : consumer->master_nodes) {
-          fused_group->master_nodes.insert(node);
-        }
-        break;
-      } /* group is reduce */
-      else if (consumer->op_pattern_kind == framework::kReduction) {
+    if (static_cast<int>(framework::kReduction) > static_cast<int>((*consumers.begin())->op_pattern_kind)) {
+      auto consumer = *consumers.begin();
+      for (auto& node : consumer->master_nodes) {
+        fused_group->master_nodes.insert(node);
+      }
+    } else {
+      for (auto consumer : consumers) {
         Node* master_node = nullptr;
         for (auto& node : consumer->master_nodes) {
           if (GetOpKind(node) != framework::kReduction) {
