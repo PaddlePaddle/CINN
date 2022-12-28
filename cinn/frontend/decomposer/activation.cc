@@ -94,6 +94,9 @@ void softmax(const Instruction& instr, const DecomposerContext& context) {
     auto x_sum = builder->BroadcastTo(builder->ReduceSum(builder->Exp(x), axes), x->shape, b_axes);
     // x_exp / x_sum
     auto out = builder->Divide(builder->Exp(x), x_sum);
+
+    // map the the output of decomposed operator to the original.
+    context.MapOutToOrigin(out, output);
   } else {
     // x = max(x)
     auto x_max = builder->BroadcastTo(builder->ReduceMax(x, axes), x->shape, b_axes);
