@@ -194,10 +194,10 @@ CONDITION_FUNC(reduce_fuse_elementwise) {
   return true;
 }
 
-bool horizontal_relation(const FusionHelperBase* helper,
-                         const std::shared_ptr<Graph::Group>& first,
-                         const std::shared_ptr<Graph::Group>& second,
-                         const framework::OpPatternKind op_pattern_kind) {
+inline bool horizontal_relation(const FusionHelperBase* helper,
+                                const std::shared_ptr<Graph::Group>& first,
+                                const std::shared_ptr<Graph::Group>& second,
+                                const framework::OpPatternKind op_pattern_kind) {
   // merge injective
   auto merge_nodes_set = [](const std::shared_ptr<Graph::Group>& group) {
     std::unordered_set<Node*> nodes_set = group->nodes_set;
