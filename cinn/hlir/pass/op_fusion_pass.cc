@@ -184,7 +184,8 @@ class OpFusionPassHelper : public FusionHelperBase {
         if (this->output_nodes_set_.count(producer)) {
           VLOG(3) << "Insert Global Output Node : " << producer->id();
           consumer_fusion->output_nodes.insert(producer);
-        } else if (producer_data->outlinks().size() > 1 && producer->inlinks().size() > 0) {
+        } else if (producer_data->outlinks().size() > 1 && producer->inlinks().size() > 0 &&
+                   is_same_size(this, producer, consumer_fusion)) {
           // producer is not a const value node.
           consumer_fusion->internal_nodes.insert(producer);
         }
@@ -223,7 +224,7 @@ class OpFusionPassHelper : public FusionHelperBase {
                return true;
              }
 
-             if (helper->IsConstOp(producer)) {
+             if (helper->IsConstOp(producer) && !helper->output_nodes_set_.count(producer)) {
                return true;
              }
 

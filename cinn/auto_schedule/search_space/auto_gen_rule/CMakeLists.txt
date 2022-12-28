@@ -11,7 +11,7 @@ gather_srcs(cinnapi_src SRCS
 	)
 
 if (WITH_TESTING)
-  cc_library(auto_gen_rule_test_helper SRCS test_helper.cc DEPS glog gtest)
+  cc_library(auto_gen_rule_test_helper SRCS test_helper.cc DEPS glog gtest cinncore)
 endif()
 
 cc_test(test_auto_inline SRCS auto_inline_test.cc DEPS cinncore)
