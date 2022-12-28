@@ -368,6 +368,17 @@ ir::Tensor IsClose(
                             << cinn::utils::Join(x_shape, ",") << "] != y:[" << cinn::utils::Join(y_shape, ",")
                             << "] ! Please check.";
 
+  if (!x->type().is_float()) {
+    // all value should be equal when the data is not float
+    return Compute(
+        x->shape,
+        [=](const std::vector<Expr>& indice) {
+          auto a = x(indice), b = y(indice);
+          return ir::EQ::Make(a, b);
+        },
+        out_name);
+  }
+
   // For each a=x[i], b=y[i]:
   // ```
   // if (isnan(a) || isnan(b)) {
