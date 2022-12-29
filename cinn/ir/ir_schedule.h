@@ -340,7 +340,7 @@ class IRSchedule {
    * \param block The block to be unannotated
    * \param key The attribute key
    */
-  void Unannotate(const Expr& block, const std::string& key);
+  void Unannotate(Expr& block, const std::string& key);
 
   /*!
    * \brief flatten the loops in one dim.
