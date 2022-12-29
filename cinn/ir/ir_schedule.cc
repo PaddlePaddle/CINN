@@ -1513,10 +1513,14 @@ void ScheduleImpl::Annotate(const Expr& block, const std::string& key, const att
 void ScheduleImpl::Unannotate(const Expr& source_node, const std::string& ann_key) {
   CHECK(source_node.As<ir::ScheduleBlockRealize>());
   CHECK(source_node.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>());
-  auto copied_block    = optim::IRCopy(source_node);
-  auto* schedule_block = copied_block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>();
-  schedule_block->attrs.erase(ann_key);
-  this->Replace(source_node, copied_block);
+  auto block           = const_cast<Expr&>(source_node);
+  auto* schedule_block = block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>();
+  if (schedule_block->attrs.count(ann_key)) {
+    schedule_block->attrs.erase(ann_key);
+  } else {
+    LOG(WARNING) << "Can't find annotation with key: " << ann_key;
+    return;
+  }
 }
 
 void ScheduleImpl::FlattenLoops(const std::vector<Expr>& loops, const bool flat_tensor) {

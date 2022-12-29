@@ -2731,6 +2731,50 @@ TEST(IrSchedule, Annotate) {
   ASSERT_EQ(utils::GetStreamCnt(ir_sch.GetModule().GetExprs().front()), expected_expr);
 }
 
+TEST(IrSchedule, Unannotate) {
+  Context::Global().ResetNameId();
+  Expr M(32);
+  Expr N(32);
+  Placeholder<float> A("A", {M, N});
+  auto B = Compute(
+      {M, N}, [&](Var i, Var j) { return A(i, j); }, "B");
+
+  auto funcs = cinn::lang::LowerVec(
+      "test_split_and_fuse1", CreateStages({A, B}), {A, B}, {}, {}, nullptr, common::DefaultHostTarget(), true);
+  ir::IRSchedule ir_sch(ir::ModuleExpr({funcs[0]->body}));
+  auto fused   = ir_sch.Fuse("B", {0, 1});
+  auto block_b = ir_sch.GetBlock("B");
+  ir_sch.Annotate(block_b, "k1", int(64));
+  block_b = ir_sch.GetBlock("B");
+  ir_sch.Annotate(block_b, "k2", bool(true));
+  block_b = ir_sch.GetBlock("B");
+  ir_sch.Annotate(block_b, "k3", float(2.0));
+  block_b = ir_sch.GetBlock("B");
+  ir_sch.Annotate(block_b, "k4", std::string("v4"));
+  block_b = ir_sch.GetBlock("B");
+  ir_sch.Unannotate(block_b, "k1");
+  block_b = ir_sch.GetBlock("B");
+  ir_sch.Unannotate(block_b, "k2");
+  block_b = ir_sch.GetBlock("B");
+  ir_sch.Unannotate(block_b, "k3");
+  block_b = ir_sch.GetBlock("B");
+  ir_sch.Unannotate(block_b, "k4");
+  std::string expected_expr = R"ROC({
+  ScheduleBlock(root)
+  {
+    serial for (i_j_fused, 0, 1024)
+    {
+      ScheduleBlock(B)
+      {
+        i0, i1 = axis.bind((i_j_fused / 32), (i_j_fused % 32))
+        B[i0, i1] = A[i0, i1]
+      }
+    }
+  }
+})ROC";
+  ASSERT_EQ(utils::GetStreamCnt(ir_sch.GetModule().GetExprs().front()), expected_expr);
+}
+
 TEST(IrSchedule, ComplexIndices) {
   Target target = common::DefaultHostTarget();
   ir::Expr M(32);
