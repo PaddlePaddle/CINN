@@ -643,41 +643,37 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
 }
 
 void GraphCompiler::ProcessFunction(const std::vector<ir::LoweredFunc>& lowered_func) {
-  if (lowered_func.size() > 1) {
-    for (auto& i : lowered_func) {
-      VLOG(3) << "In lowered_func, its name is : " << i->name;
-      std::vector<std::string> input_args;
-      std::vector<std::string> output_args;
-      for (auto& j : i->args) {
-        std::string temp_arg = j.name();
-        if (temp_arg[0] == '_') temp_arg = temp_arg.substr(1);
-        if (j.io == ir::Argument::IO::kOutput)
-          output_args.push_back(temp_arg);
-        else if (j.io == ir::Argument::IO::kInput)
-          input_args.push_back(temp_arg);
-        auto* var = scope_->FindVar(temp_arg);
-        // For tensor not in scope, create it.
-        if (!var) {
-          auto* new_var = scope_->Var<Tensor>(temp_arg);
-          auto& tensor  = absl::get<Tensor>(*new_var);
-          std::vector<Shape::dim_t> shape;
-          CHECK(j.is_buffer());
-          VLOG(3) << "Tensor " << temp_arg << " is not found in scope. Now create it with shape:";
-          for (auto& shape_dim : j.buffer_arg()->shape) {
-            VLOG(3) << shape_dim << ",";
-            CHECK(shape_dim.is_constant());
-            shape.push_back(static_cast<int>(shape_dim.get_constant()));
-          }
-          tensor->Resize(Shape{shape});
-          tensor->set_type(j.type());
+  for (auto& i : lowered_func) {
+    VLOG(3) << "In lowered_func, its name is : " << i->name;
+    std::vector<std::string> input_args;
+    std::vector<std::string> output_args;
+    for (auto& j : i->args) {
+      std::string temp_arg = j.name();
+      if (temp_arg[0] == '_') temp_arg = temp_arg.substr(1);
+      if (j.io == ir::Argument::IO::kOutput)
+        output_args.push_back(temp_arg);
+      else if (j.io == ir::Argument::IO::kInput)
+        input_args.push_back(temp_arg);
+      auto* var = scope_->FindVar(temp_arg);
+      // For tensor not in scope, create it.
+      if (!var) {
+        auto* new_var = scope_->Var<Tensor>(temp_arg);
+        auto& tensor  = absl::get<Tensor>(*new_var);
+        std::vector<Shape::dim_t> shape;
+        CHECK(j.is_buffer());
+        VLOG(3) << "Tensor " << temp_arg << " is not found in scope. Now create it with shape:";
+        for (auto& shape_dim : j.buffer_arg()->shape) {
+          VLOG(3) << shape_dim << ",";
+          CHECK(shape_dim.is_constant());
+          shape.push_back(static_cast<int>(shape_dim.get_constant()));
         }
+        tensor->Resize(Shape{shape});
+        tensor->set_type(j.buffer_arg()->dtype);
       }
-      function2input_args_[i->name]  = input_args;
-      function2output_args_[i->name] = output_args;
-      m_builder_.AddFunction(i);
     }
-  } else {
-    m_builder_.AddFunction(lowered_func[0]);
+    function2input_args_[i->name]  = input_args;
+    function2output_args_[i->name] = output_args;
+    m_builder_.AddFunction(i);
   }
 }
 
@@ -1444,15 +1440,15 @@ std::vector<ir::LoweredFunc> GetFuncFromImpl(const std::shared_ptr<OpImpl>& impl
   CHECK_EQ(funcs_after_schedule.size(), expr_pack.size());
   std::vector<ir::LoweredFunc> res;
   for (int i = 0; i < funcs_after_schedule.size(); i++) {
+#ifdef CINN_WITH_CUDA
+    optim::OptimizeExprGPU(&(funcs_after_schedule[i]->body));
+#endif
     auto temp_buffers                  = lang::GetTempBuffers(all_arg_tensors, stages, funcs_after_schedule[i]->body);
     funcs_after_schedule[i]->temp_bufs = temp_buffers;
     funcs_after_schedule[i]            = ir::_LoweredFunc_::Make(funcs_after_schedule[i]->name,
                                                       funcs_after_schedule[i]->args,
                                                       funcs_after_schedule[i]->body,
                                                       funcs_after_schedule[i]->temp_bufs);
-#ifdef CINN_WITH_CUDA
-    optim::OptimizeExprGPU(&(funcs_after_schedule[i]->body));
-#endif
     res.emplace_back(optim::Optimize(Expr(funcs_after_schedule[i]), target, false).as_lowered_func_ref());
   }
   // 5. Return the result.
