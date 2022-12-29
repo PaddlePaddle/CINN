@@ -253,10 +253,9 @@ TEST_F(PerformanceTester, Reshape) {
 
 TEST_F(PerformanceTester, Softmax) {
   std::vector<int32_t> input_shape{batch_size, 1000};
-  int axis                = -1;
-  std::string data_format = "AnyLayout";
+  int axis = -1;
 
-  Evaluate(SoftmaxProgramBuilder(input_shape, axis, data_format)());
+  Evaluate(SoftmaxProgramBuilder(input_shape, {axis})());
 }
 
 TEST_F(PerformanceTester, Scale) {

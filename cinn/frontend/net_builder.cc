@@ -588,8 +588,11 @@ Variable NetBuilder::Scale(const Variable& a, float scale, float bias, bool bias
   return CustomInstr("scale", {a}, {{"scale", scale}, {"bias", bias}, {"bias_after_scale", bias_after_scale}}).front();
 }
 
-Variable NetBuilder::Softmax(const Variable& a, int axis, const std::string& data_format) {
-  return CustomInstr("softmax", {a}, {{"axis", axis}, {"data_format", data_format}}).front();
+Variable NetBuilder::Softmax(const Variable& a,
+                             const std::vector<int>& axes,
+                             const std::string& mode,
+                             const std::string& data_format) {
+  return CustomInstr("softmax", {a}, {{"axes", axes}, {"mode", mode}, {"data_format", data_format}}).front();
 }
 
 Variable NetBuilder::DropoutInfer(const Variable& a, float dropout_prob, const std::string& dropout_implementation) {

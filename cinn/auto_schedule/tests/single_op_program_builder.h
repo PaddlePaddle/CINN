@@ -282,7 +282,7 @@ class SoftmaxProgramBuilder : public TestProgramBuilder {
   frontend::Program operator()() override {
     frontend::NetBuilder builder("softmax_net_builder");
     auto x = builder.CreateInput(Float(32), input_shape_, "X");
-    auto y = builder.Softmax(x, axis_, data_format_);
+    auto y = builder.Softmax(x, {axis_});
 
     return builder.Build();
   }
