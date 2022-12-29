@@ -2355,7 +2355,7 @@ CINN_REGISTER_HELPER(nn_ops) {
       .describe("This operator implements the softmax layer")
       .set_num_inputs(1)
       .set_num_outputs(1)
-      // .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForSoftmax)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForSoftmax)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForSoftmax))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForSoftmax))
 #ifndef CINN_WITH_CUDA
