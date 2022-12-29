@@ -202,6 +202,7 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpWithoutSchedule(IRComputeFuncti
       continue;
     }
     arg_tensors.push_back(tensor.second);
+    // use the underlying tensor name to be consistent with the argument name in the lowered function
     group->output_names.push_back(tensor.second->name);
     func_args.emplace_back(tensor.second->buffer, ir::Argument::IO::kOutput);
   }

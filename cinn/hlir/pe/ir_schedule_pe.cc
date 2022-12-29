@@ -810,14 +810,6 @@ void IRCudaScheduleConv(ir::IRSchedule &ir_sch, const common::Target &target) {
     CHECK_GE(loops.size(), 7U);
     ir_sch.Split(loops[6], {-1, rc_factor});
   }
-  //{
-  //  loops = ir_sch.GetLoops(reduce_init_name);
-  //  // If loops size is less than 4, it means a 1-loop is eliminated. We need to add one.
-  //  if (loops.size() < 4U) {
-  //    loops = ir_sch.GetLoops(reduce_init_name);
-  //    ir_sch.Split(loops[0], {1, -1});
-  //  }
-  //}
   {
     // Do Split
     auto reduce_init                            = ir_sch.GetBlock(reduce_init_name);
