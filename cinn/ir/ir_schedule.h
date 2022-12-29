@@ -336,7 +336,7 @@ class IRSchedule {
   void Annotate(const Expr& block, const std::string& key, const attr_t& value);
 
   /*!
-   * \brief Unannotate a block with a key to remove its attribute
+   * \brief To cancel an annotation within a block using the key
    * \param block The block to be unannotated
    * \param key The attribute key
    */
