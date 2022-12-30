@@ -51,7 +51,7 @@ class TestElementwiseOp(OpMapperTest):
             shape=self.feed_data['x'].shape,
             dtype=self.feed_data['x'].dtype)
         y = paddle.static.data(
-            name='x',
+            name='y',
             shape=self.feed_data['y'].shape,
             dtype=self.feed_data['y'].dtype)
         out = self.set_elementwise_func(x, y)
@@ -62,26 +62,45 @@ class TestElementwiseOp(OpMapperTest):
         self.check_outputs_and_grads()
 
 
-test_op_list = [
-    'add', 'subtract', 'divide', 'multiply', 'pow', 'mod', 'maximum', 'minimum'
-]
+class TestAddOp(TestElementwiseOp):
+    def set_elementwise_func(self, x, y):
+        return paddle.add(x, y)
 
-for op_name in test_op_list:
-    paddle_module_name = ""
-    if hasattr(paddle, op_name):
-        paddle_module_name = "paddle."
-    elif hasattr(paddle.nn, op_name):
-        paddle_module_name = "paddle.nn."
-    elif hasattr(paddle.nn.functional, op_name):
-        paddle_module_name = "paddle.nn.functional."
-    else:
-        assert False, op_name + " should in 'paddle' or 'paddle.nn.functional' module!"
 
-    attrs = {
-        "set_elementwise_func":
-        lambda _, x: eval(paddle_module_name + op_name)(x, y)
-    }
-    exec(
-        "test_class_" + op_name +
-        " = type('Test' + op_name.title() + 'Op', (TestElementwiseOp,), attrs)"
-    )
+class TestSubOp(TestElementwiseOp):
+    def set_elementwise_func(self, x, y):
+        return paddle.subtract(x, y)
+
+
+class TestDivOp(TestElementwiseOp):
+    def set_elementwise_func(self, x, y):
+        return paddle.divide(x, y)
+
+
+class TestMulOp(TestElementwiseOp):
+    def set_elementwise_func(self, x, y):
+        return paddle.multiply(x, y)
+
+
+class TestPowOp(TestElementwiseOp):
+    def set_elementwise_func(self, x, y):
+        return paddle.pow(x, y)
+
+
+class TestModOp(TestElementwiseOp):
+    def set_elementwise_func(self, x, y):
+        return paddle.mod(x, y)
+
+
+class TestMaxOp(TestElementwiseOp):
+    def set_elementwise_func(self, x, y):
+        return paddle.maximum(x, y)
+
+
+class TestMinOp(TestElementwiseOp):
+    def set_elementwise_func(self, x, y):
+        return paddle.minimum(x, y)
+
+
+if __name__ == "__main__":
+    unittest.main()

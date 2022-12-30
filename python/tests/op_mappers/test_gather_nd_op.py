@@ -51,7 +51,7 @@ class TestGatherNdOp(OpMapperTest):
             name='index',
             shape=self.feed_data['index'].shape,
             dtype=self.feed_data['index'].dtype)
-        out = paddle.gather(x, index, self.axis)
+        out = paddle.gather_nd(x, index)
 
         return ([x.name, index.name], [out])
 

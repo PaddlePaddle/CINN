@@ -37,7 +37,7 @@ ELTWISE_SPEC(EltwiseType::kDiv, NetBuilder::Divide);
 ELTWISE_SPEC(EltwiseType::kMul, NetBuilder::Multiply);
 ELTWISE_SPEC(EltwiseType::kSub, NetBuilder::Subtract);
 ELTWISE_SPEC(EltwiseType::kPow, NetBuilder::Pow);
-ELTWISE_SPEC(EltwiseType::kMod, NetBuilder::Remainder);
+ELTWISE_SPEC(EltwiseType::kMod, NetBuilder::Mod);
 ELTWISE_SPEC(EltwiseType::kMax, NetBuilder::Max);
 ELTWISE_SPEC(EltwiseType::kMin, NetBuilder::Min);
 #undef ELTWISE_SPEC

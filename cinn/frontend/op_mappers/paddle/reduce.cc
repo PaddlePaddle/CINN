@@ -98,13 +98,13 @@ void ReduceMeanOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContex
     num = std::accumulate(x->shape.begin(), x->shape.end(), 1, std::multiplies<int>());
   } else {
     for (int i = 0; i < axis.size(); ++i) {
-      num *= axis[i];
+      num *= x->shape[axis[i]];
     }
   }
 
   const auto& sum  = ctx.Builder()->ReduceSum(x, axis, keepdim);
   const auto& size = ctx.Builder()->FillConstant(
-      sum->shape, num, cinn::common::UniqName(x->id + "_size"), cinn::common::Type2Str(x->type));
+      sum->shape, num, cinn::common::UniqName(x->id + "_mean"), cinn::common::Type2Str(sum->type));
   const auto& out = ctx.Builder()->Divide(sum, size);
 
   ctx.AddVar(out_name, out);

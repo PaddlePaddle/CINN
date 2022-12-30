@@ -55,31 +55,115 @@ class TestUnaryOp(OpMapperTest):
         self.check_outputs_and_grads()
 
 
-test_op_list = [
-    'sqrt', 'gelu', 'sigmoid', 'exp', 'erf', 'rsqrt', 'sin', 'cos', 'tan',
-    'sinh', 'cosh', 'tanh', 'asin', 'acos', 'atan', 'asinh', 'acosh', 'atanh',
-    'sign', 'abs', 'reciprocal'
-]
+class TestSqrtOp(TestUnaryOp):
+    def set_unary_func(self, x):
+        return paddle.sqrt(x)
 
-for op_name in test_op_list:
-    paddle_module_name = ""
-    if hasattr(paddle, op_name):
-        paddle_module_name = "paddle."
-    elif hasattr(paddle.nn, op_name):
-        paddle_module_name = "paddle.nn."
-    elif hasattr(paddle.nn.functional, op_name):
-        paddle_module_name = "paddle.nn.functional."
-    else:
-        assert False, op_name + " should in 'paddle' or 'paddle.nn.functional' module!"
 
-    attrs = {
-        "set_unary_func": lambda _, x: eval(paddle_module_name + op_name)(x)
-    }
-    exec("test_class_" + op_name +
-         " = type('Test' + op_name.title() + 'Op', (TestUnaryOp,), attrs)")
+class TestGeluOp(TestUnaryOp):
+    def set_unary_func(self, x):
+        return paddle.gelu(x)
+
+
+class TestSigmoidOp(TestUnaryOp):
+    def set_unary_func(self, x):
+        return paddle.sigmoid(x)
+
+
+class TestExpOp(TestUnaryOp):
+    def set_unary_func(self, x):
+        return paddle.exp(x)
+
+
+class TestErfOp(TestUnaryOp):
+    def set_unary_func(self, x):
+        return paddle.erf(x)
+
+
+class TestRsqrtOp(TestUnaryOp):
+    def set_unary_func(self, x):
+        return paddle.rsqrt(x)
+
+
+class TestSinOp(TestUnaryOp):
+    def set_unary_func(self, x):
+        return paddle.sin(x)
+
+
+class TestCosOp(TestUnaryOp):
+    def set_unary_func(self, x):
+        return paddle.cos(x)
+
+
+class TestTanOp(TestUnaryOp):
+    def set_unary_func(self, x):
+        return paddle.tan(x)
+
+
+class TestSinhOp(TestUnaryOp):
+    def set_unary_func(self, x):
+        return paddle.sinh(x)
+
+
+class TestCoshOp(TestUnaryOp):
+    def set_unary_func(self, x):
+        return paddle.cosh(x)
+
+
+class TestTanhOp(TestUnaryOp):
+    def set_unary_func(self, x):
+        return paddle.tanh(x)
+
+
+class TestAsinOp(TestUnaryOp):
+    def set_unary_func(self, x):
+        return paddle.asin(x)
+
+
+class TestAcosOp(TestUnaryOp):
+    def set_unary_func(self, x):
+        return paddle.acos(x)
+
+
+class TestAtanOp(TestUnaryOp):
+    def set_unary_func(self, x):
+        return paddle.atan(x)
+
+
+class TestAsinhOp(TestUnaryOp):
+    def set_unary_func(self, x):
+        return paddle.asinh(x)
+
+
+class TestAcoshOp(TestUnaryOp):
+    def set_unary_func(self, x):
+        return paddle.acosh(x)
+
+
+class TestAtanhOp(TestUnaryOp):
+    def set_unary_func(self, x):
+        return paddle.atanh(x)
+
+
+class TestSignOp(TestUnaryOp):
+    def set_unary_func(self, x):
+        return paddle.sign(x)
+
+
+class TestAbsOp(TestUnaryOp):
+    def set_unary_func(self, x):
+        return paddle.abs(x)
+
+
+class TestReciprocalOp(TestUnaryOp):
+    def set_unary_func(self, x):
+        return paddle.reciprocal(x)
 
 
 class TestFloorOp(TestUnaryOp):
+    def init_input_data(self):
+        self.feed_data = {'x': self.random([32, 64], "float32", -2.0, 2.0)}
+
     def set_unary_func(self, x):
         return paddle.floor(x)
 
@@ -88,6 +172,9 @@ class TestFloorOp(TestUnaryOp):
 
 
 class TestCeilOp(TestUnaryOp):
+    def init_input_data(self):
+        self.feed_data = {'x': self.random([32, 64], "float32", -2.0, 2.0)}
+
     def set_unary_func(self, x):
         return paddle.ceil(x)
 
@@ -96,6 +183,9 @@ class TestCeilOp(TestUnaryOp):
 
 
 class TestRoundOp(TestUnaryOp):
+    def init_input_data(self):
+        self.feed_data = {'x': self.random([32, 64], "float32", -2.0, 2.0)}
+
     def set_unary_func(self, x):
         return paddle.round(x)
 
@@ -104,6 +194,9 @@ class TestRoundOp(TestUnaryOp):
 
 
 class TestTruncOp(TestUnaryOp):
+    def init_input_data(self):
+        self.feed_data = {'x': self.random([32, 64], "float32", -2.0, 2.0)}
+
     def set_unary_func(self, x):
         return paddle.trunc(x)
 

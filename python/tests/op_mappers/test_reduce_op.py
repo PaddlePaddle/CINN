@@ -82,6 +82,11 @@ class TestReduceCase4(TestReduceOp):
 
 
 class TestReduceCase5(TestReduceOp):
+    def init_input_data(self):
+        self.feed_data = {'x': self.random([32, 64], "float32", 1.0, 2.0)}
+        self.axis = None
+        self.keepdim = False
+
     def set_reduce_func(self, x):
         return paddle.prod(x, axis=self.axis, keepdim=self.keepdim)
 

@@ -39,7 +39,7 @@ class TestGatherOp(OpMapperTest):
     def init_input_data(self):
         self.feed_data = {
             'x': self.random([10, 12, 128, 128], 'float32'),
-            'index': self.random([5], 0, 10, 'int32'),
+            'index': self.random([5], 'int32', 0, 10)
         }
         self.axis = 0
 
@@ -64,7 +64,7 @@ class TestGatherCase1(TestGatherOp):
     def init_input_data(self):
         self.feed_data = {
             'x': self.random([10, 12, 128, 128], 'float32'),
-            'index': self.random([64], 0, 128, 'int32'),
+            'index': self.random([64], 'int32', 0, 128),
         }
         self.axis = 2
 
