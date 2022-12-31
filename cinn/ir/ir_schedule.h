@@ -336,6 +336,13 @@ class IRSchedule {
   void Annotate(const Expr& block, const std::string& key, const attr_t& value);
 
   /*!
+   * \brief Remove an annotation from the given source node.
+   * @param block The node to remove the annotation from.
+   * @param key The key of the annotation to remove.
+   */
+  void Unannotate(const Expr& block, const std::string& key);
+
+  /*!
    * \brief flatten the loops in one dim.
    * \param loops  the loops to be flatted.
    * \param force_flat force to flat the right value.
