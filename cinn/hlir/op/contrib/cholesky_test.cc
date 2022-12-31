@@ -11,3 +11,65 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+#include "cinn/hlir/op/contrib/cholesky.h"
+
+#include <glog/logging.h>
+#include <gtest/gtest.h>
+
+#include <string>
+#include <vector>
+
+#include "cinn/backends/codegen_c.h"
+#include "cinn/backends/codegen_c_x86.h"
+#include "cinn/backends/codegen_cuda_dev.h"
+#include "cinn/common/context.h"
+#include "cinn/ir/ir_base.h"
+#include "cinn/lang/lower.h"
+#include "cinn/lang/placeholder.h"
+#include "cinn/poly/stage.h"
+
+namespace cinn {
+namespace hlir {
+namespace op {
+namespace {
+bool IsCompiledWithCUDA() {
+#if !defined(CINN_WITH_CUDA)
+  return false;
+#else
+  return true;
+#endif
+}
+}  // namespace
+
+TEST(GenerateCode_Cpu, Cholesky) {
+  common::Context::Global().ResetNameId();
+
+  common::Target target = common::DefaultHostTarget();
+  ir::Expr m(3);
+  lang::Placeholder<float> in("in", {m, m});
+  bool upper = false;
+  ir::Tensor res = Cholesky(in, upper, target, "test_cholesky");
+
+  poly::StageMap stages = poly::CreateStages({res});
+  std::vector<ir::LoweredFunc> funcs =
+      lang::LowerVec("TestGenerateCodeCpu_Cholesky", stages, {res}, {}, {}, nullptr, target, true);
+
+  VLOG(6) << "Expr before CPU codegen:";
+  VLOG(6) << funcs[0]->body;
+
+  ir::Module::Builder builder("Cholesky_Module", target);
+  for (auto& f : funcs) {
+    builder.AddFunction(f);
+  }
+
+  backends::CodeGenCX86 codegen(target, backends::CodeGenCX86::Feature::AVX512);
+  codegen.SetInlineBuiltinCodes(false);
+  std::string code = codegen.Compile(builder.Build(), backends::CodeGenC::OutputKind::CImpl);
+  VLOG(6) << "Cpu Codegen result:";
+  VLOG(6) << code;
+}
+
+}  // namespace op
+}  // namespace hlir
+}  // namespace cinn
