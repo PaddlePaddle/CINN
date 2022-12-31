@@ -62,9 +62,10 @@ ir::Tensor Cholesky(const ir::Tensor &x,
                     const std::string &output_name) {
   std::string extern_func = "cinn_";
   if (target == common::DefaultHostTarget()) {
-    extern_func += "host_";
+    extern_func += "cpu_mkl_";
   } else if (target == common::DefaultNVGPUTarget()) {
-    extern_func += "nvgpu_";
+    // extern_func += "gpu_cusolver_";
+    CINN_NOT_IMPLEMENTED
   } else {
     CINN_NOT_IMPLEMENTED
   }
@@ -77,10 +78,25 @@ ir::Tensor Cholesky(const ir::Tensor &x,
     CINN_NOT_IMPLEMENTED
   }
 
+  // 计算batch_size，即总共需要调用核函数的次数
+  int ndim = static_cast<int>(x->shape.size());
+  int batch_size = 1;
+  for (int i = 0; i < ndim - 2; i++) {
+    batch_size *= x->shape[i].as_int32();
+  }
+  // 获取正定矩阵的维度M
+  int m = x->shape[ndim - 1].as_int32();
+
   auto res = Compute(
-    x->shape,
+    {Expr(1)},
     [=]() {
-        return lang::CallExtern(extern_func, {x, common::make_bool(upper)});
+        return lang::CallExtern(extern_func,
+                                {
+                                  x,  // Input matrix
+                                  Expr(batch_size),  // Batch size
+                                  Expr(m),  // Matrix shape
+                                  common::make_bool(upper)
+                                });
     },
     output_name
   );
@@ -128,10 +144,10 @@ std::shared_ptr<framework::OpStrategy> StrategyForCholesky(const framework::Node
 std::vector<framework::shape_t> InferShapeForCholesky(const std::vector<framework::shape_t> &inputs_shape,
                                                       const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 1U) << "The input's shape size should be 1! Please check again.";
-  std::vector<framework::shape_t> res{inputs_shape[0]};
-  CHECK_GE(res.size(), 2U) << "The input x shape size should >= 2! Please check again.";
-  CHECK_EQ(res[res.size() - 2], res[res.size() - 1]) << "The last two dimensions of the input x must be the same!";
-  return res;
+  framework::shape_t x_shape = inputs_shape[0];
+  CHECK_GE(x_shape.size(), 2U) << "The input x shape size should >= 2! Please check again.";
+  CHECK_EQ(x_shape[x_shape.size() - 2], x_shape[x_shape.size() - 1]) << "The last two dimensions of the input x must be the same!";
+  return inputs_shape;
 }
 
 std::vector<Type> InferDtypeForCholesky(const std::vector<Type> &inputs_type,

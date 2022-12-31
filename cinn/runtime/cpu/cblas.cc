@@ -18,12 +18,29 @@
 
 #include "cinn/backends/extern_func_jit_register.h"
 #include "cinn/common/cas.h"
+#include "mkl_lapacke.h"
 
 namespace {
 
 inline CBLAS_TRANSPOSE ToCblasTranspose(bool trans) { return trans ? CblasTrans : CblasNoTrans; }
 
 }  // namespace
+
+void cinn_cpu_mkl_cholesky_fp32(cinn_buffer_t* x,
+                                int batch_size,
+                                int m,
+                                bool upper,
+                                cinn_buffer_t* out) {
+  cinn_buffer_copy(nullptr, x, out);
+  char uplo = upper ? 'U' : 'L';
+  for (int i = 0; i < batch_size; i++) {
+    LAPACKE_spotrf(LAPACK_ROW_MAJOR,
+                   uplo,
+                   m,
+                   reinterpret_cast<float*>(out->memory) + i * m * m,
+                   m);
+  }
+}
 
 void cinn_cpu_mkl_gemm_fp32(float alpha,
                             int M,
@@ -142,6 +159,15 @@ CINN_REGISTER_HELPER(cinn_cpu_mkl) {
     shape.push_back(N);
     return shape;
   };
+
+  REGISTER_EXTERN_FUNC_HELPER(cinn_cpu_mkl_cholesky_fp32, host_target)
+      .SetRetType<void>()
+      .AddInputType<cinn_buffer_t*>()   // x
+      .AddInputType<int>()              // batch_size
+      .AddInputType<int>()              // m
+      .AddInputType<bool>()             // upper
+      .AddOutputType<cinn_buffer_t*>()  // out
+      .End();
 
   REGISTER_EXTERN_FUNC_HELPER(cinn_cpu_mkl_gemm_fp32, host_target)
       .SetRetType<void>()
