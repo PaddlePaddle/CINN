@@ -27,7 +27,6 @@
 #include "cinn/hlir/framework/op.h"
 #include "cinn/utils/functional.h"
 #include "cinn/utils/type_defs.h"
-#include "ginac/idx.h"
 
 namespace cinn {
 namespace frontend {
