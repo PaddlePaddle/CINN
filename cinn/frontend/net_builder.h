@@ -960,7 +960,7 @@ class NetBuilder {
                   When upper is false, calculate and return the lower triangular matrix.
    * @return Triangular matrix, shape is same as input.
    */
-   Variable Cholesky(const Variable& x, bool upper);
+   Variable Cholesky(const Variable& x, bool upper = false);
 
  private:
   CINN_DISALLOW_COPY_AND_ASSIGN(NetBuilder);

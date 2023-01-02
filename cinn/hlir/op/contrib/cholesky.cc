@@ -160,3 +160,16 @@ std::vector<Type> InferDtypeForCholesky(const std::vector<Type> &inputs_type,
 }  // namespace op
 }  // namespace hlir
 }  // namespace cinn
+
+CINN_REGISTER_HELPER(cholesky_ops) {
+  CINN_REGISTER_OP(cholesky)
+      .describe("Cholesky")
+      .set_num_inputs(1)
+      .set_num_outputs(1)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForCholesky)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForCholesky))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForCholesky))
+      .set_support_level(4);
+
+  return true;
+}
