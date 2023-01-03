@@ -167,23 +167,30 @@ __device__ inline float16 cinn_min_fp16(const float16 left, const float16 right)
 __device__ inline bool cinn_all(const bool left, const bool right) { return left && right; }
 __device__ inline bool cinn_any(const bool left, const bool right) { return left || right; }
 
-#define CINN_SHUFFLE_FUNCTION(offset, op, init)                  \
-  shfl_res = __shfl_down_sync(mask, tmp_val, offset, 32);        \
-  shfl_res = threadIdx.x % 32 + offset < lane ? shfl_res : init; \
-  tmp_val  = op(tmp_val, shfl_res);
+#define CINN_SHUFFLE_FUNCTION(offset, op, init) \
+  tmp_val = op((threadIdx.x & 0x1f) + offset < lane ? __shfl_down_sync(mask, tmp_val, offset, 32) : init, tmp_val);
 
 #define CINN_WARP_SHUFFLE_INTERNAL_IMPL(REDUCE_TYPE, INITIAL_VALUE, DTYPE)                \
   __device__ inline DTYPE cinn_warp_shuffle_##REDUCE_TYPE##_internal(const DTYPE value) { \
     DTYPE tmp_val     = value, shfl_res;                                                  \
     unsigned int mask = __activemask();                                                   \
     unsigned int lane = __popc(mask);                                                     \
-    CINN_SHUFFLE_FUNCTION(16, cinn_##REDUCE_TYPE, DTYPE(INITIAL_VALUE))                   \
-    CINN_SHUFFLE_FUNCTION(8, cinn_##REDUCE_TYPE, DTYPE(INITIAL_VALUE))                    \
-    CINN_SHUFFLE_FUNCTION(4, cinn_##REDUCE_TYPE, DTYPE(INITIAL_VALUE))                    \
-    CINN_SHUFFLE_FUNCTION(2, cinn_##REDUCE_TYPE, DTYPE(INITIAL_VALUE))                    \
-    CINN_SHUFFLE_FUNCTION(1, cinn_##REDUCE_TYPE, DTYPE(INITIAL_VALUE))                    \
-    tmp_val = __shfl_sync(mask, tmp_val, 0, 32);                                          \
-    return tmp_val;                                                                       \
+    if (lane < 32) {                                                                      \
+      CINN_SHUFFLE_FUNCTION(16, cinn_##REDUCE_TYPE, DTYPE(INITIAL_VALUE))                 \
+      CINN_SHUFFLE_FUNCTION(8, cinn_##REDUCE_TYPE, DTYPE(INITIAL_VALUE))                  \
+      CINN_SHUFFLE_FUNCTION(4, cinn_##REDUCE_TYPE, DTYPE(INITIAL_VALUE))                  \
+      CINN_SHUFFLE_FUNCTION(2, cinn_##REDUCE_TYPE, DTYPE(INITIAL_VALUE))                  \
+      CINN_SHUFFLE_FUNCTION(1, cinn_##REDUCE_TYPE, DTYPE(INITIAL_VALUE))                  \
+      tmp_val = __shfl_sync(mask, tmp_val, 0, 32);                                        \
+      return tmp_val;                                                                     \
+    } else {                                                                              \
+      tmp_val = cinn_##REDUCE_TYPE(tmp_val, __shfl_down_sync(mask, tmp_val, 16, 32));     \
+      tmp_val = cinn_##REDUCE_TYPE(tmp_val, __shfl_down_sync(mask, tmp_val, 8, 32));      \
+      tmp_val = cinn_##REDUCE_TYPE(tmp_val, __shfl_down_sync(mask, tmp_val, 4, 32));      \
+      tmp_val = cinn_##REDUCE_TYPE(tmp_val, __shfl_down_sync(mask, tmp_val, 2, 32));      \
+      tmp_val = cinn_##REDUCE_TYPE(tmp_val, __shfl_down_sync(mask, tmp_val, 1, 32));      \
+      return tmp_val;                                                                     \
+    }                                                                                     \
   }
 
 EXPAND_REDUCE_FP32_MACRO(CINN_WARP_SHUFFLE_INTERNAL_IMPL)
