@@ -289,8 +289,6 @@ class NetBuilder {
    */
   Variable Clip(const std::vector<Variable>& x, const float& max, const float& min);
 
-  Variable Gather(const Variable& x, const Variable& index, const int& axis = 0);
-
   Variable GatherNd(const Variable& x, const Variable& index, const cinn::utils::ShapeType& axes = {});
 
   Variable Scatter(const Variable& src, const Variable& index, const Variable& out, const int& axis = 0);
@@ -639,7 +637,7 @@ class NetBuilder {
    * @param axis  The dimension in which we index. Default: 0.
    * @return A variable with same data type as x.
    */
-  Variable IndexSelect(const Variable& x, const Variable& index, int axis = 0);
+  Variable Gather(const Variable& x, const Variable& index, int axis = 0);
 
   /**
    * @brief Output is obtained by updating the input on selected indices based on updates.

@@ -150,7 +150,7 @@ ir::Tensor Transpose(const ir::Tensor& input,
                      const std::string& output_name = UniqName("T_Transpose_out"));
 
 /**
- * @brief Perform meta op IndexSelect
+ * @brief Perform meta op Split
  * @param x The input tensor
  * @param index The index tensor
  * @param output_shape The output tensor shape
@@ -192,11 +192,11 @@ ir::Tensor SliceAssign(const ir::Tensor& input,
  * @param output_shapes The output sub-tensors shape
  * @param output_name the name of the output tensor
  */
-ir::Tensor IndexSelect(const ir::Tensor& x,
-                       const ir::Tensor& index,
-                       const std::vector<Expr>& output_shape,
-                       int axis                = 0,
-                       const std::string& name = UniqName("T_Transform_IndexSelect_out"));
+ir::Tensor Gather(const ir::Tensor& x,
+                  const ir::Tensor& index,
+                  const std::vector<Expr>& output_shape,
+                  int axis                = 0,
+                  const std::string& name = UniqName("T_Transform_Gather_out"));
 
 /**
  * @brief Perform meta op ScatterAssign
@@ -225,15 +225,6 @@ ir::Tensor ScatterAdd(const ir::Tensor& input,
                       const common::Target& target,
                       const int axis,
                       const std::string& output_name);
-
-/**
- * @brief Perform meta op Gather
- * @param input The input tensor
- * @param index The indexs tensor
- * @param axis the axis to do gather
- * @param output_name the name of the output tensor
- */
-ir::Tensor Gather(const ir::Tensor& input, const ir::Tensor& index, const int& axis, const std::string& name);
 
 }  // namespace pe
 }  // namespace hlir

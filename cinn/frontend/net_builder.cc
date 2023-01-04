@@ -340,8 +340,8 @@ Variable NetBuilder::Select(const Variable& condition, const Variable& true_valu
   return CustomInstr("select", {condition, true_value, false_value}, {}).front();
 }
 
-Variable NetBuilder::IndexSelect(const Variable& operand, const Variable& index, int axis) {
-  return CustomInstr("index_select", {operand, index}, {{"axis", axis}}).front();
+Variable NetBuilder::Gather(const Variable& operand, const Variable& index, int axis) {
+  return CustomInstr("gather", {operand, index}, {{"axis", axis}}).front();
 }
 
 Variable NetBuilder::ScatterAssign(const Variable& operand, const Variable& updates, const Variable& index, int axis) {
@@ -376,10 +376,6 @@ Variable NetBuilder::Relu6(const Variable& a, float threshold) {
 
 Variable NetBuilder::ReluGrad(const Variable& lhs, const Variable& rhs) {
   return CustomInstr("relu_grad", {lhs, rhs}, {}).front();
-}
-
-Variable NetBuilder::Gather(const Variable& x, const Variable& index, const int& axis) {
-  return CustomInstr("gather", {x, index}, {{"axis", axis}}).front();
 }
 
 Variable NetBuilder::GatherNd(const Variable& x, const Variable& index, const std::vector<int>& axes) {
