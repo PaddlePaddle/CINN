@@ -641,5 +641,40 @@ TEST_F(TestScheduleDesc, StepKind_Annotate) {
   CheckReplayResult(ir_sch, ir_sch.GetTraceDesc());
 }
 
+TEST_F(TestScheduleDesc, StepKind_Unannotate) {
+  lowered_funcs         = LowerCompute({32, 128}, target);
+  ir::IRSchedule ir_sch = MakeIRSchedule(lowered_funcs);
+
+  auto block_b = ir_sch.GetBlock("B");
+  trace.Append(ScheduleDesc::Step("GetBlock", {}, {{"block_name", std::string("B")}}, {block_b}));
+  ir_sch.Annotate(block_b, "k1", int(64));
+  trace.Append(ScheduleDesc::Step("AnnotateIntAttr",
+                                  {{"block", std::vector<Expr>({block_b})}},
+                                  {{"key", std::string("k1")}, {"value", int(64)}},
+                                  {}));
+
+  block_b = ir_sch.GetBlock("B");
+  trace.Append(ScheduleDesc::Step("GetBlock", {}, {{"block_name", std::string("B")}}, {block_b}));
+  ir_sch.Annotate(block_b, "k2", bool(true));
+  trace.Append(ScheduleDesc::Step("AnnotateBoolAttr",
+                                  {{"block", std::vector<Expr>({block_b})}},
+                                  {{"key", std::string("k2")}, {"value", bool(true)}},
+                                  {}));
+
+  block_b = ir_sch.GetBlock("B");
+  trace.Append(ScheduleDesc::Step("GetBlock", {}, {{"block_name", std::string("B")}}, {block_b}));
+  ir_sch.Unannotate(block_b, "k1");
+  trace.Append(
+      ScheduleDesc::Step("Unannotate", {{"block", std::vector<Expr>({block_b})}}, {{"key", std::string("k1")}}, {}));
+
+  block_b = ir_sch.GetBlock("B");
+  trace.Append(ScheduleDesc::Step("GetBlock", {}, {{"block_name", std::string("B")}}, {block_b}));
+  ir_sch.Unannotate(block_b, "k2");
+  trace.Append(
+      ScheduleDesc::Step("Unannotate", {{"block", std::vector<Expr>({block_b})}}, {{"key", std::string("k2")}}, {}));
+
+  CheckReplayResult(ir_sch, trace);
+  CheckReplayResult(ir_sch, ir_sch.GetTraceDesc());
+}
 }  // namespace ir
 }  // namespace cinn

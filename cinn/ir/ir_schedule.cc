@@ -94,6 +94,7 @@ class ScheduleImpl {
   Expr Rfactor(const Expr& rf_loop, int rf_axis);
   Expr AddUnitLoop(const Expr& block) const;
   void Annotate(const Expr& block, const std::string& key, const attr_t& value);
+  void Unannotate(Expr& block, const std::string& key);
   void FlattenLoops(const std::vector<Expr>& loops, const bool force_flat = false);
   void CopyTransformAndLoopInfo(const Expr& block, const Expr& block_target);
   void CopyTransformAndLoopInfo(const std::string& block_name, const std::string& block_target_name);
@@ -1509,6 +1510,18 @@ void ScheduleImpl::Annotate(const Expr& block, const std::string& key, const att
   this->Replace(block, copied_block);
 }
 
+void ScheduleImpl::Unannotate(Expr& block, const std::string& ann_key) {
+  CHECK(block.As<ir::ScheduleBlockRealize>());
+  CHECK(block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>());
+  auto* schedule_block = block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>();
+  if (schedule_block->attrs.count(ann_key)) {
+    schedule_block->attrs.erase(ann_key);
+  } else {
+    LOG(WARNING) << "Can't find annotation with key: " << ann_key;
+    return;
+  }
+}
+
 void ScheduleImpl::FlattenLoops(const std::vector<Expr>& loops, const bool flat_tensor) {
   CHECK_GT(loops.size(), 0) << "Loops can't be empty!";
   // compute loop
@@ -2006,6 +2019,11 @@ void IRSchedule::Annotate(const Expr& block, const std::string& key, const attr_
 #undef TRACE_ANNOTATE_ITEM
 
   LOG(FATAL) << "Value of attribute:" << key << " input unsupported data type";
+}
+
+void IRSchedule::Unannotate(Expr& block, const std::string& key) {
+  impl_->Unannotate(block, key);
+  trace_.Append(ScheduleDesc::Step("Unannotate", {{"block", std::vector<Expr>({block})}}, {{"key", key}}, {}));
 }
 
 void IRSchedule::FlattenLoops(const std::vector<Expr>& loops, const bool force_flat) {
