@@ -19,6 +19,7 @@
 
 #include "cinn/backends/extern_func_jit_register.h"
 #include "cinn/backends/function_prototype.h"
+#include "cinn/runtime/custom_function.h"
 
 #ifdef CINN_WITH_MKL_CBLAS
 #include "cinn/runtime/cpu/mkl_math.h"
@@ -280,6 +281,16 @@ CINN_REGISTER_HELPER(host_intrinsics) {
       .AddInputType<float>()
       .AddInputType<int>()
       .AddInputType<int>()
+      .End();
+
+  using cinn::runtime::cinn_host_cholesky_float;
+  REGISTER_EXTERN_FUNC_HELPER(cinn_host_cholesky_float, host_target)
+      .SetRetType<void>()
+      .AddInputType<void*>()            // v_args
+      .AddInputType<int>()              // msg
+      .AddInputType<int>()              // batch_size
+      .AddInputType<int>()              // m
+      .AddInputType<bool>()             // upper
       .End();
 
   return true;

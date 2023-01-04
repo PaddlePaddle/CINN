@@ -454,6 +454,30 @@ std::vector<ir::Expr> CustomCallArgsForAssertTrue(const framework::NodeAttr &att
   return args;
 }
 
+std::vector<ir::Expr> CustomCallArgsForCholesky(const framework::NodeAttr &attrs,
+                                                const std::vector<ir::Tensor> &inputs,
+                                                const std::vector<std::vector<int>> &output_shapes) {
+  CHECK_EQ(inputs.size(), 1UL);
+  auto attr_store = attrs.attr_store;
+  CHECK(attr_store.count("msg"));
+  CHECK(attr_store.count("upper"));
+
+  ir::Tensor x = inputs.front();
+  int ndim = static_cast<int>(x->shape.size());
+  int batch_size = 1;
+  for (int i = 0; i < ndim - 2; i++) {
+    batch_size *= x->shape[i].as_int32();
+  }
+  int m = x->shape[ndim - 1].as_int32();
+
+  auto msg = absl::get<int>(attr_store.at("msg"));
+  auto upper = absl::get<bool>(attrs.attr_store.at("upper"));
+
+  std::vector<ir::Expr> args = {ir::Expr(msg), ir::Expr(batch_size), ir::Expr(m), ir::Expr(upper)};
+
+  return args;
+}
+
 bool RegisteryCustomCallArgsFunc() {
 #ifdef CINN_WITH_CUDA
   CustomCallArgsFuncRegistry::Global().Register(
@@ -483,6 +507,9 @@ bool RegisteryCustomCallArgsFunc() {
 
   CustomCallArgsFuncRegistry::Global().Register(
       "cinn_assert_true", common::DefaultTarget(), CustomCallArgsForAssertTrue);
+
+  CustomCallArgsFuncRegistry::Global().Register(
+      "cinn_host_cholesky_float", common::DefaultHostTarget(), CustomCallArgsForCholesky);
 
   return true;
 }

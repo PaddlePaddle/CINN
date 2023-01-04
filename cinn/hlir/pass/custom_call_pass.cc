@@ -96,6 +96,26 @@ class GraphAlterHelper {
     }
   }
 
+  void CholeskyToMklCustomCall() {
+    auto nodes = graph_->CollectNodes([](const common::GraphNode* graph_node) -> bool {
+      if (graph_node->safe_as<Node>()) {
+        auto node = graph_node->safe_as<Node>();
+        if (node->op()->name == "cholesky") {
+          return true;
+        }
+      }
+
+      return false;
+    });
+
+    for (auto gnode : nodes) {
+      auto src = gnode->safe_as<Node>();
+      CHECK(src);
+      src->attrs.op = framework::Operator::Get("custom_call");
+      src->attrs.attr_store["custom_call"] = std::string("cinn_host_cholesky_float");
+    }
+  }
+
  private:
   Graph* graph_;
 };
@@ -110,6 +130,12 @@ void ConvToCudnnCustomCallPassInternal(Graph* graph) {
   VLOG(3) << "ConvToCudnnCustomCallPass...!";
   GraphAlterHelper(graph).ConvToCudnnCustomCall();
   VLOG(3) << "ConvToCudnnCustomCallPass Finish...!";
+}
+
+void CholeskyToMklCustomCallPassInternal(Graph* graph) {
+  VLOG(3) << "CholeskyToMklCustomCallPass...!";
+  GraphAlterHelper(graph).CholeskyToMklCustomCall();
+  VLOG(3) << "CholeskyToMklCustomCallPass Finish...!";
 }
 
 }  // namespace pass
@@ -129,5 +155,10 @@ CINN_REGISTER_HELPER(CustomCallPass) {
       .set_change_structure(false)
       .set_body(cinn::hlir::pass::ConvToCudnnCustomCallPassInternal);
 #endif
+  CINN_REGISTER_PASS(CholeskyToMklCustomCallPass)
+      .describe("This pass which convert cholesky op to custom call pass.")
+      .set_change_structure(false)
+      .set_body(cinn::hlir::pass::CholeskyToMklCustomCallPassInternal);
+
   return true;
 }

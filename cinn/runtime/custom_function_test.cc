@@ -171,5 +171,46 @@ TEST(CinnAssertTrue, test_false_only_warning) {
   }
 }
 
+TEST(CustomCallCholesky, test_target_host) {
+  Target target = common::DefaultHostTarget();
+
+  // Batch size
+  int batch_size = 1;
+  // Dim
+  int m = 3;
+  // Upper
+  bool upper = false;
+
+  // Input matrix x
+  CinnBufferAllocHelper x(cinn_x86_device, cinn_float32_t(), {m, m});
+  float input_h[9] = {0.96329159, 0.88160539, 0.40593964,
+                      0.88160539, 1.39001071, 0.48823422,
+                      0.40593964, 0.48823422, 0.19755946};
+  auto* input  = x.mutable_data<float>(target);
+  SetInputValue(input, input_h, m * m, target);
+
+  // Output matrix out
+  CinnBufferAllocHelper out(cinn_x86_device, cinn_float32_t(), {m, m});
+  auto* output = out.mutable_data<float>(target);
+
+  // Result matrix res
+  CinnBufferAllocHelper res(cinn_x86_device, cinn_float32_t(), {m, m});
+  float result_h[9] = {0.98147416, 0, 0,
+                       0.89824611, 0.76365214, 0,
+                       0.41360193, 0.15284170, 0.055967092};
+  auto* result = res.mutable_data<float>(target);
+  SetInputValue(result, result_h, m * m, target);
+
+  cinn_pod_value_t v_args[2] = {cinn_pod_value_t(x.get()), cinn_pod_value_t(out.get())};
+
+  std::stringstream ss;
+  ss << "Test Cholesky(upper=false) on " << target;
+  cinn_host_cholesky_float(v_args, std::hash<std::string>()(ss.str()), batch_size, m, upper);
+
+  for (int i = 0; i < batch_size * m * m; i++) {
+    ASSERT_EQ(output[i], result[i]) << "The output of Cholesky should be the same as result";
+  }
+}
+
 }  // namespace runtime
 }  // namespace cinn

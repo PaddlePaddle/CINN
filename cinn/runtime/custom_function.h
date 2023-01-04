@@ -26,5 +26,11 @@ namespace runtime {
 
 void cinn_assert_true(void* v_args, int msg, bool only_warning, void* stream = nullptr);
 
+void cinn_host_cholesky_float(void* v_args,
+                              int msg,
+                              int batch_size,
+                              int m,
+                              bool upper);
+
 }  // namespace runtime
 }  // namespace cinn

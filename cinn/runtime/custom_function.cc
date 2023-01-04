@@ -18,6 +18,8 @@
 #include <cuda_runtime.h>
 #endif
 
+#include "mkl_lapacke.h"
+
 #include "cinn/runtime/custom_function.h"
 
 namespace cinn {
@@ -139,6 +141,41 @@ void cinn_assert_true(void* v_args, int msg, bool only_warning, void* stream) {
     utils::MemcpyToDevice(output->memory, x->memory, numel * sizeof(bool), target, stream);
   } else {
     utils::MemcpyToHost(output->memory, x->memory, numel * sizeof(bool), target, stream);
+  }
+}
+
+void cinn_host_cholesky_float(void* v_args,
+                              int msg,
+                              int batch_size,
+                              int m,
+                              bool upper) {
+  cinn_pod_value_t* args = static_cast<cinn_pod_value_t*>(v_args);
+
+  cinn_buffer_t* x      = args[0].operator cinn_buffer_t*();
+  cinn_buffer_t* out    = args[1].operator cinn_buffer_t*();
+  memcpy(out->memory, x->memory, x->memory_size);
+
+  char uplo = upper ? 'U' : 'L';
+  for (int i = 0; i < batch_size; i++) {
+    float* matrix = reinterpret_cast<float*>(out->memory) + i * m * m;
+    LAPACKE_spotrf(LAPACK_ROW_MAJOR,
+                   uplo,
+                   m,
+                   matrix,
+                   m);
+    if (upper) {
+      for (int j = 0; j < m; j++) {
+        for (int k = 0; k < j; k++) {
+          matrix[j * m + k] = 0;
+        }
+      }
+    } else {
+      for (int j = 0; j < m; j++) {
+        for (int k = j + 1; k < m; k++) {
+          matrix[j * m + k] = 0;
+        }
+      }
+    }
   }
 }
 
