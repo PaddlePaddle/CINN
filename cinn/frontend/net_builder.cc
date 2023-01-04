@@ -193,7 +193,13 @@ NETBUILDER_BINARY_OP_DEF(LogicalRightShift, logical_right_shift);
 
 #define NETBUILDER_REDUCE_OP_DEF(func_name__, op_type__)                                            \
   Variable NetBuilder::func_name__(const Variable& x, const std::vector<int>& dim, bool keep_dim) { \
-    return Reduce(#op_type__, x, dim, keep_dim);                                                    \
+    std::vector<int> axes = dim;                                                                    \
+    if (axes.size() == 0) {                                                                         \
+      for (int idx = 0; idx < x->shape.size(); ++idx) {                                             \
+        axes.push_back(idx);                                                                        \
+      }                                                                                             \
+    }                                                                                               \
+    return Reduce(#op_type__, x, axes, keep_dim);                                                   \
   }
 
 NETBUILDER_REDUCE_OP_DEF(ReduceSum, reduce_sum)

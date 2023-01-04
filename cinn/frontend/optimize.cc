@@ -72,6 +72,8 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
   if (FLAGS_cinn_use_op_fusion) {
     options.graph_passes.push_back("OpFusionPass");
     options.graph_passes.push_back("FusionMergePass");
+  } else {
+    options.graph_passes.push_back("BuildNonFusedGroupsPass");
   }
 
   // WARNING: the pass must be the last pass !!!
