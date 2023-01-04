@@ -57,31 +57,31 @@ class TestReduceOp(OpMapperTest):
         self.check_outputs_and_grads()
 
 
-class TestReduceCase1(TestReduceOp):
+class TestReduceSum(TestReduceOp):
     def init_input_data(self):
         self.feed_data = {'x': self.random([32, 64], "float32")}
         self.axis = 0
         self.keepdim = False
 
 
-class TestReduceCase2(TestReduceOp):
+class TestReduceSumCase1(TestReduceOp):
     def init_input_data(self):
         self.feed_data = {'x': self.random([32, 64], "float32")}
         self.axis = 0
         self.keepdim = True
 
 
-class TestReduceCase3(TestReduceOp):
+class TestReduceMax(TestReduceOp):
     def set_reduce_func(self, x):
         return paddle.max(x, axis=self.axis, keepdim=self.keepdim)
 
 
-class TestReduceCase4(TestReduceOp):
+class TestReduceMin(TestReduceOp):
     def set_reduce_func(self, x):
         return paddle.min(x, axis=self.axis, keepdim=self.keepdim)
 
 
-class TestReduceCase5(TestReduceOp):
+class TestReduceProd(TestReduceOp):
     def init_input_data(self):
         self.feed_data = {'x': self.random([32, 64], "float32", 1.0, 2.0)}
         self.axis = None
@@ -91,12 +91,26 @@ class TestReduceCase5(TestReduceOp):
         return paddle.prod(x, axis=self.axis, keepdim=self.keepdim)
 
 
-class TestReduceCase6(TestReduceOp):
+class TestReduceMean(TestReduceOp):
     def set_reduce_func(self, x):
         return paddle.mean(x, axis=self.axis, keepdim=self.keepdim)
 
 
-class TestReduceCase7(TestReduceOp):
+class TestReduceMeanCase1(TestReduceMean):
+    def init_input_data(self):
+        self.feed_data = {'x': self.random([32, 64], "float32", 1.0, 2.0)}
+        self.axis = [1]
+        self.keepdim = False
+
+
+class TestReduceMeanCase2(TestReduceMean):
+    def init_input_data(self):
+        self.feed_data = {'x': self.random([16, 32, 64], "float32", 1.0, 2.0)}
+        self.axis = [0, 1]
+        self.keepdim = True
+
+
+class TestReduceAll(TestReduceOp):
     def init_input_data(self):
         self.feed_data = {'x': self.random([32, 64], "bool")}
         self.axis = None
@@ -106,7 +120,7 @@ class TestReduceCase7(TestReduceOp):
         return paddle.all(x, axis=self.axis, keepdim=self.keepdim)
 
 
-class TestReduceCase8(TestReduceOp):
+class TestReduceAny(TestReduceOp):
     def init_input_data(self):
         self.feed_data = {'x': self.random([32, 64], "bool")}
         self.axis = None

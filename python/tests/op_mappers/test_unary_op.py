@@ -62,12 +62,12 @@ class TestSqrtOp(TestUnaryOp):
 
 class TestGeluOp(TestUnaryOp):
     def set_unary_func(self, x):
-        return paddle.gelu(x)
+        return paddle.nn.functional.gelu(x)
 
 
 class TestSigmoidOp(TestUnaryOp):
     def set_unary_func(self, x):
-        return paddle.sigmoid(x)
+        return paddle.nn.functional.sigmoid(x)
 
 
 class TestExpOp(TestUnaryOp):
@@ -136,6 +136,9 @@ class TestAsinhOp(TestUnaryOp):
 
 
 class TestAcoshOp(TestUnaryOp):
+    def init_input_data(self):
+        self.feed_data = {'x': self.random([32, 64], "float32", 1.0, 10.0)}
+
     def set_unary_func(self, x):
         return paddle.acosh(x)
 
