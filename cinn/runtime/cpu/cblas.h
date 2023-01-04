@@ -26,15 +26,6 @@
 extern "C" {
 
 /**
- * \brief Cholesky
- */
-void cinn_cpu_mkl_cholesky_fp32(cinn_buffer_t* x,
-                                int batch_size,
-                                int m,
-                                bool upper,
-                                cinn_buffer_t* out);
-
-/**
  * \brief Do GEMM on buffer A and B and write result to buffer C.
  * We pass the \param M, \param N, \param K although the shape can retrieve from cinn_buffer_t because the size of a
  * matrix not equals the shape of a buffer it is stored.
