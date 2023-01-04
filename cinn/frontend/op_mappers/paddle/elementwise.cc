@@ -22,7 +22,7 @@ namespace cinn {
 namespace frontend {
 namespace paddle_mappers {
 
-enum class EltwiseType { kUnk = 0, kAdd, kDiv, kMul, kSub, kPow };
+enum class EltwiseType { kUnk = 0, kAdd, kDiv, kMul, kSub, kPow, kMod, kMax, kMin };
 
 template <EltwiseType Type>
 struct OpBuilder {};
@@ -37,6 +37,9 @@ ELTWISE_SPEC(EltwiseType::kDiv, NetBuilder::Divide);
 ELTWISE_SPEC(EltwiseType::kMul, NetBuilder::Multiply);
 ELTWISE_SPEC(EltwiseType::kSub, NetBuilder::Subtract);
 ELTWISE_SPEC(EltwiseType::kPow, NetBuilder::Pow);
+ELTWISE_SPEC(EltwiseType::kMod, NetBuilder::Mod);
+ELTWISE_SPEC(EltwiseType::kMax, NetBuilder::Max);
+ELTWISE_SPEC(EltwiseType::kMin, NetBuilder::Min);
 #undef ELTWISE_SPEC
 
 void AddOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
@@ -156,25 +159,7 @@ void CastOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
   ctx.AddVarModelToProgram(out_name, out->id);
 }
 
-// clang-format off
-#define UnaryOpMapper(OpName, InputName, OutputName)                                      \
-  void OpName##OpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) { \
-    CHECK_EQ(op_desc.Input(InputName).size(), 1UL);                                       \
-    auto x_name = op_desc.Input(InputName).front();                                       \
-    CHECK_EQ(op_desc.Output(OutputName).size(), 1UL);                                     \
-    auto out_name = op_desc.Output(OutputName).front();                                   \
-    auto x        = ctx.GetVar(x_name);                                                   \
-    auto out      = ctx.Builder()->OpName(x);                                             \
-    ctx.AddVar(out_name, out);                                                            \
-    ctx.AddVarModelToProgram(out_name, out->id);                                          \
-  }
-UnaryOpMapper(Ceil, "X", "Out")
-UnaryOpMapper(Sign, "X", "Out")
-UnaryOpMapper(Abs, "X", "Out")
-#undef UnaryOpMapper
-    // clang-format on
-
-    void PowOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+void PowOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
   auto x_name = op_desc.Input("X").front();
   auto x      = ctx.GetVar(x_name);
@@ -218,10 +203,10 @@ CINN_REGISTER_HELPER(paddle_elementwise) {
   CINN_REGISTER_OP_MAPPER(elementwise_div, ElementwiseOpMapper<EltwiseType::kDiv>)
   CINN_REGISTER_OP_MAPPER(elementwise_sub, ElementwiseOpMapper<EltwiseType::kSub>)
   CINN_REGISTER_OP_MAPPER(elementwise_pow, ElementwiseOpMapper<EltwiseType::kPow>)
+  CINN_REGISTER_OP_MAPPER(elementwise_mod, ElementwiseOpMapper<EltwiseType::kMod>)
+  CINN_REGISTER_OP_MAPPER(elementwise_max, ElementwiseOpMapper<EltwiseType::kMax>)
+  CINN_REGISTER_OP_MAPPER(elementwise_min, ElementwiseOpMapper<EltwiseType::kMin>)
   CINN_REGISTER_OP_MAPPER(sum, SumOpMapper)
-  CINN_REGISTER_OP_MAPPER(ceil, CeilOpMapper)
-  CINN_REGISTER_OP_MAPPER(sign, SignOpMapper)
-  CINN_REGISTER_OP_MAPPER(abs, AbsOpMapper)
   CINN_REGISTER_OP_MAPPER(cast, CastOpMapper)
   CINN_REGISTER_OP_MAPPER(pow, PowOpMapper)
   return true;
