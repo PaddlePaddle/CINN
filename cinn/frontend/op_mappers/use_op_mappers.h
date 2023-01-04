@@ -45,7 +45,6 @@ CINN_USE_REGISTER(paddle_take_along_axis)
 CINN_USE_REGISTER(paddle_unary)
 CINN_USE_REGISTER(paddle_binary)
 CINN_USE_REGISTER(paddle_reduce)
-CINN_USE_REGISTER(paddle_gather)
 CINN_USE_REGISTER(paddle_atan)
 
 CINN_USE_REGISTER(science_broadcast)
