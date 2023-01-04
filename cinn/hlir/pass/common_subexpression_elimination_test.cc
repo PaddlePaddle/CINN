@@ -128,6 +128,7 @@ TEST(common_subexpression_elimination, common_subexpression_elimination_case2) {
   runtime_program->Execute();
 }
 
+#ifdef CINN_WITH_CUDA
 TEST(common_subexpression_elimination, common_subexpression_elimination_case3) {
   Placeholder A(Float(32), {1, 3, 224, 224}, "A");
   Placeholder B(Float(32), {1, 1, 224, 224}, "B", true);
@@ -181,6 +182,7 @@ TEST(common_subexpression_elimination, common_subexpression_elimination_case3) {
 
   runtime_program->Execute();
 }
+#endif
 
 }  // namespace frontend
 }  // namespace cinn
