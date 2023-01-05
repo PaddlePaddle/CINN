@@ -27,6 +27,7 @@ DEFINE_bool(cinn_cudnn_deterministic,
 
 using ::GFLAGS_NAMESPACE::BoolFromEnv;
 using ::GFLAGS_NAMESPACE::Int32FromEnv;
+using ::GFLAGS_NAMESPACE::Int64FromEnv;
 using ::GFLAGS_NAMESPACE::StringFromEnv;
 
 DEFINE_string(cinn_x86_builtin_code_root, StringFromEnv("FLAGS_cinn_x86_builtin_code_root", ""), "");
@@ -67,6 +68,10 @@ DEFINE_bool(cinn_sync_run,
 DEFINE_bool(cinn_self_check_accuracy,
             BoolFromEnv("FLAGS_cinn_self_check_accuracy", false),
             "Whether self-check accuracy after each instruction run, which is used for debug.");
+
+DEFINE_int64(cinn_self_check_accuracy_num,
+             Int64FromEnv("FLAGS_cinn_self_check_accuracy_num", 0L),
+             "Set self-check accuracy print numel, which is used for debug.");
 
 DEFINE_string(cinn_fusion_groups_graphviz_dir,
               StringFromEnv("FLAGS_cinn_fusion_groups_graphviz_dir", ""),
