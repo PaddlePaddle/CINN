@@ -82,12 +82,13 @@ void cinn_call_cuda_kernel(void *kernel_fn,
           << block_x << ", " << block_y << ", " << block_z << "}, num_args=" << num_args << ", stream=" << stream;
 
   std::vector<void *> kernel_args;
+  kernel_args.reserve(num_args);
   cinn_pod_value_t *args = static_cast<cinn_pod_value_t *>(v_args);
   for (int idx = 0; idx < num_args; ++idx) {
     if (args[idx].type_code() == ::cinn_type_code<cinn_buffer_t *>()) {
-      kernel_args.push_back(&((cinn_buffer_t *)(args[idx]))->memory);
+      kernel_args.emplace_back(&((cinn_buffer_t *)(args[idx]))->memory);
     } else {
-      kernel_args.push_back(args[idx].data_addr());
+      kernel_args.emplace_back(args[idx].data_addr());
     }
   }
   CUDA_DRIVER_CALL(cuLaunchKernel(static_cast<CUfunction>(kernel_fn),
