@@ -69,6 +69,8 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
 #endif
 #endif
 
+  options.graph_passes.push_back("CholeskyToMklCustomCallPass");
+
   if (FLAGS_cinn_use_op_fusion) {
     options.graph_passes.push_back("OpFusionPass");
     options.graph_passes.push_back("FusionMergePass");
