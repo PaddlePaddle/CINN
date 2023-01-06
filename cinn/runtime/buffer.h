@@ -74,7 +74,6 @@ class Buffer {
   }
   //! Deallocate the memory in host device.
   void DeallocHost() {
-    if (data_) delete data_;
     data_ = nullptr;
   }
 
