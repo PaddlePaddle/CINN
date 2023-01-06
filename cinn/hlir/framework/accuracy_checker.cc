@@ -18,6 +18,8 @@
 #include <cuda_runtime.h>
 #endif
 
+DECLARE_int64(cinn_self_check_accuracy_num);
+
 namespace cinn {
 namespace hlir {
 namespace framework {
@@ -64,9 +66,16 @@ template <typename T>
 std::string DebugString(const Tensor& cpu_tensor, const std::string& name, const CheckResult& res) {
   std::stringstream ss;
   ss << "name=" << name << ", dtype=" << GetTypeString<T>() << ", shape=" << cpu_tensor->shape().data() << ", data=[";
-  size_t numel  = cpu_tensor->shape().numel();
-  const T* data = cpu_tensor->data<T>();
-  if (numel <= 10) {
+  size_t numel     = cpu_tensor->shape().numel();
+  const T* data    = cpu_tensor->data<T>();
+  size_t print_num = 5L;
+  if (FLAGS_cinn_self_check_accuracy_num < 0) {
+    print_num = numel;
+  } else if (FLAGS_cinn_self_check_accuracy_num > 0) {
+    print_num = FLAGS_cinn_self_check_accuracy_num;
+  }
+
+  if (numel <= 2 * print_num) {
     for (size_t i = 0; i < numel; ++i) {
       if (i > 0) {
         ss << ", ";
@@ -74,14 +83,14 @@ std::string DebugString(const Tensor& cpu_tensor, const std::string& name, const
       ss << data[i];
     }
   } else {
-    for (size_t i = 0; i < 5; ++i) {
+    for (size_t i = 0; i < print_num; ++i) {
       if (i > 0) {
         ss << ", ";
       }
       ss << data[i];
     }
     ss << " ... ";
-    for (size_t i = numel - 5; i < numel; ++i) {
+    for (size_t i = numel - print_num; i < numel; ++i) {
       ss << data[i];
       if (i != numel - 1) {
         ss << ", ";
@@ -91,6 +100,8 @@ std::string DebugString(const Tensor& cpu_tensor, const std::string& name, const
   ss << "]";
   if (res == CheckResult::kZero) {
     ss << ", Zero";
+  } else if (res == CheckResult::kOne) {
+    ss << ", One";
   } else if (res == CheckResult::kNaN) {
     ss << ", NaN";
   } else if (res == CheckResult::kInf) {
@@ -199,6 +210,7 @@ void AccuracyChecker::MemcpyDeviceToHost(const T* src, size_t numel, T* dst) {
 template <typename T>
 CheckResult AccuracyChecker::CheckNanOrInf(const Tensor& cpu_tensor) {
   bool zero_flag = true;
+  bool one_flag  = true;
   size_t numel   = cpu_tensor->shape().numel();
   const T* data  = cpu_tensor->data<T>();
   for (size_t i = 0; i < numel; ++i) {
@@ -208,9 +220,16 @@ CheckResult AccuracyChecker::CheckNanOrInf(const Tensor& cpu_tensor) {
       return CheckResult::kInf;
     } else if (data[i] != static_cast<T>(0)) {
       zero_flag = false;
+    } else if (data[i] != static_cast<T>(1)) {
+      one_flag = false;
     }
   }
-  return zero_flag ? CheckResult::kZero : CheckResult::kOK;
+  if (zero_flag) {
+    return CheckResult::kZero;
+  } else if (one_flag) {
+    return CheckResult::kOne;
+  }
+  return CheckResult::kOK;
 }
 
 }  // namespace framework
