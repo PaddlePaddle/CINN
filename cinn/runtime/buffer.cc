@@ -26,7 +26,8 @@ Shape::Shape(const Shape &other) : data_(new value_type[other.ndims()]), ndims_(
 void Shape::Resize(int ndim) {
   CHECK_GT(ndim, 0);
   ndims_ = ndim;
-  data_  = new value_type[ndim];
+  delete data_;
+  data_ = new value_type[ndim];
 }
 
 Shape::value_type &Shape::operator[](int i) {
