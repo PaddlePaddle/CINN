@@ -286,11 +286,11 @@ CINN_REGISTER_HELPER(host_intrinsics) {
   using cinn::runtime::cinn_host_cholesky_float;
   REGISTER_EXTERN_FUNC_HELPER(cinn_host_cholesky_float, host_target)
       .SetRetType<void>()
-      .AddInputType<void*>()            // v_args
-      .AddInputType<int>()              // msg
-      .AddInputType<int>()              // batch_size
-      .AddInputType<int>()              // m
-      .AddInputType<bool>()             // upper
+      .AddInputType<void*>()  // v_args
+      .AddInputType<int>()    // msg
+      .AddInputType<int>()    // batch_size
+      .AddInputType<int>()    // m
+      .AddInputType<bool>()   // upper
       .End();
 
   return true;

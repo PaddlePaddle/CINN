@@ -183,10 +183,9 @@ TEST(CustomCallCholesky, test_target_host) {
 
   // Input matrix x
   CinnBufferAllocHelper x(cinn_x86_device, cinn_float32_t(), {m, m});
-  float input_h[9] = {0.96329159, 0.88160539, 0.40593964,
-                      0.88160539, 1.39001071, 0.48823422,
-                      0.40593964, 0.48823422, 0.19755946};
-  auto* input  = x.mutable_data<float>(target);
+  float input_h[9] = {
+      0.96329159, 0.88160539, 0.40593964, 0.88160539, 1.39001071, 0.48823422, 0.40593964, 0.48823422, 0.19755946};
+  auto* input = x.mutable_data<float>(target);
   SetInputValue(input, input_h, m * m, target);
 
   // Output matrix out
@@ -195,10 +194,8 @@ TEST(CustomCallCholesky, test_target_host) {
 
   // Result matrix res
   CinnBufferAllocHelper res(cinn_x86_device, cinn_float32_t(), {m, m});
-  float result_h[9] = {0.98147416, 0, 0,
-                       0.89824611, 0.76365214, 0,
-                       0.41360193, 0.15284170, 0.055967092};
-  auto* result = res.mutable_data<float>(target);
+  float result_h[9] = {0.98147416, 0, 0, 0.89824611, 0.76365214, 0, 0.41360193, 0.15284170, 0.055967092};
+  auto* result      = res.mutable_data<float>(target);
   SetInputValue(result, result_h, m * m, target);
 
   cinn_pod_value_t v_args[2] = {cinn_pod_value_t(x.get()), cinn_pod_value_t(out.get())};

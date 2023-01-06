@@ -633,7 +633,7 @@ Variable NetBuilder::Matmul(const Variable& x, const Variable& y, bool trans_x, 
   ;
 }
 
-Variable NetBuilder::Cholesky(const Variable &x, bool upper) {
+Variable NetBuilder::Cholesky(const Variable& x, bool upper) {
   return CustomInstr("cholesky", {x}, {{"upper", upper}}).front();
 }
 

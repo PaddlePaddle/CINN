@@ -111,7 +111,7 @@ class GraphAlterHelper {
     for (auto gnode : nodes) {
       auto src = gnode->safe_as<Node>();
       CHECK(src);
-      src->attrs.op = framework::Operator::Get("custom_call");
+      src->attrs.op                        = framework::Operator::Get("custom_call");
       src->attrs.attr_store["custom_call"] = std::string("cinn_host_cholesky_float");
     }
   }
