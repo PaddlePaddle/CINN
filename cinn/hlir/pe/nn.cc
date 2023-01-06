@@ -1046,14 +1046,14 @@ std::vector<Tensor> PoolImpl(const Tensor &tensor,
             }
             common::AutoSimplify(temp_factor);
             Expr divide_factor = Max::Make(temp_factor, make_const(Int(32), 1));
-            return lang::ReduceSum(ir::Div::Make(temp(indices), cast(divide_factor, Float(32))), {daxis});
+            return lang::ReduceSum(ir::Div::Make(temp(indices), ir::Cast::Make(temp->type(), divide_factor)), {daxis});
           } else {
             auto temp_factor = make_const(Int(32), 1);
             for (int i = 0; i < k_size; i++) {
               temp_factor = temp_factor * kernel[i];
             }
             common::AutoSimplify(temp_factor);
-            return lang::ReduceSum(ir::Div::Make(temp(indices), cast(temp_factor, Float(32))), daxis);
+            return lang::ReduceSum(ir::Div::Make(temp(indices), ir::Cast::Make(temp->type(), temp_factor)), daxis);
           }
         },
         output_name);
@@ -1096,7 +1096,8 @@ std::vector<Tensor> PoolImpl(const Tensor &tensor,
           }
           common::AutoSimplify(temp_factor);
           Expr divide_factor = Max::Make(temp_factor, make_const(Int(32), 1));
-          return lang::ReduceSum(ir::Div::Make(temp(indices), cast(divide_factor, Float(32))), {reduce_axis});
+          return lang::ReduceSum(ir::Div::Make(temp(indices), ir::Cast::Make(temp->type(), divide_factor)),
+                                 {reduce_axis});
         },
         output_name);
   }

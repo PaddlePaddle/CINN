@@ -34,8 +34,11 @@ void FeedOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
 
   // For input parameters
   if (ctx.Scope().FindVar(cinn::utils::TransValidVarName(feed_name))) {
-    auto param = ctx.GetVar(feed_name);
-    ctx.Builder()->CreateInput(param);
+    auto param      = ctx.GetVar(feed_name);
+    const auto& var = ctx.Builder()->CreateInput(param);
+    VLOG(4) << "Create param [" << feed_name << "]"
+            << " to " << var.id() << " with shape=[" << cinn::utils::Join(var.shape(), ",")
+            << "], dtype=" << var.type();
     return;
   }
 
