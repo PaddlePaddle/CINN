@@ -78,16 +78,30 @@ void BatchNormOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
 }
 
 void BatchNormGradOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
-  auto get_input_var = [&op_desc, &ctx](const std::string& op_name) {
+  std::unordered_map<std::string, std::string> input_names_map;
+  auto get_input_var = [&op_desc, &ctx, &input_names_map](const std::string& op_name) {
     CHECK_EQ(op_desc.Input(op_name).size(), 1UL);
     auto var_name = op_desc.Input(op_name).front();
+    input_names_map.emplace(op_name, var_name);
     return ctx.GetVar(var_name);
   };
 
-  auto get_output_name = [&op_desc](const std::string& op_name) {
+  std::unordered_map<std::string, std::string> output_names_map;
+  auto get_output_name = [&op_desc, &output_names_map](const std::string& op_name) -> std::string {
+    if (op_desc.Output(op_name).empty()) {
+      CHECK_NE(op_name, paddle::GradVarName("X")) << "The input X should not empty.";
+      return "";
+    }
+
     CHECK_EQ(op_desc.Output(op_name).size(), 1UL);
-    return op_desc.Output(op_name).front();
+    auto var_name = op_desc.Output(op_name).front();
+    output_names_map.emplace(op_name, var_name);
+    return var_name;
   };
+
+  std::vector<std::string> output_names = {get_output_name(paddle::GradVarName("X")),
+                                           get_output_name(paddle::GradVarName("Scale")),
+                                           get_output_name(paddle::GradVarName("Bias"))};
 
   auto x              = get_input_var("X");
   auto dy             = get_input_var(paddle::GradVarName("Y"));
@@ -98,23 +112,28 @@ void BatchNormGradOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperCon
   auto data_layout = utils::GetAttrOrDefault<std::string>(op_desc, "data_layout", "NCHW");
   auto epsilon     = utils::GetAttrOrDefault<float>(op_desc, "epsilon", 1e-5f);
 
+  auto get_arg_debug_info = [](const std::unordered_map<std::string, std::string>& names_map) {
+    std::string res;
+    for (const auto& pair : names_map) {
+      res.append(pair.first + ":" + pair.second + ", ");
+    }
+    return res;
+  };
+
+  VLOG(4) << "{" << get_arg_debug_info(output_names_map) << "} = batch_norm_grad("
+          << get_arg_debug_info(input_names_map) << ", data_layout=" << data_layout << ", epsilon=" << epsilon << ")";
+
   // batch norm grad, output(grad_x, grad_scale, grad_bias)
   auto outs = ctx.Builder()->BatchNormGrad(dy, x, scale, saved_mean, saved_variance, epsilon, data_layout);
   CHECK_EQ(outs.size(), 3ul) << "batch_norm_grad API's should return 3 Variable!";
 
-  std::vector<std::string> output_names = {
-      paddle::GradVarName("X"), paddle::GradVarName("Scale"), paddle::GradVarName("Bias")};
-
   for (int i = 0; i < outs.size(); i++) {
-    if (op_desc.Output(output_names[i]).empty()) {
-      // The grad of Scale and Bias can be empty
-      CHECK_NE(output_names[i], paddle::GradVarName("X")) << "The input X should not empty.";
+    if (output_names[i].empty()) {
       continue;
     }
 
-    auto out_name = get_output_name(output_names[i]);
-    ctx.AddVar(out_name, outs[i]);
-    ctx.AddVarModelToProgram(out_name, outs[i]->id);
+    ctx.AddVar(output_names[i], outs[i]);
+    ctx.AddVarModelToProgram(output_names[i], outs[i]->id);
   }
 }
 

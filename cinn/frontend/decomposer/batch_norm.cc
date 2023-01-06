@@ -182,17 +182,22 @@ void batch_norm_grad(const Instruction& instr, const DecomposerContext& context)
   CHECK_EQ(instr->outputs.size(), 3UL) << " The number of the given outputs is not equal to the required"
                                        << instr->op_type;
 
-  auto& y_grad        = instr->inputs[0];
-  auto& x             = instr->inputs[1];
-  auto& scale         = instr->inputs[2];
-  auto& save_mean     = instr->inputs[3];
-  auto& save_variance = instr->inputs[4];
+  auto& y_grad             = instr->inputs[0];
+  auto& x                  = instr->inputs[1];
+  auto& scale_orig         = instr->inputs[2];
+  auto& save_mean_orig     = instr->inputs[3];
+  auto& save_variance_orig = instr->inputs[4];
 
   auto epsilon = instr.GetAttrs<float>("epsilon");
   auto layout  = instr.GetAttrs<std::string>("data_layout");
 
   NetBuilder* builder = context.builder();
-  BatchNormHelper helper(builder, x->shape, scale->shape, layout, "batch_norm_grad");
+  BatchNormHelper helper(builder, x->shape, scale_orig->shape, layout, "batch_norm_grad");
+
+  // the scale/save_mean/save_variance 's dtype is always float32, we should cast it to real dtype
+  auto scale         = builder->Cast(scale_orig, common::Type2Str(y_grad->type));
+  auto save_mean     = builder->Cast(save_mean_orig, common::Type2Str(y_grad->type));
+  auto save_variance = builder->Cast(save_variance_orig, common::Type2Str(y_grad->type));
 
   auto vars                          = helper.GradBiasAndScale(x, save_mean, y_grad);
   auto bias_grad                     = vars[0];
