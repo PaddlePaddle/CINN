@@ -73,9 +73,7 @@ class Buffer {
     CHECK(data_) << "alloc buffer failed";
   }
   //! Deallocate the memory in host device.
-  void DeallocHost() {
-    data_ = nullptr;
-  }
+  void DeallocHost() { data_ = nullptr; }
 
   T& operator()(int i0) {
     CHECK_EQ(shape_.ndims(), 1);
