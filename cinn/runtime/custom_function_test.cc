@@ -198,11 +198,12 @@ TEST(CustomCallCholesky, test_target_host) {
   auto* result      = res.mutable_data<float>(target);
   SetInputValue(result, result_h, m * m, target);
 
+  int num_args = 2;
   cinn_pod_value_t v_args[2] = {cinn_pod_value_t(x.get()), cinn_pod_value_t(out.get())};
 
   std::stringstream ss;
   ss << "Test Cholesky(upper=false) on " << target;
-  cinn_host_cholesky_float(v_args, std::hash<std::string>()(ss.str()), batch_size, m, upper);
+  cinn_host_cholesky_float(v_args, num_args, std::hash<std::string>()(ss.str()), batch_size, m, upper);
 
   for (int i = 0; i < batch_size * m * m; i++) {
     ASSERT_EQ(output[i], result[i]) << "The output of Cholesky should be the same as result";

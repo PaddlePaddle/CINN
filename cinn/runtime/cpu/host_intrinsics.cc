@@ -287,6 +287,7 @@ CINN_REGISTER_HELPER(host_intrinsics) {
   REGISTER_EXTERN_FUNC_HELPER(cinn_host_cholesky_float, host_target)
       .SetRetType<void>()
       .AddInputType<void*>()  // v_args
+      .AddInputType<int>()    // num_args
       .AddInputType<int>()    // msg
       .AddInputType<int>()    // batch_size
       .AddInputType<int>()    // m
