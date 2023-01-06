@@ -22,6 +22,7 @@
 #endif
 
 #include "cinn/runtime/cinn_runtime.h"
+#include "cinn/runtime/cuda/cuda_util.h"
 #include "cinn/runtime/custom_function.h"
 
 namespace cinn {
@@ -168,6 +169,43 @@ TEST(CinnAssertTrue, test_false_only_warning) {
 
     ASSERT_EQ(input_h, output_h) << "The output of AssertTrue should be the same as input";
 #endif
+  }
+}
+
+TEST(CustomCallGaussianRandom, test_target_nvgpu) {
+  Target target = common::DefaultTarget();
+
+  // Input tensor shape
+  CinnBufferAllocHelper shape(cinn_x86_device, cinn_int32_t(), {2});
+  int shape_data[2] = {2, 3};
+  auto* shape_input = shape.mutable_data<int>(target);
+  SetInputValue(shape_input, shape_data, 2, target);
+
+  // Arg msg
+  int msg = 0;
+  // Arg mean
+  float mean = 0.0;
+  // Arg std
+  float std = 1.0;
+  // Arg seed
+  int seed = 10;
+  // Arg dtype
+  std::string dtype = "float32";
+
+  // Output matrix out
+  CinnBufferAllocHelper out(cinn_x86_device, cinn_float32_t(), {2, 3});
+  auto* output = out.mutable_data<float>(target);
+
+  int num_args               = 2;
+  cinn_pod_value_t v_args[2] = {cinn_pod_value_t(shape.get()), cinn_pod_value_t(out.get())};
+
+  using cinn::runtime::cuda::cinn_call_gaussian_random;
+  cinn_call_gaussian_random(v_args, num_args, msg, mean, std, seed, dtype, nullptr);
+
+  float output_data[6] = {0.0};
+  cudaMemcpy(output_data, output, 6 * sizeof(float), cudaMemcpyDeviceToHost);
+  for (int i = 0; i < 6; i++) {
+    VLOG(6) << output_data[i];
   }
 }
 

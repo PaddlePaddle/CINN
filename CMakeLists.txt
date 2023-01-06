@@ -64,6 +64,7 @@ if (WITH_CUDA)
   find_library(CUDASTUB libcuda.so HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib64/stubs/ REQUIRED)
   find_library(CUBLAS libcublas.so HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib64 /usr/lib REQUIRED)
   find_library(CUDNN libcudnn.so HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib64 /usr/lib REQUIRED)
+  find_library(CURAND libcurand.so HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib64 /usr/lib REQUIRED)
 endif()
 
 find_package(Threads REQUIRED)
@@ -163,7 +164,7 @@ function(gen_cinncore LINKTYPE)
 
   if (WITH_CUDA)
     target_link_libraries(${CINNCORE_TARGET} ${CUDA_NVRTC_LIB} ${CUDA_LIBRARIES} ${CUDASTUB} ${CUBLAS} ${CUDNN}
-      ${jitify_deps})
+      ${CURAND} ${jitify_deps})
     if (NVTX_FOUND)
       target_link_libraries(${CINNCORE_TARGET} ${CUDA_NVTX_LIB})
     endif()

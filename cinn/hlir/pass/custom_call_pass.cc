@@ -96,6 +96,26 @@ class GraphAlterHelper {
     }
   }
 
+  void GaussianRandomToCustomCall() {
+    auto nodes = graph_->CollectNodes([](const common::GraphNode* graph_node) -> bool {
+      if (graph_node->safe_as<Node>()) {
+        auto node = graph_node->safe_as<Node>();
+        if (node->op()->name == "gaussian_random") {
+          return true;
+        }
+      }
+
+      return false;
+    });
+
+    for (auto gnode : nodes) {
+      auto src = gnode->safe_as<Node>();
+      CHECK(src);
+      src->attrs.op                        = framework::Operator::Get("custom_call");
+      src->attrs.attr_store["custom_call"] = std::string("cinn_call_gaussian_random");
+    }
+  }
+
  private:
   Graph* graph_;
 };
@@ -112,6 +132,12 @@ void ConvToCudnnCustomCallPassInternal(Graph* graph) {
   VLOG(3) << "ConvToCudnnCustomCallPass Finish...!";
 }
 
+void GaussianRandomToCustomCallInternal(Graph* graph) {
+  VLOG(3) << "GaussianRandomToCustomCall...!";
+  GraphAlterHelper(graph).GaussianRandomToCustomCall();
+  VLOG(3) << "GaussianRandomToCustomCall Finish...!";
+}
+
 }  // namespace pass
 }  // namespace hlir
 }  // namespace cinn
@@ -122,6 +148,10 @@ CINN_REGISTER_HELPER(CustomCallPass) {
       .describe("This pass which convert matmul op to custom call pass.")
       .set_change_structure(false)
       .set_body(cinn::hlir::pass::MatmulToCublasCustomCallPassInternal);
+  CINN_REGISTER_PASS(GaussianRandomToCustomCallPass)
+      .describe("This pass which convert gaussian random op to custom call pass.")
+      .set_change_structure(false)
+      .set_body(cinn::hlir::pass::GaussianRandomToCustomCallInternal);
 #endif
 #ifdef CINN_WITH_CUDNN
   CINN_REGISTER_PASS(ConvToCudnnCustomCallPass)

@@ -961,6 +961,17 @@ class NetBuilder {
    */
   Variable LookupTable(const Variable& table, const Variable& ids, int64_t padding_idx);
 
+  /**
+   * @brief Gaussian random
+   * @param shape
+   * @param mean
+   * @param std
+   * @param seed
+   * @param dtype
+   */
+  Variable GaussianRandom(
+      const Variable& shape, float mean = 0.0, float std = 1.0, int seed = 0, const std::string& dtype = "float32");
+
  private:
   CINN_DISALLOW_COPY_AND_ASSIGN(NetBuilder);
 };

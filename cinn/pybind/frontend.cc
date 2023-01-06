@@ -629,7 +629,14 @@ void BindFrontend(pybind11::module *m) {
       .def("cbrt", &NetBuilder::Cbrt, py::arg("x"))
       .def("clz", &NetBuilder::Clz, py::arg("x"))
       .def("popc", &NetBuilder::Popc, py::arg("x"))
-      .def("reciprocal", &NetBuilder::Reciprocal, py::arg("x"));
+      .def("reciprocal", &NetBuilder::Reciprocal, py::arg("x"))
+      .def("gaussian_random",
+           &NetBuilder::GaussianRandom,
+           py::arg("shape"),
+           py::arg("mean")  = 0.0,
+           py::arg("std")   = 1.0,
+           py::arg("seed")  = 0,
+           py::arg("dtype") = "float32");
 
   auto computation = py::class_<CinnComputation, std::shared_ptr<CinnComputation>>(*m, "Computation");
   py::class_<CinnComputation::CompileOptions>(computation, "CompileOptions")

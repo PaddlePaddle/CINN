@@ -454,10 +454,31 @@ std::vector<ir::Expr> CustomCallArgsForAssertTrue(const framework::NodeAttr &att
   return args;
 }
 
+std::vector<ir::Expr> CustomCallArgsForGaussianRandom(const framework::NodeAttr &attrs,
+                                                      const std::vector<ir::Tensor> &inputs,
+                                                      const std::vector<std::vector<int>> &output_shapes) {
+  CHECK_EQ(inputs.size(), 1UL);
+  CHECK_EQ(output_shapes.size(), 1UL);
+
+  auto attr_store = attrs.attr_store;
+
+  int msg           = 0;
+  float mean        = attr_store.count("mean") ? absl::get<float>(attrs.attr_store.at("mean")) : 0.0;
+  float std         = attr_store.count("std") ? absl::get<float>(attrs.attr_store.at("std")) : 1.0;
+  int seed          = attr_store.count("seed") ? absl::get<int>(attrs.attr_store.at("seed")) : 0;
+  std::string dtype = attr_store.count("dtype") ? absl::get<std::string>(attrs.attr_store.at("dtype")) : "float32";
+
+  std::vector<ir::Expr> args = {ir::Expr(msg), ir::Expr(mean), ir::Expr(std), ir::Expr(seed), ir::Expr(dtype)};
+
+  return args;
+}
+
 bool RegisteryCustomCallArgsFunc() {
 #ifdef CINN_WITH_CUDA
   CustomCallArgsFuncRegistry::Global().Register(
       "cinn_call_cublas", common::DefaultNVGPUTarget(), CustomCallArgsForCublas);
+  CustomCallArgsFuncRegistry::Global().Register(
+      "cinn_call_gaussian_random", common::DefaultNVGPUTarget(), CustomCallArgsForGaussianRandom);
 #endif
 
 #ifdef CINN_WITH_CUDNN
