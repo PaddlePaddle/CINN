@@ -108,5 +108,16 @@ auto Flatten(const T &v) {
   return Flatten(w);
 }
 
+/*!
+ * \brief hash an object and combines it with previous keys
+ * \param seed The previous hash value
+ * \param value The object to be hashed and combined into seed
+ * \return the combined hash.
+ */
+template <typename T>
+inline uint64_t HashCombine(uint64_t seed, const T &value) {
+  return seed ^ (std::hash<T>()(value) + 0x9e3779b9 + (seed << 6) + (seed >> 2));
+}
+
 }  // namespace utils
 }  // namespace cinn

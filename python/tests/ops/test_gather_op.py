@@ -37,12 +37,12 @@ import logging
 import os
 
 logging.basicConfig(level=os.environ.get('LOG_LEVEL', 'INFO').upper())
-logger = logging.getLogger(name="index_select")
+logger = logging.getLogger(name="gather")
 
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
                     "x86 test will be skipped due to timeout.")
-class TestIndexSelectOp(OpTest):
+class TestGatherOp(OpTest):
     def setUp(self):
         self.init_case()
 
@@ -63,16 +63,16 @@ class TestIndexSelectOp(OpTest):
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.inputs["x"], stop_gradient=True)
         index = paddle.to_tensor(self.inputs["index"], stop_gradient=True)
-        out = paddle.index_select(x, index, self.axis)
+        out = paddle.gather(x, index, self.axis)
         logger.debug(" -- The output of Paddle:\n{}".format(out))
         self.paddle_outputs = [out]
 
     def build_cinn_program(self, target):
-        builder = NetBuilder("index_select")
+        builder = NetBuilder("gather")
         x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
         index = builder.create_input(
             Int(32), self.inputs["index"].shape, "index")
-        out = builder.index_select(x, index, axis=self.axis)
+        out = builder.gather(x, index, axis=self.axis)
 
         prog = builder.build()
         res = self.get_cinn_output(prog, target, [x, index],
@@ -85,7 +85,7 @@ class TestIndexSelectOp(OpTest):
         self.check_outputs_and_grads(all_equal=True)
 
 
-class TestIndexSelectOpCase1(TestIndexSelectOp):
+class TestGatherOpCase1(TestGatherOp):
     def init_case(self):
         self.inputs = {
             "x": np.random.random([16, 32, 32]).astype("float32"),
@@ -94,7 +94,7 @@ class TestIndexSelectOpCase1(TestIndexSelectOp):
         self.axis = 0
 
 
-class TestIndexSelectOpCase2(TestIndexSelectOp):
+class TestGatherOpCase2(TestGatherOp):
     def init_case(self):
         self.inputs = {
             "x": np.random.random([16, 32, 32]).astype("float32"),
@@ -103,7 +103,7 @@ class TestIndexSelectOpCase2(TestIndexSelectOp):
         self.axis = 1
 
 
-class TestIndexSelectOpCase3(TestIndexSelectOp):
+class TestGatherOpCase3(TestGatherOp):
     def init_case(self):
         self.inputs = {
             "x": np.random.random([16, 16, 32, 32]).astype("float32"),
@@ -112,31 +112,13 @@ class TestIndexSelectOpCase3(TestIndexSelectOp):
         self.axis = 2
 
 
-class TestIndexSelectOpCase4(TestIndexSelectOp):
+class TestGatherOpCase4(TestGatherOp):
     def init_case(self):
         self.inputs = {
             "x": np.random.random([17, 29, 31, 13]).astype("float32"),
             "index": np.random.randint(0, 13, 11).astype("int32")
         }
         self.axis = 3
-
-
-class TestIndexSelectOpCase5(TestIndexSelectOp):
-    def init_case(self):
-        self.inputs = {
-            "x": np.random.random([17, 29, 31, 17]).astype("float32"),
-            "index": np.random.randint(0, 17, 3).astype("int32")
-        }
-        self.axis = -1
-
-
-class TestIndexSelectOpCase6(TestIndexSelectOp):
-    def init_case(self):
-        self.inputs = {
-            "x": np.random.random([17, 29, 31]).astype("float32"),
-            "index": np.random.randint(0, 29, 9).astype("int32")
-        }
-        self.axis = -2
 
 
 if __name__ == "__main__":

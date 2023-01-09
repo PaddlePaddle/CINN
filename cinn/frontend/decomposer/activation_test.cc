@@ -61,4 +61,39 @@ TEST(Decomposer, relu_grad) {
   RunAndCheck<float>(builder, input_names, output_names, output_shapes, relu_grad_cpu, -1, 1);
 }
 
+TEST(Decomposer, softmax_decomposer) {
+  int n = 16, c = 128, h = 14, w = 14;
+  std::vector<int> axes = {1, 2, 3};
+  NetBuilder net_builder("softmax_decomposer");
+  std::unordered_set<std::string> output_names;
+  {
+    auto x = net_builder.CreateInput(Float(32), {n, c, h, w}, "x");
+    auto y = net_builder.Softmax(x, axes);
+    output_names.insert(y->id);
+  }
+  auto program = net_builder.Build();
+
+  auto target = common::DefaultTarget();
+  RunDecomposer(&program, target);
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, output_names, target);
+  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
+
+  auto scope = BuildScope(target, graph);
+  hlir::framework::GraphCompiler gc(target, scope, graph);
+  auto run_program = gc.Build();
+
+  std::vector<float> x(n * c * h * w);
+  InitRandomVector<float>(&x, n * c * h * w, 0.0f, 1.0f, 1e-3);
+  std::vector<std::pair<std::string, std::vector<float>>> inputs = {{"x", x}};
+  for (auto& input : inputs) {
+    scope->Var<hlir::framework::Tensor>(input.first);
+    auto tensor = scope->GetTensor(input.first);
+    auto* data  = tensor->mutable_data<float>(target);
+    CopyFromVector(input.second, tensor, target);
+  }
+  run_program->Execute();
+}
+
 }  // namespace cinn::frontend

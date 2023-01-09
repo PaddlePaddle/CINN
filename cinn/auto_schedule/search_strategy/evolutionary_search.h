@@ -87,7 +87,19 @@ class EvolutionarySearch {
  private:
   std::vector<SearchState> GetTopKCandidatesFromDatabase(int topk);
 
-  std::vector<SearchState> RandomInitSketch(int num);
+  /**
+   * \brief Generate sketch as initial population of evolutionary search.
+   * @param num The number of sketches to generate.
+   * @param strategy The strategy to generate sketchs,
+   *        Current optional strategies are "rule_prune" or "random_prune" or "random".
+   * - "rule_prune": will use rules to prune and generate sketches as efficiently as possible.
+   * - "random_prune": will use the new interface ApplySketchRules() to simulate the random generation of sketches,
+   *    and supports the function of a rule returning multiple SearchStates and random pruning by probability.
+   * - "random": will randomly select a block and a rule to apply and repeat this step several times,
+   *    however, each rule can only be used on one SearchState at most once.
+   * @return  Generated sketchs.
+   */
+  std::vector<SearchState> InitSketch(int num, const std::string& strategy);
 
   SearchState CrossOver(const SearchState& state1, const SearchState& state2);
 
@@ -98,13 +110,13 @@ class EvolutionarySearch {
                                                        int num,
                                                        float eps_greedy);
 
+ private:
   std::unique_ptr<SearchSpace> search_space_;
-
   const TuneTask& tune_task_;
-
   const ExprCostModel& cost_model_;  // not owned
-
-  Database* database_;  // not owned
+  Database* database_;               // not owned
+  // used to depuplicate states with the same structural IR
+  std::unordered_set<SearchState, SearchStateHash, SearchStateEqual> visited_candidates_;
 };
 
 }  // namespace auto_schedule

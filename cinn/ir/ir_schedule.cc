@@ -62,6 +62,8 @@ class ScheduleImpl {
 
   void SetExprs(const std::vector<Expr>& exprs) { module_expr_.SetExprs(exprs); }
 
+  bool HasBlock(const std::string& block_name) const;
+
   std::vector<Expr> GetLoops(const Expr& block) const;
   std::vector<Expr> GetLoops(const std::string& block_name) const;
   std::vector<Expr> GetAllBlocks() const;
@@ -92,6 +94,7 @@ class ScheduleImpl {
   Expr Rfactor(const Expr& rf_loop, int rf_axis);
   Expr AddUnitLoop(const Expr& block) const;
   void Annotate(const Expr& block, const std::string& key, const attr_t& value);
+  void Unannotate(Expr& block, const std::string& key);
   void FlattenLoops(const std::vector<Expr>& loops, const bool force_flat = false);
   void CopyTransformAndLoopInfo(const Expr& block, const Expr& block_target);
   void CopyTransformAndLoopInfo(const std::string& block_name, const std::string& block_target_name);
@@ -1470,6 +1473,19 @@ std::vector<Expr> ScheduleImpl::GetAllBlocks() const {
   return result;
 }
 
+bool ScheduleImpl::HasBlock(const std::string& block_name) const {
+  auto exprs = module_expr_.GetExprs();
+  for (auto& it_expr : exprs) {
+    ir::FindBlocksVisitor visitor(block_name);
+    auto find_blocks = visitor(&it_expr);
+    if (!find_blocks.empty()) {
+      CHECK_EQ(find_blocks.size(), 1U) << "There should not be more than 1 block with identical name!";
+      return true;
+    }
+  }
+  return false;
+}
+
 Expr ScheduleImpl::GetBlock(const std::string& block_name) const {
   Expr result;
   auto exprs = module_expr_.GetExprs();
@@ -1492,6 +1508,18 @@ void ScheduleImpl::Annotate(const Expr& block, const std::string& key, const att
   auto* schedule_block = copied_block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>();
   schedule_block->attrs.emplace(key, value);
   this->Replace(block, copied_block);
+}
+
+void ScheduleImpl::Unannotate(Expr& block, const std::string& ann_key) {
+  CHECK(block.As<ir::ScheduleBlockRealize>());
+  CHECK(block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>());
+  auto* schedule_block = block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>();
+  if (schedule_block->attrs.count(ann_key)) {
+    schedule_block->attrs.erase(ann_key);
+  } else {
+    LOG(WARNING) << "Can't find annotation with key: " << ann_key;
+    return;
+  }
 }
 
 void ScheduleImpl::FlattenLoops(const std::vector<Expr>& loops, const bool flat_tensor) {
@@ -1800,6 +1828,11 @@ const ModuleExpr& IRSchedule::GetModule() const {
   // no need to trace
 }
 
+bool IRSchedule::HasBlock(const std::string& block_name) const {
+  return impl_->HasBlock(block_name);
+  // no need to trace
+}
+
 void IRSchedule::MergeExprs() {
   impl_->MergeExprs();
   trace_.Append(ScheduleDesc::Step("MergeExprs", {}, {}, {}));
@@ -1986,6 +2019,11 @@ void IRSchedule::Annotate(const Expr& block, const std::string& key, const attr_
 #undef TRACE_ANNOTATE_ITEM
 
   LOG(FATAL) << "Value of attribute:" << key << " input unsupported data type";
+}
+
+void IRSchedule::Unannotate(Expr& block, const std::string& key) {
+  impl_->Unannotate(block, key);
+  trace_.Append(ScheduleDesc::Step("Unannotate", {{"block", std::vector<Expr>({block})}}, {{"key", key}}, {}));
 }
 
 void IRSchedule::FlattenLoops(const std::vector<Expr>& loops, const bool force_flat) {

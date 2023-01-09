@@ -21,7 +21,7 @@ namespace cinn {
 namespace hlir {
 namespace framework {
 
-enum CheckResult { kOK = 0, kZero = 1, kNaN = 2, kInf = 3 };
+enum CheckResult { kOK = 0, kZero = 1, kNaN = 2, kInf = 3, kOne = 4 };
 
 class AccuracyChecker {
  public:

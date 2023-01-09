@@ -55,16 +55,8 @@ class MulProgramBuilder : public TestProgramBuilder {
     auto x = builder.CreateInput(Float(32), input_shape_x_, "X");
     auto y = builder.CreateInput(Float(32), input_shape_y_, "Y");
 
-    std::vector<int> new_shape;
-    for (int i = y_num_col_dims_; i < y.shape().size(); ++i) {
-      new_shape.emplace_back(i);
-    }
-    for (int i = 0; i < y_num_col_dims_; ++i) {
-      new_shape.emplace_back(i);
-    }
-    auto trans_y = builder.Transpose(y, new_shape);
+    auto out = builder.Mul(x, y, x_num_col_dims_, y_num_col_dims_, true);
 
-    auto mul_out = builder.Mul(x, trans_y, x_num_col_dims_, y.shape().size() - y_num_col_dims_);
     return builder.Build();
   }
 
@@ -290,7 +282,7 @@ class SoftmaxProgramBuilder : public TestProgramBuilder {
   frontend::Program operator()() override {
     frontend::NetBuilder builder("softmax_net_builder");
     auto x = builder.CreateInput(Float(32), input_shape_, "X");
-    auto y = builder.Softmax(x, axis_, data_format_);
+    auto y = builder.Softmax(x, {axis_});
 
     return builder.Build();
   }

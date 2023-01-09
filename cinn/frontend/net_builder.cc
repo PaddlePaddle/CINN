@@ -100,6 +100,17 @@ Variable NetBuilder::UnaryOp(const std::string& op_type, const Variable& operand
 }
 
 Variable NetBuilder::Reduce(const std::string& op_type, const Variable& x, const std::vector<int>& dim, bool keep_dim) {
+  // TODO(thisjiang): move the reduce simplify to frontend pass
+  auto product = std::accumulate(x->shape.begin(), x->shape.end(), 1, std::multiplies<int>());
+  if (product == 1) {
+    if (keep_dim) {
+      return Identity(x);
+    } else {
+      int new_rank = dim.empty() ? 1 : x->shape.size() - dim.size() + 1;
+      std::vector<int> new_shape(new_rank, 1);
+      return Reshape(x, new_shape);
+    }
+  }
   return CustomInstr(op_type, {x}, {{"dim", dim}, {"keep_dim", keep_dim}}).front();
 }
 
@@ -182,7 +193,13 @@ NETBUILDER_BINARY_OP_DEF(LogicalRightShift, logical_right_shift);
 
 #define NETBUILDER_REDUCE_OP_DEF(func_name__, op_type__)                                            \
   Variable NetBuilder::func_name__(const Variable& x, const std::vector<int>& dim, bool keep_dim) { \
-    return Reduce(#op_type__, x, dim, keep_dim);                                                    \
+    std::vector<int> axes = dim;                                                                    \
+    if (axes.size() == 0) {                                                                         \
+      for (int idx = 0; idx < x->shape.size(); ++idx) {                                             \
+        axes.push_back(idx);                                                                        \
+      }                                                                                             \
+    }                                                                                               \
+    return Reduce(#op_type__, x, axes, keep_dim);                                                   \
   }
 
 NETBUILDER_REDUCE_OP_DEF(ReduceSum, reduce_sum)
@@ -323,8 +340,8 @@ Variable NetBuilder::Select(const Variable& condition, const Variable& true_valu
   return CustomInstr("select", {condition, true_value, false_value}, {}).front();
 }
 
-Variable NetBuilder::IndexSelect(const Variable& operand, const Variable& index, int axis) {
-  return CustomInstr("index_select", {operand, index}, {{"axis", axis}}).front();
+Variable NetBuilder::Gather(const Variable& operand, const Variable& index, int axis) {
+  return CustomInstr("gather", {operand, index}, {{"axis", axis}}).front();
 }
 
 Variable NetBuilder::ScatterAssign(const Variable& operand, const Variable& updates, const Variable& index, int axis) {
@@ -339,8 +356,11 @@ Variable NetBuilder::IsClose(const Variable& x, const Variable& y, float rtol, f
   return CustomInstr("isclose", {x, y}, {{"rtol", rtol}, {"atol", atol}, {"equal_nan", equal_nan}}).front();
 }
 
-Variable NetBuilder::Mul(const Variable& a, const Variable& b, int x_num_col_dims, int y_num_col_dims) {
-  return CustomInstr("mul", {a, b}, {{"x_num_col_dims", x_num_col_dims}, {"y_num_col_dims", y_num_col_dims}}).front();
+Variable NetBuilder::Mul(const Variable& a, const Variable& b, int x_num_col_dims, int y_num_col_dims, bool is_infer) {
+  return CustomInstr("mul",
+                     {a, b},
+                     {{"x_num_col_dims", x_num_col_dims}, {"y_num_col_dims", y_num_col_dims}, {"is_infer", is_infer}})
+      .front();
 }
 
 const std::vector<Variable>& NetBuilder::ElementwiseAddGrad(const Variable& dout,
@@ -356,10 +376,6 @@ Variable NetBuilder::Relu6(const Variable& a, float threshold) {
 
 Variable NetBuilder::ReluGrad(const Variable& lhs, const Variable& rhs) {
   return CustomInstr("relu_grad", {lhs, rhs}, {}).front();
-}
-
-Variable NetBuilder::Gather(const Variable& x, const Variable& index, const int& axis) {
-  return CustomInstr("gather", {x, index}, {{"axis", axis}}).front();
 }
 
 Variable NetBuilder::GatherNd(const Variable& x, const Variable& index, const std::vector<int>& axes) {
@@ -574,8 +590,11 @@ Variable NetBuilder::Scale(const Variable& a, float scale, float bias, bool bias
   return CustomInstr("scale", {a}, {{"scale", scale}, {"bias", bias}, {"bias_after_scale", bias_after_scale}}).front();
 }
 
-Variable NetBuilder::Softmax(const Variable& a, int axis, const std::string& data_format) {
-  return CustomInstr("softmax", {a}, {{"axis", axis}, {"data_format", data_format}}).front();
+Variable NetBuilder::Softmax(const Variable& a,
+                             const std::vector<int>& axes,
+                             const std::string& mode,
+                             const std::string& data_format) {
+  return CustomInstr("softmax", {a}, {{"axes", axes}, {"mode", mode}, {"data_format", data_format}}).front();
 }
 
 Variable NetBuilder::DropoutInfer(const Variable& a, float dropout_prob, const std::string& dropout_implementation) {

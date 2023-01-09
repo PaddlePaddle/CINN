@@ -119,7 +119,8 @@ struct FindBlocksVisitor {
       Visit(&(expr->As<ir::For>()->body));
     } else if (expr->As<ir::ScheduleBlockRealize>()) {
       if (!expr->As<ir::ScheduleBlockRealize>()->iter_values.empty()) {
-        if (block_name_.empty() || GetTensor(*expr)->name == block_name_) {
+        auto* schedule_block = expr->As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>();
+        if (block_name_.empty() || schedule_block->name == block_name_) {
           result.emplace_back(*expr);
         }
       } else {

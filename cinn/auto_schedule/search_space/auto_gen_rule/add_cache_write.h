@@ -25,7 +25,10 @@ namespace auto_schedule {
 
 class AddCacheWrite : public AutoGenRule {
  public:
-  AddCacheWrite(const common::Target& target) : AutoGenRule(target) {}
+  AddCacheWrite(const common::Target& target) : AutoGenRule(target) {
+    // Select a cache memory type
+    cache_memory_type_ = kMemoryTypes.at(target_->arch);
+  }
   ~AddCacheWrite() = default;
 
   // initailize the AddCacheWrite rule, it must be called before further actions.
@@ -38,9 +41,17 @@ class AddCacheWrite : public AutoGenRule {
   // Return the name of the rule, used for debug.
   std::string GetRuleName() const override { return "AddCacheWrite"; }
 
+  RuleApplyType AnalyseApplyType(SearchState state, const std::string& block_name) const override;
+
+  std::vector<SearchState> ApplyOnBlock(SearchState state, const std::string& block_name) override;
+
  private:
   // Return true if the schedule block expr is applicable by AddCacheWrite
   bool MeetCondition(const ir::Expr& block_expr) const;
+  // Applies rule on the ir::ModuleExpr for a schedule block
+  void Apply(ir::IRSchedule* ir_schedule, ir::Expr& block_expr);
+  // get the spatial loop that is the first one out of the outermost reduce iterator
+  ir::Expr GetFirstSpatialLoopOutofOutermostReduce(ir::IRSchedule* ir_schedule, const ir::Expr& block) const;
 
  private:
   std::vector<ir::Expr> applicable_schedule_blocks_;

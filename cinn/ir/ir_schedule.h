@@ -77,6 +77,9 @@ class IRSchedule {
   //! Get the ModuleExpr stored in ScheduleImpl.
   const ModuleExpr& GetModule() const;
 
+  //! Determine whether a specific block is included
+  bool HasBlock(const std::string& block_name) const;
+
   //! Merge multiple Exprs in a ModuleExpr to be one
   void MergeExprs();
 
@@ -331,6 +334,13 @@ class IRSchedule {
    * \param val The attribute value, its type should be one of attr_t listing
    */
   void Annotate(const Expr& block, const std::string& key, const attr_t& value);
+
+  /*!
+   * \brief To cancel an annotation within a block using the key
+   * \param block The block to be unannotated
+   * \param key The attribute key
+   */
+  void Unannotate(Expr& block, const std::string& key);
 
   /*!
    * \brief flatten the loops in one dim.

@@ -39,9 +39,6 @@ __device__ inline bool FN_FP32(isfinite)(float x) { return isfinite(x); }
 __device__ inline bool FN_FP32(isinf)(float x) { return isinf(x); }
 __device__ inline bool FN_FP32(isnan)(float x) { return isnan(x); }
 
-__device__ inline float FN_FP32(max)(float a, float b) { return max(a, b); }
-__device__ inline float FN_FP32(min)(float a, float b) { return min(a, b); }
-
 __device__ inline float FN_FP32(pow)(float a, float b) { return powf(a, b); }
 
 __device__ inline float FN_FP32(remainder)(float a, float b) { return remainderf(a, b); }
@@ -127,9 +124,6 @@ __device__ inline float16 FN_FP16(atanh)(float16 x) { return float16(FN_FP32(ata
 
 __device__ inline float16 FN_FP16(sigmoid)(float16 x) { return float16(FN_FP32(sigmoid)(static_cast<float>(x))); }
 
-__device__ inline float16 FN_FP16(max)(float16 a, float16 b) { return a > b ? a : b; }
-__device__ inline float16 FN_FP16(min)(float16 a, float16 b) { return a < b ? a : b; }
-
 __device__ inline float16 FN_FP16(remainder)(float16 a, float16 b) {
   return float16(FN_FP32(remainder)(static_cast<float>(a), static_cast<float>(b)));
 }
@@ -149,8 +143,8 @@ __device__ inline float16 FN_FP16(pow)(float16 a, float16 b) {
 
 __device__ inline float cinn_sum_fp32(const float left, const float right) { return left + right; }
 __device__ inline float cinn_prod_fp32(const float left, const float right) { return left * right; }
-__device__ inline float cinn_max_fp32(const float left, const float right) { return FN_FP32(max)(left, right); }
-__device__ inline float cinn_min_fp32(const float left, const float right) { return FN_FP32(min)(left, right); }
+__device__ inline float cinn_max_fp32(const float left, const float right) { return max(left, right); }
+__device__ inline float cinn_min_fp32(const float left, const float right) { return min(left, right); }
 
 #ifdef CINN_CUDA_FP16
 
@@ -162,8 +156,8 @@ __device__ inline float cinn_min_fp32(const float left, const float right) { ret
 
 __device__ inline float16 cinn_sum_fp16(const float16 left, const float16 right) { return left + right; }
 __device__ inline float16 cinn_prod_fp16(const float16 left, const float16 right) { return left * right; }
-__device__ inline float16 cinn_max_fp16(const float16 left, const float16 right) { return FN_FP16(max)(left, right); }
-__device__ inline float16 cinn_min_fp16(const float16 left, const float16 right) { return FN_FP16(min)(left, right); }
+__device__ inline float16 cinn_max_fp16(const float16 left, const float16 right) { return max(left, right); }
+__device__ inline float16 cinn_min_fp16(const float16 left, const float16 right) { return min(left, right); }
 #endif
 
 #define EXPAND_REDUCE_BOOL_MACRO(MACRO, ...) \
@@ -173,23 +167,31 @@ __device__ inline float16 cinn_min_fp16(const float16 left, const float16 right)
 __device__ inline bool cinn_all(const bool left, const bool right) { return left && right; }
 __device__ inline bool cinn_any(const bool left, const bool right) { return left || right; }
 
-#define CINN_SHUFFLE_FUNCTION(offset, op, init)                  \
-  shfl_res = __shfl_down_sync(mask, tmp_val, offset, 32);        \
-  shfl_res = threadIdx.x % 32 + offset < lane ? shfl_res : init; \
-  tmp_val  = op(tmp_val, shfl_res);
+#define CINN_SHUFFLE_FUNCTION(offset, op, init)           \
+  shfl_res = __shfl_down_sync(mask, tmp_val, offset, 32); \
+  tmp_val  = op((threadIdx.x & 0x1f) + offset < lane ? shfl_res : init, tmp_val);
 
 #define CINN_WARP_SHUFFLE_INTERNAL_IMPL(REDUCE_TYPE, INITIAL_VALUE, DTYPE)                \
   __device__ inline DTYPE cinn_warp_shuffle_##REDUCE_TYPE##_internal(const DTYPE value) { \
     DTYPE tmp_val     = value, shfl_res;                                                  \
     unsigned int mask = __activemask();                                                   \
     unsigned int lane = __popc(mask);                                                     \
-    CINN_SHUFFLE_FUNCTION(16, cinn_##REDUCE_TYPE, DTYPE(INITIAL_VALUE))                   \
-    CINN_SHUFFLE_FUNCTION(8, cinn_##REDUCE_TYPE, DTYPE(INITIAL_VALUE))                    \
-    CINN_SHUFFLE_FUNCTION(4, cinn_##REDUCE_TYPE, DTYPE(INITIAL_VALUE))                    \
-    CINN_SHUFFLE_FUNCTION(2, cinn_##REDUCE_TYPE, DTYPE(INITIAL_VALUE))                    \
-    CINN_SHUFFLE_FUNCTION(1, cinn_##REDUCE_TYPE, DTYPE(INITIAL_VALUE))                    \
-    tmp_val = __shfl_sync(mask, tmp_val, 0, 32);                                          \
-    return tmp_val;                                                                       \
+    if (lane < 32) {                                                                      \
+      CINN_SHUFFLE_FUNCTION(16, cinn_##REDUCE_TYPE, DTYPE(INITIAL_VALUE))                 \
+      CINN_SHUFFLE_FUNCTION(8, cinn_##REDUCE_TYPE, DTYPE(INITIAL_VALUE))                  \
+      CINN_SHUFFLE_FUNCTION(4, cinn_##REDUCE_TYPE, DTYPE(INITIAL_VALUE))                  \
+      CINN_SHUFFLE_FUNCTION(2, cinn_##REDUCE_TYPE, DTYPE(INITIAL_VALUE))                  \
+      CINN_SHUFFLE_FUNCTION(1, cinn_##REDUCE_TYPE, DTYPE(INITIAL_VALUE))                  \
+      tmp_val = __shfl_sync(mask, tmp_val, 0, 32);                                        \
+      return tmp_val;                                                                     \
+    } else {                                                                              \
+      tmp_val = cinn_##REDUCE_TYPE(tmp_val, __shfl_down_sync(mask, tmp_val, 16, 32));     \
+      tmp_val = cinn_##REDUCE_TYPE(tmp_val, __shfl_down_sync(mask, tmp_val, 8, 32));      \
+      tmp_val = cinn_##REDUCE_TYPE(tmp_val, __shfl_down_sync(mask, tmp_val, 4, 32));      \
+      tmp_val = cinn_##REDUCE_TYPE(tmp_val, __shfl_down_sync(mask, tmp_val, 2, 32));      \
+      tmp_val = cinn_##REDUCE_TYPE(tmp_val, __shfl_down_sync(mask, tmp_val, 1, 32));      \
+      return tmp_val;                                                                     \
+    }                                                                                     \
   }
 
 EXPAND_REDUCE_FP32_MACRO(CINN_WARP_SHUFFLE_INTERNAL_IMPL)

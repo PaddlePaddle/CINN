@@ -107,18 +107,26 @@ TEST(MultiLevelTile, SimpleLoops) {
 
   MultiLevelTiling multi_level_tiling(target);
   ir::IRSchedule ir_schedule(ir::ModuleExpr({ast_expr}));
+  SearchState state(ir_schedule, 0, {});
   EXPECT_EQ(multi_level_tiling.Init(&ir_schedule), RuleApplyType::kApplyAndSkipThisRule);
-
   EXPECT_EQ(multi_level_tiling.NumberApplicable(), 1);
   multi_level_tiling.ApplyRandomly();
-  std::vector<ir::Expr> exprs = ir_schedule.GetModule().GetExprs();
-  EXPECT_EQ(exprs.size(), 1UL);
 
-  std::stringstream ss;
-  ss << exprs[0];
+  // ApplyOnBlock
+  EXPECT_EQ(multi_level_tiling.AnalyseApplyType(state, "C"), RuleApplyType::kApplyAndSkipThisRule);
+  auto new_states = multi_level_tiling.ApplyOnBlock(state, "C");
 
-  std::string expr_str = ss.str();
-  VLOG(6) << expr_str;
+  auto test_func = [](ir::IRSchedule* ir_sch) {
+    std::vector<ir::Expr> exprs = ir_sch->GetModule().GetExprs();
+    EXPECT_EQ(exprs.size(), 1UL);
+    std::stringstream ss;
+    ss << exprs[0];
+    std::string expr_str = ss.str();
+    VLOG(6) << expr_str;
+  };
+
+  test_func(&ir_schedule);
+  test_func(&new_states[0]->ir_schedule);
 }
 
 TEST(MulitLevelTile, MatrixMultiply) {
@@ -151,19 +159,26 @@ TEST(MulitLevelTile, MatrixMultiply) {
 
   MultiLevelTiling multi_level_tiling(target);
   ir::IRSchedule ir_schedule(ir::ModuleExpr({ast_expr}));
+  SearchState state(ir_schedule, 0, {});
   EXPECT_EQ(multi_level_tiling.Init(&ir_schedule), RuleApplyType::kApplyAndSkipThisRule);
-
   EXPECT_EQ(multi_level_tiling.NumberApplicable(), 1);
-
   multi_level_tiling.ApplyRandomly();
-  std::vector<ir::Expr> exprs = ir_schedule.GetModule().GetExprs();
-  EXPECT_EQ(exprs.size(), 1UL);
 
-  std::stringstream ss;
-  ss << exprs[0];
+  // ApplyOnBlock
+  EXPECT_EQ(multi_level_tiling.AnalyseApplyType(state, "C"), RuleApplyType::kApplyAndSkipThisRule);
+  auto new_states = multi_level_tiling.ApplyOnBlock(state, "C");
 
-  std::string expr_str = ss.str();
-  VLOG(6) << expr_str;
+  auto test_func = [](ir::IRSchedule* ir_sch) {
+    std::vector<ir::Expr> exprs = ir_sch->GetModule().GetExprs();
+    EXPECT_EQ(exprs.size(), 1UL);
+    std::stringstream ss;
+    ss << exprs[0];
+    std::string expr_str = ss.str();
+    VLOG(6) << expr_str;
+  };
+
+  test_func(&ir_schedule);
+  test_func(&new_states[0]->ir_schedule);
 }
 
 }  // namespace auto_schedule

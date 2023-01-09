@@ -39,15 +39,32 @@ class CublasHandle {
  public:
   CublasHandle(const CublasHandle &) = delete;
   CublasHandle &operator=(const CublasHandle &) = delete;
-  ~CublasHandle() { CUBLAS_CALL(cublasDestroy(cuhandle)); }
+  ~CublasHandle() {
+    CUBLAS_CALL(cublasDestroy(cuhandle));
+    CUDA_CALL(cudaStreamDestroy(custream));
+  }
   static CublasHandle &GetInstance() {
     static CublasHandle instance;
     return instance;
   }
+  cudaStream_t GetCuStream() { return custream; }
   cublasHandle_t &GetCublasHandle() { return cuhandle; }
 
  private:
-  CublasHandle() { CUBLAS_CALL(cublasCreate(&cuhandle)); }
+  CublasHandle() {
+    CUDA_CALL(cudaStreamCreate(&custream));
+    CUBLAS_CALL(cublasCreate(&cuhandle));
+    cudaMemPool_t mem_pool;
+    CUDA_CALL(cudaDeviceGetMemPool(&mem_pool, 0));
+
+    uint64_t threshold = UINT32_MAX;
+    CUDA_CALL(cudaMemPoolSetAttribute(mem_pool, cudaMemPoolAttrReleaseThreshold, &threshold));
+
+    int enable = 1;
+    CUDA_CALL(cudaMemPoolSetAttribute(mem_pool, cudaMemPoolReuseFollowEventDependencies, &enable));
+    CUDA_CALL(cudaMemPoolSetAttribute(mem_pool, cudaMemPoolReuseAllowInternalDependencies, &enable));
+  }
+  cudaStream_t custream;
   cublasHandle_t cuhandle;
 };
 
@@ -65,12 +82,13 @@ void cinn_call_cuda_kernel(void *kernel_fn,
           << block_x << ", " << block_y << ", " << block_z << "}, num_args=" << num_args << ", stream=" << stream;
 
   std::vector<void *> kernel_args;
+  kernel_args.reserve(num_args);
   cinn_pod_value_t *args = static_cast<cinn_pod_value_t *>(v_args);
   for (int idx = 0; idx < num_args; ++idx) {
     if (args[idx].type_code() == ::cinn_type_code<cinn_buffer_t *>()) {
-      kernel_args.push_back(&((cinn_buffer_t *)(args[idx]))->memory);
+      kernel_args.emplace_back(&((cinn_buffer_t *)(args[idx]))->memory);
     } else {
-      kernel_args.push_back(args[idx].data_addr());
+      kernel_args.emplace_back(args[idx].data_addr());
     }
   }
   CUDA_DRIVER_CALL(cuLaunchKernel(static_cast<CUfunction>(kernel_fn),
@@ -209,27 +227,45 @@ void cinn_call_cublas(void *v_args,
       // (N, L) * (N, 1) , (N, L) * (1, L)
       // (N, 1) * (N, L) , (1, L) * (N, L)
       // (N, 1) * (1, L) , (1, L) * (N, 1)
-      for (int idx = 0; idx < std::max(l1, r1); ++idx) {
-        CUBLAS_CALL(cublasGemmStridedBatched(cuda_dtype,
-                                             cuhandle,
-                                             trans_op_l,
-                                             trans_op_r,
-                                             m,
-                                             n,
-                                             k,
-                                             alpha,
-                                             static_cast<uint8_t *>(lhs) + idx * bstride_l * bytes,
-                                             ldl,
-                                             stride_l,
-                                             static_cast<uint8_t *>(rhs) + idx * bstride_r * bytes,
-                                             ldr,
-                                             stride_r,
-                                             beta,
-                                             static_cast<uint8_t *>(C) + idx * bstride_c * bytes,
-                                             ldc,
-                                             m * n,
-                                             std::max(l2, r2)));
+
+      void **ptr_arr        = nullptr;
+      cudaStream_t g_stream = CublasHandle::GetInstance().GetCuStream();
+      CUDA_CALL(cudaMallocAsync(&ptr_arr, sizeof(void *) * 3 * std::max(l1, r1) * std::max(l2, r2), g_stream));
+
+      std::vector<void *> ptr(3 * std::max(l1, r1) * std::max(l2, r2));
+      void **ptr_a = ptr.data();
+      void **ptr_b = ptr.data() + std::max(l1, r1) * std::max(l2, r2);
+      void **ptr_c = ptr.data() + std::max(l1, r1) * std::max(l2, r2) * 2;
+
+      int bytes = (cuda_dtype == CUDA_R_32F) ? 4 : 2;
+      for (int idx = 0, index = 0; idx < std::max(l1, r1); ++idx) {
+        for (int idy = 0; idy < std::max(l2, r2); ++idy) {
+          ptr_a[index] = reinterpret_cast<uint8_t *>(lhs) + (idx * bstride_l + idy * stride_l) * bytes;
+          ptr_b[index] = reinterpret_cast<uint8_t *>(rhs) + (idx * bstride_r + idy * stride_r) * bytes;
+          ptr_c[index] = reinterpret_cast<uint8_t *>(C) + (idx * bstride_c + idy * m * n) * bytes;
+          ++index;
+        }
       }
+      CUDA_CALL(cudaMemcpyAsync(ptr_arr, ptr.data(), ptr.size() * sizeof(void *), cudaMemcpyHostToDevice, g_stream));
+      CUDA_CALL(cudaStreamSynchronize(g_stream));
+
+      CUBLAS_CALL(cublasGemmBatched(cuda_dtype,
+                                    cuhandle,
+                                    trans_op_l,
+                                    trans_op_r,
+                                    m,
+                                    n,
+                                    k,
+                                    alpha,
+                                    ptr_arr,
+                                    ldl,
+                                    ptr_arr + std::max(l1, r1) * std::max(l2, r2),
+                                    ldr,
+                                    beta,
+                                    ptr_arr + std::max(l1, r1) * std::max(l2, r2) * 2,
+                                    ldc,
+                                    std::max(l1, r1) * std::max(l2, r2)));
+      CUDA_CALL(cudaFreeAsync(ptr_arr, custream));
     }
   }
 }

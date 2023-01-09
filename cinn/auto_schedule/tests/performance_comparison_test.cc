@@ -28,7 +28,6 @@
 #include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/pass.h"
-#include "cinn/hlir/pass/op_fusion_pass.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/runtime/flags.h"
 #include "cinn/utils/data_util.h"
@@ -110,10 +109,9 @@ class PerformanceTester : public ::testing::Test {
     compile_options.with_instantiate_variables = true;
 
     if (graph->fusion_groups.empty()) {
-      compile_options.groups = hlir::pass::BuildNonFusedGroups(graph);
-    } else {
-      compile_options.groups = graph->fusion_groups;
+      hlir::framework::ApplyPasses(graph, {"BuildNonFusedGroupsPass"});
     }
+    compile_options.groups = graph->fusion_groups;
 
     for (auto group : graph->fusion_groups) {
       compile_options.lowered_funcs.push_back(op_lowerer->LowerWithoutSchedule(group));
@@ -255,10 +253,9 @@ TEST_F(PerformanceTester, Reshape) {
 
 TEST_F(PerformanceTester, Softmax) {
   std::vector<int32_t> input_shape{batch_size, 1000};
-  int axis                = -1;
-  std::string data_format = "AnyLayout";
+  int axis = -1;
 
-  Evaluate(SoftmaxProgramBuilder(input_shape, axis, data_format)());
+  Evaluate(SoftmaxProgramBuilder(input_shape, {axis})());
 }
 
 TEST_F(PerformanceTester, Scale) {

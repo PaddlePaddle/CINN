@@ -51,6 +51,15 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
   bool trans_b           = GetAttr(attr_store, "trans_b", false);
   float alpha            = GetAttr(attr_store, "alpha", 1.0f);
 
+  const auto &shape_A = ToPodVector<int>(inputs[0]->shape);
+  const auto &shape_B = ToPodVector<int>(inputs[1]->shape);
+
+  const auto &new_shape = pe::utils::GetMatmulNewShapes({shape_A, shape_B}, trans_a, trans_b);
+
+  const auto &new_shape_A  = new_shape[0];
+  const auto &new_shape_B  = new_shape[1];
+  const auto &output_shape = new_shape[2];
+
   framework::CINNCompute matmul_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input arguments of Matmul compute is empty! Please check.\n";
     CINNValuePack pack_args = args[0];
@@ -70,19 +79,6 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
     auto tensor_A = A.as_tensor_ref();
     auto tensor_B = B.as_tensor_ref();
     auto stages   = CreateStages({tensor_A, tensor_B});
-
-    std::vector<std::vector<int>> old_shape(2);
-    for (auto &shape : tensor_A->shape) {
-      old_shape[0].push_back(shape.as_int32());
-    }
-    for (auto &shape : tensor_B->shape) {
-      old_shape[1].push_back(shape.as_int32());
-    }
-    const auto &new_shape = pe::utils::GetMatmulNewShapes(old_shape, trans_a, trans_b);
-
-    const auto &new_shape_A  = new_shape[0];
-    const auto &new_shape_B  = new_shape[1];
-    const auto &output_shape = new_shape[2];
 
     auto new_shape_A_e = ToCinnExprs(new_shape_A);
     auto new_shape_B_e = ToCinnExprs(new_shape_B);
@@ -119,33 +115,7 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
     CHECK(!args.empty()) << "The input argument of matmul schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
     if (FLAGS_cinn_ir_schedule) {
-      if (target.arch == Target::Arch::X86) {
-        CINN_NOT_IMPLEMENTED
-      }
-      std::vector<Expr> vec_ast;
-      for (int i = 0; i < arg_pack.size(); i++) {
-        if (arg_pack[i].is_expr()) {
-          Expr temp = arg_pack[i];
-          vec_ast.emplace_back(temp);
-        }
-      }
-      CHECK(!vec_ast.empty());
-      ir::ModuleExpr mod_expr(vec_ast);
-      ir::IRSchedule ir_sch(mod_expr);
-      ir_sch.MergeExprs();
-      auto blocks = ir_sch.GetAllBlocks();
-
-      int prod_size = std::accumulate(output_shapes[0].begin(), output_shapes[0].end(), 1, std::multiplies<int>());
-      if (prod_size > 1) {
-        if (ir_sch.GetLoops(blocks[0]).size() == 1) {
-          ir_sch.Bind(ir_sch.GetLoops(blocks[0])[0], "threadIdx.x");
-        } else {
-          ir_sch.Bind(ir_sch.GetLoops(blocks[0])[0], "blockIdx.x");
-          ir_sch.Bind(ir_sch.GetLoops(blocks[0])[1], "threadIdx.x");
-        }
-      }
-
-      std::vector<CINNValue> results = {CINNValue(ir_sch.GetModule().GetExprs().at(0))};
+      std::vector<CINNValue> results = pe::IRCudaScheduleMatMul(arg_pack, output_shape, target);
       *ret                           = CINNValuePack({results});
     } else {
       CHECK(arg_pack.size() == 2UL || arg_pack.size() == 3UL);
@@ -153,9 +123,7 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
       if (target.arch == Target::Arch::NVGPU) {
         Expr out = arg_pack[0];
         CHECK(out.as_tensor());
-        stages[out.as_tensor_ref()]->Split(1, 2);
-        stages[out.as_tensor_ref()]->Bind(0, "blockIdx.x");
-        stages[out.as_tensor_ref()]->Bind(1, "threadIdx.x");
+        pe::MatmulScheduleCUDA(stages, out.as_tensor_ref(), target);
       } else if (target.arch == Target::Arch::X86) {
 #ifdef CINN_WITH_MKL_CBLAS
         CHECK_EQ(arg_pack.size(), 3UL);
@@ -436,7 +404,7 @@ std::shared_ptr<OpStrategy> StrategyForConcat(const framework::NodeAttr &attrs,
     CHECK(!out_type.empty()) << "Output type of Concat is empty! Please check.\n";
     CINNValuePack pack_args = args[0];
     int input_size          = FLAGS_cinn_ir_schedule ? pack_args.size() - 1 : pack_args.size();
-    CHECK_GE(input_size, 2U) << "at least 2 input tensors for Concat compute\n";
+    CHECK_GE(input_size, 1UL) << "at least 2 input tensors for Concat compute\n";
     CHECK(!output_shapes.empty());
     int axis = 0;
     if (attrs.attr_store.count("axis")) {
@@ -470,7 +438,7 @@ std::shared_ptr<OpStrategy> StrategyForConcat(const framework::NodeAttr &attrs,
 
 std::vector<std::vector<int>> InferShapeForConcat(const std::vector<std::vector<int>> &inputs_shape,
                                                   const framework::AttrMapType &attrs) {
-  CHECK_GE(inputs_shape.size(), 2U) << "The input's shape size should be no less than 2! Please check again.";
+  CHECK_GE(inputs_shape.size(), 1UL) << "The input's shape size should be no less than 2! Please check again.";
   int axis = 0;
   for (auto &iter : attrs) {
     if (iter.first == "axis") {
@@ -504,7 +472,7 @@ std::vector<std::vector<std::string>> InferLayoutForConcat(const std::vector<fra
                                                            const std::vector<std::string> &input_layouts,
                                                            const framework::NodeAttr &attrs,
                                                            const Target &target) {
-  CHECK_GE(input_layouts.size(), 2U) << "The input's layout size is less than 2! Please check again.";
+  CHECK_GE(input_layouts.size(), 1UL) << "The input's layout size is less than 2! Please check again.";
   return {{input_layouts[0]}, input_layouts};
 }
 
@@ -517,11 +485,12 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
   const auto &attr_store = attrs.attr_store;
   int x_num_col_dims     = GetAttr(attr_store, "x_num_col_dims", 1);
   int y_num_col_dims     = GetAttr(attr_store, "y_num_col_dims", 1);
+  bool is_infer          = GetAttr(attr_store, "is_infer", false);
 
   const auto &shape_A = ToPodVector<int>(inputs[0]->shape);
   const auto &shape_B = ToPodVector<int>(inputs[1]->shape);
 
-  const auto &new_shape = pe::utils::GetMulNewShapes({shape_A, shape_B}, x_num_col_dims, y_num_col_dims);
+  const auto &new_shape = pe::utils::GetMulNewShapes({shape_A, shape_B}, x_num_col_dims, y_num_col_dims, is_infer);
 
   const auto &new_shape_A  = new_shape[0];
   const auto &new_shape_B  = new_shape[1];
@@ -553,18 +522,16 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
       tensor_name = pack_args.back().operator std::string();
     }
 
-    // pe realize need transpose y
-    auto trans_B = pe::Transpose(new_B, {1, 0}, UniqName(tensor_name + "_T"));
-
     if (target.arch == Target::Arch::X86) {
 #ifdef CINN_WITH_MKL_CBLAS
-      out = pe::MulMKL(new_A, trans_B, tensor_name, target);
+      out = pe::MatmulMKL(new_A, new_B, false, is_infer, 1.0f, tensor_name, target);
 #else
-      out = pe::MulBase(new_A, trans_B, tensor_name, target);
+      out = pe::MatmulV2(new_A, new_B, false, is_infer, 1.0f, tensor_name, target);
 #endif
     } else {
-      out = pe::MulBase(new_A, trans_B, tensor_name, target);
+      out = pe::Matmul(new_A, new_B, false, is_infer, 1.0f, tensor_name);
     }
+
     std::vector<CINNValue> res;
     for (auto &t : out) {
       stages->InsertLazily(t);
@@ -580,47 +547,28 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
   });
 
   framework::CINNSchedule mul_schedule([=](lang::Args args, lang::RetValue *ret) {
-    int reduce_factor                  = pe::GetMulFactor(new_shape_A[1], Float(32), common::DefaultHostTarget());
-    std::vector<int> temp_reduce_shape = {output_shape[0], output_shape[1], reduce_factor};
-
+    CHECK(!args.empty()) << "The input argument of matmul schedule is empty! Please check.\n";
+    CINNValuePack arg_pack = args[0];
     if (FLAGS_cinn_ir_schedule) {
-      CHECK(!args.empty()) << "The input argument of relu schedule is empty! Please check.\n";
-      CINNValuePack arg_pack = args[0];
-      std::vector<Expr> vec_ast;
-      for (int i = 0; i < arg_pack.size(); i++) {
-        if (arg_pack[i].is_expr()) {
-          Expr temp = arg_pack[i];
-          vec_ast.emplace_back(temp);
-        }
-      }
-      CHECK(!vec_ast.empty());
-      ir::ModuleExpr mod_expr(vec_ast);
-      ir::IRSchedule ir_sch(mod_expr);
-      ir_sch.MergeExprs();
-      if (target.arch == Target::Arch::NVGPU) {
-        pe::IRCudaScheduleMul(ir_sch, output_shape, target);
-      } else if (target.arch == Target::Arch::X86) {
-#ifndef CINN_WITH_MKL_CBLAS
-        pe::IRMulScheduleCPU(ir_sch, temp_reduce_shape, target);
-#endif
-      }
-      std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
-      *ret = CINNValuePack{res};
+      std::vector<CINNValue> results = pe::IRCudaScheduleMatMul(arg_pack, output_shape, target);
+      *ret                           = CINNValuePack({results});
     } else {
-      CHECK(!args.empty()) << "The input argument of mul schedule is empty! Please check.\n";
-      CINNValuePack arg_pack = args[0];
-      Expr out               = arg_pack[0];
-      poly::StageMap stages  = arg_pack[1];
-
-      CHECK(out.as_tensor());
+      CHECK(arg_pack.size() == 2UL || arg_pack.size() == 3UL);
+      poly::StageMap stages = arg_pack.back();
       if (target.arch == Target::Arch::NVGPU) {
-        pe::CudaScheduleMul(stages, out.as_tensor_ref(), temp_reduce_shape, target);
+        Expr out = arg_pack[0];
+        CHECK(out.as_tensor());
+        pe::MatmulScheduleCUDA(stages, out.as_tensor_ref(), target);
       } else if (target.arch == Target::Arch::X86) {
+#ifdef CINN_WITH_MKL_CBLAS
         CHECK_EQ(arg_pack.size(), 3UL);
-#ifndef CINN_WITH_MKL_CBLAS
-        Expr reduce_first = arg_pack[1];
-        CHECK(reduce_first.as_tensor());
-        pe::MulScheduleCPU(stages, out.as_tensor_ref(), reduce_first.as_tensor_ref(), target);
+#else
+        CHECK_EQ(arg_pack.size(), 3UL);
+        Expr out     = arg_pack[0];
+        Expr packedB = arg_pack[1];
+        CHECK(packedB.as_tensor());
+        CHECK(out.as_tensor());
+        pe::MatmulScheduleCPU(stages, out.as_tensor_ref(), packedB.as_tensor_ref(), target);
 #endif
       }
       *ret = arg_pack;
@@ -644,8 +592,9 @@ std::vector<std::vector<int>> InferShapeForMul(const std::vector<std::vector<int
 
   int x_num_col_dims = GetAttr(attrs, "x_num_col_dims", 1);
   int y_num_col_dims = GetAttr(attrs, "y_num_col_dims", 1);
+  bool is_infer      = GetAttr(attrs, "is_infer", false);
 
-  const auto &new_shape = pe::utils::GetMulNewShapes(inputs_shape, x_num_col_dims, y_num_col_dims);
+  const auto &new_shape = pe::utils::GetMulNewShapes(inputs_shape, x_num_col_dims, y_num_col_dims, is_infer);
 
   const auto &new_shape_A  = new_shape[0];
   const auto &new_shape_B  = new_shape[1];
@@ -655,7 +604,10 @@ std::vector<std::vector<int>> InferShapeForMul(const std::vector<std::vector<int
   VLOG(4) << "During the mul shape inference, new_shape_B: " << utils::Join(new_shape_B, ", ");
   VLOG(4) << "During the mul shape inference, output_shape: " << utils::Join(output_shape, ", ");
 
-  CHECK_EQ(new_shape_A[1], new_shape_B[0]) << "The K dimension of mul should be equal.";
+  int a_K = new_shape_A[1];
+  int b_K = is_infer ? new_shape_B[1] : new_shape_B[0];
+
+  CHECK_EQ(a_K, b_K) << "The K dimension of mul should be equal.";
 
   return {output_shape};
 }
@@ -1069,14 +1021,14 @@ std::vector<std::vector<std::string>> InferLayoutForTranspose(const std::vector<
   return {{output_layout}, new_input_layouts};
 }
 
-std::shared_ptr<OpStrategy> StrategyForIndexSelect(const framework::NodeAttr &attrs,
-                                                   const std::vector<ir::Tensor> &inputs,
-                                                   const std::vector<Type> &out_type,
-                                                   const std::vector<std::vector<int>> &output_shapes,
-                                                   const Target &target) {
+std::shared_ptr<OpStrategy> StrategyForGather(const framework::NodeAttr &attrs,
+                                              const std::vector<ir::Tensor> &inputs,
+                                              const std::vector<Type> &out_type,
+                                              const std::vector<std::vector<int>> &output_shapes,
+                                              const Target &target) {
   CHECK(!output_shapes.empty() && !output_shapes[0].empty()) << "The shape of output is empty! Please check again.";
-  VLOG(4) << "The output passed in StrategyForIndexSelect: " << utils::Join(output_shapes[0], ", ");
-  CHECK(!out_type.empty()) << "The output type of IndexSelect is empty! Please check again.\n";
+  VLOG(4) << "The output passed in StrategyForGather: " << utils::Join(output_shapes[0], ", ");
+  CHECK(!out_type.empty()) << "The output type of Gather is empty! Please check again.\n";
 
   int axis = 0;
   if (attrs.attr_store.contains("axis")) {
@@ -1090,26 +1042,26 @@ std::shared_ptr<OpStrategy> StrategyForIndexSelect(const framework::NodeAttr &at
     output_shape.emplace_back(i);
   }
 
-  framework::CINNCompute index_select_compute{
+  framework::CINNCompute gather_compute{
       [axis, output_shape = std::move(output_shape)](lang::Args args, lang::RetValue *ret) {
-        VLOG(4) << "The axis value used in index_select_compute: " << axis;
+        VLOG(4) << "The axis value used in gather_compute: " << axis;
         CHECK(!args.empty()) << "The input args are empty! Please check again.";
         CINNValuePack input_args = args[0];
         int input_size           = input_args.size();
-        CHECK_GE(input_size, 2U) << "Require 2 input tensors for IndexSelect compute.";
+        CHECK_GE(input_size, 2U) << "Require 2 input tensors for Gather compute.";
         Expr x = input_args[0];
         CHECK(x.as_tensor());
         Expr index = input_args[1];
         CHECK(index.as_tensor());
 
-        std::string tensor_name = UniqName("index_select_output");
+        std::string tensor_name = UniqName("gather_output");
         if (FLAGS_cinn_ir_schedule) {
           CHECK_EQ(input_args.size(), 3U);
           CHECK(input_args[2].is_string());
           tensor_name = input_args[2].operator std::string();
         }
 
-        auto out    = pe::IndexSelect(x.as_tensor_ref(), index.as_tensor_ref(), output_shape, axis, tensor_name);
+        auto out    = pe::Gather(x.as_tensor_ref(), index.as_tensor_ref(), output_shape, axis, tensor_name);
         auto stages = CreateStages({x.as_tensor_ref(), index.as_tensor_ref()});
         stages->InsertLazily(out);
         std::vector<CINNValue> res{CINNValue(out), CINNValue(stages)};
@@ -1117,13 +1069,12 @@ std::shared_ptr<OpStrategy> StrategyForIndexSelect(const framework::NodeAttr &at
       }};
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(
-      index_select_compute, GetInjectiveScheduleFunc(output_shapes, target), "strategy.index_select.x86", 1);
+  strategy->AddImpl(gather_compute, GetInjectiveScheduleFunc(output_shapes, target), "strategy.gather.x86", 1);
   return strategy;
 }
 
-std::vector<std::vector<int>> InferShapeForIndexSelect(const std::vector<std::vector<int>> &inputs_shape,
-                                                       const framework::AttrMapType &attrs) {
+std::vector<std::vector<int>> InferShapeForGather(const std::vector<std::vector<int>> &inputs_shape,
+                                                  const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 2U) << "The inputs' shape size should be equal to 2! Please check again.";
   int axis = 0;
   if (attrs.contains("axis")) {
@@ -1132,30 +1083,30 @@ std::vector<std::vector<int>> InferShapeForIndexSelect(const std::vector<std::ve
   if (axis < 0) {
     axis += static_cast<int>(inputs_shape[0].size());
   }
-  VLOG(4) << "The axis value used in IndexSelect: " << axis;
+  VLOG(4) << "The axis value used in Gather: " << axis;
 
   CHECK(axis >= 0 && axis < static_cast<int>(inputs_shape[0].size()))
-      << "The attribute `axis` in IndexSelect should be >= 0 and < the size of the first input shape! Please check "
+      << "The attribute `axis` in Gather should be >= 0 and < the size of the first input shape! Please check "
          "again.";
 
   std::vector<int> output_shape = inputs_shape[0];
   CHECK_EQ(inputs_shape[1].size(), 1U) << "The index should be a 1-D Tensor.";
   CHECK_GT(inputs_shape[1][0], 0) << "The length of the index should be greater than 0.";
   output_shape[axis] = inputs_shape[1][0];
-  VLOG(4) << "The output calculated in InferShapeForIndexSelect: " << utils::Join(output_shape, ", ");
+  VLOG(4) << "The output calculated in InferShapeForGather: " << utils::Join(output_shape, ", ");
 
   return {std::move(output_shape)};
 }
 
-std::vector<Type> InferDtypeForIndexSelect(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
+std::vector<Type> InferDtypeForGather(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   return {inputs_type[0]};
 }
 
-std::vector<std::vector<std::string>> InferLayoutForIndexSelect(const std::vector<framework::shape_t> &input_shapes,
-                                                                const std::vector<std::string> &input_layouts,
-                                                                const framework::NodeAttr &attrs,
-                                                                const Target &target) {
+std::vector<std::vector<std::string>> InferLayoutForGather(const std::vector<framework::shape_t> &input_shapes,
+                                                           const std::vector<std::string> &input_layouts,
+                                                           const framework::NodeAttr &attrs,
+                                                           const Target &target) {
   CHECK_EQ(input_layouts.size(), 2U) << "The input's layout size is not equal to 2! Please check again.";
   return {{input_layouts[0]}, input_layouts};
 }
@@ -1677,63 +1628,6 @@ std::vector<std::vector<std::string>> InferLayoutForSliceAssign(const std::vecto
   return {{input_layouts[0]}, {""}};
 }
 
-std::shared_ptr<framework::OpStrategy> StrategyForGather(const framework::NodeAttr &attrs,
-                                                         const std::vector<ir::Tensor> &inputs,
-                                                         const std::vector<Type> &out_type,
-                                                         const std::vector<std::vector<int>> &output_shapes,
-                                                         const Target &target) {
-  auto attr_store = attrs.attr_store;
-  CHECK(attr_store.count("axis")) << "find no attr of axis";
-  int axis = absl::get<int>(attr_store.at("axis"));
-  std::string op_name("gather");
-
-  framework::CINNCompute gather_compute([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input arguments of " << op_name << " compute is empty! Please check.\n";
-    CINNValuePack pack_args = args[0];
-    CHECK_GE(pack_args.size(), 2U) << "2 input tensors for " << op_name << " compute\n";
-    Expr A = pack_args[0];
-    Expr B = pack_args[1];
-    CHECK(A.as_tensor());
-    CHECK(B.as_tensor());
-    CHECK(!output_shapes.empty());
-    auto tensor_A = A.as_tensor_ref();
-    auto tensor_B = B.as_tensor_ref();
-    auto stages   = CreateStages({tensor_A, tensor_B});
-    VLOG(3) << "A shape: " << utils::Join(tensor_A->shape, ", ") << ", B shape: " << utils::Join(tensor_B->shape, ", ")
-            << ", output_shapes: " << utils::Join(output_shapes[0], ", ");
-    std::string tensor_name = UniqName("Gather_out");
-    if (FLAGS_cinn_ir_schedule) {
-      CHECK_EQ(pack_args.size(), 3U);
-      tensor_name = pack_args[2].operator std::string();
-    }
-    ir::Tensor out = pe::Gather(tensor_A, tensor_B, axis, tensor_name);
-    std::vector<CINNValue> res;
-    stages->InsertLazily(out);
-    res.push_back(CINNValue(out));
-    CHECK(!out_type.empty()) << "Output type of " << op_name << " is empty! Please check.\n";
-    res.push_back(CINNValue(stages));
-    *ret = CINNValuePack{res};
-  });
-
-  auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(gather_compute, GetInjectiveScheduleFunc(output_shapes, target), "strategy.gather.x86", 1);
-  return strategy;
-}
-
-std::vector<std::vector<int>> InferShapeForGather(const std::vector<std::vector<int>> &inputs_shape,
-                                                  const framework::AttrMapType &attrs) {
-  CHECK_EQ(inputs_shape.size(), 2U) << "The input's shape size should be 2! Please check again.";
-  CHECK_EQ(inputs_shape[0].size(), inputs_shape[1].size()) << "The inputs' dims should be equal.";
-  std::vector<std::vector<int>> res{inputs_shape[1]};
-  return res;
-}
-
-std::vector<Type> InferDtypeForGather(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
-  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
-  std::vector<Type> res{inputs_type[0]};
-  return res;
-}
-
 }  // namespace op
 }  // namespace hlir
 }  // namespace cinn
@@ -1807,11 +1701,7 @@ CINN_REGISTER_HELPER(transform_ops) {
 #ifndef CINN_WITH_CUDA
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForTranspose))
 #endif
-#ifdef CINN_WITH_CUDNN
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kNonFusible)
-#else
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kInjective)
-#endif
       .set_support_level(4);
 
   CINN_REGISTER_OP(mul)
@@ -1891,16 +1781,16 @@ CINN_REGISTER_HELPER(transform_ops) {
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElementWise)
       .set_support_level(4);
 
-  CINN_REGISTER_OP(index_select)
+  CINN_REGISTER_OP(gather)
       .describe(
           "This operator is used to create a new tensor which indexes the `input` tensor along dimension `axis` using "
           "the entries in `index`.")
       .set_num_inputs(2)
       .set_num_outputs(1)
-      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForIndexSelect)
-      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForIndexSelect))
-      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForIndexSelect))
-      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForIndexSelect))
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForGather)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForGather))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForGather))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForGather))
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kInjective)
       .set_support_level(4);
 
@@ -1923,16 +1813,6 @@ CINN_REGISTER_HELPER(transform_ops) {
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForScatterAdd))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForScatterAdd))
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForScatterAdd))
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kInjective)
-      .set_support_level(4);
-
-  CINN_REGISTER_OP(gather)
-      .describe("Gather.")
-      .set_num_inputs(2)
-      .set_num_outputs(1)
-      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForGather)
-      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForGather))
-      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForGather))
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kInjective)
       .set_support_level(4);
 

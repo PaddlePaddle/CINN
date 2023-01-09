@@ -472,7 +472,7 @@ void BindFrontend(pybind11::module *m) {
       .def("reverse", &NetBuilder::Reverse, py::arg("x"), py::arg("axis"))
       .def("select", &NetBuilder::Select, py::arg("condition"), py::arg("true_value"), py::arg("false_value"))
       .def("split", &NetBuilder::Split, py::arg("x"), py::arg("num_or_sections"), py::arg("axis") = 0)
-      .def("index_select", &NetBuilder::IndexSelect, py::arg("x"), py::arg("index"), py::arg("axis") = 0)
+      .def("gather", &NetBuilder::Gather, py::arg("x"), py::arg("index"), py::arg("axis") = 0)
       .def("slice_assign",
            &NetBuilder::SliceAssign,
            py::arg("x"),
@@ -505,7 +505,8 @@ void BindFrontend(pybind11::module *m) {
            py::arg("x"),
            py::arg("y"),
            py::arg("x_num_col_dims") = 1,
-           py::arg("y_num_col_dims") = 1)
+           py::arg("y_num_col_dims") = 1,
+           py::arg("is_infer")       = false)
       .def("elementwise_add_grad",
            &NetBuilder::ElementwiseAddGrad,
            py::arg("dout"),
@@ -578,7 +579,12 @@ void BindFrontend(pybind11::module *m) {
            py::arg("scale")            = 1.0f,
            py::arg("bias")             = 0.0f,
            py::arg("bias_after_scale") = true)
-      .def("softmax", &NetBuilder::Softmax, py::arg("x"), py::arg("axis") = -1, py::arg("data_format") = "AnyLayout")
+      .def("softmax",
+           &NetBuilder::Softmax,
+           py::arg("x"),
+           py::arg("axes")        = std::vector<int>{-1},
+           py::arg("mode")        = "fast",
+           py::arg("data_format") = "AnyLayout")
       .def("dropout_infer",
            &NetBuilder::DropoutInfer,
            py::arg("x"),
@@ -619,8 +625,7 @@ void BindFrontend(pybind11::module *m) {
       .def("cast", &NetBuilder::Cast, py::arg("x"), py::arg("dtype"))
       .def("clip", &NetBuilder::Clip, py::arg("x"), py::arg("max"), py::arg("min"))
       .def("arange", &NetBuilder::Arange, py::arg("start"), py::arg("end"), py::arg("step"), py::arg("dtype"))
-      .def("gather", &NetBuilder::Gather, py::arg("x"), py::arg("index"), py::arg("axis"))
-      .def("gather_nd", &NetBuilder::GatherNd, py::arg("x"), py::arg("index"), py::arg("axes"))
+      .def("gather_nd", &NetBuilder::GatherNd, py::arg("x"), py::arg("index"), py::arg("axes") = std::vector<int>{})
       .def("cbrt", &NetBuilder::Cbrt, py::arg("x"))
       .def("clz", &NetBuilder::Clz, py::arg("x"))
       .def("popc", &NetBuilder::Popc, py::arg("x"))

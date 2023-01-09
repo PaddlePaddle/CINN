@@ -289,8 +289,6 @@ class NetBuilder {
    */
   Variable Clip(const std::vector<Variable>& x, const float& max, const float& min);
 
-  Variable Gather(const Variable& x, const Variable& index, const int& axis = 0);
-
   Variable GatherNd(const Variable& x, const Variable& index, const cinn::utils::ShapeType& axes = {});
 
   Variable Scatter(const Variable& src, const Variable& index, const Variable& out, const int& axis = 0);
@@ -383,14 +381,21 @@ class NetBuilder {
 
     // flatten n-dims vector to 1-dim vector
     auto all_datas = cinn::utils::Flatten(value);
+    CHECK(!all_datas.empty()) << "The value of Constant should not be None or empty list! Please check.";
 
     VLOG(4) << "Constant with values: " << cinn::utils::Join(all_datas, ", ");
 
     using TYPE      = typename decltype(all_datas)::value_type;
     auto true_dtype = dtype.empty() ? common::Type2Str(common::type_of<TYPE>()) : dtype;
-    auto assign_out = CustomInstr("assign_value", {}, {{"values", all_datas}, {"dtype", true_dtype}}).front();
 
-    auto out = Reshape(assign_out, GetVectorShape(value));
+    const auto& real_shape = GetVectorShape(value);
+
+    if (real_shape == std::vector<int>{1}) {
+      return Constant<TYPE>(all_datas[0], name, true_dtype);
+    }
+
+    auto assign_out = CustomInstr("assign_value", {}, {{"values", all_datas}, {"dtype", true_dtype}}).front();
+    auto out        = Reshape(assign_out, real_shape);
 
     // set the name correctly
     out.set_id(name);
@@ -451,7 +456,8 @@ class NetBuilder {
    * `x_num_col_dims` for more details. Default is 1.
    * @return The result variable.
    */
-  Variable Mul(const Variable& x, const Variable& y, int x_num_col_dims = 1, int y_num_col_dims = 1);
+  Variable Mul(
+      const Variable& x, const Variable& y, int x_num_col_dims = 1, int y_num_col_dims = 1, bool is_infer = false);
 
   /**
    * @brief Applies matrix multiplication to two variable. Matmul follows the complete broadcast rules, and its behavior
@@ -631,7 +637,7 @@ class NetBuilder {
    * @param axis  The dimension in which we index. Default: 0.
    * @return A variable with same data type as x.
    */
-  Variable IndexSelect(const Variable& x, const Variable& index, int axis = 0);
+  Variable Gather(const Variable& x, const Variable& index, int axis = 0);
 
   /**
    * @brief Output is obtained by updating the input on selected indices based on updates.
@@ -695,7 +701,10 @@ class NetBuilder {
    * An optional string from: "AnyLayout", "NHWC", "NCHW". Default: "AnyLayout".
    * @return Output of softmax. The data type and shape are the same as input .
    */
-  Variable Softmax(const Variable& x, int axis = -1, const std::string& data_format = "AnyLayout");
+  Variable Softmax(const Variable& x,
+                   const std::vector<int>& axes   = {-1},
+                   const std::string& mode        = "fast",
+                   const std::string& data_format = "AnyLayout");
 
   // *******************************************
   // Type converter Operator

@@ -184,7 +184,8 @@ std::vector<std::vector<int>> GetMatmulNewShapes(const std::vector<std::vector<i
 
 std::vector<std::vector<int>> GetMulNewShapes(const std::vector<std::vector<int>>& inputs_shape,
                                               int x_num_col_dims,
-                                              int y_num_col_dims) {
+                                              int y_num_col_dims,
+                                              bool is_infer) {
   CHECK_EQ(inputs_shape.size(), 2UL) << "The mul should only have two inputs.";
   const auto &x_shape = inputs_shape[0], &y_shape = inputs_shape[1];
   CHECK(!x_shape.empty()) << "The shape of mul input 'x' should not empty.";
@@ -233,8 +234,14 @@ std::vector<std::vector<int>> GetMulNewShapes(const std::vector<std::vector<int>
   for (int i = 0; i < x_num_col_dims; ++i) {
     out_shape.emplace_back(x_shape[i]);
   }
-  for (int i = y_num_col_dims; i < y_shape.size(); ++i) {
-    out_shape.emplace_back(y_shape[i]);
+  if (is_infer) {
+    for (int i = 0; i < y_num_col_dims; ++i) {
+      out_shape.emplace_back(y_shape[i]);
+    }
+  } else {
+    for (int i = y_num_col_dims; i < y_shape.size(); ++i) {
+      out_shape.emplace_back(y_shape[i]);
+    }
   }
 
   return new_shape;
@@ -1023,11 +1030,11 @@ ir::Tensor SliceAssign(const ir::Tensor& input,
   return output_tensor;
 }
 
-ir::Tensor IndexSelect(const ir::Tensor& x,
-                       const ir::Tensor& index,
-                       const std::vector<Expr>& output_shape,
-                       int axis,
-                       const std::string& name) {
+ir::Tensor Gather(const ir::Tensor& x,
+                  const ir::Tensor& index,
+                  const std::vector<Expr>& output_shape,
+                  int axis,
+                  const std::string& name) {
   CHECK_EQ(1, static_cast<int>(index->shape.size())) << "The index should be a 1-D Tensor.";
   // The implementation details are explained below.
   // If output_shape = [2, 4, 3] and axis = 0, `Compute` can be translated as the following code:
@@ -1152,25 +1159,6 @@ ir::Tensor ScatterAdd(const ir::Tensor& input,
       UniqName(output_name));
 
   return output;
-}
-
-ir::Tensor Gather(const ir::Tensor& input, const ir::Tensor& index, const int& axis, const std::string& output_name) {
-  CHECK_EQ(input->shape.size(), index->shape.size());
-  auto res = Compute(
-      index->shape,
-      [=](const std::vector<Expr>& indices) {
-        std::vector<Expr> A_indices;
-        for (int i = 0; i < axis; ++i) {
-          A_indices.push_back(indices[i]);
-        }
-        A_indices.push_back(ir::Cast::Make(common::I32(), index(indices)));
-        for (size_t i = axis + 1; i < input->shape.size(); ++i) {
-          A_indices.push_back(indices[i]);
-        }
-        return input(A_indices);
-      },
-      UniqName(output_name));
-  return res;
 }
 
 }  // namespace pe

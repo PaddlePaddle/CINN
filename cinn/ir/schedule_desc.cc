@@ -452,6 +452,11 @@ CINN_BUILD_STEP_KIND(AnnotateStringAttr)
     .Attrs({"key", "value"})
     .SetApplyFn(APPLY_FUNC_UNIFORM(AnnotateStringAttr));
 
+CINN_BUILD_STEP_KIND(Unannotate)
+    .Inputs({"block"})
+    .Attrs({"key"})
+    .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(&IRSchedule::Unannotate)));
+
 CINN_BUILD_STEP_KIND(FlattenLoops)
     .Inputs({"loops"})
     .Attrs({"force_flat"})

@@ -427,8 +427,7 @@ Expr MakeCacheBlock(const std::vector<IterRange>& buffer_ranges,
     optim::ReplaceVarWithExpr(&body, axis_vars[i], block_vars[i]);
   }
   Expr block = ir::ScheduleBlockRealize::Make(
-      iter_values,
-      ir::ScheduleBlock::Make(block_vars, {}, {}, common::UniqName(new_tensor->name), Block::Make({body})));
+      iter_values, ir::ScheduleBlock::Make(block_vars, {}, {}, new_tensor->name, Block::Make({body})));
   Expr new_body = block;
   for (int i = (int)loop_vars.size() - 1; i >= 0; i--) {
     new_body = For::Make(loop_vars[i],
@@ -756,7 +755,7 @@ std::vector<Expr> GetProducers(const Expr& block, const Expr& root) {
     return false;
   });
 
-  // travserse each of other blocks and filter those ones which contain at least one producer tensor;
+  // traverse each of other blocks and filter those ones which contain at least one producer tensor;
   auto find_blocks = ir::CollectIRNodesWithoutTensor(
       root, [&block, &root](const Expr* x) { return x->As<ir::ScheduleBlockRealize>() && *x != block && *x != root; });
   for (auto&& cur : find_blocks) {

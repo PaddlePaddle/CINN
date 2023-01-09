@@ -103,11 +103,8 @@ function prepare_ci {
     apt install -y python${py_version}-venv
     python${py_version} -m venv $build_dir/ci-env
   fi
-  proxy_off
   source $build_dir/ci-env/bin/activate
-  pip install -U pip --trusted-host mirrors.aliyun.com --index-url https://mirrors.aliyun.com/pypi/simple/
-  pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/
-  pip config set global.trusted-host mirrors.aliyun.com
+  pip install -U pip
   pip install pre-commit
   pip install clang-format==9.0
   pip install wheel
@@ -223,21 +220,6 @@ function codestyle_check {
 function build {
     proxy_on
     cd $build_dir
-
-    if [[ $cuda_config == "ON" ]]; then
-        make test_codegen_cuda_generate -j $JOBS
-        ctest -R test_codegen_cuda_generate -V
-    fi
-
-    make test01_elementwise_add_main -j $JOBS
-    make test02_matmul_main -j $JOBS
-    make test03_conv_main -j $JOBS
-    make test_codegen_c -j $JOBS
-
-    ctest -R test01_elementwise_add_main
-    ctest -R test02_matmul_main
-    ctest -R test03_conv_main
-    ctest -R "test_codegen_c$"
 
     make -j $JOBS
 

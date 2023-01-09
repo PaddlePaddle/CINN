@@ -59,7 +59,7 @@ ir::CudaAxisInfo GatherAxisInfoFromStages(const std::vector<poly::Stage*>& stage
 void TransformGpuForloops(const forloop_infos_t& forloop_infos,
                           const std::vector<std::string>& traverse_order,
                           std::map<std::string, ir::Tensor>* global_tensor_map,
-                          std::unordered_set<std::string>& resized_buffer,
+                          std::unordered_map<std::string, std::vector<Expr>>& resized_buffer_cache,
                           Expr* expr);
 
 void OptimizeExprGPU(Expr* expr);
