@@ -74,6 +74,24 @@ static std::shared_ptr<Buffer> AllocBuffer(const common::Target& target,
   return buffer;
 }
 
+static void CopyTensorData(Tensor src, Tensor dst, const common::Target& target) {
+  int mem_size   = src->shape().numel() * src->type().bytes();
+  auto* src_data = src->mutable_data(target, src->type());
+  auto* dst_data = dst->mutable_data(target, src->type());
+#ifdef CINN_WITH_CUDA
+  if (target == common::DefaultNVGPUTarget()) {
+    cudaMemcpy(dst_data, src_data, mem_size, cudaMemcpyDeviceToDevice);
+  } else if (target == common::DefaultHostTarget()) {
+    memcpy(dst_data, src_data, mem_size);
+  } else {
+    CINN_NOT_IMPLEMENTED
+  }
+#else
+  CHECK(target == common::DefaultHostTarget());
+  memcpy(dst_data, src_data, mem_size);
+#endif
+}
+
 SimpleRunner::SimpleRunner(int repeat_times) : repeat_times_(repeat_times) {
   CHECK_GT(repeat_times_, 0) << "repeat_times can't less than 0";
 }
@@ -118,7 +136,11 @@ std::map<std::string, cinn_pod_value_t> SimpleRunner::PrepareArgs(const MeasureI
     auto buffer          = AllocBuffer(target, compiled_tensor->type(), compiled_tensor->shape());
     temp_scope->Var<Tensor>(param);
     auto temp_tensor = temp_scope->GetTensor(param);
+    temp_tensor->Resize(compiled_tensor->shape());
+    temp_tensor->set_type(compiled_tensor->type());
     temp_tensor->set_buffer(buffer);
+    CopyTensorData(compiled_tensor, temp_tensor, target);
+
     result.emplace(param, temp_tensor->buffer());
   };
 
