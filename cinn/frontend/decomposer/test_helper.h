@@ -166,7 +166,10 @@ void ComputeReferenceCpu(const std::vector<std::vector<T>>& input_vecs,
   cpu_kernel_func(lengths, ptrs);
 }
 
-void RunDecomposer(Program* prog, const Target& target, const std::vector<std::string>& passes = {"Decomposer"});
+void RunDecomposer(Program* prog,
+                   const Target& target,
+                   const std::vector<std::string>& passes    = {"Decomposer"},
+                   const std::vector<std::string>& fetch_ids = {});
 
 template <typename T>
 void RunAndCheckShape(NetBuilder& builder,
@@ -180,7 +183,7 @@ void RunAndCheckShape(NetBuilder& builder,
                       const std::vector<std::string>& passes   = {"Decomposer"}) {
   auto prog     = builder.Build();
   Target target = common::DefaultTarget();
-  RunDecomposer(&prog, target, passes);
+  RunDecomposer(&prog, target, passes, output_names);
   auto graph = std::make_shared<hlir::framework::Graph>(prog, target);
   hlir::framework::ApplyPasses(graph.get(), DefaultOpFusionPasses());
   auto scope = BuildScope(target, graph);

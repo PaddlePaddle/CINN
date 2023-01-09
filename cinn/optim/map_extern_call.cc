@@ -33,7 +33,9 @@ static const std::set<std::string> kExternInt32CallsGPU{{"left_shift",
                                                          "bitwise_xor",
                                                          "bitwise_not",
                                                          "pow",
-                                                         "logical_right_shift"}};
+                                                         "logical_right_shift",
+                                                         "clz",
+                                                         "popc"}};
 
 static const std::set<std::string> kExternFp32CallsCPU = {
     "erf", "acos", "acosh", "asin", "asinh", "atan", "atanh", "remainder"};

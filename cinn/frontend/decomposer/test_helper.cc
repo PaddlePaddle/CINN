@@ -16,12 +16,15 @@
 
 namespace cinn::frontend {
 
-void RunDecomposer(Program* prog, const Target& target, const std::vector<std::string>& passes) {
+void RunDecomposer(Program* prog,
+                   const Target& target,
+                   const std::vector<std::string>& passes,
+                   const std::vector<std::string>& fetch_ids) {
   VLOG(1) << "===================== Before Program Pass =====================";
   for (int i = 0; i < prog->size(); i++) {
     VLOG(1) << "instruction: " << (*prog)[i];
   }
-  ProgramPass::Apply(prog, {}, target, passes);
+  ProgramPass::Apply(prog, std::unordered_set<std::string>(fetch_ids.begin(), fetch_ids.end()), target, passes);
   VLOG(1) << "===================== After Program Pass =====================";
   for (int i = 0; i < prog->size(); i++) {
     VLOG(1) << "instruction: " << (*prog)[i];
