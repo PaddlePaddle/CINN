@@ -23,9 +23,10 @@ from cinn.frontend import *
 from cinn.common import *
 
 
+@OpTestTool.skip_if(not is_compiled_with_cuda(),
+                    "x86 test will be skipped due to timeout.")
 class TestCholeskyOp(OpTest):
     def setUp(self):
-        self.target = DefaultNVGPUTarget()
         self.init_case()
 
     def init_case(self):
@@ -54,7 +55,7 @@ class TestCholeskyOp(OpTest):
         prog = builder.build()
         res = self.get_cinn_output(
             prog,
-            DefaultNVGPUTarget(), [shape], [self.inputs["shape"]], [out],
+            target, [shape], [self.inputs["shape"]], [out],
             passes=[])
         print(res)
         self.cinn_outputs = [res[0]]

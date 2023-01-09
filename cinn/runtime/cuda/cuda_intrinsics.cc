@@ -277,7 +277,7 @@ CINN_REGISTER_HELPER(cinn_cuda_host_api) {
       .AddInputType<float>()        // mean
       .AddInputType<float>()        // std
       .AddInputType<int>()          // seed
-      .AddInputType<std::string>()  // dtype
+      .AddInputType<void *>()       // stream
       .End();
 
 #ifdef CINN_WITH_CUDNN

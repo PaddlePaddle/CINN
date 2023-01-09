@@ -43,7 +43,7 @@ void cinn_gpu_cublas_gemm(const std::vector<int>& attrs,
                           cudaStream_t stream = nullptr);
 
 void cinn_call_gaussian_random(
-    void* v_args, int num_args, int msg, float mean, float std, int seed, std::string dtype, void* stream = nullptr);
+    void* v_args, int num_args, int msg, float mean, float std, int seed, void* stream = nullptr);
 
 #ifdef CINN_WITH_CUDNN
 void cinn_gpu_cudnn_conv2d(const absl::flat_hash_map<std::string, int>& attr,

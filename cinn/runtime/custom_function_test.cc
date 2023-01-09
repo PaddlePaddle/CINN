@@ -196,11 +196,11 @@ TEST(CustomCallGaussianRandom, test_target_nvgpu) {
   CinnBufferAllocHelper out(cinn_x86_device, cinn_float32_t(), {2, 3});
   auto* output = out.mutable_data<float>(target);
 
-  int num_args               = 2;
-  cinn_pod_value_t v_args[2] = {cinn_pod_value_t(shape.get()), cinn_pod_value_t(out.get())};
+  int num_args               = 3;
+  cinn_pod_value_t v_args[3] = {cinn_pod_value_t(shape.get()), cinn_pod_value_t(out.get()), cinn_pod_value_t(dtype.c_str())};
 
   using cinn::runtime::cuda::cinn_call_gaussian_random;
-  cinn_call_gaussian_random(v_args, num_args, msg, mean, std, seed, dtype, nullptr);
+  cinn_call_gaussian_random(v_args, num_args, msg, mean, std, seed, nullptr);
 
   float output_data[6] = {0.0};
   cudaMemcpy(output_data, output, 6 * sizeof(float), cudaMemcpyDeviceToHost);

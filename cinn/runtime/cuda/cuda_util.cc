@@ -1049,9 +1049,10 @@ void cinn_gpu_cublas_gemm(const std::vector<int> &attrs,
 }
 
 void cinn_call_gaussian_random(
-    void *v_args, int num_args, int msg, float mean, float std, int seed, std::string dtype, void *stream) {
+    void *v_args, int num_args, int msg, float mean, float std, int seed, void *stream) {
   cinn_pod_value_t *args = static_cast<cinn_pod_value_t *>(v_args);
   cinn_buffer_t *output  = args[1].operator cinn_buffer_t *();
+  std::string dtype(args[2].operator char *());
   size_t numel           = output->num_elements();
   curandGenerator_t generator;
   CURAND_CALL(curandCreateGenerator(&generator, CURAND_RNG_PSEUDO_DEFAULT));
