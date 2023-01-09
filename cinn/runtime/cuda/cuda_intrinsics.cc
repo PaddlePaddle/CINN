@@ -271,13 +271,12 @@ CINN_REGISTER_HELPER(cinn_cuda_host_api) {
   using cinn::runtime::cuda::cinn_call_gaussian_random;
   REGISTER_EXTERN_FUNC_HELPER(cinn_call_gaussian_random, cinn::common::DefaultHostTarget())
       .SetRetType<void>()
-      .AddInputType<void *>()       // v_args
-      .AddInputType<int>()          // msg
-      .AddInputType<int>()          // num_args
-      .AddInputType<float>()        // mean
-      .AddInputType<float>()        // std
-      .AddInputType<int>()          // seed
-      .AddInputType<void *>()       // stream
+      .AddInputType<void *>()  // v_args
+      .AddInputType<int>()     // num_args
+      .AddInputType<float>()   // mean
+      .AddInputType<float>()   // std
+      .AddInputType<int>()     // seed
+      .AddInputType<void *>()  // stream
       .End();
 
 #ifdef CINN_WITH_CUDNN

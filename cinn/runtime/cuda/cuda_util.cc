@@ -1048,19 +1048,18 @@ void cinn_gpu_cublas_gemm(const std::vector<int> &attrs,
   }
 }
 
-void cinn_call_gaussian_random(
-    void *v_args, int num_args, int msg, float mean, float std, int seed, void *stream) {
+void cinn_call_gaussian_random(void *v_args, int num_args, float mean, float std, int seed, void *stream) {
   cinn_pod_value_t *args = static_cast<cinn_pod_value_t *>(v_args);
-  cinn_buffer_t *output  = args[1].operator cinn_buffer_t *();
-  std::string dtype(args[2].operator char *());
+  cinn_buffer_t *output  = args[0].operator cinn_buffer_t *();
+  cinn_type_t dtype      = output->type;
   size_t numel           = output->num_elements();
   curandGenerator_t generator;
   CURAND_CALL(curandCreateGenerator(&generator, CURAND_RNG_PSEUDO_DEFAULT));
   CURAND_CALL(curandSetPseudoRandomGeneratorSeed(generator, seed));
-  if (dtype == "float32") {
+  if (dtype == cinn_float32_t()) {
     float *ptr = reinterpret_cast<float *>(output->memory);
     CURAND_CALL(curandGenerateNormal(generator, ptr, numel, mean, std));
-  } else if (dtype == "float64") {
+  } else if (dtype == cinn_float64_t()) {
     double *ptr = reinterpret_cast<double *>(output->memory);
     CURAND_CALL(curandGenerateNormalDouble(generator, ptr, numel, mean, std));
   }

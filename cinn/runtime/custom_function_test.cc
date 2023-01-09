@@ -175,32 +175,22 @@ TEST(CinnAssertTrue, test_false_only_warning) {
 TEST(CustomCallGaussianRandom, test_target_nvgpu) {
   Target target = common::DefaultTarget();
 
-  // Input tensor shape
-  CinnBufferAllocHelper shape(cinn_x86_device, cinn_int32_t(), {2});
-  int shape_data[2] = {2, 3};
-  auto* shape_input = shape.mutable_data<int>(target);
-  SetInputValue(shape_input, shape_data, 2, target);
-
-  // Arg msg
-  int msg = 0;
   // Arg mean
   float mean = 0.0;
   // Arg std
   float std = 1.0;
   // Arg seed
   int seed = 10;
-  // Arg dtype
-  std::string dtype = "float32";
 
   // Output matrix out
   CinnBufferAllocHelper out(cinn_x86_device, cinn_float32_t(), {2, 3});
   auto* output = out.mutable_data<float>(target);
 
-  int num_args               = 3;
-  cinn_pod_value_t v_args[3] = {cinn_pod_value_t(shape.get()), cinn_pod_value_t(out.get()), cinn_pod_value_t(dtype.c_str())};
+  int num_args               = 1;
+  cinn_pod_value_t v_args[1] = {cinn_pod_value_t(out.get())};
 
   using cinn::runtime::cuda::cinn_call_gaussian_random;
-  cinn_call_gaussian_random(v_args, num_args, msg, mean, std, seed, nullptr);
+  cinn_call_gaussian_random(v_args, num_args, mean, std, seed, nullptr);
 
   float output_data[6] = {0.0};
   cudaMemcpy(output_data, output, 6 * sizeof(float), cudaMemcpyDeviceToHost);

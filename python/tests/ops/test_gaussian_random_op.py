@@ -30,12 +30,12 @@ class TestCholeskyOp(OpTest):
         self.init_case()
 
     def init_case(self):
-        self.inputs = {"shape": np.array([2, 3]).astype(np.int32)}
         self.outputs = {
             "out":
-            np.array([[0.98147416, 0., 0.], [0.89824611, 0.76365221,
-                                             0.]]).astype(np.float32)
+            np.array([[0.27076274, -0.24768609, -0.7465344],
+                      [-0.5368036, -0.8755634, 0.618268]]).astype(np.float32)
         }
+        self.shape = [2, 3]
         self.mean = 0.0
         self.std = 1.0
         self.seed = 10
@@ -47,17 +47,10 @@ class TestCholeskyOp(OpTest):
 
     def build_cinn_program(self, target):
         builder = NetBuilder("gaussian_random")
-        shape = builder.create_input(
-            self.nptype2cinntype(self.inputs["shape"].dtype),
-            self.inputs["shape"].shape, "shape")
-        out = builder.gaussian_random(shape, self.mean, self.std, self.seed,
-                                      self.dtype)
+        out = builder.gaussian_random(self.shape, self.mean, self.std,
+                                      self.seed, self.dtype)
         prog = builder.build()
-        res = self.get_cinn_output(
-            prog,
-            target, [shape], [self.inputs["shape"]], [out],
-            passes=[])
-        print(res)
+        res = self.get_cinn_output(prog, target, [], [], [out], passes=[])
         self.cinn_outputs = [res[0]]
 
     def test_check_results(self):

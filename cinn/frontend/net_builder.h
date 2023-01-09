@@ -969,8 +969,11 @@ class NetBuilder {
    * @param seed
    * @param dtype
    */
-  Variable GaussianRandom(
-      const Variable& shape, float mean = 0.0, float std = 1.0, int seed = 0, const std::string& dtype = "float32");
+  Variable GaussianRandom(const std::vector<int>& shape,
+                          float mean               = 0.0,
+                          float std                = 1.0,
+                          int seed                 = 0,
+                          const std::string& dtype = "float32");
 
  private:
   CINN_DISALLOW_COPY_AND_ASSIGN(NetBuilder);

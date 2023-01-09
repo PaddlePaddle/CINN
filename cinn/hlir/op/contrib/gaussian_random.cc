@@ -58,12 +58,10 @@ std::shared_ptr<framework::OpStrategy> StrategyForGaussianRandom(const framework
                                                                  const std::vector<std::vector<int>> &output_shapes,
                                                                  const Target &target) {
   framework::CINNCompute gaussian_random_compute([=](lang::Args args, lang::RetValue *ret) {
-    CINNValuePack pack_args = args[0];
-    CHECK(!pack_args.empty()) << "Gaussian random need args input shape.";
-    Expr shape_expr         = pack_args[0];
-    ir::Tensor shape        = shape_expr.as_tensor_ref();
+    CHECK(attrs.attr_store.count("shape"));
+    ir::Tensor shape_tensor;
     std::string tensor_name = "gaussian_random_out";
-    auto out                = pe::Identity(shape, tensor_name).front();
+    auto out                = pe::Identity(shape_tensor, tensor_name).front();
     auto stages             = CreateStages({out});
     std::vector<CINNValue> res{CINNValue(out), CINNValue(stages)};
     *ret = CINNValuePack{res};
@@ -76,20 +74,14 @@ std::shared_ptr<framework::OpStrategy> StrategyForGaussianRandom(const framework
 
 std::vector<framework::shape_t> InferShapeForGaussianRandom(const std::vector<framework::shape_t> &inputs_shape,
                                                             const framework::AttrMapType &attrs) {
-  CHECK_EQ(inputs_shape.size(), 1U) << "The input's shape size should be 1! Please check again.";
-  framework::shape_t input_shape = inputs_shape[0];
-  framework::shape_t output_shape;
-  for (auto i : input_shape) {
-    output_shape.push_back(i);
-  }
-  return {output_shape};
+  CHECK(attrs.count("shape"));
+  auto shape = absl::get<std::vector<int>>(attrs.at("shape"));
+  CHECK(!shape.empty()) << "shape attr is empty!";
+  return {shape};
 }
 
 std::vector<Type> InferDtypeForGaussianRandom(const std::vector<Type> &inputs_type,
                                               const framework::AttrMapType &attrs) {
-  CHECK_EQ(inputs_type.size(), 1U) << "The input's shape size should be 1! Please check again.";
-  CHECK(inputs_type[0].is_int()) << "The input's dtype should be int! Please check again.";
-
   std::string dtype = "float32";
   if (attrs.find("dtype") != attrs.end()) {
     dtype = absl::get<std::string>(attrs.at("dtype"));
@@ -105,7 +97,7 @@ std::vector<Type> InferDtypeForGaussianRandom(const std::vector<Type> &inputs_ty
 CINN_REGISTER_HELPER(gaussian_random_ops) {
   CINN_REGISTER_OP(gaussian_random)
       .describe("GaussianRandom")
-      .set_num_inputs(1)
+      .set_num_inputs(0)
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForGaussianRandom)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForGaussianRandom))
