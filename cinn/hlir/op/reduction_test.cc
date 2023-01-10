@@ -239,7 +239,7 @@ TEST(Operator, Operator_Reduction_Case_6_1) {
   std::vector<int> shape = {32, 32, 32};
   std::vector<int> dim   = {-2, -1, 0};
 
-  GenReduceCode(shape, dim, "reduce_cast_6_1", True);
+  GenReduceCode(shape, dim, "reduce_cast_6_1", true);
 }
 
 struct SumOp {
