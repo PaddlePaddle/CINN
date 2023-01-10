@@ -101,19 +101,21 @@ class OpTest(unittest.TestCase):
 
         logger.debug("============ Check Outputs ============")
         self.check_results(self.paddle_outputs, self.cinn_outputs,
-                           max_relative_error, all_equal, equal_nan)
+                           max_relative_error, all_equal, equal_nan, "Outputs")
 
         if len(self.cinn_grads) != 0:
             logger.debug("============ Check Grads ============")
             self.check_results(self.paddle_grads, self.cinn_grads,
-                               max_relative_error, all_equal, equal_nan)
+                               max_relative_error, all_equal, equal_nan,
+                               "Grads")
 
     def check_results(self,
                       expect_res,
                       actual_res,
                       max_relative_error,
                       all_equal=False,
-                      equal_nan=False):
+                      equal_nan=False,
+                      name="Outputs"):
         def _compute_max_relative_error(output_id, expect, actual):
             absolute_diff = np.abs(expect - actual).flatten()
             relative_diff = absolute_diff / np.abs(expect).flatten()
@@ -202,6 +204,8 @@ class OpTest(unittest.TestCase):
                 is_allclose = np.all(expect == actual)
                 error_message = "(expect == actual) checks succeed!" if is_allclose else _check_error_message(
                     i, expect, actual)
+
+            error_message = "[Check " + name + "] " + error_message
 
             logger.debug("{} {}".format(is_allclose, error_message))
             self.assertTrue(is_allclose, msg=error_message)
