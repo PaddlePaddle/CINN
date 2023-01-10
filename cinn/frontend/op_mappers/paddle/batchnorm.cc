@@ -45,12 +45,10 @@ void BatchNormOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
   auto mean        = ctx.GetVar(mean_name);
   auto variance    = ctx.GetVar(variance_name);
 
-  auto is_test         = utils::GetAttrOrDefault<bool>(op_desc, "is_test", false);
-  auto trainable_stats = utils::GetAttrOrDefault<bool>(op_desc, "trainable_statistics", false);
-  bool test_mode       = is_test && (!trainable_stats);
+  auto is_test = utils::GetAttrOrDefault<bool>(op_desc, "is_test", false);
 
   std::vector<std::string> output_names;
-  if (test_mode) {
+  if (is_test) {
     output_names = {"Y"};
     VLOG(4) << "Invoke batch_norm OpMapper with test mode";
   } else {
@@ -58,7 +56,7 @@ void BatchNormOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
     VLOG(4) << "Invoke batch_norm OpMapper with train mode";
   }
 
-  auto outs = ctx.Builder()->BatchNorm(x, scale, bias, mean, variance, epsilon, momentum, data_layout, test_mode);
+  auto outs = ctx.Builder()->BatchNorm(x, scale, bias, mean, variance, epsilon, momentum, data_layout, is_test);
   CHECK_EQ(outs.size(), output_names.size()) << "batch_norm API's should return" << output_names.size() << "Variables!";
 
   for (int i = 0; i < outs.size(); i++) {

@@ -70,19 +70,19 @@ struct BatchNormHelper {
 
   // mean = reduce_sum(x) / nhw
   Variable Mean(Variable x) {
-    auto element_count_1d =
-        builder->FillConstant(param_shape, element_count, common::UniqName("element_count"), common::Type2Str(x->type));
-    auto sum  = Reduce(x);
+    auto sum              = Reduce(x);
+    auto element_count_1d = builder->FillConstant(
+        sum->shape, element_count, common::UniqName("element_count"), common::Type2Str(sum->type));
     auto mean = builder->Divide(sum, element_count_1d);
     return mean;
   }
 
   // variance = reduce_sum(x * x) / nhw - mean * mean
   Variable Variance(Variable x, Variable mean) {
-    auto element_count_1d =
-        builder->FillConstant(param_shape, element_count, common::UniqName("element_count"), common::Type2Str(x->type));
-    auto x_square      = builder->Multiply(x, builder->Identity(x));
-    auto x_square_sum  = Reduce(x_square);
+    auto x_square         = builder->Multiply(x, builder->Identity(x));
+    auto x_square_sum     = Reduce(x_square);
+    auto element_count_1d = builder->FillConstant(
+        x_square_sum->shape, element_count, common::UniqName("element_count"), common::Type2Str(x_square_sum->type));
     auto x_square_mean = builder->Divide(x_square_sum, element_count_1d);
     auto variance      = builder->Subtract(x_square_mean, builder->Multiply(mean, builder->Identity(mean)));
     return variance;
@@ -91,16 +91,16 @@ struct BatchNormHelper {
   // std_variance_inv = rsqrt(variance + epsilon)
   Variable StdVarianceInv1d(Variable variance, float epsilon) {
     auto epsilon_1d =
-        builder->FillConstant(param_shape, epsilon, common::UniqName("epsilon"), common::Type2Str(variance->type));
+        builder->FillConstant(variance->shape, epsilon, common::UniqName("epsilon"), common::Type2Str(variance->type));
     auto std_variance_inv = builder->Rsqrt(builder->Add(variance, epsilon_1d));
     return std_variance_inv;
   }
 
   // std_variance_inv = rsqrt(variance + epsilon)
   Variable StdVarianceInv4d(Variable variance, float epsilon) {
-    auto epsilon_4d =
-        builder->FillConstant(x_shape, epsilon, common::UniqName("epsilon"), common::Type2Str(variance->type));
-    auto variance_4d         = builder->BroadcastTo(variance, x_shape, {channel_dim});
+    auto variance_4d = builder->BroadcastTo(variance, x_shape, {channel_dim});
+    auto epsilon_4d  = builder->FillConstant(
+        variance_4d->shape, epsilon, common::UniqName("epsilon"), common::Type2Str(variance_4d->type));
     auto std_variance_inv_4d = builder->Rsqrt(builder->Add(variance_4d, epsilon_4d));
     return std_variance_inv_4d;
   }
@@ -111,7 +111,7 @@ struct BatchNormHelper {
     auto factor_0 = builder->FillConstant(
         moving_value->shape, momentum, common::UniqName("factor_0"), common::Type2Str(moving_value->type));
     auto factor_1 = builder->FillConstant(
-        moving_value->shape, 1.0f - momentum, common::UniqName("factor_1"), common::Type2Str(moving_value->type));
+        saved_value->shape, 1.0f - momentum, common::UniqName("factor_1"), common::Type2Str(saved_value->type));
     auto new_moving_value =
         builder->Add(builder->Multiply(moving_value, factor_0), builder->Multiply(saved_value, factor_1));
     return new_moving_value;
@@ -135,18 +135,23 @@ void batch_norm_train(const Instruction& instr, const DecomposerContext& context
   CHECK_EQ(instr->outputs.size(), 5UL) << "The number of the given outputs is not equal to the required for op "
                                        << instr->op_type;
 
-  auto& x               = instr->inputs[0];
+  auto& x_orig          = instr->inputs[0];
   auto& scale           = instr->inputs[1];
   auto& bias            = instr->inputs[2];
   auto& moving_mean     = instr->inputs[3];
   auto& moving_variance = instr->inputs[4];
+  CHECK_EQ(scale->type, bias->type);
+  CHECK_EQ(scale->type, moving_mean->type);
+  CHECK_EQ(scale->type, moving_variance->type);
 
   float epsilon      = instr.GetAttrs<float>("epsilon");
   float momentum     = instr.GetAttrs<float>("momentum");
   std::string layout = instr.GetAttrs<std::string>("data_layout");
 
   NetBuilder* builder = context.builder();
-  BatchNormHelper helper(builder, x->shape, scale->shape, layout, "batch_norm_train");
+  BatchNormHelper helper(builder, x_orig->shape, scale->shape, layout, "batch_norm_train");
+
+  auto x = builder->Cast(x_orig, common::Type2Str(scale->type));
 
   auto mean_variance = helper.MeanAndVariance(x);
   auto mean          = mean_variance[0];
@@ -161,7 +166,9 @@ void batch_norm_train(const Instruction& instr, const DecomposerContext& context
   auto bias_4d           = builder->BroadcastTo(bias, x->shape, {helper.channel_dim});
   auto normalized        = builder->Multiply(builder->Subtract(x, mean_4d), std_variance_inv_4d);
   auto scaled_normalized = builder->Multiply(normalized, scale_4d);
-  auto y                 = builder->Add(scaled_normalized, bias_4d);
+  auto y_orig            = builder->Add(scaled_normalized, bias_4d);
+
+  auto y = builder->Cast(y_orig, common::Type2Str(x_orig->type));
 
   // moving_mean = moving_mean * momentum + (1.0 - momentum) * mean, shape = [c]
   auto new_moving_mean = helper.UpdateMeanVariance(moving_mean, mean, momentum);
@@ -182,22 +189,24 @@ void batch_norm_grad(const Instruction& instr, const DecomposerContext& context)
   CHECK_EQ(instr->outputs.size(), 3UL) << " The number of the given outputs is not equal to the required"
                                        << instr->op_type;
 
-  auto& y_grad             = instr->inputs[0];
-  auto& x                  = instr->inputs[1];
-  auto& scale_orig         = instr->inputs[2];
-  auto& save_mean_orig     = instr->inputs[3];
-  auto& save_variance_orig = instr->inputs[4];
+  auto& y_grad_orig   = instr->inputs[0];
+  auto& x_orig        = instr->inputs[1];
+  auto& scale         = instr->inputs[2];
+  auto& save_mean     = instr->inputs[3];
+  auto& save_variance = instr->inputs[4];
+  CHECK_EQ(y_grad_orig->type, x_orig->type);
+  CHECK_EQ(scale->type, save_mean->type);
+  CHECK_EQ(scale->type, save_variance->type);
 
   auto epsilon = instr.GetAttrs<float>("epsilon");
   auto layout  = instr.GetAttrs<std::string>("data_layout");
 
   NetBuilder* builder = context.builder();
-  BatchNormHelper helper(builder, x->shape, scale_orig->shape, layout, "batch_norm_grad");
+  BatchNormHelper helper(builder, x_orig->shape, scale->shape, layout, "batch_norm_grad");
 
-  // the scale/save_mean/save_variance 's dtype is always float32, we should cast it to real dtype
-  auto scale         = builder->Cast(scale_orig, common::Type2Str(y_grad->type));
-  auto save_mean     = builder->Cast(save_mean_orig, common::Type2Str(y_grad->type));
-  auto save_variance = builder->Cast(save_variance_orig, common::Type2Str(y_grad->type));
+  // Cast input y_grad and x to fp32 for accuracy
+  auto y_grad = builder->Cast(y_grad_orig, common::Type2Str(scale->type));
+  auto x      = builder->Cast(x_orig, common::Type2Str(scale->type));
 
   auto vars                          = helper.GradBiasAndScale(x, save_mean, y_grad);
   auto bias_grad                     = vars[0];
@@ -209,14 +218,16 @@ void batch_norm_grad(const Instruction& instr, const DecomposerContext& context)
   // x_grad = 1/nhw * scale * rsqrt(variance + epsilon) *
   //   (nhw * y_grad - reduce_sum(y_grad) - (x - mean) * reduce_sum(y_grad * (x - mean)) / (variance + epsilon))
   // => x_grad = tmp0 * (tmp1 - tmp2 - tmp3)
-  auto element_count_1d = builder->FillConstant(
-      scale->shape, helper.element_count, common::UniqName("element_count_1d"), common::Type2Str(scale->type));
   auto scaled_std_variance_inv = builder->Multiply(scale, helper.StdVarianceInv1d(save_variance, epsilon));
+  auto element_count_1d        = builder->FillConstant(scaled_std_variance_inv->shape,
+                                                helper.element_count,
+                                                common::UniqName("element_count_1d"),
+                                                common::Type2Str(scaled_std_variance_inv->type));
   auto tmp0 =
       builder->BroadcastTo(builder->Divide(scaled_std_variance_inv, element_count_1d), x->shape, {helper.channel_dim});
 
   auto element_count_4d = builder->FillConstant(
-      x->shape, helper.element_count, common::UniqName("element_count_4d"), common::Type2Str(y_grad->type));
+      y_grad->shape, helper.element_count, common::UniqName("element_count_4d"), common::Type2Str(y_grad->type));
   auto tmp1 = builder->Multiply(y_grad, element_count_4d);
 
   auto tmp2 = builder->BroadcastTo(bias_grad, x->shape, {helper.channel_dim});
@@ -226,14 +237,16 @@ void batch_norm_grad(const Instruction& instr, const DecomposerContext& context)
 
   auto sum_of_y_grad_mul_x_mean_diff_4d =
       builder->BroadcastTo(sum_of_y_grad_mul_x_mean_diff, x->shape, {helper.channel_dim});
-  auto tmp3_0 = builder->Multiply(x_mean_diff, sum_of_y_grad_mul_x_mean_diff_4d);
-  auto epsilon_1d =
-      builder->FillConstant(scale->shape, epsilon, common::UniqName("epsilon"), common::Type2Str(save_variance->type));
+  auto tmp3_0     = builder->Multiply(x_mean_diff, sum_of_y_grad_mul_x_mean_diff_4d);
+  auto epsilon_1d = builder->FillConstant(
+      save_variance->shape, epsilon, common::UniqName("epsilon"), common::Type2Str(save_variance->type));
   auto variance_add_eps    = builder->Add(save_variance, epsilon_1d);
   auto variance_add_eps_4d = builder->BroadcastTo(variance_add_eps, x->shape, {helper.channel_dim});
   auto tmp3                = builder->Divide(tmp3_0, variance_add_eps_4d);
 
-  auto x_grad = builder->Multiply(tmp0, builder->Subtract(builder->Subtract(tmp1, tmp2), tmp3));
+  auto x_grad_orig = builder->Multiply(tmp0, builder->Subtract(builder->Subtract(tmp1, tmp2), tmp3));
+
+  auto x_grad = builder->Cast(x_grad_orig, common::Type2Str(x_orig->type));
 
   context.MapOutToOrigin(x_grad, instr->outputs[0]);
   context.MapOutToOrigin(scale_grad, instr->outputs[1]);
@@ -246,18 +259,23 @@ void batch_norm(const Instruction& instr, const DecomposerContext& context) {
   CHECK_EQ(instr->outputs.size(), 1UL) << "The number of the given outputs is not equal to the required for op "
                                        << instr->op_type;
 
-  auto& x               = instr->inputs[0];
+  auto& x_orig          = instr->inputs[0];
   auto& scale           = instr->inputs[1];
   auto& bias            = instr->inputs[2];
   auto& moving_mean     = instr->inputs[3];
   auto& moving_variance = instr->inputs[4];
+  CHECK_EQ(scale->type, bias->type);
+  CHECK_EQ(scale->type, moving_mean->type);
+  CHECK_EQ(scale->type, moving_variance->type);
 
   float epsilon      = instr.GetAttrs<float>("epsilon");
   float momentum     = instr.GetAttrs<float>("momentum");
   std::string layout = instr.GetAttrs<std::string>("data_layout");
 
   NetBuilder* builder = context.builder();
-  BatchNormHelper helper(builder, x->shape, scale->shape, layout, "batch_norm");
+  BatchNormHelper helper(builder, x_orig->shape, scale->shape, layout, "batch_norm");
+
+  auto x = builder->Cast(x_orig, common::Type2Str(scale->type));
 
   auto mean_4d = builder->BroadcastTo(moving_mean, x->shape, {helper.channel_dim});
   // std_variance_inv = rsqrt(variance + epsilon), shape = [c]
@@ -268,7 +286,9 @@ void batch_norm(const Instruction& instr, const DecomposerContext& context) {
   auto bias_4d           = builder->BroadcastTo(bias, x->shape, {helper.channel_dim});
   auto normalized        = builder->Multiply(builder->Subtract(x, mean_4d), std_variance_inv_4d);
   auto scaled_normalized = builder->Multiply(normalized, scale_4d);
-  auto y                 = builder->Add(scaled_normalized, bias_4d);
+  auto y_orig            = builder->Add(scaled_normalized, bias_4d);
+
+  auto y = builder->Cast(y_orig, common::Type2Str(x_orig->type));
 
   context.MapOutToOrigin(y, instr->outputs[0]);
 }
