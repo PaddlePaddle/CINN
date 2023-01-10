@@ -121,21 +121,20 @@ bool IsSameSubexpression(Node* op1, Node* op2, shape_dict_t& shape_dict) {
   }
 }
 
-void RemoveNode(framework::Graph* graph, Node* node) {
+void RemoveNode(framework::Graph* graph, GraphNode* node) {
   auto in_edges = node->inlinks();
   for (auto& edge : in_edges) {
-    auto* in_node = edge->source()->safe_as<NodeData>();
+    auto* in_node = edge->source();
     in_node->UnLinkSingleTo(node);
   }
   auto out_edges = node->outlinks();
   for (auto& edge : out_edges) {
-    auto* out_node = edge->sink()->safe_as<NodeData>();
+    auto* out_node = edge->sink();
     CHECK(out_node);
     node->UnLinkSingleTo(out_node);
     graph->DropNode(out_node);
   }
   graph->DropNode(node);
-  LOG(INFO) << "remove " << node->id() << " node.";
 }
 
 void ReplaceNode(NodeData* src_new, NodeData* src_old, Node* trt) {
@@ -157,7 +156,7 @@ void ReplaceNode(NodeData* src_new, NodeData* src_old, Node* trt) {
 int CommonSubexpressionElimination(Graph* graph, std::vector<GraphNode*>& store_nodes, InputToNodeMap in2node) {
   std::unordered_map<std::string, std::vector<Node*>> expr_map;
   auto shape_dict = graph->GetAttrs<absl::flat_hash_map<std::string, framework::shape_t>>("infershape");
-  int remove_num  = 0;
+  std::vector<GraphNode*> remove_nodes;
   for (auto& graph_node : store_nodes) {
     auto node = graph_node->safe_as<Node>();
     if (node) {
@@ -180,8 +179,8 @@ int CommonSubexpressionElimination(Graph* graph, std::vector<GraphNode*>& store_
             out_nodes.insert(candidate_node);
           }
         }
-        RemoveNode(graph, node);
-        remove_num++;
+        remove_nodes.push_back(node);
+        LOG(INFO) << "remove " << node->id() << " node.";
         break;
       }
       if (!found) {
@@ -189,7 +188,10 @@ int CommonSubexpressionElimination(Graph* graph, std::vector<GraphNode*>& store_
       }
     }
   }
-  return remove_num;
+  for (auto node : remove_nodes) {
+    RemoveNode(graph, node);
+  }
+  return remove_nodes.size();
 }
 
 void CommonSubexpressionEliminationPass(Graph* graph) {
