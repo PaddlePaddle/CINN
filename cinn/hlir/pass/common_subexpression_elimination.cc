@@ -49,10 +49,6 @@ std::unordered_set<std::string> unordered_ops = {
     "bitwise_or",
     "bitwise_xor",
     "bitwise_and",
-    "reduce_sum",
-    "reduce_prod",
-    "reduce_max",
-    "reduce_min",
 };
 
 bool IsSameSubexpression(Node* op1, Node* op2, shape_dict_t& shape_dict) {
@@ -136,6 +132,7 @@ void RemoveNode(framework::Graph* graph, Node* node) {
     auto* out_node = edge->sink()->safe_as<NodeData>();
     CHECK(out_node);
     node->UnLinkSingleTo(out_node);
+    graph->DropNode(out_node);
   }
   graph->DropNode(node);
   LOG(INFO) << "remove " << node->id() << " node.";
@@ -225,7 +222,7 @@ void CommonSubexpressionEliminationPass(Graph* graph) {
 CINN_REGISTER_HELPER(CommonSubexpressionEliminationPass) {
   CINN_REGISTER_PASS(CommonSubexpressionEliminationPass)
       .describe("This pass  will remove these same sub-expression.")
-      .set_change_structure(false)
+      .set_change_structure(true)
       .set_body(cinn::hlir::pass::CommonSubexpressionEliminationPass);
 
   return true;
