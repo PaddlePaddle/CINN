@@ -14,6 +14,7 @@
 
 #include "cinn/hlir/pe/reduction.h"
 
+#include <algorithm>
 #include <iostream>
 #include <vector>
 
@@ -382,6 +383,10 @@ std::vector<shape_t> InferShapeForReduction(const std::vector<shape_t> &inputs_s
     for (int i = 0; i < ndim; ++i) {
       dim.emplace_back(i);
     }
+  } else {
+    std::for_each(dim.begin(), dim.end(), [&ndim](int &x) {
+      if (x < 0) x += ndim;
+    });
   }
 
   std::vector<int> out_shapes;
