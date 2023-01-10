@@ -79,10 +79,10 @@ class TestBatchNormOp(OpTest):
             self.inputs["x"].shape, "x_g")
         scale_g = builder_grad.fill_constant(scale.shape(), 1.0, 'scale_g',
                                              'float32')
-        save_mean = builder_grad.create_input('float32', out[1].shape(),
-                                              "save_mean")
-        save_variance = builder_grad.create_input('float32', out[2].shape(),
-                                                  "save_variance")
+        save_mean = builder_grad.create_input(
+            self.nptype2cinntype('float32'), out[1].shape(), "save_mean")
+        save_variance = builder_grad.create_input(
+            self.nptype2cinntype('float32'), out[2].shape(), "save_variance")
 
         out_grad = builder_grad.batch_norm_grad(dout, x_g, scale_g, save_mean,
                                                 save_variance)
