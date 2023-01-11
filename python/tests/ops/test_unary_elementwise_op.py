@@ -63,7 +63,7 @@ test_op_list = [
     'sqrt', 'relu', 'sigmoid', 'Identity', 'exp', 'erf', 'rsqrt', 'log',
     'log2', 'log10', 'floor', 'ceil', 'round', 'trunc', 'sin', 'cos', 'tan',
     'sinh', 'cosh', 'tanh', 'asin', 'acos', 'atan', 'asinh', 'acosh', 'atanh',
-    'logical_not', 'bitwise_not', 'sign', 'abs'
+    'logical_not', 'bitwise_not', 'sign', 'abs', 'rsqrt'
 ]
 
 for op_name in test_op_list:

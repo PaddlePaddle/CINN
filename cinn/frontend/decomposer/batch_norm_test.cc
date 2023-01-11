@@ -168,7 +168,7 @@ TEST(Decomposer, BatchNormTrain) {
   auto program = net_builder.Build();
 
   auto target = common::DefaultTarget();
-  RunDecomposer(&program, target);
+  RunDecomposer(&program, target, cinn::frontend::DefaultTrainingOptimizeOptions().program_passes, output_names);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
   hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
@@ -349,7 +349,7 @@ TEST(Decomposer, BatchNormGrad) {
   auto program = net_builder.Build();
 
   auto target = common::DefaultTarget();
-  RunDecomposer(&program, target);
+  RunDecomposer(&program, target, cinn::frontend::DefaultTrainingOptimizeOptions().program_passes, output_names);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
   hlir::framework::ApplyPass(graph.get(), "OpFusionPass");

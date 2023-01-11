@@ -23,7 +23,8 @@ void OpMapperContext::AddVar(const std::string& origin_name, const Variable& var
   CHECK(replace || !var_map_->count(origin_name))
       << "Duplicate variable [" << origin_name << "] found, whose id is " << var_map_->at(origin_name)->id;
   (*var_map_)[origin_name] = var;
-  VLOG(4) << "Add variable [" << origin_name << "] with shape " << cinn::utils::Join(var->shape, ",");
+  VLOG(4) << "Add variable [" << origin_name << "] to " << var->id << " with shape=["
+          << cinn::utils::Join(var->shape, ",") << "], dtype=" << var->type;
 }
 
 void OpMapperContext::AddVarModelToProgram(const std::string& name, const std::string& id) const {

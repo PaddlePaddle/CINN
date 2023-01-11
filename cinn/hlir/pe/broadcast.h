@@ -96,6 +96,10 @@ HLIR_DCL_BC_PE(NotEqual);
 HLIR_DCL_BC_PE(GreaterEqual);
 //! Compute A <= B with auto-broadcasting.
 HLIR_DCL_BC_PE(LessEqual);
+//! Compute  (unsigned)A >> B with auto-broadcasting.
+HLIR_DCL_BC_PE(LogicalRightShift);
+//! Compute  pow(A, B) with auto-broadcasting.
+HLIR_DCL_BC_PE(Pow);
 
 ir::Tensor Pow(const ir::Tensor& A,
                const ir::Tensor& B,

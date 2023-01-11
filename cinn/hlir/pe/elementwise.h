@@ -76,6 +76,9 @@ HLIR_DCL_UNARY_PE(Reinterpret);
 HLIR_DCL_UNARY_PE(ElementwiseSum);
 HLIR_DCL_UNARY_PE(Full);
 HLIR_DCL_UNARY_PE(FullLike);
+HLIR_DCL_UNARY_PE(Cbrt);
+HLIR_DCL_UNARY_PE(Clz);
+HLIR_DCL_UNARY_PE(Popc);
 
 template <typename T>
 ir::Tensor AssignValue(const std::vector<T>& values,

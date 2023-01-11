@@ -101,19 +101,21 @@ class OpTest(unittest.TestCase):
 
         logger.debug("============ Check Outputs ============")
         self.check_results(self.paddle_outputs, self.cinn_outputs,
-                           max_relative_error, all_equal, equal_nan)
+                           max_relative_error, all_equal, equal_nan, "Outputs")
 
         if len(self.cinn_grads) != 0:
             logger.debug("============ Check Grads ============")
             self.check_results(self.paddle_grads, self.cinn_grads,
-                               max_relative_error, all_equal, equal_nan)
+                               max_relative_error, all_equal, equal_nan,
+                               "Grads")
 
     def check_results(self,
                       expect_res,
                       actual_res,
                       max_relative_error,
                       all_equal=False,
-                      equal_nan=False):
+                      equal_nan=False,
+                      name="Outputs"):
         def _compute_max_relative_error(output_id, expect, actual):
             absolute_diff = np.abs(expect - actual).flatten()
             relative_diff = absolute_diff / np.abs(expect).flatten()
@@ -203,12 +205,15 @@ class OpTest(unittest.TestCase):
                 error_message = "(expect == actual) checks succeed!" if is_allclose else _check_error_message(
                     i, expect, actual)
 
+            error_message = "[Check " + name + "] " + error_message
+
             logger.debug("{} {}".format(is_allclose, error_message))
             self.assertTrue(is_allclose, msg=error_message)
 
     @staticmethod
     def nptype2cinntype(dtype):
         switch_map = {
+            "float16": Float(16),
             "float32": Float(32),
             "float64": Float(64),
             "int32": Int(32),
@@ -222,7 +227,7 @@ class OpTest(unittest.TestCase):
     def random(shape, dtype="float32", low=0.0, high=1.0):
         assert bool(shape), "Shape should not empty!"
         assert -1 not in shape, "Shape should not -1!"
-        if dtype in ["float32", "float64"]:
+        if dtype in ["float16", "float32", "float64"]:
             return np.random.uniform(low, high, shape).astype(dtype)
         elif dtype == "bool":
             return np.random.choice(a=[False, True], size=shape).astype(dtype)

@@ -72,7 +72,7 @@ void Sub::Verify() const { BinaryNodeVerify(a(), b(), "Sub"); }
 Expr Mul::Make(Expr a, Expr b) {
   CHECK(a.defined());
   CHECK(b.defined());
-  CHECK_EQ(a.type(), b.type());
+  CHECK_EQ(a.type(), b.type()) << "a=" << a << ", b=" << b;
   auto node = make_shared<Mul>(a, b);
   return Expr(node);
 }
