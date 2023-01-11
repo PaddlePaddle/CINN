@@ -160,7 +160,10 @@ TEST(common_subexpression_elimination, common_subexpression_elimination_case3) {
   program.SetInputs({A, B});
   program.Validate();
   LOG(INFO) << "Program:\n" << program;
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  std::unordered_set<std::string> fetch_list;
+  fetch_list.insert(out1->id);
+  fetch_list.insert(out2->id);
+  auto graph = std::make_shared<hlir::framework::Graph>(program, fetch_list, target);
   LOG(INFO) << "graph:\n" << graph->Visualize();
 
   hlir::framework::ApplyPass(graph.get(), "InferShape");

@@ -133,9 +133,7 @@ void RemoveNode(framework::Graph* graph, GraphNode* node) {
   auto out_edges = node->outlinks();
   for (auto& edge : out_edges) {
     auto* out_node = edge->sink();
-    CHECK(out_node);
     node->UnLinkSingleTo(out_node);
-    graph->DropNode(out_node);
   }
   graph->DropNode(node);
 }
@@ -160,7 +158,7 @@ size_t CommonSubexpressionElimination(Graph* graph, std::vector<GraphNode*>& sto
   std::unordered_map<std::string, std::vector<Node*>> expr_map;
   auto shape_dict = graph->GetAttrs<absl::flat_hash_map<std::string, framework::shape_t>>("infershape");
   std::vector<GraphNode*> remove_nodes;
-  for (auto& graph_node : store_nodes) {
+  for (auto* graph_node : store_nodes) {
     auto node = graph_node->safe_as<Node>();
     if (node) {
       auto& node_type  = node->op()->name;
@@ -183,6 +181,9 @@ size_t CommonSubexpressionElimination(Graph* graph, std::vector<GraphNode*>& sto
               }
             } else {
               ReplaceNode(candidate_sink_node, sink_node, out_node);
+              if (!std::count(remove_nodes.begin(), remove_nodes.end(), sink_node)) {
+                remove_nodes.push_back(sink_node);
+              }
             }
             out_nodes.erase(node);
             out_nodes.insert(candidate_node);
@@ -197,7 +198,7 @@ size_t CommonSubexpressionElimination(Graph* graph, std::vector<GraphNode*>& sto
       }
     }
   }
-  for (auto node : remove_nodes) {
+  for (auto* node : remove_nodes) {
     RemoveNode(graph, node);
   }
   return remove_nodes.size();
