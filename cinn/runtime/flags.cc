@@ -44,7 +44,7 @@ DEFINE_bool(cinn_use_cudnn_conv, BoolFromEnv("FLAGS_cinn_use_cudnn_conv", true),
 DEFINE_bool(cinn_use_cublas_gemm, BoolFromEnv("FLAGS_cinn_use_cublas_gemm", true), "Whether to use cublas gemm.");
 
 DEFINE_bool(cinn_use_common_subexpression_elimination,
-            BoolFromEnv("FLAGS_cinn_use_common_subexpression_elimination", true),
+            BoolFromEnv("FLAGS_cinn_use_common_subexpression_elimination", false),
             "Whether to use common subexpression elimination pass.");
 
 DEFINE_bool(cinn_use_fill_constant_folding,
