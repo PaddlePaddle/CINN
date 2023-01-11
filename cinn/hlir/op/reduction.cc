@@ -55,7 +55,7 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
                                               BlockReduceFunc gpu_reduce_without_last_axis_func,
                                               ReduceFunc cpu_reduce_func) {
   std::vector<int> reduce_axes;
-  auto ndim = inputs_shape[0].size();
+  auto ndim = inputs[0]->shape.size();
   if (attrs.attr_store.count("dim")) {
     reduce_axes = absl::get<std::vector<int>>(attrs.attr_store.at("dim"));
     if (reduce_axes.empty()) {
