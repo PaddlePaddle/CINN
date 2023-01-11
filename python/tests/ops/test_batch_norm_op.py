@@ -34,8 +34,8 @@ class TestBatchNormOp(OpTest):
     def init_case(self):
         self.num_channels = 256
         self.inputs = {
-            "x": self.random([2, 256, 55, 55], "float32"),
-            "dout": self.random([2, 256, 55, 55], "float32"),
+            "x": self.random([2, 256, 55, 55], "float32", 0.0, 10.0),
+            "dout": self.random([2, 256, 55, 55], "float32", 1e-7, 1e-6),
         }
 
     def build_paddle_program(self, target):
@@ -61,7 +61,7 @@ class TestBatchNormOp(OpTest):
                                      'float32')
         mean = builder.fill_constant([self.num_channels], 0.0, 'mean',
                                      'float32')
-        variance = builder.fill_constant([self.num_channels], 0.0, 'variance',
+        variance = builder.fill_constant([self.num_channels], 1.0, 'variance',
                                          'float32')
 
         out = builder.batchnorm(x, scale, bias, mean, variance, is_test=False)
@@ -99,8 +99,7 @@ class TestBatchNormOp(OpTest):
         self.cinn_grads = [backward_res[0]]
 
     def test_check_results(self):
-        # TODO(thisjiang): remove max_relative_error after batch_norm_grad accuracy bug fixed
-        self.check_outputs_and_grads(max_relative_error=1.0)
+        self.check_outputs_and_grads()
 
 
 # Reopen after decomposer infer dtype fixed
