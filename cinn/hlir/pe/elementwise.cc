@@ -103,6 +103,9 @@ HLIR_IMP_UNARY_PE(Sigmoid);
 HLIR_IMP_UNARY_PE(Sign);
 HLIR_IMP_UNARY_PE(Abs);
 HLIR_IMP_UNARY_PE(Rsqrt);
+HLIR_IMP_UNARY_PE(Cbrt);
+HLIR_IMP_UNARY_PE(Clz);
+HLIR_IMP_UNARY_PE(Popc);
 
 ir::Tensor Squeeze(const ir::Tensor& A, const std::vector<int>& axes, const std::string& output_name) {
   std::vector<int> position;
