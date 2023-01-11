@@ -165,25 +165,28 @@ size_t CommonSubexpressionElimination(Graph* graph, std::vector<GraphNode*>& sto
       auto& candidates = expr_map[node_type];
       bool found       = false;
       for (auto* candidate_node : candidates) {
+        // If node is different from candidate_node, continue the next.
         if (!IsSameSubexpression(node, candidate_node, shape_dict)) continue;
         found = true;
         for (int k = 0; k < node->outlinks_in_order(true).size(); ++k) {
           CHECK(node->outlinks_in_order(true).size() == candidate_node->outlinks_in_order(true).size());
-          auto* sink_node           = node->outlinks_in_order(true)[k]->sink()->safe_as<NodeData>();
-          auto* candidate_sink_node = candidate_node->outlinks_in_order(true)[k]->sink()->safe_as<NodeData>();
+          auto* sink_node           = node->outlinks_in_order()[k]->sink()->safe_as<NodeData>();
+          auto* candidate_sink_node = candidate_node->outlinks_in_order()[k]->sink()->safe_as<NodeData>();
           CHECK(sink_node);
           CHECK(candidate_sink_node);
+          size_t n_sink_in_outputs = std::count(graph->outputs.begin(), graph->outputs.end(), sink_node);
+          // If sink node in outputs, the node's source_node will be replaced by candidate_sink_node's source_node.
+          if (n_sink_in_outputs) {
+            sink_node->source_node = candidate_sink_node->source_node;
+          }
+          // Replace sink_node with candidate_sink_node in nodes linked by sink_node.
           auto out_nodes = in2node[sink_node->id()];
           for (auto out_node : out_nodes) {
-            if (std::count(graph->outputs.begin(), graph->outputs.end(), sink_node)) {
-              for (const auto& candidate_sink_in_edge : candidate_sink_node->inlinks()) {
-                candidate_sink_in_edge->sink()->LinkTo(sink_node);
-              }
-            } else {
-              ReplaceNode(candidate_sink_node, sink_node, out_node);
-              if (!std::count(remove_nodes.begin(), remove_nodes.end(), sink_node)) {
-                remove_nodes.push_back(sink_node);
-              }
+            ReplaceNode(candidate_sink_node, sink_node, out_node);
+            // If sink node is not in outputs and not in removes, the node will be removed.
+            size_t n_sink_in_removes = std::count(remove_nodes.begin(), remove_nodes.end(), sink_node);
+            if (n_sink_in_removes == 0 && n_sink_in_outputs == 0) {
+              remove_nodes.push_back(sink_node);
             }
             out_nodes.erase(node);
             out_nodes.insert(candidate_node);
