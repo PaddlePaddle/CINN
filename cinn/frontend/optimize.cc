@@ -77,9 +77,9 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
     options.graph_passes.emplace_back("BuildNonFusedGroupsPass");
   }
 
-  //  if (FLAGS_cinn_use_common_subexpression_elimination) {
-  //    options.graph_passes.emplace_back("CommonSubexpressionEliminationPass");
-  //  }
+  if (FLAGS_cinn_use_common_subexpression_elimination) {
+    options.graph_passes.emplace_back("CommonSubexpressionEliminationPass");
+  }
 
   // WARNING: the pass must be the last pass !!!
   if (FLAGS_cinn_check_fusion_accuracy_pass) {

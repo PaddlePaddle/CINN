@@ -122,6 +122,9 @@ bool IsSameSubexpression(Node* op1, Node* op2, shape_dict_t& shape_dict) {
 }
 
 void RemoveNode(framework::Graph* graph, GraphNode* node) {
+  if (std::count(graph->outputs.begin(), graph->outputs.end(), node)) {
+    return;
+  }
   auto in_edges = node->inlinks();
   for (auto& edge : in_edges) {
     auto* in_node = edge->source();
@@ -153,7 +156,7 @@ void ReplaceNode(NodeData* src_new, NodeData* src_old, Node* trt) {
   }
 }
 
-int CommonSubexpressionElimination(Graph* graph, std::vector<GraphNode*>& store_nodes, InputToNodeMap in2node) {
+size_t CommonSubexpressionElimination(Graph* graph, std::vector<GraphNode*>& store_nodes, InputToNodeMap in2node) {
   std::unordered_map<std::string, std::vector<Node*>> expr_map;
   auto shape_dict = graph->GetAttrs<absl::flat_hash_map<std::string, framework::shape_t>>("infershape");
   std::vector<GraphNode*> remove_nodes;
@@ -174,7 +177,13 @@ int CommonSubexpressionElimination(Graph* graph, std::vector<GraphNode*>& store_
           CHECK(candidate_sink_node);
           auto out_nodes = in2node[sink_node->id()];
           for (auto out_node : out_nodes) {
-            ReplaceNode(candidate_sink_node, sink_node, out_node);
+            if (std::count(graph->outputs.begin(), graph->outputs.end(), sink_node)) {
+              for (const auto& candidate_sink_in_edge : candidate_sink_node->inlinks()) {
+                candidate_sink_in_edge->sink()->LinkTo(sink_node);
+              }
+            } else {
+              ReplaceNode(candidate_sink_node, sink_node, out_node);
+            }
             out_nodes.erase(node);
             out_nodes.insert(candidate_node);
           }
@@ -210,7 +219,7 @@ void CommonSubexpressionEliminationPass(Graph* graph) {
     }
   }
 
-  int remove_num = CommonSubexpressionElimination(graph, store_nodes, in2node);
+  size_t remove_num = CommonSubexpressionElimination(graph, store_nodes, in2node);
   while (remove_num) {
     store_nodes = std::get<0>(graph->topological_order());
     remove_num  = CommonSubexpressionElimination(graph, store_nodes, in2node);

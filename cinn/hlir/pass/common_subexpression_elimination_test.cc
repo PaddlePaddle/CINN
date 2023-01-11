@@ -64,7 +64,7 @@ TEST(common_subexpression_elimination, common_subexpression_elimination_case1) {
   program.Validate();
   LOG(INFO) << "Program:\n" << program;
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  //  LOG(INFO) << "graph:\n" << graph->Visualize();
+  LOG(INFO) << "graph:\n" << graph->Visualize();
 
   hlir::framework::ApplyPass(graph.get(), "InferShape");
   hlir::framework::ApplyPass(graph.get(), "CommonSubexpressionEliminationPass");
@@ -85,6 +85,7 @@ TEST(common_subexpression_elimination, common_subexpression_elimination_case1) {
   SetRandData<float>(A1, target);
   SetRandData<float>(B1, target);
 
+  LOG(INFO) << "graph:\n" << graph->Visualize();
   runtime_program->Execute();
 }
 
@@ -104,7 +105,7 @@ TEST(common_subexpression_elimination, common_subexpression_elimination_case2) {
   program.Validate();
   LOG(INFO) << "Program:\n" << program;
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  //  LOG(INFO) << "graph:\n" << graph->Visualize();
+  LOG(INFO) << "graph:\n" << graph->Visualize();
 
   hlir::framework::ApplyPass(graph.get(), "InferShape");
   hlir::framework::ApplyPass(graph.get(), "CommonSubexpressionEliminationPass");
@@ -125,6 +126,7 @@ TEST(common_subexpression_elimination, common_subexpression_elimination_case2) {
   SetRandData<float>(A1, target);
   SetRandData<float>(B1, target);
 
+  LOG(INFO) << "graph:\n" << graph->Visualize();
   runtime_program->Execute();
 }
 
@@ -153,14 +155,13 @@ TEST(common_subexpression_elimination, common_subexpression_elimination_case3) {
   auto relu_2   = program.relu(add_3);
   auto out1     = program.add(relu_1, add_2);
   auto out2     = program.add(add_2, relu_2);
-  auto out      = program.multiply(out1, out2);
 
   Target target = common::DefaultTarget();
   program.SetInputs({A, B});
   program.Validate();
   LOG(INFO) << "Program:\n" << program;
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  //  LOG(INFO) << "graph:\n" << graph->Visualize();
+  LOG(INFO) << "graph:\n" << graph->Visualize();
 
   hlir::framework::ApplyPass(graph.get(), "InferShape");
   hlir::framework::ApplyPass(graph.get(), "CommonSubexpressionEliminationPass");
@@ -171,7 +172,7 @@ TEST(common_subexpression_elimination, common_subexpression_elimination_case3) {
   auto& prerun_instrs  = runtime_program->GetPreRunInstructions();
   auto& run_instrs     = runtime_program->GetRunInstructions();
   ASSERT_EQ(prerun_instrs.size(), 0);
-  ASSERT_EQ(run_instrs.size(), 8);
+  ASSERT_EQ(run_instrs.size(), 7);
   scope->Var<hlir::framework::Tensor>("A");
   scope->Var<hlir::framework::Tensor>("B");
 
@@ -180,6 +181,7 @@ TEST(common_subexpression_elimination, common_subexpression_elimination_case3) {
   SetRandData<float>(A1, target);
   SetRandData<float>(B1, target);
 
+  LOG(INFO) << "graph:\n" << graph->Visualize();
   runtime_program->Execute();
 }
 #endif
