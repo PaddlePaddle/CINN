@@ -963,11 +963,11 @@ class NetBuilder {
 
   /**
    * @brief Gaussian random
-   * @param shape
-   * @param mean
-   * @param std
-   * @param seed
-   * @param dtype
+   * @param shape Shape of the variable to be created.
+   * @param mean Mean of the output variable, default is 0.0.
+   * @param std Standard deviation of the output variable, default is 1.0.
+   * @param seed Random seed of generator, default is 0.
+   * @param dtype Data type of output variable, supported data types: float32, float64.
    */
   Variable GaussianRandom(const std::vector<int>& shape,
                           float mean               = 0.0,

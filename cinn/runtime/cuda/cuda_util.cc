@@ -1054,7 +1054,7 @@ void cinn_call_gaussian_random(void *v_args, int num_args, float mean, float std
   cinn_type_t dtype      = output->type;
   size_t numel           = output->num_elements();
   curandGenerator_t generator;
-  CURAND_CALL(curandCreateGenerator(&generator, CURAND_RNG_PSEUDO_DEFAULT));
+  CURAND_CALL(curandCreateGenerator(&generator, CURAND_RNG_PSEUDO_PHILOX4_32_10));
   CURAND_CALL(curandSetPseudoRandomGeneratorSeed(generator, seed));
   if (dtype == cinn_float32_t()) {
     float *ptr = reinterpret_cast<float *>(output->memory);
