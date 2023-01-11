@@ -135,7 +135,7 @@ if (WITH_MKL_CBLAS)
 endif()
 
 if (WITH_CUDA)
-  target_link_libraries(cinnapi ${CUDA_NVRTC_LIB} ${CUDA_LIBRARIES} ${CUDASTUB} ${CUBLAS} ${CUDNN})
+  target_link_libraries(cinnapi ${CUDA_NVRTC_LIB} ${CUDA_LIBRARIES} ${CUDASTUB} ${CUBLAS} ${CUDNN} ${CURAND})
   if (NVTX_FOUND)
     target_link_libraries(cinnapi ${CUDA_NVTX_LIB})
   endif()

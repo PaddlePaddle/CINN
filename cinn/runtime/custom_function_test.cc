@@ -19,10 +19,11 @@
 
 #ifdef CINN_WITH_CUDA
 #include <cuda_runtime.h>
+
+#include "cinn/runtime/cuda/cuda_util.h"
 #endif
 
 #include "cinn/runtime/cinn_runtime.h"
-#include "cinn/runtime/cuda/cuda_util.h"
 #include "cinn/runtime/custom_function.h"
 
 namespace cinn {
@@ -189,13 +190,20 @@ TEST(CustomCallGaussianRandom, test_target_nvgpu) {
   int num_args               = 1;
   cinn_pod_value_t v_args[1] = {cinn_pod_value_t(out.get())};
 
-  using cinn::runtime::cuda::cinn_call_gaussian_random;
-  cinn_call_gaussian_random(v_args, num_args, mean, std, seed, nullptr);
+  if (target == common::DefaultHostTarget()) {
+    LOG(INFO) << "Op gaussian random only support on NVGPU";
+  } else if (target == common::DefaultNVGPUTarget()) {
+#ifdef CINN_WITH_CUDA
+    cinn::runtime::cuda::cinn_call_gaussian_random(v_args, num_args, mean, std, seed, nullptr);
 
-  float output_data[6] = {0.0};
-  cudaMemcpy(output_data, output, 6 * sizeof(float), cudaMemcpyDeviceToHost);
-  for (int i = 0; i < 6; i++) {
-    VLOG(6) << output_data[i];
+    float output_data[6] = {0.0};
+    cudaMemcpy(output_data, output, 6 * sizeof(float), cudaMemcpyDeviceToHost);
+    for (int i = 0; i < 6; i++) {
+      VLOG(6) << output_data[i];
+    }
+#else
+    LOG(FATAL) << "NVGPU Target only support on flag CINN_WITH_CUDA ON! Please check.";
+#endif
   }
 }
 
