@@ -649,5 +649,12 @@ Variable NetBuilder::Matmul(const Variable& x, const Variable& y, bool trans_x, 
   ;
 }
 
+Variable NetBuilder::GaussianRandom(
+    const std::vector<int>& shape, float mean, float std, int seed, const std::string& dtype) {
+  return CustomInstr(
+             "gaussian_random", {}, {{"shape", shape}, {"mean", mean}, {"std", std}, {"seed", seed}, {"dtype", dtype}})
+      .front();
+}
+
 }  // namespace frontend
 }  // namespace cinn

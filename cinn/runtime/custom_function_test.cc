@@ -19,6 +19,8 @@
 
 #ifdef CINN_WITH_CUDA
 #include <cuda_runtime.h>
+
+#include "cinn/runtime/cuda/cuda_util.h"
 #endif
 
 #include "cinn/runtime/cinn_runtime.h"
@@ -167,6 +169,40 @@ TEST(CinnAssertTrue, test_false_only_warning) {
     cudaMemcpy(&output_h, output, sizeof(bool), cudaMemcpyDeviceToHost);
 
     ASSERT_EQ(input_h, output_h) << "The output of AssertTrue should be the same as input";
+#endif
+  }
+}
+
+TEST(CustomCallGaussianRandom, test_target_nvgpu) {
+  Target target = common::DefaultTarget();
+
+  // Arg mean
+  float mean = 0.0f;
+  // Arg std
+  float std = 1.0f;
+  // Arg seed
+  int seed = 10;
+
+  // Output matrix out
+  CinnBufferAllocHelper out(cinn_x86_device, cinn_float32_t(), {2, 3});
+  auto* output = out.mutable_data<float>(target);
+
+  int num_args               = 1;
+  cinn_pod_value_t v_args[1] = {cinn_pod_value_t(out.get())};
+
+  if (target == common::DefaultHostTarget()) {
+    LOG(INFO) << "Op gaussian random only support on NVGPU";
+  } else if (target == common::DefaultNVGPUTarget()) {
+#ifdef CINN_WITH_CUDA
+    cinn::runtime::cuda::cinn_call_gaussian_random(v_args, num_args, mean, std, seed, nullptr);
+
+    float output_data[6] = {0.0};
+    cudaMemcpy(output_data, output, 6 * sizeof(float), cudaMemcpyDeviceToHost);
+    for (int i = 0; i < 6; i++) {
+      VLOG(6) << output_data[i];
+    }
+#else
+    LOG(FATAL) << "NVGPU Target only support on flag CINN_WITH_CUDA ON! Please check.";
 #endif
   }
 }
