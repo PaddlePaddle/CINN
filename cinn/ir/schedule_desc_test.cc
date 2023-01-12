@@ -179,6 +179,34 @@ TEST_F(TestScheduleDesc, StepKind_GetAllBlocks) {
   CheckTracingOutputs(all_blocks, ir_sch.GetTraceDesc());
 }
 
+TEST_F(TestScheduleDesc, StepKind_GetChildBlocks) {
+  lowered_funcs         = LowerCompute({32, 32, 64}, target, true);
+  ir::IRSchedule ir_sch = MakeIRSchedule(lowered_funcs);
+
+  auto block_b = ir_sch.GetBlock("B");
+  trace.Append(ScheduleDesc::Step("GetBlock", {}, {{"block_name", std::string("B")}}, {block_b}));
+  auto loops = ir_sch.GetLoops("C");
+  trace.Append(ScheduleDesc::Step("GetLoopsWithName", {}, {{"block_name", std::string("C")}}, loops));
+  // LOG(INFO) << "ComputeAt before is " << ir_sch.GetModule().GetExprs().at(0);
+  ir_sch.ComputeAt(block_b, loops[1]);
+  trace.Append(ScheduleDesc::Step(
+      "ComputeAt", {{"block", std::vector<Expr>({block_b})}, {"loop", std::vector<Expr>({loops[1]})}}, {}, {}));
+  // LOG(INFO) << "ComputeAt after is " << ir_sch.GetModule().GetExprs().at(0);
+
+  loops = ir_sch.GetLoops("B");
+  trace.Append(ScheduleDesc::Step("GetLoopsWithName", {}, {{"block_name", std::string("B")}}, loops));
+  auto root_block = ir_sch.GetRootBlock(loops[1]);
+  trace.Append(ScheduleDesc::Step("GetRootBlock", {{"expr", std::vector<Expr>({loops[1]})}}, {}, {root_block}));
+  // LOG(INFO) << "root_block is " << root_block << "\n";
+  auto childblocks = ir_sch.GetChildBlocks(root_block);
+  // for (auto block : childblocks) {
+  //   LOG(INFO) << "after GetChildBlocks is " << block << "\n";
+  // }
+  trace.Append(ScheduleDesc::Step("GetChildBlocks", {{"block", std::vector<Expr>({root_block})}}, {}, childblocks));
+  CheckTracingOutputs(childblocks, trace);
+  CheckTracingOutputs(childblocks, ir_sch.GetTraceDesc());
+}
+
 TEST_F(TestScheduleDesc, StepKind_GetLoops) {
   lowered_funcs         = LowerCompute({32, 32}, target);
   ir::IRSchedule ir_sch = MakeIRSchedule(lowered_funcs);
@@ -584,7 +612,7 @@ TEST_F(TestScheduleDesc, StepKind_Rfactor) {
 TEST_F(TestScheduleDesc, StepKind_MergeExprs) {
   auto funcs_0 = LowerCompute({32, 128}, target);
   auto funcs_1 = LowerCompute({32, 32, 32}, target, true, "elementwise-add_const");
-
+  
   ir::IRSchedule ir_sch =
       ir::IRSchedule(ir::ModuleExpr({optim::IRCopy(funcs_0[0]->body), optim::IRCopy(funcs_0[0]->body)}));
   ir_sch.MergeExprs();
