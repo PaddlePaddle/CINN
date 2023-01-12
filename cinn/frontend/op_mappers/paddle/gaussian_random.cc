@@ -27,8 +27,8 @@ void GaussianRandomOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperCo
   auto shape_origin = utils::GetAttrOrDefault<std::vector<int64_t>>(op_desc, "shape");
   auto shape        = utils::ToShapeType(shape_origin);
 
-  auto mean = utils::GetAttrOrDefault<float>(op_desc, "mean", 0.0);
-  auto std  = utils::GetAttrOrDefault<float>(op_desc, "std", 1.0);
+  auto mean = utils::GetAttrOrDefault<float>(op_desc, "mean", 0.0f);
+  auto std  = utils::GetAttrOrDefault<float>(op_desc, "std", 1.0f);
   auto seed = utils::GetAttrOrDefault<int>(op_desc, "seed", 0);
 
   auto dtype_id = utils::GetAttrOrDefault<int>(op_desc, "dtype", static_cast<int>(paddle::cpp::VarDescAPI::Type::FP32));

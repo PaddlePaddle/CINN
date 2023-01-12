@@ -461,8 +461,8 @@ std::vector<ir::Expr> CustomCallArgsForGaussianRandom(const framework::NodeAttr 
 
   auto attr_store = attrs.attr_store;
 
-  float mean = attr_store.count("mean") ? absl::get<float>(attrs.attr_store.at("mean")) : 0.0;
-  float std  = attr_store.count("std") ? absl::get<float>(attrs.attr_store.at("std")) : 1.0;
+  float mean = attr_store.count("mean") ? absl::get<float>(attrs.attr_store.at("mean")) : 0.0f;
+  float std  = attr_store.count("std") ? absl::get<float>(attrs.attr_store.at("std")) : 1.0f;
   int seed   = attr_store.count("seed") ? absl::get<int>(attrs.attr_store.at("seed")) : 0;
 
   std::vector<ir::Expr> args = {ir::Expr(mean), ir::Expr(std), ir::Expr(seed)};

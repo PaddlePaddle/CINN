@@ -633,8 +633,8 @@ void BindFrontend(pybind11::module *m) {
       .def("gaussian_random",
            &NetBuilder::GaussianRandom,
            py::arg("shape"),
-           py::arg("mean")  = 0.0,
-           py::arg("std")   = 1.0,
+           py::arg("mean")  = 0.0f,
+           py::arg("std")   = 1.0f,
            py::arg("seed")  = 0,
            py::arg("dtype") = "float32");
 

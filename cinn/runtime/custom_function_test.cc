@@ -177,9 +177,9 @@ TEST(CustomCallGaussianRandom, test_target_nvgpu) {
   Target target = common::DefaultTarget();
 
   // Arg mean
-  float mean = 0.0;
+  float mean = 0.0f;
   // Arg std
-  float std = 1.0;
+  float std = 1.0f;
   // Arg seed
   int seed = 10;
 
