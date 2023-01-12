@@ -92,15 +92,19 @@ bool AddCacheRead::MeetCondition(ir::IRSchedule* ir_schedule, const ir::Expr& bl
   CHECK(sch_block_realize) << "stmt is not a ScheduleBlockRealize:" << block_expr;
 
   if (!NeedsMultiLevelTiling(*sch_block_realize)) return false;
-  // check cross thread reduce axis
+  bool has_reduce_axis = false;
   for (const ir::Expr& for_expr : ir_schedule->GetLoops(block_expr)) {
     const ir::For* for_node = for_expr.As<ir::For>();
-    if (for_node->is_gpu_thread_binded() && for_node->loop_var->is_reduce_axis) {
+    // check cross thread reduce axis
+    if (for_node->is_gpu_thread_binded() && for_node->loop_var->name.substr(0, 6) == "reduce") {
       return false;
+    }
+    if (for_node->loop_var->name.substr(0, 6) == "reduce") {
+      has_reduce_axis = true;
     }
   }
 
-  return true;
+  return has_reduce_axis;
 }
 
 void AddCacheRead::Apply(ir::IRSchedule* ir_schedule, ir::Expr& block_expr) {

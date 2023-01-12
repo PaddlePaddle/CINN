@@ -51,7 +51,7 @@ RuleApplyType AddCacheWrite::Init(ir::IRSchedule* ir_schedule) {
     AnalyzeScheduleBlockReadWriteBuffer(sch_block_realize->schedule_block.As<ir::ScheduleBlock>());
     // Use function MeetCondition() to filter inapplicable blocks,
     // only save the applicable blocks, and the index will be used for subsequent access.
-    if (MeetCondition(block_realizes[i])) {
+    if (MeetCondition(ir_schedule, block_realizes[i])) {
       ++num_applicable_;
       applicable_schedule_blocks_.push_back(block_realizes[i]);
     }
@@ -91,11 +91,20 @@ void AddCacheWrite::Apply(int index) {
   Apply(ir_schedule_, sch_block_expr);
 }
 
-bool AddCacheWrite::MeetCondition(const ir::Expr& block_expr) const {
+bool AddCacheWrite::MeetCondition(ir::IRSchedule* ir_schedule, const ir::Expr& block_expr) const {
   const ir::ScheduleBlockRealize* sch_block_realize = block_expr.As<ir::ScheduleBlockRealize>();
   const ir::ScheduleBlock* sch_block                = sch_block_realize->schedule_block.As<ir::ScheduleBlock>();
+  std::vector<ir::Expr> for_exprs                   = ir_schedule->GetLoops(block_expr);
+  ir::Expr spatial_loop(nullptr);
+  for (auto& for_expr : for_exprs) {
+    ir::Var for_node_var          = for_expr.As<ir::For>()->loop_var;
+    std::string for_loop_var_name = for_node_var->name;
+    if (for_loop_var_name.substr(0, 6) == "reduce") {
+      return NeedsMultiLevelTiling(*sch_block_realize);
+    }
+  }
 
-  return NeedsMultiLevelTiling(*sch_block_realize);
+  return false;
 }
 
 RuleApplyType AddCacheWrite::AnalyseApplyType(SearchState state, const std::string& block_name) const {
@@ -105,7 +114,8 @@ RuleApplyType AddCacheWrite::AnalyseApplyType(SearchState state, const std::stri
   // Prepare the read/write buffer information of the block,
   // which will be used to analyze which buffers can be cached.
   AnalyzeScheduleBlockReadWriteBuffer(block_realize->schedule_block.As<ir::ScheduleBlock>());
-  return MeetCondition(block_realize) ? RuleApplyType::kApplyAndSkipAllRules : RuleApplyType::kCannotApply;
+  return MeetCondition(&(state->ir_schedule), block_realize) ? RuleApplyType::kApplyAndSkipAllRules
+                                                             : RuleApplyType::kCannotApply;
 }
 
 std::vector<SearchState> AddCacheWrite::ApplyOnBlock(SearchState state, const std::string& block_name) {
