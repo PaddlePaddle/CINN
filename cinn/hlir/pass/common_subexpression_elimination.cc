@@ -53,19 +53,26 @@ std::unordered_set<std::string> unordered_ops = {
 };
 
 bool IsSameSubexpression(Node* op1, Node* op2, shape_dict_t& shape_dict) {
-  auto op1_in_edges    = op1->inlinks_in_order(true);
-  auto op2_in_edges    = op2->inlinks_in_order(true);
+  // Get the input edges for op1 and op2 in order.
+  auto op1_in_edges = op1->inlinks_in_order(true);
+  auto op2_in_edges = op2->inlinks_in_order(true);
+  // Get the number of input edges for op1 and op2
   auto op1_inputs_size = op1_in_edges.size();
   auto op2_inputs_size = op2_in_edges.size();
+  // If the number of input edges is not the same, the subexpression is not the same.
   if (op1_inputs_size != op2_inputs_size) {
     return false;
   }
+  // Get the number of attributes for op1 and op2.
   auto op1_attrs_size = op1->attrs.attr_store.size();
   auto op2_attrs_size = op2->attrs.attr_store.size();
+  // If the number of attributes is not the same, the subexpression is not the same.
   if (op1_attrs_size != op2_attrs_size) {
     return false;
   }
+  // Check if the input nodes match.
   if (unordered_ops.count(op1->op()->name)) {
+    // For unordered ops, check if any input node of op2 matches any input node of op1.
     for (auto& op1_edge : op1_in_edges) {
       auto* op1_source_node = op1_edge->source()->safe_as<NodeData>();
       CHECK(op1_source_node);
@@ -82,6 +89,7 @@ bool IsSameSubexpression(Node* op1, Node* op2, shape_dict_t& shape_dict) {
       }
     }
   } else {
+    // For ordered ops, check if the input nodes match one-to-one.
     for (int i = 0; i < op1_inputs_size; ++i) {
       auto* op1_source_node = op1_in_edges[i]->source()->safe_as<NodeData>();
       auto* op2_source_node = op2_in_edges[i]->source()->safe_as<NodeData>();
@@ -92,11 +100,14 @@ bool IsSameSubexpression(Node* op1, Node* op2, shape_dict_t& shape_dict) {
       }
     }
   }
+
   if (op1->op()->name == "reshape") {
+    // For reshape ops, check if the reshaped shape is the same.
     auto* op1_sink_node = op1->outlinks_in_order(true)[0]->sink()->safe_as<NodeData>();
     auto* op2_sink_node = op2->outlinks_in_order(true)[0]->sink()->safe_as<NodeData>();
     return shape_dict[op1_sink_node->id()] == shape_dict[op2_sink_node->id()];
   } else {
+    // For non-reshape ops, check if the number of dimensions and attributes.
     auto* op1_sink_node = op1->outlinks_in_order(true)[0]->sink()->safe_as<NodeData>();
     auto* op2_sink_node = op2->outlinks_in_order(true)[0]->sink()->safe_as<NodeData>();
     if (shape_dict[op1_sink_node->id()].size() != shape_dict[op2_sink_node->id()].size()) {
@@ -140,7 +151,7 @@ void RemoveNodes(framework::Graph* graph, std::vector<Node*>& nodes) {
 
 void RemoveNodes(framework::Graph* graph, std::vector<NodeData*>& nodes_data) {
   for (auto* data : nodes_data) {
-    if (std::count(graph->outputs.begin(), graph->outputs.end(), data)) {
+    if (std::find(graph->outputs.begin(), graph->outputs.end(), data) != graph->outputs.end()) {
       return;
     }
     graph->DropNode(data);
@@ -181,8 +192,7 @@ size_t CommonSubexpressionElimination(Graph* graph, std::vector<GraphNode*>& sto
           auto* candidate_sink_node = candidate_node->outlinks_in_order()[k]->sink()->safe_as<NodeData>();
           CHECK(sink_node);
           CHECK(candidate_sink_node);
-          size_t n_sink_in_outputs = std::count(graph->outputs.begin(), graph->outputs.end(), sink_node);
-          if (n_sink_in_outputs) {
+          if (std::find(graph->outputs.begin(), graph->outputs.end(), sink_node) != graph->outputs.end()) {
             // If sink node in outputs, the node's source_node will be replaced by candidate_sink_node's source_node.
             node->UnLinkSingleTo(sink_node);
             sink_node->source_node = candidate_sink_node->source_node;
