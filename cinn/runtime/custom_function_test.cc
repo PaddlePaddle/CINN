@@ -207,5 +207,39 @@ TEST(CustomCallGaussianRandom, test_target_nvgpu) {
   }
 }
 
+TEST(CustomCallUniformRandom, test_target_nvgpu) {
+  Target target = common::DefaultTarget();
+
+  // Arg min
+  float min = -1.0f;
+  // Arg max
+  float max = 1.0f;
+  // Arg seed
+  int seed = 10;
+
+  // Output matrix out
+  CinnBufferAllocHelper out(cinn_x86_device, cinn_float32_t(), {2, 3});
+  auto* output = out.mutable_data<float>(target);
+
+  int num_args               = 1;
+  cinn_pod_value_t v_args[1] = {cinn_pod_value_t(out.get())};
+
+  if (target == common::DefaultHostTarget()) {
+    LOG(INFO) << "Op uniform random only support on NVGPU";
+  } else if (target == common::DefaultNVGPUTarget()) {
+#ifdef CINN_WITH_CUDA
+    cinn::runtime::cuda::cinn_call_uniform_random(v_args, num_args, min, max, seed, nullptr);
+
+    float output_data[6] = {0.0f};
+    cudaMemcpy(output_data, output, 6 * sizeof(float), cudaMemcpyDeviceToHost);
+    for (int i = 0; i < 6; i++) {
+      VLOG(6) << output_data[i];
+    }
+#else
+    LOG(FATAL) << "NVGPU Target only support on flag CINN_WITH_CUDA ON! Please check.";
+#endif
+  }
+}
+
 }  // namespace runtime
 }  // namespace cinn

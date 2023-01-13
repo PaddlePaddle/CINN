@@ -656,5 +656,24 @@ Variable NetBuilder::GaussianRandom(
       .front();
 }
 
+Variable NetBuilder::UniformRandom(
+    const std::vector<int>& shape, float min, float max, int seed, const std::string& dtype) {
+  auto uniform_out =
+      CustomInstr(
+          "uniform_random", {}, {{"shape", shape}, {"min", min}, {"max", max}, {"seed", seed}, {"dtype", dtype}})
+          .front();
+  if (dtype == "float32") {
+    auto uniform_range   = FillConstant(shape, static_cast<float>(max - min), UniqName("uniform_range"));
+    auto uniform_mul_out = CustomInstr("elementwise_mul", {uniform_out, uniform_range}, {{"axis", 0}}).front();
+    auto uniform_min     = FillConstant(shape, static_cast<float>(min), UniqName("uniform_min"));
+    return CustomInstr("elementwise_add", {uniform_mul_out, uniform_min}, {{"axis", 0}}).front();
+  } else if (dtype == "float64") {
+    auto uniform_range   = FillConstant(shape, static_cast<double>(max - min), UniqName("uniform_range"));
+    auto uniform_mul_out = CustomInstr("elementwise_mul", {uniform_out, uniform_range}, {{"axis", 0}}).front();
+    auto uniform_min     = FillConstant(shape, static_cast<double>(min), UniqName("uniform_min"));
+    return CustomInstr("elementwise_add", {uniform_mul_out, uniform_min}, {{"axis", 0}}).front();
+  }
+}
+
 }  // namespace frontend
 }  // namespace cinn
