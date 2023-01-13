@@ -171,12 +171,15 @@ void ReplaceNode(NodeData* src_new, NodeData* src_old, Node* trt) {
   }
 }
 
-size_t CommonSubexpressionElimination(Graph* graph, std::vector<GraphNode*>& store_nodes, InputToNodeMap in2node) {
+void CommonSubexpressionElimination(Graph* graph, std::vector<GraphNode*> store_nodes, InputToNodeMap in2node) {
   std::unordered_map<std::string, std::vector<Node*>> candidates_map;
   auto shape_dict = graph->GetAttrs<absl::flat_hash_map<std::string, framework::shape_t>>("infershape");
   std::vector<Node*> remove_nodes;
   std::vector<NodeData*> remove_nodes_data;
-  for (auto* graph_node : store_nodes) {
+
+  while (!store_nodes.empty()) {
+    auto* graph_node = store_nodes[0];
+    store_nodes.erase(store_nodes.begin());
     auto node = graph_node->safe_as<Node>();
     if (node) {
       auto& node_type  = node->op()->name;
@@ -192,19 +195,23 @@ size_t CommonSubexpressionElimination(Graph* graph, std::vector<GraphNode*>& sto
           auto* candidate_sink_node = candidate_node->outlinks_in_order()[k]->sink()->safe_as<NodeData>();
           CHECK(sink_node);
           CHECK(candidate_sink_node);
-          if (std::find(graph->outputs.begin(), graph->outputs.end(), sink_node) != graph->outputs.end()) {
-            // If sink node in outputs, the node's source_node will be replaced by candidate_sink_node's source_node.
-            node->UnLinkSingleTo(sink_node);
-            sink_node->source_node = candidate_sink_node->source_node;
-            candidate_sink_node->source_node->LinkTo(sink_node);
-          } else {
-            // If sink node not in outputs, the node will be removed.
-            remove_nodes_data.push_back(sink_node);
+          remove_nodes_data.push_back(sink_node);
+          auto iter_sink_node = std::find(graph->outputs.begin(), graph->outputs.end(), sink_node);
+          if (iter_sink_node != graph->outputs.end()) {
+            // If sink node in outputs, the node cannot be removed.
+            NodeData new_sink_node(
+                candidate_node, sink_node->output_index, sink_node->version, sink_node->id(), sink_node->is_const());
+            graph->outputs.erase(iter_sink_node);
+            graph->outputs.push_back(&new_sink_node);
           }
           // Replace sink_node with candidate_sink_node in nodes linked by sink_node.
           auto out_nodes = in2node[sink_node->id()];
           for (auto out_node : out_nodes) {
             ReplaceNode(candidate_sink_node, sink_node, out_node);
+            // The changed out node will be detected again.
+            if (std::find(store_nodes.begin(), store_nodes.end(), out_node) == store_nodes.end()) {
+              store_nodes.insert(store_nodes.begin(), out_node);
+            }
             out_nodes.erase(node);
             out_nodes.insert(candidate_node);
           }
@@ -221,7 +228,6 @@ size_t CommonSubexpressionElimination(Graph* graph, std::vector<GraphNode*>& sto
   // Node should be deleted before node data.
   RemoveNodes(graph, remove_nodes);
   RemoveNodes(graph, remove_nodes_data);
-  return remove_nodes.size();
 }
 
 void CommonSubexpressionEliminationPass(Graph* graph) {
@@ -240,11 +246,7 @@ void CommonSubexpressionEliminationPass(Graph* graph) {
     }
   }
 
-  size_t remove_num = CommonSubexpressionElimination(graph, store_nodes, in2node);
-  while (remove_num) {
-    store_nodes = std::get<0>(graph->topological_order());
-    remove_num  = CommonSubexpressionElimination(graph, store_nodes, in2node);
-  }
+  CommonSubexpressionElimination(graph, store_nodes, in2node);
   VLOG(3) << "CommonSubexpressionEliminationPass Finish...!";
 }
 }  // namespace pass
