@@ -267,6 +267,13 @@ TEST_F(PerformanceTester, Scale) {
   Evaluate(ScaleProgramBuilder(input_shape, scale, bias, bias_after_scale)());
 }
 
+TEST_F(PerformanceTester, LookupTable) {
+  std::vector<int32_t> table_shape{10, 20};
+  std::vector<int32_t> ids_shape{2, 2, 1};
+
+  Evaluate(LookupTableProgramBuilder(table_shape, ids_shape, 1)());
+}
+
 // paddle model test
 TEST_F(PerformanceTester, ResNet50) {
   std::vector<std::string> input_names       = {"inputs"};

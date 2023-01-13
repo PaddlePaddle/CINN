@@ -85,7 +85,7 @@ class SearchSpace {
    * @param prune_by_rule If true, prune the state transition tree by rule, otherwise prune randomly.
    * @param prune_probability Pruning probability of random pruning.
    */
-  std::vector<SearchState> ApplySketchRule(const SearchState& state,
+  std::vector<SearchState> ApplySketchRule(const SearchState& start_state,
                                            const std::string& block_name,
                                            RuleSampler* rule_sampler,
                                            int steps,
