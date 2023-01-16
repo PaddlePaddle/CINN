@@ -52,6 +52,12 @@ std::unordered_set<std::string> unordered_ops = {
     "bitwise_and",
 };
 
+// When all the inputs are the same, those ops just ensure that all the outputs shape is the same.
+std::unordered_set<std::string> reshape_ops = {
+    "reshape",
+    "concat",
+};
+
 bool IsSameSubexpression(Node* op1, Node* op2, shape_dict_t& shape_dict) {
   // Get the input edges for op1 and op2 in order.
   auto op1_in_edges = op1->inlinks_in_order(true);
@@ -101,18 +107,17 @@ bool IsSameSubexpression(Node* op1, Node* op2, shape_dict_t& shape_dict) {
     }
   }
 
-  if (op1->op()->name == "reshape") {
+  // Check if the number of dimensions.
+  auto* op1_sink_node = op1->outlinks_in_order(true)[0]->sink()->safe_as<NodeData>();
+  auto* op2_sink_node = op2->outlinks_in_order(true)[0]->sink()->safe_as<NodeData>();
+  if (shape_dict[op1_sink_node->id()].size() != shape_dict[op2_sink_node->id()].size()) {
+    return false;
+  }
+  if (reshape_ops.count(op1->op()->name)) {
     // For reshape ops, check if the reshaped shape is the same.
-    auto* op1_sink_node = op1->outlinks_in_order(true)[0]->sink()->safe_as<NodeData>();
-    auto* op2_sink_node = op2->outlinks_in_order(true)[0]->sink()->safe_as<NodeData>();
     return shape_dict[op1_sink_node->id()] == shape_dict[op2_sink_node->id()];
   } else {
-    // For non-reshape ops, check if the number of dimensions and attributes.
-    auto* op1_sink_node = op1->outlinks_in_order(true)[0]->sink()->safe_as<NodeData>();
-    auto* op2_sink_node = op2->outlinks_in_order(true)[0]->sink()->safe_as<NodeData>();
-    if (shape_dict[op1_sink_node->id()].size() != shape_dict[op2_sink_node->id()].size()) {
-      return false;
-    }
+    // For non-reshape ops, attributes.
     return std::all_of(op1->attrs.attr_store.begin(), op1->attrs.attr_store.end(), [&](auto attr) {
       if (!op2->attrs.attr_store.count(attr.first) || op2->attrs.attr_store[attr.first] != attr.second) {
         if (attr.first == "axis" || attr.first == "dim") {
