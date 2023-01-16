@@ -662,17 +662,10 @@ Variable NetBuilder::UniformRandom(
       CustomInstr(
           "uniform_random", {}, {{"shape", shape}, {"min", min}, {"max", max}, {"seed", seed}, {"dtype", dtype}})
           .front();
-  if (dtype == "float32") {
-    auto uniform_range   = FillConstant(shape, static_cast<float>(max - min), UniqName("uniform_range"));
-    auto uniform_mul_out = CustomInstr("elementwise_mul", {uniform_out, uniform_range}, {{"axis", 0}}).front();
-    auto uniform_min     = FillConstant(shape, static_cast<float>(min), UniqName("uniform_min"));
-    return CustomInstr("elementwise_add", {uniform_mul_out, uniform_min}, {{"axis", 0}}).front();
-  } else if (dtype == "float64") {
-    auto uniform_range   = FillConstant(shape, static_cast<double>(max - min), UniqName("uniform_range"));
-    auto uniform_mul_out = CustomInstr("elementwise_mul", {uniform_out, uniform_range}, {{"axis", 0}}).front();
-    auto uniform_min     = FillConstant(shape, static_cast<double>(min), UniqName("uniform_min"));
-    return CustomInstr("elementwise_add", {uniform_mul_out, uniform_min}, {{"axis", 0}}).front();
-  }
+  auto uniform_range   = FillConstant(shape, max - min, UniqName("uniform_range"), dtype);
+  auto uniform_mul_out = Multiply(uniform_out, uniform_range);
+  auto uniform_min     = FillConstant(shape, min, UniqName("uniform_min"), dtype);
+  return Add(uniform_mul_out, uniform_min);
 }
 
 }  // namespace frontend
