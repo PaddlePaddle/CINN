@@ -58,6 +58,11 @@ std::unordered_set<std::string> reshape_ops = {
     "concat",
 };
 
+// Those special attrs maybe different but equivalent.
+std::unordered_set<std::string> special_attrs = {
+    "dim"
+    "axis"};
+
 bool IsSameSubexpression(Node* op1, Node* op2, shape_dict_t& shape_dict) {
   // Get the input edges for op1 and op2 in order.
   auto op1_in_edges = op1->inlinks_in_order(true);
@@ -107,7 +112,7 @@ bool IsSameSubexpression(Node* op1, Node* op2, shape_dict_t& shape_dict) {
     }
   }
 
-  // Check if the number of dimensions.
+  // Check if the number of dimensions is the same.
   auto* op1_sink_node = GetNodeData(op1);
   auto* op2_sink_node = GetNodeData(op2);
   if (shape_dict[op1_sink_node->id()].size() != shape_dict[op2_sink_node->id()].size()) {
@@ -117,23 +122,26 @@ bool IsSameSubexpression(Node* op1, Node* op2, shape_dict_t& shape_dict) {
     // For reshape ops, check if the reshaped shape is the same.
     return shape_dict[op1_sink_node->id()] == shape_dict[op2_sink_node->id()];
   } else {
-    // For non-reshape ops, attributes.
+    // For non-reshape ops, check if the attributes is the same.
     return std::all_of(op1->attrs.attr_store.begin(), op1->attrs.attr_store.end(), [&](auto attr) {
-      if (!op2->attrs.attr_store.count(attr.first) || op2->attrs.attr_store[attr.first] != attr.second) {
-        if (attr.first == "axis" || attr.first == "dim") {
-          auto op1_axis = absl::get<int>(attr.second);
-          auto op2_axis = absl::get<int>(op2->attrs.attr_store[attr.first]);
-          if (op1_axis < 0) {
-            op1_axis += shape_dict[op1_sink_node->id()].size();
-          }
-          if (op2_axis < 0) {
-            op2_axis += shape_dict[op1_sink_node->id()].size();
-          }
-          return op2_axis == op1_axis;
-        }
+      if (!op2->attrs.attr_store.count(attr.first)) {
         return false;
       }
-      return true;
+      auto& attr1 = attr.second;
+      auto& attr2 = op2->attrs.attr_store[attr.first];
+      auto ndim   = shape_dict[op1_sink_node->id()].size();
+      if (special_attrs.count(attr.first)) {
+        auto op1_axis = absl::get<int>(attr1);
+        auto op2_axis = absl::get<int>(attr2);
+        if (op1_axis < 0) {
+          op1_axis += ndim;
+        }
+        if (op2_axis < 0) {
+          op2_axis += ndim;
+        }
+        return op2_axis == op1_axis;
+      }
+      return attr1 == attr2;
     });
   }
 }
