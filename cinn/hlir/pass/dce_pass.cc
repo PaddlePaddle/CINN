@@ -36,7 +36,8 @@ using GroupList = std::vector<GroupPtr>;
 using ConditionFunction = std::function<bool(const FusionHelperBase*, const Node*, const GroupPtr&)>;
 
 class DceHelper : public FusionHelperBase {
-  OpFusionPassHelper(Graph* graph) : FusionHelperBase(graph), graph_(graph) {}
+ public:
+  DceHelper(Graph* graph) : FusionHelperBase(graph), graph_(graph) {}
 
   void operator()() {
     for (auto node : output_nodes_set_) {
@@ -48,7 +49,7 @@ class DceHelper : public FusionHelperBase {
 
  private:
   void WFS(const Node* node) {
-    std::queue<Node*> candidates;
+    std::queue<const Node*> candidates;
     candidates.push(node);
 
     while (!candidates.empty()) {
@@ -67,15 +68,15 @@ class DceHelper : public FusionHelperBase {
   }
 
   void RemoveDeadNode() {
-    auto nodes_inorder = std::get<0>(graph->topological_order());
+    auto nodes_inorder = std::get<0>(graph_->topological_order());
 
     for (auto node : nodes_inorder) {
       if (nodes_set.count(node->safe_as<Node>())) {
         continue;
       }
 
-      auto inlinks  = node->inlinks();
-      auto outlinks = node->outlinks();
+      auto& inlinks  = node->inlinks();
+      auto& outlinks = node->outlinks();
 
       // remove others link to node.
       for (auto link : inlinks) {
@@ -85,8 +86,8 @@ class DceHelper : public FusionHelperBase {
       // remove node data link to others.
       for (auto link : outlinks) {
         // node data
-        auto ndata = link->sink();
-        auto links = ndata->outlinks();
+        auto ndata  = link->sink();
+        auto& links = ndata->outlinks();
         for (auto link_ : links) {
           auto dest = link_->sink();
           dest->UnLinkAllTo(ndata);
@@ -100,9 +101,10 @@ class DceHelper : public FusionHelperBase {
 
   framework::Graph* graph_;
   std::unordered_set<Node*> nodes_set;
-}
+};
 
 void DCEPassInternal(Graph* graph) {
+  CHECK_GT(graph->outputs.size(), 0);
   DceHelper dce_helper(graph);
   dce_helper();
 }
