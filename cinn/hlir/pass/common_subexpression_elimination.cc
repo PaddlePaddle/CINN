@@ -108,8 +108,8 @@ bool IsSameSubexpression(Node* op1, Node* op2, shape_dict_t& shape_dict) {
   }
 
   // Check if the number of dimensions.
-  auto* op1_sink_node = op1->outlinks_in_order(true)[0]->sink()->safe_as<NodeData>();
-  auto* op2_sink_node = op2->outlinks_in_order(true)[0]->sink()->safe_as<NodeData>();
+  auto* op1_sink_node = GetNodeData(op1);
+  auto* op2_sink_node = GetNodeData(op2);
   if (shape_dict[op1_sink_node->id()].size() != shape_dict[op2_sink_node->id()].size()) {
     return false;
   }

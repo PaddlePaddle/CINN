@@ -57,6 +57,7 @@ TEST(common_subexpression_elimination, common_subexpression_elimination_case1) {
   auto add   = program.add(add_1, add_2);
   auto t_1   = program.transpose(add, {1, 0});
   auto t_2   = program.transpose(add, {1, 0});
+  auto t_3   = program.transpose(add, {0, 1});
   auto max   = program.reduce_max(add, {0}, true);
 
   Target target = common::DefaultTarget();
@@ -75,7 +76,7 @@ TEST(common_subexpression_elimination, common_subexpression_elimination_case1) {
   auto& prerun_instrs  = runtime_program->GetPreRunInstructions();
   auto& run_instrs     = runtime_program->GetRunInstructions();
   ASSERT_EQ(prerun_instrs.size(), 0);
-  ASSERT_EQ(run_instrs.size(), 4);
+  ASSERT_EQ(run_instrs.size(), 5);
 
   scope->Var<hlir::framework::Tensor>("A");
   scope->Var<hlir::framework::Tensor>("B");
@@ -98,7 +99,9 @@ TEST(common_subexpression_elimination, common_subexpression_elimination_case2) {
   auto add_2     = program.add(A, A);
   auto reshape_1 = program.reshape(B, {4, -1});
   auto reshape_2 = program.reshape(B, {4, 8});
-  auto add       = program.concat({reshape_1, reshape_2});
+  auto concat_1  = program.concat({reshape_1, reshape_2});
+  auto concat_2  = program.concat({reshape_1, reshape_2});
+  auto concat_3  = program.concat({reshape_1, reshape_2}, 1);
 
   Target target = common::DefaultTarget();
   program.SetInputs({A, B});
@@ -116,7 +119,7 @@ TEST(common_subexpression_elimination, common_subexpression_elimination_case2) {
   auto& prerun_instrs  = runtime_program->GetPreRunInstructions();
   auto& run_instrs     = runtime_program->GetRunInstructions();
   ASSERT_EQ(prerun_instrs.size(), 0);
-  ASSERT_EQ(run_instrs.size(), 3);
+  ASSERT_EQ(run_instrs.size(), 4);
 
   scope->Var<hlir::framework::Tensor>("A");
   scope->Var<hlir::framework::Tensor>("B");
