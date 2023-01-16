@@ -178,8 +178,8 @@ std::vector<SearchState> SearchSpace::InitSketchWithRandomPrunedStrategy() {
     std::swap(p_states_cur, p_states_next);
   }
   VLOG(5) << JoinStatesDebugString(
-      "SearchSpace::InitSketchWithRandomPrunedStrategy", *p_states_next, /*verbose=*/VLOG_IS_ON(6));
-  return *p_states_next;
+      "SearchSpace::InitSketchWithRandomPrunedStrategy", *p_states_cur, /*verbose=*/VLOG_IS_ON(6));
+  return *p_states_cur;
 }
 
 std::vector<SearchState> SearchSpace::InitiSketchWithRulePrunedStrategy() {
@@ -210,8 +210,8 @@ std::vector<SearchState> SearchSpace::InitiSketchWithRulePrunedStrategy() {
     std::swap(p_states_cur, p_states_next);
   }
   VLOG(5) << JoinStatesDebugString(
-      "SearchSpace::InitiSketchWithRulePrunedStrategy", *p_states_next, /*verbose=*/VLOG_IS_ON(6));
-  return *p_states_next;
+      "SearchSpace::InitiSketchWithRulePrunedStrategy", *p_states_cur, /*verbose=*/VLOG_IS_ON(6));
+  return *p_states_cur;
 }
 
 std::vector<SearchState> SearchSpace::GenerateSketches(int num, const std::string& strategy) {
@@ -283,7 +283,8 @@ std::vector<SearchState> SearchSpace::ApplySketchRule(const SearchState& state,
       new_states.insert(new_states.end(), tmp_states.begin(), tmp_states.end());
       bool need_prune = false;
       if (prune_by_rule) {
-        need_prune = (type == RuleApplyType::kApplyAndSkipAllRules);
+        // At present, we only retain the state after applying the rule and discard the original state
+        need_prune = true;
       } else {
         std::mt19937 rng;
         rng.seed(std::random_device()());
