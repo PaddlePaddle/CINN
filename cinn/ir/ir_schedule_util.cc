@@ -988,21 +988,22 @@ std::unordered_map<int, int> PrimeFactorize(int n) {
 }
 
 std::vector<int> SampleTile(uint32_t seed, int n, int extent) {
-  if (n == 1) {
-    return {extent};
-  }
   std::vector<int> tile;
-  std::unordered_map<int, int> factors = PrimeFactorize(extent);
-  int product                          = 1;
-  for (auto& factor : factors) {
-    if (factor.second >= 1) {
-      int num = ir::SampleInt(1, factor.second, seed);
-      product *= std::pow(factor.first, num);
+  while (n > 1) {
+    std::unordered_map<int, int> factors = PrimeFactorize(extent);
+    int product                          = 1;
+    for (auto& factor : factors) {
+      if (factor.second >= 1) {
+        int num = ir::SampleInt(1, factor.second, seed);
+        product *= std::pow(factor.first, num);
+      }
     }
+    tile.push_back(product);
+    extent /= product;
+    --n;
   }
-  auto result = SampleTile(seed, n - 1, extent / product);
-  result.push_back(product);
-  return result;
+  tile.push_back(extent);
+  return tile;
 }
 }  // namespace ir
 }  // namespace cinn
