@@ -98,7 +98,7 @@ TEST(common_subexpression_elimination, common_subexpression_elimination_case2) {
   auto add_2     = program.add(A, A);
   auto reshape_1 = program.reshape(B, {4, -1});
   auto reshape_2 = program.reshape(B, {4, 8});
-  auto add       = program.add(reshape_1, reshape_2);
+  auto add       = program.concat({reshape_1, reshape_2});
 
   Target target = common::DefaultTarget();
   program.SetInputs({A, B});
