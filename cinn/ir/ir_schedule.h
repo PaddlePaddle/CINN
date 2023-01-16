@@ -352,7 +352,7 @@ class IRSchedule {
   void FlattenLoops(const std::vector<Expr>& loops, const bool force_flat = false);
 
   /*!
-   * \brief Number of random sampling cycles for the loop to be split
+   * \brief Sample the factors to tile a specific loop perfectly
    * \param loop the loop to be split
    * \param n the number of loop layers to split
    * \param max_innermost_factor the maximum factor of the innermost loop
