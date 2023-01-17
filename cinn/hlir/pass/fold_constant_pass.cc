@@ -44,11 +44,35 @@ class FoldConstantPassHelper : public FusionHelperBase {
     bool update        = false;
     do {
       for (auto node : nodes_inorder) {
+        // node is constant op.
+        if (IsConstOp(node->safe_as<Node>())) {
+          auto node_data = GetNodeData(node->safe_as<Node>());
+          auto links     = node_data->outlinks();
+          // visit all consumers.
+          for (auto link : links) {
+            auto consumer = link->sink()->safe_as<Node>();
+            auto type     = GetTypeName(node->safe_as<Node>(), consumer);
+            if (alter_function_.count(type)) {
+              alter_function_[type](graph_, node->safe_as<Node>(), consumer);
+              update = true;
+            }
+          }
+          // clear constant node.
+          ClearConstantNode(node);
+        }
       }
     } while (update);
   }
 
  private:
+  std::string GetTypeName(Node* src, Node* dest) { return src->op()->id() + "_" + dest->op()->id(); }
+  void ClearConstantNode(GraphNode* node) {
+    auto node_data = GetNodeData(node->safe_as<Node>());
+    if (!node_data.outlinks.size()) {
+      graph_.DropNode(node);
+      graph_.DropNode(node_data);
+    }
+  }
   std::unordered_map<std::string, AlterFunction> alter_function_;
   Graph* graph_;
 };
