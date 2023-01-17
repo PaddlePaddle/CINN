@@ -12,6 +12,7 @@ gather_srcs(cinnapi_src SRCS
         one_hot.cc
         reciprocal.cc
         gaussian_random.cc
+        uniform_random.cc
         )
 
 cc_test(test_gather_nd SRCS gather_nd_test.cc DEPS cinncore)
