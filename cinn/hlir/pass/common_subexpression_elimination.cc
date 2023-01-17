@@ -59,7 +59,11 @@ std::unordered_set<std::string> reshape_ops = {
 };
 
 // Those special attrs maybe different but equivalent.
-std::unordered_map<std::string, int> special_attrs = {{"dim", 1}, {"axis", 1}};
+std::unordered_map<std::string, int> special_attrs = {
+    //    {"axis", 1}, // due to the issue in some ops
+    //    {"dim", 1}, // due to the issue in some ops
+    {"axes", 2},
+    {"perm", 2}};
 
 bool IsSameSubexpression(Node* op1, Node* op2, shape_dict_t& shape_dict) {
   // Get the input edges for op1 and op2 in order.
@@ -127,10 +131,10 @@ bool IsSameSubexpression(Node* op1, Node* op2, shape_dict_t& shape_dict) {
       }
       auto& attr1 = attr.second;
       auto& attr2 = op2->attrs.attr_store[attr.first];
-      auto ndim   = shape_dict[op1_sink_node->id()].size();
+      auto ndim   = static_cast<int>(shape_dict[op1_sink_node->id()].size());
       if (special_attrs.count(attr.first)) {
         switch (special_attrs[attr.first]) {
-          case 1:
+          case 1: {
             auto op1_axis = absl::get<int>(attr1);
             auto op2_axis = absl::get<int>(attr2);
             if (op1_axis < 0) {
@@ -140,6 +144,30 @@ bool IsSameSubexpression(Node* op1, Node* op2, shape_dict_t& shape_dict) {
               op2_axis += ndim;
             }
             return op2_axis == op1_axis;
+          }
+          case 2: {
+            auto& op1_axes = absl::get<std::vector<int>>(attr1);
+            auto& op2_axes = absl::get<std::vector<int>>(attr2);
+            auto op1_size  = op1_axes.size();
+            auto op2_size  = op2_axes.size();
+            if (op1_size != op2_size) {
+              return false;
+            }
+            for (int i = 0; i < op1_axes.size(); ++i) {
+              int op1_axis = op1_axes[i];
+              int op2_axis = op2_axes[i];
+              if (op1_axis < 0) {
+                op1_axis += ndim;
+              }
+              if (op2_axis < 0) {
+                op2_axis += ndim;
+              }
+              if (op2_axis != op1_axis) {
+                return false;
+              }
+            }
+            return true;
+          }
         }
       }
       return attr1 == attr2;

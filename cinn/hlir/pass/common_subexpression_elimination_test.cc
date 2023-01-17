@@ -30,13 +30,10 @@
 
 #include <memory>
 
-#include "cinn/cinn.h"
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/pass.h"
-#include "cinn/hlir/op/use_ops.h"
-#include "cinn/hlir/pass/use_pass.h"
 #include "cinn/utils/data_util.h"
 
 DEFINE_string(model_dir, "", "");
@@ -48,17 +45,18 @@ using hlir::framework::Scope;
 using utils::Join;
 
 TEST(common_subexpression_elimination, common_subexpression_elimination_case1) {
-  Placeholder A(Float(32), {32, 16}, "A");
-  Placeholder B(Float(32), {32, 1}, "B", true);
+  Placeholder A(Float(32), {32, 16, 1}, "A");
+  Placeholder B(Float(32), {32, 1, 1}, "B", true);
 
   Program program;
-  auto add_1 = program.add(A, B);
-  auto add_2 = program.add(B, A);
-  auto add   = program.add(add_1, add_2);
-  auto t_1   = program.transpose(add, {1, 0});
-  auto t_2   = program.transpose(add, {1, 0});
-  auto t_3   = program.transpose(add, {0, 1});
-  auto max   = program.reduce_max(add, {0}, true);
+  auto add_1  = program.add(A, B);
+  auto add_2  = program.add(B, A);
+  auto add    = program.add(add_1, add_2);
+  auto t_1    = program.transpose(add, {2, 1, 0});
+  auto t_2    = program.transpose(add, {2, 1, 0});
+  auto t_3    = program.transpose(add, {2, 0, 1});
+  auto concat = program.concat({t_1, t_2, t_3});
+  auto max    = program.reduce_max(concat, {0}, true);
 
   Target target = common::DefaultTarget();
   program.SetInputs({A, B});
@@ -76,7 +74,7 @@ TEST(common_subexpression_elimination, common_subexpression_elimination_case1) {
   auto& prerun_instrs  = runtime_program->GetPreRunInstructions();
   auto& run_instrs     = runtime_program->GetRunInstructions();
   ASSERT_EQ(prerun_instrs.size(), 0);
-  ASSERT_EQ(run_instrs.size(), 5);
+  ASSERT_EQ(run_instrs.size(), 6);
 
   scope->Var<hlir::framework::Tensor>("A");
   scope->Var<hlir::framework::Tensor>("B");
