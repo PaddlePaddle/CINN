@@ -187,21 +187,15 @@ TEST_F(TestScheduleDesc, StepKind_GetChildBlocks) {
   trace.Append(ScheduleDesc::Step("GetBlock", {}, {{"block_name", std::string("B")}}, {block_b}));
   auto loops = ir_sch.GetLoops("C");
   trace.Append(ScheduleDesc::Step("GetLoopsWithName", {}, {{"block_name", std::string("C")}}, loops));
-  // LOG(INFO) << "ComputeAt before is " << ir_sch.GetModule().GetExprs().at(0);
   ir_sch.ComputeAt(block_b, loops[1]);
   trace.Append(ScheduleDesc::Step(
       "ComputeAt", {{"block", std::vector<Expr>({block_b})}, {"loop", std::vector<Expr>({loops[1]})}}, {}, {}));
-  // LOG(INFO) << "ComputeAt after is " << ir_sch.GetModule().GetExprs().at(0);
 
   loops = ir_sch.GetLoops("B");
   trace.Append(ScheduleDesc::Step("GetLoopsWithName", {}, {{"block_name", std::string("B")}}, loops));
   auto root_block = ir_sch.GetRootBlock(loops[1]);
   trace.Append(ScheduleDesc::Step("GetRootBlock", {{"expr", std::vector<Expr>({loops[1]})}}, {}, {root_block}));
-  // LOG(INFO) << "root_block is " << root_block << "\n";
   auto childblocks = ir_sch.GetChildBlocks(root_block);
-  // for (auto block : childblocks) {
-  //   LOG(INFO) << "after GetChildBlocks is " << block << "\n";
-  // }
   trace.Append(ScheduleDesc::Step("GetChildBlocks", {{"block", std::vector<Expr>({root_block})}}, {}, childblocks));
   CheckTracingOutputs(childblocks, trace);
   CheckTracingOutputs(childblocks, ir_sch.GetTraceDesc());

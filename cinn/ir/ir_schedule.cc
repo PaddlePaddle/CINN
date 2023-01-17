@@ -1475,9 +1475,7 @@ std::vector<Expr> ScheduleImpl::GetAllBlocks() const {
 }
 
 std::vector<Expr> ScheduleImpl::GetChildBlocks(const Expr& block) const {
-  CHECK(block.As<ir::ScheduleBlockRealize>());
-  CHECK(block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>());
-
+  CHECK(block.As<ir::ScheduleBlockRealize>() || block.As<ir::For>());
   ir::FindBlocksVisitor visitor;
   std::vector<Expr> result = visitor(&block);
   return result;
