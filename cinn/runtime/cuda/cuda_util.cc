@@ -17,6 +17,7 @@
 #include <absl/container/flat_hash_map.h>
 #include <cublas_v2.h>
 #include <cuda_runtime.h>
+#include <curand.h>
 #include <glog/logging.h>
 
 #include <algorithm>
@@ -1044,6 +1045,44 @@ void cinn_gpu_cublas_gemm(const std::vector<int> &attrs,
                                 output_data,
                                 output_shape,
                                 stream);
+  }
+}
+
+void cinn_call_gaussian_random(void *v_args, int num_args, float mean, float std, int seed, void *stream) {
+  cinn_pod_value_t *args = static_cast<cinn_pod_value_t *>(v_args);
+  cinn_buffer_t *output  = args[0].operator cinn_buffer_t *();
+  cinn_type_t dtype      = output->type;
+  size_t numel           = output->num_elements();
+  curandGenerator_t generator;
+  CURAND_CALL(curandCreateGenerator(&generator, CURAND_RNG_PSEUDO_PHILOX4_32_10));
+  if (seed != 0) {
+    CURAND_CALL(curandSetPseudoRandomGeneratorSeed(generator, static_cast<unsigned long long>(seed)));
+  }
+  if (dtype == cinn_float32_t()) {
+    float *ptr = reinterpret_cast<float *>(output->memory);
+    CURAND_CALL(curandGenerateNormal(generator, ptr, numel, mean, std));
+  } else if (dtype == cinn_float64_t()) {
+    double *ptr = reinterpret_cast<double *>(output->memory);
+    CURAND_CALL(curandGenerateNormalDouble(generator, ptr, numel, mean, std));
+  }
+}
+
+void cinn_call_uniform_random(void *v_args, int num_args, float min, float max, int seed, void *stream) {
+  cinn_pod_value_t *args = static_cast<cinn_pod_value_t *>(v_args);
+  cinn_buffer_t *output  = args[0].operator cinn_buffer_t *();
+  cinn_type_t dtype      = output->type;
+  size_t numel           = output->num_elements();
+  curandGenerator_t generator;
+  CURAND_CALL(curandCreateGenerator(&generator, CURAND_RNG_PSEUDO_PHILOX4_32_10));
+  if (seed != 0) {
+    CURAND_CALL(curandSetPseudoRandomGeneratorSeed(generator, static_cast<unsigned long long>(seed)));
+  }
+  if (dtype == cinn_float32_t()) {
+    float *ptr = reinterpret_cast<float *>(output->memory);
+    CURAND_CALL(curandGenerateUniform(generator, ptr, numel));
+  } else if (dtype == cinn_float64_t()) {
+    double *ptr = reinterpret_cast<double *>(output->memory);
+    CURAND_CALL(curandGenerateUniformDouble(generator, ptr, numel));
   }
 }
 

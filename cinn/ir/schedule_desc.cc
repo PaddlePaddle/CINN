@@ -467,6 +467,11 @@ CINN_BUILD_STEP_KIND(FlattenLoops)
     .Attrs({"force_flat"})
     .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(&IRSchedule::FlattenLoops)));
 
+CINN_BUILD_STEP_KIND(SamplePerfectTile)
+    .Inputs({"loop"})
+    .Attrs({"n","max_innermost_factor"})
+    .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(&IRSchedule::SamplePerfectTile)));
+
 // clang-format on
 
 // ------ Following codes are about member function implement of the ScheduleDesc class

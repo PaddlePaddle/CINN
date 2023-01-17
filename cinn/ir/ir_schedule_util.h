@@ -14,7 +14,9 @@
 
 #pragma once
 #include <map>
+#include <random>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -413,5 +415,39 @@ std::vector<IterRange> CalculateRequiredRegions(const Expr& block,
 
 Expr CheckComputeInlineValidationAndGetStore(const Expr& schedule_block, const Expr& root);
 
+/*!
+ * \brief RandomSeedController is used to control the random seed in the whole program.
+ */
+class RandomSeedController {
+  // TODO(PuQing): This is a temporary solution, maybe change it to a better one.
+ public:
+  static constexpr uint32_t seed = 1;
+};
+
+/*!
+ * \brief sample a int in [min, max].
+ * \param min The min value of the range.
+ * \param max The max value of the range.
+ * \param seed The random number generator to use.
+ */
+int SampleInt(int min, int max, uint32_t seed);
+
+/*!
+ * \brief Get the prime factors of a number.
+ * For example, 12 = 2^2 * 3^1, then the return value is {2: 2, 3: 1}.
+ * \param n The number to be factorized.
+ * \return A map of prime factors and their corresponding exponents.
+ */
+std::unordered_map<int, int> PrimeFactorize(int n);
+
+/*!
+ * \brief Given a number returns the form of the product of its n factors
+ * For example:
+ *  n = 2, dividend = 12, return one of {2, 6}, {6, 2}, {3, 4}, {4, 3}
+ * \param seed The random number generator to use.
+ * \param n The number to be factorized.
+ * \param dividend The dividend of the number.
+ */
+std::vector<int> SampleTile(uint32_t seed, int n, int dividend);
 }  // namespace ir
 }  // namespace cinn
