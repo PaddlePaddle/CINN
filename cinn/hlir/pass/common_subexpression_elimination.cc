@@ -61,7 +61,7 @@ std::unordered_set<std::string> reshape_ops = {
 // Those special attrs maybe different but equivalent.
 std::unordered_map<std::string, int> special_attrs = {
     //    {"axis", 1}, // due to the issue in some ops
-    {"dim", 2},
+    //    {"dim", 1}, // due to the issue in some ops
     {"axes", 2},
     {"perm", 2}};
 
