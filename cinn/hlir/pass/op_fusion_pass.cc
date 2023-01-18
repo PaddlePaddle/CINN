@@ -400,7 +400,9 @@ void InsertBroadcastTo(Graph* graph) {
               axis = output_shape.size() - 1;
             }
             node->attrs.attr_store = {};
-            CHECK_LE(axis + input_shape.size(), output_shape.size());
+            CHECK_LE(axis + input_shape.size(), output_shape.size())
+                << "The rank of input " << input_data->id() << " + axis " << axis
+                << " should less equal rank of output " << node_data->id();
             for (int idx = 0; idx < input_shape.size(); ++idx) {
               broadcast_axes.push_back(axis++);
             }

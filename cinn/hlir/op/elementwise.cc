@@ -518,6 +518,9 @@ StrategyForUnary(sign, Sign);
 StrategyForUnary(abs, Abs);
 StrategyForUnary(rsqrt, Rsqrt);
 StrategyForUnary(sigmoid, Sigmoid);
+StrategyForUnary(cbrt, Cbrt);
+StrategyForUnary(clz, Clz);
+StrategyForUnary(popc, Popc);
 
 #undef StrategyForUnary
 
@@ -887,6 +890,9 @@ CINN_REGISTER_HELPER(elementwise_ops) {
   CINN_REGISTER_UNARY(abs, Abs)
   CINN_REGISTER_UNARY(rsqrt, Rsqrt)
   CINN_REGISTER_UNARY(sigmoid, Sigmoid)
+  CINN_REGISTER_UNARY(cbrt, Cbrt);
+  CINN_REGISTER_UNARY(clz, Clz);
+  CINN_REGISTER_UNARY(popc, Popc);
 
 #undef CINN_REGISTER_UNARY
 
