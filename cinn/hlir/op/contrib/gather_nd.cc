@@ -47,20 +47,35 @@ namespace op {
 using common::CINNValue;
 using common::CINNValuePack;
 
-ir::Tensor GatherNd(const ir::Tensor &A, const ir::Tensor &B, const std::vector<int> &axes, const std::string &name) {
-  std::vector<Expr> out_shape = B->shape;
-  out_shape.pop_back();
+ir::Tensor GatherNd(const ir::Tensor &x, const ir::Tensor &index, const std::string &name) {
+  std::vector<Expr> x_shape     = x->shape;
+  std::vector<Expr> index_shape = index->shape;
+  size_t x_shape_size           = x_shape.size();
+  size_t index_shape_size       = index_shape.size();
+  std::vector<Expr> out_shape;
+  out_shape.insert(out_shape.end(), index_shape.begin(), index_shape.end() - 1);
+  out_shape.insert(out_shape.end(), x_shape.begin() + index_shape.back().as_int32(), x_shape.end());
   auto res = Compute(
       out_shape,
       [=](const std::vector<Expr> &indices) {
-        std::vector<Expr> A_indices(indices.begin(), indices.begin() + A->shape.size());
-        std::vector<Expr> B_indices(indices);
-        for (int i = 0; i < axes.size(); ++i) {
-          B_indices.push_back(Expr(i));
-          A_indices[axes[i]] = B(B_indices);
-          B_indices.pop_back();
+        std::vector<Expr> indices_position;
+        for (size_t i = 0; i < index_shape_size - 1; ++i) {
+          indices_position.push_back(ir::Cast::Make(common::Int(32), indices[i]));
         }
-        return lang::Identity(A(A_indices));
+        indices_position.push_back(ir::Cast::Make(common::Int(32), Expr(0)));
+        size_t indices_position_size = indices_position.size();
+        std::vector<Expr> real_indices;
+        for (size_t i = 0; i < index_shape.back().as_int32(); ++i) {
+          indices_position[indices_position_size - 1] = ir::Cast::Make(common::Int(32), Expr(i));
+          real_indices.push_back(index(indices_position));
+        }
+        if (real_indices.size() == x_shape_size) {
+          return x(real_indices);
+        }
+        for (size_t i = index_shape_size - 1; i < indices.size(); ++i) {
+          real_indices.push_back(indices[i]);
+        }
+        return x(real_indices);
       },
       name);
   return res;
@@ -71,31 +86,29 @@ std::shared_ptr<framework::OpStrategy> StrategyForGatherNd(const framework::Node
                                                            const std::vector<Type> &out_type,
                                                            const std::vector<std::vector<int>> &output_shapes,
                                                            const Target &target) {
-  auto attr_store = attrs.attr_store;
-  CHECK(attr_store.count("axes")) << "find no attr of axes";
-  std::vector<int> axes = absl::get<std::vector<int>>(attr_store.at("axes"));
   std::string op_name("gather_nd");
 
   framework::CINNCompute gather_nd_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input arguments of " << op_name << " compute is empty! Please check.\n";
     CINNValuePack pack_args = args[0];
     CHECK_GE(pack_args.size(), 2U) << "2 input tensors for " << op_name << " compute\n";
-    Expr A = pack_args[0];
-    Expr B = pack_args[1];
-    CHECK(A.as_tensor());
-    CHECK(B.as_tensor());
+    Expr x     = pack_args[0];
+    Expr index = pack_args[1];
+    CHECK(x.as_tensor());
+    CHECK(index.as_tensor());
     CHECK(!output_shapes.empty());
-    auto tensor_A = A.as_tensor_ref();
-    auto tensor_B = B.as_tensor_ref();
-    auto stages   = CreateStages({tensor_A, tensor_B});
-    VLOG(3) << "A shape: " << utils::Join(tensor_A->shape, ", ") << ", B shape: " << utils::Join(tensor_B->shape, ", ")
+    auto tensor_x     = x.as_tensor_ref();
+    auto tensor_index = index.as_tensor_ref();
+    auto stages       = CreateStages({tensor_x, tensor_index});
+    VLOG(3) << "x shape: " << utils::Join(tensor_x->shape, ", ")
+            << ", index shape: " << utils::Join(tensor_index->shape, ", ")
             << ", output_shapes: " << utils::Join(output_shapes[0], ", ");
     std::string tensor_name = UniqName("GatherNd_out");
     if (FLAGS_cinn_ir_schedule) {
       CHECK_EQ(pack_args.size(), 3U);
       tensor_name = pack_args[2].operator std::string();
     }
-    ir::Tensor out = GatherNd(tensor_A, tensor_B, axes, tensor_name);
+    ir::Tensor out = GatherNd(tensor_x, tensor_index, tensor_name);
     std::vector<CINNValue> res;
     stages->InsertLazily(out);
     res.push_back(CINNValue(out));
@@ -146,9 +159,14 @@ std::shared_ptr<framework::OpStrategy> StrategyForGatherNd(const framework::Node
 std::vector<std::vector<int>> InferShapeForGatherNd(const std::vector<std::vector<int>> &inputs_shape,
                                                     const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 2U) << "The input's shape size should be 2! Please check again.";
-  std::vector<int> output_shape(inputs_shape[1].begin(), inputs_shape[1].end() - 1);
-  std::vector<std::vector<int>> res{output_shape};
-  return res;
+  std::vector<int> x_shape     = inputs_shape[0];
+  std::vector<int> index_shape = inputs_shape[1];
+  CHECK_GE(index_shape.size(), 1U) << "Index shape must greater or equal to 1!";
+  CHECK_LE(index_shape.back(), x_shape.size()) << "Index shape[-1] must be no more than x.rank! Please check again.";
+  std::vector<int> output_shape;
+  output_shape.insert(output_shape.end(), index_shape.begin(), index_shape.end() - 1);
+  output_shape.insert(output_shape.end(), x_shape.begin() + index_shape.back(), x_shape.end());
+  return {output_shape};
 }
 
 std::vector<Type> InferDtypeForGatherNd(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
