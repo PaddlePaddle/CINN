@@ -19,27 +19,38 @@
 namespace cinn {
 namespace frontend {
 
-void OpMapperContext::AddVar(const std::string& origin_name, const Variable& var, bool is_inplace) const {
+void OpMapperContext::AddVar(const std::string& origin_name, const Variable& var, bool can_inplace) const {
   if (!var_map_->count(origin_name)) {
     (*var_map_)[origin_name] = var;
-    VLOG(4) << "Add variable " << origin_name << " to " << var->id << " with shape=["
+    VLOG(4) << "Add variable [" << origin_name << "] to [" << var->id << "] with shape=["
             << cinn::utils::Join(var->shape, ",") << "], dtype=" << var->type;
   } else {
-    CHECK(is_inplace) << "Duplicate variable [" << origin_name << "] found, whose id is "
-                      << var_map_->at(origin_name)->id;
+    CHECK(can_inplace) << "Duplicate variable [" << origin_name << "] found, whose id is "
+                       << var_map_->at(origin_name)->id;
 
     const auto& inplace_out_name  = origin_name + paddle::InplaceOutSuffix;
     (*var_map_)[inplace_out_name] = var;
 
-    VLOG(4) << "Add inplace variable " << origin_name << " 's trick output " << inplace_out_name << " to " << var->id
-            << " with shape=[" << cinn::utils::Join(var->shape, ",") << "], dtype=" << var->type;
+    VLOG(4) << "Add inplace variable [" << origin_name << "] 's trick output [" << inplace_out_name << "] to ["
+            << var->id << "] with shape=[" << cinn::utils::Join(var->shape, ",") << "], dtype=" << var->type;
   }
 }
 
-void OpMapperContext::AddVarModelToProgram(const std::string& name, const std::string& id) const {
+void OpMapperContext::AddVarModelToProgram(const std::string& name, const std::string& id, bool can_inplace) const {
   CHECK(!id.empty()) << "Paddle name [" << name << "]'s program id is empty ! Please check.";
-  (*var_model_to_program_map_)[name] = id;
-  VLOG(4) << "Paddle name [" << name << "] map to program id " << id;
+  if (!var_model_to_program_map_->count(name)) {
+    (*var_model_to_program_map_)[name] = id;
+    VLOG(4) << "Paddle name [" << name << "] map to program id " << id;
+  } else {
+    CHECK(can_inplace) << "Duplicate variable [" << name << "] found, whose id is "
+                       << var_model_to_program_map_->at(name);
+
+    const auto& inplace_out_name                   = name + paddle::InplaceOutSuffix;
+    (*var_model_to_program_map_)[inplace_out_name] = id;
+
+    VLOG(4) << "Paddle name [" << name << "] 's trick output [" << inplace_out_name << "] map to program id [" << id
+            << "]";
+  }
 }
 
 void OpMapperContext::AddFetchVarName(const std::string& name) const { fetch_var_names_->insert(name); }

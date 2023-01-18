@@ -21,7 +21,7 @@ namespace paddle_mappers {
 
 void BatchNormOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   auto add_output = [&op_desc, &ctx](
-                        const std::string& pd_param_name, const Variable& out, bool is_inplace = false) -> void {
+                        const std::string& pd_param_name, const Variable& out, bool can_inplace = false) -> void {
     if (!op_desc.HasOutput(pd_param_name)) {
       VLOG(4) << "Cannot find parameter " << pd_param_name << " in op " << op_desc.Type();
       return;
@@ -31,8 +31,8 @@ void BatchNormOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
 
     VLOG(4) << "The " << op_desc.Type() << "'s output " << pd_param_name << " is " << output_name;
 
-    ctx.AddVar(output_name, out, is_inplace);
-    ctx.AddVarModelToProgram(output_name, out->id);
+    ctx.AddVar(output_name, out, can_inplace);
+    ctx.AddVarModelToProgram(output_name, out->id, can_inplace);
   };
 
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
