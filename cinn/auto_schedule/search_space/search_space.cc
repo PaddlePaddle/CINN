@@ -288,7 +288,7 @@ std::vector<SearchState> SearchSpace::ApplySketchRule(const SearchState& state,
       bool need_prune = false;
       if (prune_by_rule) {
         // At present, we only retain the state after applying the rule and discard the original state
-        need_prune = true;
+        need_prune = (type == RuleApplyType::kApplyAndSkipAllRules);
       } else {
         std::mt19937 rng;
         rng.seed(std::random_device()());

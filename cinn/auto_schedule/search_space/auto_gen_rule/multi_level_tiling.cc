@@ -76,7 +76,7 @@ RuleApplyType MultiLevelTiling::Init(ir::IRSchedule* ir_schedule) {
     }
   }
 
-  return num_applicable_ > 0 ? RuleApplyType::kApplyAndSkipThisRule : RuleApplyType::kCannotApply;
+  return num_applicable_ > 0 ? RuleApplyType::kApplyAndSkipAllRules : RuleApplyType::kCannotApply;
 }
 
 void MultiLevelTiling::Apply(int index) {

@@ -103,7 +103,7 @@ RuleApplyType AutoUnroll::AnalyseApplyType(SearchState state, const std::string&
   auto* schedule_block = block_realize->schedule_block.As<ir::ScheduleBlock>();
   CHECK(schedule_block) << "schedule_block field is not a ScheduleBlock:" << Expr(block_realize);
 
-  return MeetCondition(schedule_block) ? RuleApplyType::kApplyAndSkipThisRule : RuleApplyType::kCannotApply;
+  return MeetCondition(schedule_block) ? RuleApplyType::kApplyAndSkipAllRules : RuleApplyType::kCannotApply;
 }
 
 std::vector<SearchState> AutoUnroll::ApplyOnBlock(SearchState state, const std::string& block_name) {
