@@ -97,8 +97,8 @@ void ElementwiseOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperConte
   auto y   = ctx.GetVar(y_name);
   auto out = (ctx.Builder()->*OpBuilder<Type>::func)(x, y, axis);
 
-  ctx.AddVar(out_name, out);
-  ctx.AddVarModelToProgram(out_name, out->id);
+  ctx.AddVar(out_name, out, true);
+  ctx.AddVarModelToProgram(out_name, out->id, true);
 }
 
 void ElementwiseAddGradOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
