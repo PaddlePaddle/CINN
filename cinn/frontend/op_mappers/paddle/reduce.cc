@@ -102,10 +102,18 @@ void ReduceMeanOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContex
     }
   }
 
-  const auto& sum  = ctx.Builder()->ReduceSum(x, axis, keepdim);
+  auto x_shape = x->shape;
+  for (size_t i = 0; i < x_shape.size(); ++i) {
+    if (std::find(axis.begin(), axis.end(), i) != axis.end()) {
+      x_shape[i] = 1;
+    }
+  }
+
+  const auto& sum  = ctx.Builder()->ReduceSum(x, axis, false);
   const auto& size = ctx.Builder()->FillConstant(
       sum->shape, num, cinn::common::UniqName(x->id + "_mean"), cinn::common::Type2Str(sum->type));
-  const auto& out = ctx.Builder()->Divide(sum, size);
+  const auto& m_out = ctx.Builder()->Divide(sum, size);
+  const auto& out   = ctx.Builder()->Reshape(m_out, x_shape);
 
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);
