@@ -303,7 +303,7 @@ void PaddleModelToProgram::AddOpMapper_softmax() {
       axis = static_cast<int>(-1);
     }
     auto x   = GetVar(TransValidVarName(x_name));
-    auto out = net_builder_->Softmax(x, axis);
+    auto out = net_builder_->Softmax(x, {axis});
     AddVar(TransValidVarName(out_name), out);
     var_model_to_program_map_[out_name] = out->id;
   };

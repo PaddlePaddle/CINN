@@ -19,176 +19,89 @@ namespace cinn {
 namespace frontend {
 namespace science_mappers {
 
-void AddOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
-  CHECK_EQ(op_desc.Input("X").size(), 1UL);
-  auto x_name = op_desc.Input("X").front();
-  CHECK_EQ(op_desc.Input("Y").size(), 1UL);
-  auto y_name = op_desc.Input("Y").front();
-  CHECK_EQ(op_desc.Output("Z").size(), 1UL);
-  auto out_name = op_desc.Output("Z").front();
+#define BINARY_OPMAPPER(op_name)                                                           \
+  void op_name##OpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) { \
+    CHECK_EQ(op_desc.Input("X").size(), 1UL);                                              \
+    auto x_name = op_desc.Input("X").front();                                              \
+    CHECK_EQ(op_desc.Input("Y").size(), 1UL);                                              \
+    auto y_name = op_desc.Input("Y").front();                                              \
+    CHECK_EQ(op_desc.Output("Z").size(), 1UL);                                             \
+    auto out_name = op_desc.Output("Z").front();                                           \
+    VLOG(3) << out_name << " = " << #op_name << "(" << x_name << ", " << y_name << ")";    \
+    auto x   = ctx.GetVar(x_name);                                                         \
+    auto y   = ctx.GetVar(y_name);                                                         \
+    auto out = ctx.Builder()->op_name(x, y);                                               \
+    ctx.AddVar(out_name, out);                                                             \
+    ctx.AddVarModelToProgram(out_name, out->id);                                           \
+  }
 
-  VLOG(4) << x_name << " + " << y_name;
+BINARY_OPMAPPER(Add)
+BINARY_OPMAPPER(Subtract)
+BINARY_OPMAPPER(Divide)
+BINARY_OPMAPPER(Multiply)
+BINARY_OPMAPPER(Matmul)
+BINARY_OPMAPPER(Pow)
+BINARY_OPMAPPER(Max)
+BINARY_OPMAPPER(Min)
 
-  auto x   = ctx.GetVar(x_name);
-  auto y   = ctx.GetVar(y_name);
-  auto out = ctx.Builder()->Add(x, y);
+#undef BINARY_OPMAPPER
 
-  ctx.AddVar(out_name, out);
-  ctx.AddVarModelToProgram(out_name, out->id);
-}
+#define UNARY_OPMAPPER(op_name)                                                            \
+  void op_name##OpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) { \
+    CHECK_EQ(op_desc.Input("X").size(), 1UL);                                              \
+    auto x_name = op_desc.Input("X").front();                                              \
+    CHECK_EQ(op_desc.Output("Y").size(), 1UL);                                             \
+    auto out_name = op_desc.Output("Y").front();                                           \
+    VLOG(3) << out_name << " = " << #op_name << "(" << x_name << ")";                      \
+    auto x   = ctx.GetVar(x_name);                                                         \
+    auto out = ctx.Builder()->op_name(x);                                                  \
+    ctx.AddVar(out_name, out);                                                             \
+    ctx.AddVarModelToProgram(out_name, out->id);                                           \
+  }
 
-void SubOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
-  CHECK_EQ(op_desc.Input("X").size(), 1UL);
-  auto x_name = op_desc.Input("X").front();
-  CHECK_EQ(op_desc.Input("Y").size(), 1UL);
-  auto y_name = op_desc.Input("Y").front();
-  CHECK_EQ(op_desc.Output("Z").size(), 1UL);
-  auto out_name = op_desc.Output("Z").front();
+UNARY_OPMAPPER(Sqrt)
+UNARY_OPMAPPER(Rsqrt)
+UNARY_OPMAPPER(Tanh)
+UNARY_OPMAPPER(Sin)
+UNARY_OPMAPPER(Cos)
+UNARY_OPMAPPER(Exp)
+UNARY_OPMAPPER(Erf)
+UNARY_OPMAPPER(Log)
+UNARY_OPMAPPER(Identity)
+UNARY_OPMAPPER(Abs)
 
-  VLOG(4) << x_name << " - " << y_name;
-
-  auto x   = ctx.GetVar(x_name);
-  auto y   = ctx.GetVar(y_name);
-  auto out = ctx.Builder()->Subtract(x, y);
-
-  ctx.AddVar(out_name, out);
-  ctx.AddVarModelToProgram(out_name, out->id);
-}
-
-void DivOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
-  CHECK_EQ(op_desc.Input("X").size(), 1UL);
-  auto x_name = op_desc.Input("X").front();
-  CHECK_EQ(op_desc.Input("Y").size(), 1UL);
-  auto y_name = op_desc.Input("Y").front();
-  CHECK_EQ(op_desc.Output("Z").size(), 1UL);
-  auto out_name = op_desc.Output("Z").front();
-
-  VLOG(4) << x_name << " / " << y_name;
-
-  auto x   = ctx.GetVar(x_name);
-  auto y   = ctx.GetVar(y_name);
-  auto out = ctx.Builder()->Divide(x, y);
-
-  ctx.AddVar(out_name, out);
-  ctx.AddVarModelToProgram(out_name, out->id);
-}
-
-void MulOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
-  CHECK_EQ(op_desc.Input("X").size(), 1UL);
-  auto x_name = op_desc.Input("X").front();
-  CHECK_EQ(op_desc.Input("Y").size(), 1UL);
-  auto y_name = op_desc.Input("Y").front();
-  CHECK_EQ(op_desc.Output("Z").size(), 1UL);
-  auto out_name = op_desc.Output("Z").front();
-
-  VLOG(4) << x_name << " .* " << y_name;
-
-  auto x   = ctx.GetVar(x_name);
-  auto y   = ctx.GetVar(y_name);
-  auto out = ctx.Builder()->Multiply(x, y);
-
-  ctx.AddVar(out_name, out);
-  ctx.AddVarModelToProgram(out_name, out->id);
-}
-
-void SqrtOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
-  CHECK_EQ(op_desc.Input("X").size(), 1UL);
-  auto x_name = op_desc.Input("X").front();
-  CHECK_EQ(op_desc.Output("Y").size(), 1UL);
-  auto out_name = op_desc.Output("Y").front();
-
-  auto x = ctx.GetVar(x_name);
-
-  VLOG(4) << "Compute " << x_name << " 's sqrt result with shape (" << cinn::utils::Join(x->shape, ",") << ").";
-
-  // now paddle science only need reduce sum
-  auto out = ctx.Builder()->Sqrt(x);
-
-  ctx.AddVar(out_name, out);
-  ctx.AddVarModelToProgram(out_name, out->id);
-}
-
-void TanhOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
-  CHECK_EQ(op_desc.Input("X").size(), 1UL);
-  auto x_name = op_desc.Input("X").front();
-  CHECK_EQ(op_desc.Output("Y").size(), 1UL);
-  auto out_name = op_desc.Output("Y").front();
-
-  auto x = ctx.GetVar(x_name);
-
-  VLOG(4) << "Compute " << x_name << " 's tanh result with shape (" << cinn::utils::Join(x->shape, ",") << ").";
-
-  // now paddle science only need reduce sum
-  auto out = ctx.Builder()->Tanh(x);
-
-  ctx.AddVar(out_name, out);
-  ctx.AddVarModelToProgram(out_name, out->id);
-}
-
-void MatMulOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
-  CHECK_EQ(op_desc.Input("X").size(), 1UL);
-  auto x_name = op_desc.Input("X").front();
-  CHECK_EQ(op_desc.Input("Y").size(), 1UL);
-  auto y_name = op_desc.Input("Y").front();
-  CHECK_EQ(op_desc.Output("Z").size(), 1UL);
-  auto out_name = op_desc.Output("Z").front();
-
-  VLOG(4) << x_name << " x " << y_name;
-
-  auto x   = ctx.GetVar(x_name);
-  auto y   = ctx.GetVar(y_name);
-  auto out = ctx.Builder()->Matmul(x, y);
-
-  ctx.AddVar(out_name, out);
-  ctx.AddVarModelToProgram(out_name, out->id);
-}
-
-void PowOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
-  CHECK_EQ(op_desc.Input("X").size(), 1UL);
-  auto x_name = op_desc.Input("X").front();
-  CHECK_EQ(op_desc.Input("Y").size(), 1UL);
-  auto y_name = op_desc.Input("Y").front();
-  CHECK_EQ(op_desc.Output("Z").size(), 1UL);
-  auto out_name = op_desc.Output("Z").front();
-
-  VLOG(4) << x_name << " x " << y_name;
-
-  auto x   = ctx.GetVar(x_name);
-  auto y   = ctx.GetVar(y_name);
-  auto out = ctx.Builder()->Pow(x, y);
-
-  ctx.AddVar(out_name, out);
-  ctx.AddVarModelToProgram(out_name, out->id);
-}
-
-void AbsOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
-  CHECK_EQ(op_desc.Input("X").size(), 1UL);
-  auto x_name = op_desc.Input("X").front();
-  CHECK_EQ(op_desc.Output("Y").size(), 1UL);
-  auto out_name = op_desc.Output("Y").front();
-
-  VLOG(4) << "|" << x_name << "|";
-
-  auto x   = ctx.GetVar(x_name);
-  auto out = ctx.Builder()->Abs(x);
-
-  ctx.AddVar(out_name, out);
-  ctx.AddVarModelToProgram(out_name, out->id);
-}
+#undef UNARY_OPMAPPER
 
 }  // namespace science_mappers
 }  // namespace frontend
 }  // namespace cinn
 
 CINN_REGISTER_HELPER(science_math) {
-  CINN_REGISTER_OP_MAPPER(add_p, cinn::frontend::science_mappers::AddOpMapper)
-  CINN_REGISTER_OP_MAPPER(sub_p, cinn::frontend::science_mappers::SubOpMapper)
-  CINN_REGISTER_OP_MAPPER(div_p, cinn::frontend::science_mappers::DivOpMapper)
-  CINN_REGISTER_OP_MAPPER(mul_p, cinn::frontend::science_mappers::MulOpMapper)
-  CINN_REGISTER_OP_MAPPER(sqrt_p, cinn::frontend::science_mappers::SqrtOpMapper)
-  CINN_REGISTER_OP_MAPPER(tanh_p, cinn::frontend::science_mappers::TanhOpMapper)
-  CINN_REGISTER_OP_MAPPER(matmul_p, cinn::frontend::science_mappers::MatMulOpMapper)
-  CINN_REGISTER_OP_MAPPER(pow_p, cinn::frontend::science_mappers::PowOpMapper)
-  CINN_REGISTER_OP_MAPPER(abs_p, cinn::frontend::science_mappers::AbsOpMapper)
+#define EXPAND_OP_MAPPER_REGISTER(psci_op, cinn_op) \
+  CINN_REGISTER_OP_MAPPER(psci_op, cinn::frontend::science_mappers::cinn_op##OpMapper)
+
+  EXPAND_OP_MAPPER_REGISTER(add_p, Add)
+  EXPAND_OP_MAPPER_REGISTER(sub_p, Subtract)
+  EXPAND_OP_MAPPER_REGISTER(div_p, Divide)
+  EXPAND_OP_MAPPER_REGISTER(mul_p, Multiply)
+  EXPAND_OP_MAPPER_REGISTER(matmul_p, Matmul)
+  EXPAND_OP_MAPPER_REGISTER(pow_p, Pow)
+  EXPAND_OP_MAPPER_REGISTER(max_p, Max)
+  EXPAND_OP_MAPPER_REGISTER(min_p, Min)
+
+  EXPAND_OP_MAPPER_REGISTER(sqrt_p, Sqrt)
+  EXPAND_OP_MAPPER_REGISTER(rsqrt_p, Rsqrt)
+  EXPAND_OP_MAPPER_REGISTER(tanh_p, Tanh)
+  EXPAND_OP_MAPPER_REGISTER(sin_p, Sin)
+  EXPAND_OP_MAPPER_REGISTER(cos_p, Cos)
+  EXPAND_OP_MAPPER_REGISTER(exp_p, Exp)
+  EXPAND_OP_MAPPER_REGISTER(erf_p, Erf)
+  EXPAND_OP_MAPPER_REGISTER(log_p, Log)
+  EXPAND_OP_MAPPER_REGISTER(clone_p, Identity)
+  EXPAND_OP_MAPPER_REGISTER(share_data_p, Identity)
+  EXPAND_OP_MAPPER_REGISTER(abs_p, Abs)
+
+#undef EXPAND_OP_MAPPER_REGISTER
+
   return true;
 }

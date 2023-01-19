@@ -55,23 +55,22 @@ static void PopulateRandomValue(const common::Type& type, const int numel, void*
   }
 }
 
-// Alloc a new buffer in specificed target with initial infos.
-static std::shared_ptr<Buffer> AllocBuffer(const common::Target& target,
-                                           const common::Type& type,
-                                           const Shape& shape,
-                                           bool fill_random_value = true) {
-  static constexpr int default_alignment = 1024;
-  auto buffer                            = std::make_shared<Buffer>(target);
-
-  VLOG(6) << "AllocBuffer target:" << target << ", type:" << type << ", numel:" << shape.numel()
-          << ", fill_random_value:" << fill_random_value;
-  if (target == common::DefaultHostTarget()) {
-    buffer->ResizeLazy(default_alignment, shape.numel() * type.bytes());
+// Initialize a tensor with 0.
+static void InitTensorData(Tensor tensor, const common::Target& target) {
+  int mem_size      = tensor->shape().numel() * tensor->type().bytes();
+  auto* tensor_data = tensor->mutable_data(target, tensor->type());
+#ifdef CINN_WITH_CUDA
+  if (target == common::DefaultNVGPUTarget()) {
+    cudaMemset(tensor_data, 0, mem_size);
+  } else if (target == common::DefaultHostTarget()) {
+    memset(tensor_data, 0, mem_size);
   } else {
-    buffer->ResizeLazy(shape.numel() * type.bytes());
+    CINN_NOT_IMPLEMENTED
   }
-
-  return buffer;
+#else
+  CHECK(target == common::DefaultHostTarget());
+  memset(tensor_data, 0, mem_size);
+#endif
 }
 
 SimpleRunner::SimpleRunner(int repeat_times) : repeat_times_(repeat_times) {
@@ -115,10 +114,13 @@ std::map<std::string, cinn_pod_value_t> SimpleRunner::PrepareArgs(const MeasureI
     // allocate a new buffer for this argument and store it in
     // the temporary scope to be released at proper time.
     auto compiled_tensor = compiled_scope->GetTensor(param);
-    auto buffer          = AllocBuffer(target, compiled_tensor->type(), compiled_tensor->shape());
     temp_scope->Var<Tensor>(param);
     auto temp_tensor = temp_scope->GetTensor(param);
-    temp_tensor->set_buffer(buffer);
+    temp_tensor->Resize(compiled_tensor->shape());
+    temp_tensor->set_type(compiled_tensor->type());
+    temp_tensor->mutable_data(target, compiled_tensor->type());
+    InitTensorData(temp_tensor, target);
+
     result.emplace(param, temp_tensor->buffer());
   };
 

@@ -67,6 +67,51 @@ void gelu(const Instruction& instr, const DecomposerContext& context) {
   context.MapOutToOrigin(out, output);
 }
 
+void softmax(const Instruction& instr, const DecomposerContext& context) {
+  CHECK_EQ(instr->inputs.size(), 1UL) << " 1 input tensor for " << instr->op_type;
+  CHECK_EQ(instr->outputs.size(), 1UL) << "1 output tensor for " << instr->op_type;
+  auto x        = instr->inputs[0];
+  auto output   = instr->outputs[0];
+  auto* builder = context.builder();
+
+  std::vector<int> b_axes;
+  auto axes = instr.GetAttrs<std::vector<int>>("axes");
+  CHECK(axes.size());
+  for (auto& axis : axes) {
+    if (axis < 0) {
+      axis += x->shape.size();
+    }
+  }
+  for (int idx = 0; idx < x->shape.size(); ++idx) {
+    if (std::find(axes.begin(), axes.end(), idx) == axes.end()) {
+      b_axes.push_back(idx);
+    }
+  }
+
+  auto mode = instr.GetAttrs<std::string>("mode");
+  if (mode == "fast") {
+    // x_sum = sum(exp(x))
+    auto x_sum = builder->BroadcastTo(builder->ReduceSum(builder->Exp(x), axes), x->shape, b_axes);
+    // x_exp / x_sum
+    auto out = builder->Divide(builder->Exp(x), x_sum);
+
+    // map the the output of decomposed operator to the original.
+    context.MapOutToOrigin(out, output);
+  } else {
+    // x = max(x)
+    auto x_max = builder->BroadcastTo(builder->ReduceMax(x, axes), x->shape, b_axes);
+    // x_exp = exp(x - x_max)
+    auto x_exp = builder->Exp(builder->Subtract(x, x_max));
+    // x_sum = sum(x_exp)
+    auto x_sum = builder->BroadcastTo(builder->ReduceSum(x_exp, axes), x->shape, b_axes);
+    // x_exp / x_sum
+    auto out = builder->Divide(builder->Exp(builder->Subtract(x, x_max)), x_sum);
+
+    // map the the output of decomposed operator to the original.
+    context.MapOutToOrigin(out, output);
+  }
+}
+
 }  // namespace decomposer
 }  // namespace frontend
 }  // namespace cinn
@@ -85,6 +130,12 @@ CINN_REGISTER_HELPER(relu_grad_decomposers) {
 
 CINN_REGISTER_HELPER(gelu_decomposers) {
   CINN_DECOMPOSER_REGISTER(gelu, cinn::frontend::decomposer::gelu);
+
+  return true;
+}
+
+CINN_REGISTER_HELPER(softmax_decomposers) {
+  CINN_DECOMPOSER_REGISTER(softmax, cinn::frontend::decomposer::softmax);
 
   return true;
 }

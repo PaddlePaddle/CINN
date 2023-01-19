@@ -41,6 +41,10 @@ class DecomposerContext {
                  << utils::Join(new_var->shape, ", ") << "] and the original var " << ori_var->id << ".shape=["
                  << utils::Join(ori_var->shape, ", ") << "].";
     }
+    if (new_var->type != ori_var->type) {
+      LOG(FATAL) << "The output type shoule be equal to the original. But received : " << new_var->id
+                 << ".type=" << new_var->type << " and the original var " << ori_var->id << ".type=" << ori_var->type;
+    }
     (*var_map_)[new_var->id] = ori_var;
   }
 

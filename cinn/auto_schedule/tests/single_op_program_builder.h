@@ -282,7 +282,7 @@ class SoftmaxProgramBuilder : public TestProgramBuilder {
   frontend::Program operator()() override {
     frontend::NetBuilder builder("softmax_net_builder");
     auto x = builder.CreateInput(Float(32), input_shape_, "X");
-    auto y = builder.Softmax(x, axis_, data_format_);
+    auto y = builder.Softmax(x, {axis_});
 
     return builder.Build();
   }
@@ -314,6 +314,27 @@ class ScaleProgramBuilder : public TestProgramBuilder {
   float scale_;
   float bias_;
   bool bias_after_scale_;
+};
+
+class LookupTableProgramBuilder : public TestProgramBuilder {
+ public:
+  LookupTableProgramBuilder(const std::vector<int32_t>& table_shape,
+                            const std::vector<int32_t>& ids_shape,
+                            int64_t padding_idx)
+      : table_shape_(table_shape), ids_shape_(ids_shape), padding_idx_(padding_idx) {}
+
+  frontend::Program operator()() override {
+    frontend::NetBuilder builder("lookup_net_builder");
+    auto t = builder.CreateInput(Float(32), table_shape_, "table");
+    auto i = builder.CreateInput(Int(64), ids_shape_, "ids");
+    auto y = builder.LookupTable(t, i, padding_idx_);
+    return builder.Build();
+  }
+
+ private:
+  std::vector<int32_t> table_shape_;
+  std::vector<int32_t> ids_shape_;
+  int64_t padding_idx_;
 };
 
 }  // namespace auto_schedule

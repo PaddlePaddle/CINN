@@ -1,4 +1,4 @@
-// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+// Copyright (c) 2022 CINN Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,13 +19,24 @@ namespace cinn {
 namespace frontend {
 namespace paddle_mappers {
 
-void GeluOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+void GatherOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
   auto x_name = op_desc.Input("X").front();
+  CHECK_EQ(op_desc.Input("Index").size(), 1UL);
+  auto index_name = op_desc.Input("Index").front();
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
   auto out_name = op_desc.Output("Out").front();
-  auto x        = ctx.GetVar(x_name);
-  auto out      = ctx.Builder()->Gelu(x);
+
+  auto x     = ctx.GetVar(x_name);
+  auto index = ctx.GetVar(index_name);
+
+  auto axis = utils::GetAttrOrDefault<int>(op_desc, "axis", 0);
+
+  VLOG(4) << "Gather X:" << x_name << "[" << cinn::utils::Join(x->shape, ",") << "] with index:" << index_name << "["
+          << cinn::utils::Join(index->shape, ",") << "] at axis=" << axis;
+
+  // now paddle science only need reduce sum
+  auto out = ctx.Builder()->Gather(x, index, axis);
 
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);
@@ -35,7 +46,7 @@ void GeluOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
 }  // namespace frontend
 }  // namespace cinn
 
-CINN_REGISTER_HELPER(paddle_gelu) {
-  CINN_REGISTER_OP_MAPPER(gelu, cinn::frontend::paddle_mappers::GeluOpMapper)
+CINN_REGISTER_HELPER(paddle_gather) {
+  CINN_REGISTER_OP_MAPPER(gather, cinn::frontend::paddle_mappers::GatherOpMapper)
   return true;
 }

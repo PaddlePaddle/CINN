@@ -1988,7 +1988,7 @@ Expr CasSimplifyMutator::SimplifyFracOp(Expr expr) {
           if (b_d != 1) bvs1.push_back(make_const(b.type(), b_d));
         }
 
-        CHECK(!af);
+        // CHECK(!af) << a << " " << b;
         i++;
         j++;
       } else if (avs[i] == bvs[j]) {

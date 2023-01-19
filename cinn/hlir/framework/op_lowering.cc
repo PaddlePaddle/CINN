@@ -806,6 +806,7 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
       if (!tensor_map.count(block->as<ir::ScheduleBlockRealize>()->schedule_block->as<ir::ScheduleBlock>()->name)) {
         continue;
       }
+
       for (auto node : group->master_nodes) {
         if (GetNodeData(node)->id() ==
             block->as<ir::ScheduleBlockRealize>()->schedule_block->as<ir::ScheduleBlock>()->name) {
@@ -814,7 +815,7 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
             break;
           }
 
-          if (op_pattern_dict[node->op()] == framework::kReduction) {
+          if (op_pattern_dict[node->op()] == framework::kReduction && master) {
             reducer = node;
             break;
           }
@@ -825,49 +826,15 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
         break;
       }
     }
-    // find master node.
-    for (auto node : group->master_nodes) {
-      if (op_pattern_dict[node->op()] != framework::kReduction) {
-        master = node;
-        break;
-      }
+    CHECK((master && reducer) || (!master && !reducer)) << "Can't find Master reducer!";
+    if (!master && !reducer) {
+      master  = *group->master_nodes.begin();
+      reducer = *group->master_nodes.begin();
     }
-    // if not find, use reducer as master.
-    if (!master) {
-      if (group->fused_sub_groups.empty()) {
-        master = group->nodes.back();
-      } else {
-        master = group->fused_sub_groups.back()->nodes.back();
-      }
-      CHECK_EQ(op_pattern_dict[master->op()], framework::kReduction) << "Master Node Type Must Be Reduce!";
-    }
-
-    // find master reducer node.
-    reducer = op_pattern_dict[master->op()] == framework::kReduction ? master : nullptr;
-    if (!group->fused_sub_groups.size()) {
-      for (auto node : group->master_nodes) {
-        if (op_pattern_dict[node->op()] == framework::kReduction) {
-          reducer = node;
-          break;
-        }
-      }
-    }
-    for (int idx = group->fused_sub_groups.size() - 1; idx >= 0 && !reducer; --idx) {
-      if (group->fused_sub_groups[idx]->op_pattern_kind != framework::kReduction) {
-        continue;
-      }
-      for (auto node : group->fused_sub_groups[idx]->master_nodes) {
-        if (op_pattern_dict[node->op()] == framework::kReduction) {
-          reducer = node;
-          break;
-        }
-      }
-    }
-    CHECK(reducer) << "Can't find Master reducer!";
 
     // do master schedule.
     if (op_pattern_dict[master->op()] != framework::kReduction) {
-      VLOG(2) << "Do Master Schedule!";
+      VLOG(2) << "Do Master Schedule : " << master->id();
       auto master_data = GetNodeData(master);
       CHECK(master_data);
       CHECK(tensor_map.count(master_data->id()));
