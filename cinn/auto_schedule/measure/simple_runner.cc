@@ -37,6 +37,12 @@ using hlir::framework::Tensor;
 // Key is the Op name, and value is the index of the input parameter in the Op.
 static const std::unordered_map<std::string, std::vector<int>> kInitWithZeroParams = {
     {"lookup_table", {1}},
+    {"gather", {1}},
+    {"gather_nd", {1}},
+    {"scatter", {1}},
+    {"scatter_nd", {1}},
+    {"scatter_assign", {2}},
+    {"scatter_add", {2}},
 };
 
 // Generate random value and populate them to the output address of memeory
