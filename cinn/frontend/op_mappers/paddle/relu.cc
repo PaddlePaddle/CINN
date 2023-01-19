@@ -27,8 +27,8 @@ void ReluOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
   auto x        = ctx.GetVar(x_name);
   auto out      = ctx.Builder()->Relu(x);
 
-  ctx.AddVar(out_name, out);
-  ctx.AddVarModelToProgram(out_name, out->id);
+  ctx.AddVar(out_name, out, true);
+  ctx.AddVarModelToProgram(out_name, out->id, true);
 }
 
 void Relu6OpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
@@ -41,8 +41,8 @@ void Relu6OpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ct
   auto x         = ctx.GetVar(x_name);
   auto out       = ctx.Builder()->Relu6(x, threshold);
 
-  ctx.AddVar(out_name, out);
-  ctx.AddVarModelToProgram(out_name, out->id);
+  ctx.AddVar(out_name, out, true);
+  ctx.AddVarModelToProgram(out_name, out->id, true);
 }
 
 void ReluGradOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
@@ -57,8 +57,8 @@ void ReluGradOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext&
   auto out  = ctx.GetVar(out_name);
   auto dx   = ctx.Builder()->ReluGrad(dout, out);
 
-  ctx.AddVar(dx_name, dx);
-  ctx.AddVarModelToProgram(dx_name, dx->id);
+  ctx.AddVar(dx_name, dx, true);
+  ctx.AddVarModelToProgram(dx_name, dx->id, true);
 }
 
 }  // namespace paddle_mappers

@@ -1244,7 +1244,7 @@ static void BufferMallocWithCallback(void* args, int num_args) {
   cinn_pod_value_t* pod_args = static_cast<cinn_pod_value_t*>(args);
   for (int i = 0; i < num_args; ++i) {
     cinn_buffer_t* buffer = static_cast<cinn_buffer_t*>(pod_args[i]);
-    CHECK(buffer->external_malloc) << "external_malloc is nullptr";
+    CHECK(buffer->external_malloc) << "external_malloc is nullptr at " << i << "-th argumemnts";
     buffer->external_malloc->operator()(nullptr, buffer);
   }
 }
@@ -1305,6 +1305,7 @@ void GraphCompiler::InsertBufferHandlers(std::vector<std::unique_ptr<Instruction
       auto function_name           = "malloc_buffer_instruction_" + std::to_string(step);
       auto malloc_instr            = std::make_unique<Instruction>(
           common::DefaultHostTarget(), scope_.get(), malloc_var_names, std::vector<std::string>({}), function_name);
+      VLOG(4) << "seting malloc function " << function_name << " for var " << cinn::utils::Join(malloc_var_names, ", ");
       malloc_instr->SetLoweredFunc(reinterpret_cast<void*>(BufferMallocWithCallback), function_name);
       malloc_instr->Finalize();
       results.emplace_back(std::move(malloc_instr));
@@ -1321,6 +1322,7 @@ void GraphCompiler::InsertBufferHandlers(std::vector<std::unique_ptr<Instruction
       auto function_name         = "free_buffer_instruction_" + std::to_string(step);
       auto free_instr            = std::make_unique<Instruction>(
           common::DefaultHostTarget(), scope_.get(), std::vector<std::string>({}), free_var_names, function_name);
+      VLOG(4) << "seting free function " << function_name << " for var " << cinn::utils::Join(free_var_names, ", ");
       free_instr->SetLoweredFunc(reinterpret_cast<void*>(BufferFreeWithCallback), function_name);
       free_instr->Finalize();
       results.emplace_back(std::move(free_instr));
