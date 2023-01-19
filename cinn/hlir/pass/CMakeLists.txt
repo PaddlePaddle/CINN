@@ -11,6 +11,7 @@ gather_srcs(cinnapi_src SRCS
     dot_merger.cc
     check_fusion_accuracy_pass.cc
     custom_call_pass.cc
+    common_subexpression_elimination.cc
     )
 
 #cc_test(test_opfusion SRCS opfusion_test.cc DEPS cinncore)
@@ -27,3 +28,4 @@ if (NOT WITH_CUDA)
 #cc_test(test_alterlayout SRCS alterlayout_test.cc DEPS cinncore)
 endif()
 cc_test(test_dot_merger SRCS test_dot_merger.cc DEPS cinncore)
+cc_test(test_common_subexpression_elimination SRCS common_subexpression_elimination_test.cc DEPS cinncore)
