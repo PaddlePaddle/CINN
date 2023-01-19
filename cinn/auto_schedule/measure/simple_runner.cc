@@ -100,7 +100,7 @@ static void InitTensorData(Tensor tensor, const common::Target& target, bool ini
 static std::unordered_set<std::string> ParamsNeedInitWithZero(const MeasureInput& input) {
   std::unordered_set<std::string> res;
   for (const auto& task_graph : input.task->task_graph) {
-    std::vector<hlir::framework::Node*> nodes = task_graph->nodes;
+    std::vector<hlir::framework::Node*> nodes = task_graph->CollectNodes();
     for (auto* node : nodes) {
       if (kInitWithZeroParams.count(node->op()->name) != 0) {
         std::vector<int> param_idxs = kInitWithZeroParams.at(node->op()->name);
