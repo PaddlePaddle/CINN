@@ -18,6 +18,7 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <cudnn.h>
+#include <curand.h>
 #include <glog/logging.h>
 
 #include <string>
@@ -42,6 +43,14 @@
     if (status != cudaSuccess) {                                   \
       LOG(FATAL) << "CUDA Error : " << cudaGetErrorString(status); \
     }                                                              \
+  }
+
+#define CURAND_CALL(func)                        \
+  {                                              \
+    auto status = func;                          \
+    if (status != CURAND_STATUS_SUCCESS) {       \
+      LOG(FATAL) << "CURAND Error : " << status; \
+    }                                            \
   }
 
 #define CUBLAS_CALL(func)                  \

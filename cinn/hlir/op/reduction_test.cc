@@ -179,6 +179,13 @@ TEST(Operator, Operator_Reduction_Case_2) {
   GenReduceCode(shape, dim, "reduce_cast_2", true);
 }
 
+TEST(Operator, Operator_Reduction_Case_2_1) {
+  std::vector<int> shape = {16, 16, 32, 32};
+  std::vector<int> dim   = {-1};
+
+  GenReduceCode(shape, dim, "reduce_cast_2_1", true);
+}
+
 TEST(Operator, Operator_Reduction_Case_3) {
   std::vector<int> shape = {16, 16, 64, 64};
   std::vector<int> dim   = {1};
@@ -226,6 +233,13 @@ TEST(Operator, Operator_Reduction_Case_6_00) {
   std::vector<int> dim   = {0, 1, 2};
 
   GenReduceCode(shape, dim, "reduce_cast_6_00", false);
+}
+
+TEST(Operator, Operator_Reduction_Case_6_10) {
+  std::vector<int> shape = {32, 32, 32};
+  std::vector<int> dim   = {-2, -1, 0};
+
+  GenReduceCode(shape, dim, "reduce_cast_6_10", true);
 }
 
 struct SumOp {

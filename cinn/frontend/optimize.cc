@@ -62,6 +62,8 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
   if (FLAGS_cinn_use_cublas_gemm) {
     options.graph_passes.push_back("MatmulToCublasCustomCallPass");
   }
+  options.graph_passes.push_back("GaussianRandomToCustomCallPass");
+  options.graph_passes.push_back("UniformRandomToCustomCallPass");
 #ifdef CINN_WITH_CUDNN
   if (FLAGS_cinn_use_cudnn_conv) {
     options.graph_passes.push_back("ConvToCudnnCustomCallPass");

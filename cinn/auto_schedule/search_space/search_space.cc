@@ -283,7 +283,6 @@ std::vector<SearchState> SearchSpace::ApplySketchRule(const SearchState& state,
       new_states.insert(new_states.end(), tmp_states.begin(), tmp_states.end());
       bool need_prune = false;
       if (prune_by_rule) {
-        // At present, we only retain the state after applying the rule and discard the original state
         need_prune = (type == RuleApplyType::kApplyAndPruneOtherRules);
       } else {
         std::mt19937 rng;
