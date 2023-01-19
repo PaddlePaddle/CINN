@@ -166,7 +166,7 @@ RuleApplyType AutoInline::AnalyseApplyType(SearchState state, const std::string&
   AnalyzeScheduleBlockReadWriteBuffer(block_realize->schedule_block.As<ir::ScheduleBlock>());
   AutoInlineType type = AnalyzeInlineType(block_expr, &state->ir_schedule);
 
-  return type == AutoInlineType::kCannotInline ? RuleApplyType::kCannotApply : RuleApplyType::kApplyAndSkipAllRules;
+  return type == AutoInlineType::kCannotInline ? RuleApplyType::kCannotApply : RuleApplyType::kApplyAndPruneOtherRules;
 }
 
 std::vector<SearchState> AutoInline::ApplyOnBlock(SearchState state, const std::string& block_name) {

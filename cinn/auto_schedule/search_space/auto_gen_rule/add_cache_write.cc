@@ -59,8 +59,8 @@ RuleApplyType AddCacheWrite::Init(ir::IRSchedule* ir_schedule) {
   VLOG(6) << "Collect applicable_schedule_blocks_:" << num_applicable_;
 
   if (num_applicable_ > 0) {
-    if (*target_ == common::DefaultNVGPUTarget()) return RuleApplyType::kApplyAndSkipAllRules;
-    if (*target_ == common::DefaultHostTarget()) return RuleApplyType::kApplyAndSkipThisRule;
+    if (*target_ == common::DefaultNVGPUTarget()) return RuleApplyType::kApplyAndPruneOtherRules;
+    if (*target_ == common::DefaultHostTarget()) return RuleApplyType::kApply;
   }
 
   return RuleApplyType::kCannotApply;
@@ -114,8 +114,12 @@ RuleApplyType AddCacheWrite::AnalyseApplyType(SearchState state, const std::stri
   // Prepare the read/write buffer information of the block,
   // which will be used to analyze which buffers can be cached.
   AnalyzeScheduleBlockReadWriteBuffer(block_realize->schedule_block.As<ir::ScheduleBlock>());
-  return MeetCondition(&(state->ir_schedule), block_realize) ? RuleApplyType::kApplyAndSkipAllRules
-                                                             : RuleApplyType::kCannotApply;
+  if (MeetCondition(&(state->ir_schedule), block_realize)) {
+    return RuleApplyType::kCannotApply;
+  }
+  if (*target_ == common::DefaultNVGPUTarget()) return RuleApplyType::kApplyAndPruneOtherRules;
+  if (*target_ == common::DefaultHostTarget()) return RuleApplyType::kApply;
+  return RuleApplyType::kCannotApply;
 }
 
 std::vector<SearchState> AddCacheWrite::ApplyOnBlock(SearchState state, const std::string& block_name) {

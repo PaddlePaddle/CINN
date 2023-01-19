@@ -57,7 +57,7 @@ RuleApplyType AddCacheRead::Init(ir::IRSchedule* ir_schedule) {
   }
   VLOG(6) << "Collect applicable_schedule_blocks_:" << num_applicable_;
 
-  return num_applicable_ > 0 ? RuleApplyType::kApplyAndSkipAllRules : RuleApplyType::kCannotApply;
+  return num_applicable_ > 0 ? RuleApplyType::kApplyAndPruneOtherRules : RuleApplyType::kCannotApply;
 }
 
 void AddCacheRead::Apply(int index) {
@@ -72,7 +72,7 @@ RuleApplyType AddCacheRead::AnalyseApplyType(SearchState state, const std::strin
   AnalyzeScheduleBlockReadWriteBuffer(
       block_expr.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>());
   if (MeetCondition(&state->ir_schedule, block_expr)) {
-    return RuleApplyType::kApplyAndSkipAllRules;
+    return RuleApplyType::kApplyAndPruneOtherRules;
   }
 
   return RuleApplyType::kCannotApply;

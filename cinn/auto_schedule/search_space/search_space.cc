@@ -99,11 +99,9 @@ SearchState SearchSpace::RandomScheduleMutate(const SearchState& state) {
   // 3. Sample a schedule on the distribution
   int sample_weighted_index = rand() % cur_weight;
 
-  auto iter = weight_to_rule_index.lower_bound(sample_weighted_index);
-  if (iter->first > sample_weighted_index) {
-    // weight_to_rule must contain key 0, and sample_index >= 0, so --iter won't exceed the beginning.
-    --iter;
-  }
+  auto iter = weight_to_rule_index.upper_bound(sample_weighted_index);
+  --iter;
+
   int sample_rule_index = iter->second;
   CHECK_LT(sample_rule_index, ret->applicable_rules.size());
   AutoGenRule* sample_rule = ret->applicable_rules.at(sample_rule_index);
@@ -112,10 +110,8 @@ SearchState SearchSpace::RandomScheduleMutate(const SearchState& state) {
   sample_rule->Apply(sample_weighted_index - iter->first);
 
   // 5. Remove the rule after applying it
-  if (apply_types.at(sample_rule_index) == RuleApplyType::kApplyAndSkipThisRule) {
+  if (apply_types.at(sample_rule_index) != RuleApplyType::kCannotApply) {
     ret->applicable_rules.erase(ret->applicable_rules.begin() + sample_rule_index);
-  } else if (apply_types.at(sample_rule_index) == RuleApplyType::kApplyAndSkipAllRules) {
-    ret->applicable_rules.clear();
   }
 
   return ret;
@@ -288,7 +284,7 @@ std::vector<SearchState> SearchSpace::ApplySketchRule(const SearchState& state,
       bool need_prune = false;
       if (prune_by_rule) {
         // At present, we only retain the state after applying the rule and discard the original state
-        need_prune = (type == RuleApplyType::kApplyAndSkipAllRules);
+        need_prune = (type == RuleApplyType::kApplyAndPruneOtherRules);
       } else {
         std::mt19937 rng;
         rng.seed(std::random_device()());

@@ -63,9 +63,9 @@ TEST_F(TestAddCacheWriteWith2DMatmul, Init) {
   AddCacheWrite add_cache_write(target_);
   auto apply_type = add_cache_write.Init(&ir_schedule_matmul);
 #ifdef CINN_WITH_CUDA
-  EXPECT_EQ(apply_type, RuleApplyType::kApplyAndSkipAllRules);
+  EXPECT_EQ(apply_type, RuleApplyType::kApplyAndPruneOtherRules);
 #else
-  EXPECT_EQ(apply_type, RuleApplyType::kApplyAndSkipThisRule);
+  EXPECT_EQ(apply_type, RuleApplyType::kApply);
 #endif
   EXPECT_EQ(add_cache_write.NumberApplicable(), 1);
   add_cache_write.ApplyRandomly();
@@ -105,7 +105,7 @@ TEST_F(TestAddCacheWriteWith2DMatmul, BasicApplyOnMatmul) {
 
   // ApplyOnBlock
   // Apply AddCacheWrite.
-  EXPECT_EQ(add_cache_write.AnalyseApplyType(state, "C"), RuleApplyType::kApplyAndSkipAllRules);
+  EXPECT_EQ(add_cache_write.AnalyseApplyType(state, "C"), RuleApplyType::kApplyAndPruneOtherRules);
   auto new_states             = add_cache_write.ApplyOnBlock(state, "C");
   std::vector<ir::Expr> exprs = new_states[0]->ir_schedule.GetModule().GetExprs();
   EXPECT_EQ(exprs.size(), 1UL);
@@ -147,13 +147,13 @@ TEST_F(TestAddCacheWriteWith2DMatmul, ApplyOnMatmulWithTiling) {
   ir_schedule = Initialize("matmul_apply_add_cache_write_on_block", {{32, 32}, {32, 32}}, {{32, 32}});
   SearchState state(ir_schedule, 0, {});
   // Apply MultiLevelTiling before AddCacheRead.
-  EXPECT_EQ(multi_level_tiling.AnalyseApplyType(state, "C"), RuleApplyType::kApplyAndSkipThisRule);
+  EXPECT_EQ(multi_level_tiling.AnalyseApplyType(state, "C"), RuleApplyType::kApplyAndPruneOtherRules);
   auto states_after_tiling    = multi_level_tiling.ApplyOnBlock(state, "C");
   std::vector<ir::Expr> exprs = states_after_tiling[0]->ir_schedule.GetModule().GetExprs();
   EXPECT_EQ(exprs.size(), 1UL);
   VLOG(6) << "Expr after MultiLevelTiling applied on block: " << exprs[0];
   // Apply AddCacheRead.
-  EXPECT_EQ(add_cache_write.AnalyseApplyType(state, "C"), RuleApplyType::kApplyAndSkipAllRules);
+  EXPECT_EQ(add_cache_write.AnalyseApplyType(state, "C"), RuleApplyType::kApplyAndPruneOtherRules);
   auto states_after_cache_write = add_cache_write.ApplyOnBlock(state, "C");
   exprs                         = states_after_cache_write[0]->ir_schedule.GetModule().GetExprs();
   EXPECT_EQ(exprs.size(), 1UL);

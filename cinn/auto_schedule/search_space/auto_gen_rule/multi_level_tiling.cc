@@ -76,7 +76,7 @@ RuleApplyType MultiLevelTiling::Init(ir::IRSchedule* ir_schedule) {
     }
   }
 
-  return num_applicable_ > 0 ? RuleApplyType::kApplyAndSkipAllRules : RuleApplyType::kCannotApply;
+  return num_applicable_ > 0 ? RuleApplyType::kApplyAndPruneOtherRules : RuleApplyType::kCannotApply;
 }
 
 void MultiLevelTiling::Apply(int index) {
@@ -102,7 +102,7 @@ RuleApplyType MultiLevelTiling::AnalyseApplyType(SearchState state, const std::s
   CHECK(block_realize) << "stmt is not a ScheduleBlockRealize:" << block_expr;
   AnalyzeScheduleBlockReadWriteBuffer(block_realize->schedule_block.As<ir::ScheduleBlock>());
 
-  return NeedsMultiLevelTiling(*block_realize) ? RuleApplyType::kApplyAndSkipThisRule : RuleApplyType::kCannotApply;
+  return NeedsMultiLevelTiling(*block_realize) ? RuleApplyType::kApplyAndPruneOtherRules : RuleApplyType::kCannotApply;
 }
 
 std::vector<SearchState> MultiLevelTiling::ApplyOnBlock(SearchState state, const std::string& block_name) {

@@ -61,7 +61,7 @@ TEST_F(TestAddCacheReadWith2DMatmul, Init) {
   VLOG(6) << "Original Expr:\n" << func_bodys[0];
 
   AddCacheRead add_cache_read(target_);
-  ASSERT_EQ(add_cache_read.Init(&ir_schedule_matmul), RuleApplyType::kApplyAndSkipAllRules);
+  ASSERT_EQ(add_cache_read.Init(&ir_schedule_matmul), RuleApplyType::kApplyAndPruneOtherRules);
   ASSERT_EQ(add_cache_read.NumberApplicable(), 1);
   add_cache_read.ApplyRandomly();
   VLOG(6) << "Matmul Expr after AddCacheRead: " << func_bodys[0];
@@ -100,7 +100,7 @@ TEST_F(TestAddCacheReadWith2DMatmul, BasicApplyOnMatmul) {
 
   // ApplyOnBlock
   // Apply AddCacheRead.
-  EXPECT_EQ(add_cache_read.AnalyseApplyType(state, "C"), RuleApplyType::kApplyAndSkipAllRules);
+  EXPECT_EQ(add_cache_read.AnalyseApplyType(state, "C"), RuleApplyType::kApplyAndPruneOtherRules);
   auto new_states             = add_cache_read.ApplyOnBlock(state, "C");
   std::vector<ir::Expr> exprs = new_states[0]->ir_schedule.GetModule().GetExprs();
   EXPECT_EQ(exprs.size(), 1UL);
@@ -142,13 +142,13 @@ TEST_F(TestAddCacheReadWith2DMatmul, ApplyOnMatmulWithTiling) {
   ir_schedule = Initialize("matmul_apply_add_cache_read_on_block", {{32, 32}, {32, 32}}, {{32, 32}});
   SearchState state(ir_schedule, 0, {});
   // Apply MultiLevelTiling before AddCacheRead.
-  EXPECT_EQ(multi_level_tiling.AnalyseApplyType(state, "C"), RuleApplyType::kApplyAndSkipThisRule);
+  EXPECT_EQ(multi_level_tiling.AnalyseApplyType(state, "C"), RuleApplyType::kApplyAndPruneOtherRules);
   auto states_after_tiling    = multi_level_tiling.ApplyOnBlock(state, "C");
   std::vector<ir::Expr> exprs = states_after_tiling[0]->ir_schedule.GetModule().GetExprs();
   EXPECT_EQ(exprs.size(), 1UL);
   VLOG(6) << "Expr after MultiLevelTiling applied on block: " << exprs[0];
   // Apply AddCacheRead.
-  EXPECT_EQ(add_cache_read.AnalyseApplyType(states_after_tiling[0], "C"), RuleApplyType::kApplyAndSkipAllRules);
+  EXPECT_EQ(add_cache_read.AnalyseApplyType(states_after_tiling[0], "C"), RuleApplyType::kApplyAndPruneOtherRules);
   auto states_after_cache_read = add_cache_read.ApplyOnBlock(states_after_tiling[0], "C");
   exprs                        = states_after_cache_read[0]->ir_schedule.GetModule().GetExprs();
   EXPECT_EQ(exprs.size(), 1UL);
