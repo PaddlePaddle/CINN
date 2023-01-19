@@ -143,7 +143,7 @@ void cinn_assert_true(void* v_args, int msg, bool only_warning, void* stream) {
   }
 }
 
-void cinn_host_cholesky_float(void* v_args, int num_args, int msg, int batch_size, int m, bool upper) {
+void cinn_call_cholesky_host(void* v_args, int num_args, int batch_size, int m, bool upper) {
   cinn_pod_value_t* args = static_cast<cinn_pod_value_t*>(v_args);
 
   cinn_buffer_t* x   = args[0].operator cinn_buffer_t*();

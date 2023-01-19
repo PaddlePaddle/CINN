@@ -136,7 +136,7 @@ class GraphAlterHelper {
     }
   }
 
-  void CholeskyToMklCustomCall() {
+  void CholeskyToCustomCall() {
     auto nodes = graph_->CollectNodes([](const common::GraphNode* graph_node) -> bool {
       if (graph_node->safe_as<Node>()) {
         auto node = graph_node->safe_as<Node>();
@@ -148,11 +148,17 @@ class GraphAlterHelper {
       return false;
     });
 
+    Target target = common::DefaultTarget();
+
     for (auto gnode : nodes) {
       auto src = gnode->safe_as<Node>();
       CHECK(src);
-      src->attrs.op                        = framework::Operator::Get("custom_call");
-      src->attrs.attr_store["custom_call"] = std::string("cinn_host_cholesky_float");
+      src->attrs.op = framework::Operator::Get("custom_call");
+      if (target.arch == Target::Arch::X86) {
+        src->attrs.attr_store["custom_call"] = std::string("cinn_call_cholesky_host");
+      } else if (target.arch == Target::Arch::NVGPU) {
+        src->attrs.attr_store["custom_call"] = std::string("cinn_call_cholesky_nvgpu");
+      }
     }
   }
 
@@ -184,10 +190,10 @@ void UniformRandomToCustomCallInternal(Graph* graph) {
   VLOG(3) << "UniformRandomToCustomCall Finish...!";
 }
 
-void CholeskyToMklCustomCallPassInternal(Graph* graph) {
-  VLOG(3) << "CholeskyToMklCustomCallPass...!";
-  GraphAlterHelper(graph).CholeskyToMklCustomCall();
-  VLOG(3) << "CholeskyToMklCustomCallPass Finish...!";
+void CholeskyToCustomCallPassInternal(Graph* graph) {
+  VLOG(3) << "CholeskyToCustomCallPass...!";
+  GraphAlterHelper(graph).CholeskyToCustomCall();
+  VLOG(3) << "CholeskyToCustomCallPass Finish...!";
 }
 
 }  // namespace pass
@@ -215,10 +221,10 @@ CINN_REGISTER_HELPER(CustomCallPass) {
       .set_change_structure(false)
       .set_body(cinn::hlir::pass::ConvToCudnnCustomCallPassInternal);
 #endif
-  CINN_REGISTER_PASS(CholeskyToMklCustomCallPass)
+  CINN_REGISTER_PASS(CholeskyToCustomCallPass)
       .describe("This pass which convert cholesky op to custom call pass.")
       .set_change_structure(false)
-      .set_body(cinn::hlir::pass::CholeskyToMklCustomCallPassInternal);
+      .set_body(cinn::hlir::pass::CholeskyToCustomCallPassInternal);
 
   return true;
 }

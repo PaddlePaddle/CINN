@@ -18,6 +18,7 @@
 #include <cublas_v2.h>
 #include <cuda_runtime.h>
 #include <curand.h>
+#include <cusolverDn.h>
 #include <glog/logging.h>
 
 #include <algorithm>
@@ -933,6 +934,40 @@ void GemmStridedBatched(const cublasHandle_t &cublas,
 }
 
 }  // namespace details
+
+void cinn_call_cholesky_nvgpu(void *v_args, int num_args, int batch_size, int m, bool upper, void *stream) {
+  cinn_pod_value_t *args = static_cast<cinn_pod_value_t *>(v_args);
+  cinn_buffer_t *x       = args[0].operator cinn_buffer_t *();
+  cinn_buffer_t *out     = args[1].operator cinn_buffer_t *();
+  cublasFillMode_t uplo  = upper ? CUBLAS_FILL_MODE_UPPER : CUBLAS_FILL_MODE_LOWER;
+  // Copy data from x to out
+  void *x_ptr     = reinterpret_cast<void *>(x->memory);
+  void *out_ptr   = reinterpret_cast<void *>(out->memory);
+  float **out_arr = reinterpret_cast<float **>(&out_ptr);
+  CUDA_CALL(cudaMemcpy(out_ptr, x_ptr, x->memory_size, cudaMemcpyDeviceToDevice));
+  // Store the return value of each matrix
+  int *info_ptr = nullptr;
+  CUDA_CALL(cudaMalloc(reinterpret_cast<void **>(&info_ptr), batch_size * sizeof(int)));
+
+  cusolverDnHandle_t handler;
+  CUSOLVER_CALL(cusolverDnCreate(&handler));
+  CUSOLVER_CALL(cusolverDnSpotrfBatched(handler, uplo, m, out_arr, m, info_ptr, batch_size));
+
+  // Check result
+  // std::vector<int> info(batch_size, 0);
+  // CUDA_CALL(cudaMemcpy(info.data(), info_ptr, batch_size * sizeof(int), cudaMemcpyDeviceToHost));
+  // VLOG(6) << "Info: " << utils::Join(info, ", ") << "\n";
+  // std::vector<float> res(batch_size * m * m, 0.0f);
+  // CUDA_CALL(cudaMemcpy(reinterpret_cast<void*>(res.data()),
+  //                      reinterpret_cast<void*>(out_ptr),
+  //                      batch_size * m * m,
+  //                      cudaMemcpyDeviceToHost));
+  // VLOG(6) << "Res: " << utils::Join(res, ", ") << "\n";
+
+  // Clean
+  // CUDA_CALL(cudaFree(info_array));
+  CUSOLVER_CALL(cusolverDnDestroy(handler));
+}
 
 void cinn_gpu_cublas_mul(const std::vector<int> &attrs,
                          cinn_buffer_t *input1,

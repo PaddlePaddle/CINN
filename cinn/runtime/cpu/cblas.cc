@@ -18,7 +18,6 @@
 
 #include "cinn/backends/extern_func_jit_register.h"
 #include "cinn/common/cas.h"
-#include "mkl_lapacke.h"
 
 namespace {
 

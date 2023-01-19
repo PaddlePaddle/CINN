@@ -241,8 +241,9 @@ TEST(CustomCallUniformRandom, test_target_nvgpu) {
   }
 }
 
-TEST(CustomCallCholesky, test_target_host) {
-  Target target = common::DefaultHostTarget();
+TEST(CustomCallCholesky, test) {
+  Target target      = common::DefaultTarget();
+  Target host_target = common::DefaultHostTarget();
 
   // Batch size
   int batch_size = 1;
@@ -265,18 +266,25 @@ TEST(CustomCallCholesky, test_target_host) {
   // Result matrix res
   CinnBufferAllocHelper res(cinn_x86_device, cinn_float32_t(), {m, m});
   float result_h[9] = {0.98147416, 0, 0, 0.89824611, 0.76365214, 0, 0.41360193, 0.15284170, 0.055967092};
-  auto* result      = res.mutable_data<float>(target);
-  SetInputValue(result, result_h, m * m, target);
+  auto* result      = res.mutable_data<float>(host_target);
+  SetInputValue(result, result_h, m * m, host_target);
 
-  int num_args = 2;
+  int num_args               = 2;
   cinn_pod_value_t v_args[2] = {cinn_pod_value_t(x.get()), cinn_pod_value_t(out.get())};
 
-  std::stringstream ss;
-  ss << "Test Cholesky(upper=false) on " << target;
-  cinn_host_cholesky_float(v_args, num_args, std::hash<std::string>()(ss.str()), batch_size, m, upper);
-
-  for (int i = 0; i < batch_size * m * m; i++) {
-    ASSERT_EQ(output[i], result[i]) << "The output of Cholesky should be the same as result";
+  if (target == common::DefaultHostTarget()) {
+    cinn_call_cholesky_host(v_args, num_args, batch_size, m, upper);
+    for (int i = 0; i < batch_size * m * m; i++) {
+      ASSERT_EQ(output[i], result[i]) << "The output of Cholesky should be the same as result";
+    }
+  } else if (target == common::DefaultNVGPUTarget()) {
+    cinn::runtime::cuda::cinn_call_cholesky_nvgpu(v_args, num_args, batch_size, m, upper);
+    CinnBufferAllocHelper gpu_out(cinn_x86_device, cinn_float32_t(), {m, m});
+    auto* gpu_output = gpu_out.mutable_data<float>(host_target);
+    cudaMemcpy(gpu_output, output, batch_size * m * m * sizeof(float), cudaMemcpyDeviceToHost);
+    for (int i = 0; i < batch_size * m * m; i++) {
+      ASSERT_EQ(gpu_output[i], result[i]) << "The output of Cholesky should be the same as result";
+    }
   }
 }
 
