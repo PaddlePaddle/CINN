@@ -264,10 +264,9 @@ TEST(CustomCallCholesky, test) {
   auto* output = out.mutable_data<float>(target);
 
   // Result matrix res
-  CinnBufferAllocHelper res(cinn_x86_device, cinn_float32_t(), {m, m});
-  float result_h[9] = {0.98147416, 0, 0, 0.89824611, 0.76365214, 0, 0.41360193, 0.15284170, 0.055967092};
-  auto* result      = res.mutable_data<float>(host_target);
-  SetInputValue(result, result_h, m * m, host_target);
+  // The results of cpu and gpu are slightly different, 0.76365214 vs 0.76365220
+  float result_host[9] = {0.98147416, 0, 0, 0.89824611, 0.76365214, 0, 0.41360193, 0.15284170, 0.055967092};
+  float result_cuda[9] = {0.98147416, 0, 0, 0.89824611, 0.76365220, 0, 0.41360193, 0.15284170, 0.055967092};
 
   int num_args               = 2;
   cinn_pod_value_t v_args[2] = {cinn_pod_value_t(x.get()), cinn_pod_value_t(out.get())};
@@ -275,15 +274,14 @@ TEST(CustomCallCholesky, test) {
   if (target == common::DefaultHostTarget()) {
     cinn_call_cholesky_host(v_args, num_args, batch_size, m, upper);
     for (int i = 0; i < batch_size * m * m; i++) {
-      ASSERT_EQ(output[i], result[i]) << "The output of Cholesky should be the same as result";
+      ASSERT_EQ(output[i], result_host[i]) << "The output of Cholesky should be the same as result";
     }
   } else if (target == common::DefaultNVGPUTarget()) {
     cinn::runtime::cuda::cinn_call_cholesky_nvgpu(v_args, num_args, batch_size, m, upper);
-    CinnBufferAllocHelper gpu_out(cinn_x86_device, cinn_float32_t(), {m, m});
-    auto* gpu_output = gpu_out.mutable_data<float>(host_target);
-    cudaMemcpy(gpu_output, output, batch_size * m * m * sizeof(float), cudaMemcpyDeviceToHost);
+    std::vector<float> host_output(batch_size * m * m, 0.0f);
+    cudaMemcpy(host_output.data(), output, batch_size * m * m * sizeof(float), cudaMemcpyDeviceToHost);
     for (int i = 0; i < batch_size * m * m; i++) {
-      ASSERT_EQ(gpu_output[i], result[i]) << "The output of Cholesky should be the same as result";
+      ASSERT_EQ(host_output[i], result_cuda[i]) << "The output of Cholesky should be the same as result";
     }
   }
 }

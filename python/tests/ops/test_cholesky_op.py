@@ -26,6 +26,7 @@ from cinn.common import *
 class TestCholeskyOp(OpTest):
     def setUp(self):
         # self.target = DefaultHostTarget()
+        self.target = DefaultNVGPUTarget()
         self.init_case()
 
     def init_case(self):
@@ -55,7 +56,6 @@ class TestCholeskyOp(OpTest):
         prog = builder.build()
         res = self.get_cinn_output(
             prog, target, [x], [self.inputs["x"]], [out], passes=[])
-        print(res)
         self.cinn_outputs = [res[0]]
 
     def test_check_results(self):
@@ -64,57 +64,51 @@ class TestCholeskyOp(OpTest):
         self.check_outputs_and_grads()
 
 
-# class TestCholeskyCase1(TestCholeskyOp):
-#     def init_case(self):
-#         self.inputs = {
-#             "x": np.array([[
-#                 [0.96329159, 0.88160539, 0.40593964],
-#                 [0.88160539, 1.39001071, 0.48823422],
-#                 [0.40593964, 0.48823422, 0.19755946]
-#             ], [
-#                 [0.96329159, 0.88160539, 0.40593964],
-#                 [0.88160539, 1.39001071, 0.48823422],
-#                 [0.40593964, 0.48823422, 0.19755946]
-#             ]]).astype(np.float32)
-#         }
-#         self.outputs = {
-#             "y": np.array([[
-#                 [0.98147416, 0., 0.],
-#                 [0.89824611, 0.76365221, 0.],
-#                 [0.41360193, 0.15284170, 0.05596709]
-#             ], [
-#                 [0.98147416, 0., 0.],
-#                 [0.89824611, 0.76365221, 0.],
-#                 [0.41360193, 0.15284170, 0.05596709]
-#             ]]).astype(np.float32)
-#         }
-#         self.upper = False
+class TestCholeskyCase1(TestCholeskyOp):
+    def init_case(self):
+        self.inputs = {
+            "x":
+            np.array([[[0.96329159, 0.88160539, 0.40593964],
+                       [0.88160539, 1.39001071, 0.48823422],
+                       [0.40593964, 0.48823422, 0.19755946]],
+                      [[0.96329159, 0.88160539, 0.40593964],
+                       [0.88160539, 1.39001071, 0.48823422],
+                       [0.40593964, 0.48823422,
+                        0.19755946]]]).astype(np.float32)
+        }
+        self.outputs = {
+            "y":
+            np.array([[[0.98147416, 0., 0.], [0.89824611, 0.76365221, 0.],
+                       [0.41360193, 0.15284170, 0.05596709]],
+                      [[0.98147416, 0., 0.], [0.89824611, 0.76365221, 0.],
+                       [0.41360193, 0.15284170,
+                        0.05596709]]]).astype(np.float32)
+        }
+        self.upper = False
 
-# class TestCholeskyCase2(TestCholeskyOp):
-#     def init_case(self):
-#         self.inputs = {
-#             "x": np.array([[
-#                 [0.96329159, 0.88160539, 0.40593964],
-#                 [0.88160539, 1.39001071, 0.48823422],
-#                 [0.40593964, 0.48823422, 0.19755946]
-#             ], [
-#                 [0.96329159, 0.88160539, 0.40593964],
-#                 [0.88160539, 1.39001071, 0.48823422],
-#                 [0.40593964, 0.48823422, 0.19755946]
-#             ]]).astype(np.float32)
-#         }
-#         self.outputs = {
-#             "y": np.array([[
-#                 [0.98147416, 0.89824611, 0.41360193],
-#                 [0., 0.76365221, 0.15284170],
-#                 [0., 0., 0.05596709]
-#             ], [
-#                 [0.98147416, 0.89824611, 0.41360193],
-#                 [0., 0.76365221, 0.15284170],
-#                 [0., 0., 0.05596709]
-#             ]]).astype(np.float32)
-#         }
-#         self.upper = True
+
+class TestCholeskyCase2(TestCholeskyOp):
+    def init_case(self):
+        self.inputs = {
+            "x":
+            np.array([[[0.96329159, 0.88160539, 0.40593964],
+                       [0.88160539, 1.39001071, 0.48823422],
+                       [0.40593964, 0.48823422, 0.19755946]],
+                      [[0.96329159, 0.88160539, 0.40593964],
+                       [0.88160539, 1.39001071, 0.48823422],
+                       [0.40593964, 0.48823422,
+                        0.19755946]]]).astype(np.float32)
+        }
+        self.outputs = {
+            "y":
+            np.array([[[0.98147416, 0.89824611, 0.41360193],
+                       [0., 0.76365221, 0.15284170], [0., 0., 0.05596709]],
+                      [[0.98147416, 0.89824611, 0.41360193],
+                       [0., 0.76365221, 0.15284170],
+                       [0., 0., 0.05596709]]]).astype(np.float32)
+        }
+        self.upper = True
+
 
 if __name__ == "__main__":
     unittest.main()

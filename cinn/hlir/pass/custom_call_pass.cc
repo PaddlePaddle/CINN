@@ -148,7 +148,7 @@ class GraphAlterHelper {
       return false;
     });
 
-    Target target = common::DefaultTarget();
+    Target target = graph_->target_;
 
     for (auto gnode : nodes) {
       auto src = gnode->safe_as<Node>();

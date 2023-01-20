@@ -60,11 +60,11 @@ std::shared_ptr<framework::OpStrategy> StrategyForCholesky(const framework::Node
   framework::CINNCompute cholesky_compute([=](lang::Args args, lang::RetValue *ret) {
     CINNValuePack pack_args = args[0];
     CHECK(!pack_args.empty()) << "at least one input tensor for cholesky compute\n";
-    Expr x_expr = pack_args[0];
-    ir::Tensor x = x_expr.as_tensor_ref();
+    Expr x_expr             = pack_args[0];
+    ir::Tensor x            = x_expr.as_tensor_ref();
     std::string tensor_name = "cholesky_out";
-    auto out = pe::Identity(x, tensor_name).front();
-    auto stages  = CreateStages({out});
+    auto out                = pe::Identity(x, tensor_name).front();
+    auto stages             = CreateStages({out});
     std::vector<CINNValue> res{CINNValue(out), CINNValue(stages)};
     *ret = CINNValuePack{res};
   });
@@ -77,19 +77,18 @@ std::vector<framework::shape_t> InferShapeForCholesky(const std::vector<framewor
                                                       const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 1U) << "The input's shape size should be 1! Please check again.";
   framework::shape_t x_shape = inputs_shape[0];
-  int x_shape_size = x_shape.size();
+  int x_shape_size           = x_shape.size();
   CHECK_GE(x_shape_size, 2U) << "The input x shape size should >= 2! Please check again.";
-  CHECK_EQ(x_shape[x_shape_size - 2], x_shape[x_shape_size - 1]) << "The last two dimensions of the input x must be the same!";
+  CHECK_EQ(x_shape[x_shape_size - 2], x_shape[x_shape_size - 1])
+      << "The last two dimensions of the input x must be the same!";
   return inputs_shape;
 }
 
-std::vector<Type> InferDtypeForCholesky(const std::vector<Type> &inputs_type,
-                                        const framework::AttrMapType &attrs) {
+std::vector<Type> InferDtypeForCholesky(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_type.size(), 1U) << "The input's shape size should be 1! Please check again.";
   CHECK(inputs_type[0].is_float()) << "The input's dtype should be float32! Please check again.";
   return inputs_type;
 }
-
 
 }  // namespace op
 }  // namespace hlir
@@ -97,14 +96,14 @@ std::vector<Type> InferDtypeForCholesky(const std::vector<Type> &inputs_type,
 
 CINN_REGISTER_HELPER(cholesky_ops) {
   CINN_REGISTER_OP(cholesky)
-    .describe("Cholesky")
-    .set_num_inputs(1)
-    .set_num_outputs(1)
-    .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForCholesky)
-    .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForCholesky))
-    .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForCholesky))
-    .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElementWise)
-    .set_support_level(4);
+      .describe("Cholesky")
+      .set_num_inputs(1)
+      .set_num_outputs(1)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForCholesky)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForCholesky))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForCholesky))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElementWise)
+      .set_support_level(4);
 
   return true;
 }
