@@ -140,7 +140,7 @@ RuleApplyType AutoInline::Init(ir::IRSchedule* ir_schedule) {
     }
   }
 
-  return num_applicable_ > 0 ? RuleApplyType::kApply : RuleApplyType::kCannotApply;
+  return num_applicable_ > 0 ? RuleApplyType::kApplyAndPruneOtherRules : RuleApplyType::kCannotApply;
 }
 
 void AutoInline::Apply(int index) {

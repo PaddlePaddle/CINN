@@ -80,6 +80,7 @@ TEST(EvolutionarySearch, GetOneBest) {
   ExprCostModel cost_model;
   TuningOptions options;
   Database db(2);
+  mock_tune_task.target = common::DefaultTarget();
   EvolutionarySearch evolutionary_search(mock_tune_task, cost_model, &db);
 
   MockSearchSpace* mock_search_space = new MockSearchSpace(mock_tune_task);
@@ -98,6 +99,7 @@ TEST(EvolutionarySearch, GetEpsGreedy) {
   ExprCostModel cost_model;
   TuningOptions options;
   Database db(2);
+  mock_tune_task.target = common::DefaultTarget();
   EvolutionarySearch evolutionary_search(mock_tune_task, cost_model, &db);
 
   MockSearchSpace* mock_search_space = new MockSearchSpace(mock_tune_task);

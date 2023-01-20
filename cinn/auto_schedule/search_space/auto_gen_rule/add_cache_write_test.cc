@@ -105,7 +105,12 @@ TEST_F(TestAddCacheWriteWith2DMatmul, BasicApplyOnMatmul) {
 
   // ApplyOnBlock
   // Apply AddCacheWrite.
-  EXPECT_EQ(add_cache_write.AnalyseApplyType(state, "C"), RuleApplyType::kApplyAndPruneOtherRules);
+  auto apply_type = add_cache_write.AnalyseApplyType(state, "C");
+#ifdef CINN_WITH_CUDA
+  EXPECT_EQ(apply_type, RuleApplyType::kApplyAndPruneOtherRules);
+#else
+  EXPECT_EQ(apply_type, RuleApplyType::kApply);
+#endif
   auto new_states             = add_cache_write.ApplyOnBlock(state, "C");
   std::vector<ir::Expr> exprs = new_states[0]->ir_schedule.GetModule().GetExprs();
   EXPECT_EQ(exprs.size(), 1UL);
@@ -147,13 +152,19 @@ TEST_F(TestAddCacheWriteWith2DMatmul, ApplyOnMatmulWithTiling) {
   ir_schedule = Initialize("matmul_apply_add_cache_write_on_block", {{32, 32}, {32, 32}}, {{32, 32}});
   SearchState state(ir_schedule, 0, {});
   // Apply MultiLevelTiling before AddCacheRead.
-  EXPECT_EQ(multi_level_tiling.AnalyseApplyType(state, "C"), RuleApplyType::kApplyAndPruneOtherRules);
+  auto apply_type = multi_level_tiling.AnalyseApplyType(state, "C");
+  EXPECT_EQ(apply_type, RuleApplyType::kApplyAndPruneOtherRules);
   auto states_after_tiling    = multi_level_tiling.ApplyOnBlock(state, "C");
   std::vector<ir::Expr> exprs = states_after_tiling[0]->ir_schedule.GetModule().GetExprs();
   EXPECT_EQ(exprs.size(), 1UL);
   VLOG(6) << "Expr after MultiLevelTiling applied on block: " << exprs[0];
   // Apply AddCacheRead.
-  EXPECT_EQ(add_cache_write.AnalyseApplyType(state, "C"), RuleApplyType::kApplyAndPruneOtherRules);
+  apply_type = add_cache_write.AnalyseApplyType(state, "C");
+#ifdef CINN_WITH_CUDA
+  EXPECT_EQ(apply_type, RuleApplyType::kApplyAndPruneOtherRules);
+#else
+  EXPECT_EQ(apply_type, RuleApplyType::kApply);
+#endif
   auto states_after_cache_write = add_cache_write.ApplyOnBlock(state, "C");
   exprs                         = states_after_cache_write[0]->ir_schedule.GetModule().GetExprs();
   EXPECT_EQ(exprs.size(), 1UL);

@@ -115,10 +115,10 @@ RuleApplyType AddCacheWrite::AnalyseApplyType(SearchState state, const std::stri
   // which will be used to analyze which buffers can be cached.
   AnalyzeScheduleBlockReadWriteBuffer(block_realize->schedule_block.As<ir::ScheduleBlock>());
   if (MeetCondition(&(state->ir_schedule), block_realize)) {
-    return RuleApplyType::kCannotApply;
+    if (*target_ == common::DefaultNVGPUTarget()) return RuleApplyType::kApplyAndPruneOtherRules;
+    if (*target_ == common::DefaultHostTarget()) return RuleApplyType::kApply;
   }
-  if (*target_ == common::DefaultNVGPUTarget()) return RuleApplyType::kApplyAndPruneOtherRules;
-  if (*target_ == common::DefaultHostTarget()) return RuleApplyType::kApply;
+
   return RuleApplyType::kCannotApply;
 }
 
