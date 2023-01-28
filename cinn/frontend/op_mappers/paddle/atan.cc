@@ -12,21 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <variant>
+
 #include "cinn/frontend/op_mapper_registry.h"
 #include "cinn/frontend/op_mappers/common_utils.h"
+#include "cinn/utils/string.h"
 
 namespace cinn {
 namespace frontend {
 namespace paddle_mappers {
 
-void SigmoidOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
-  CHECK_EQ(op_desc.Input("X").size(), 1UL);
-  auto x_name = op_desc.Input("X").front();
+void Atan2OpMapper(const paddle::cpp::OpDesc& op_desc, const cinn::frontend::OpMapperContext& ctx) {
+  CHECK_EQ(op_desc.Input("X1").size(), 1UL);
+  auto x1_name = op_desc.Input("X1").front();
+  CHECK_EQ(op_desc.Input("X2").size(), 1UL);
+  auto x2_name = op_desc.Input("X2").front();
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
   auto out_name = op_desc.Output("Out").front();
 
-  auto x   = ctx.GetVar(x_name);
-  auto out = ctx.Builder()->Sigmoid(x);
+  auto x1 = ctx.GetVar(x1_name);
+  auto x2 = ctx.GetVar(x2_name);
+
+  auto out = ctx.Builder()->Atan2(x1, x2);
 
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);
@@ -36,7 +43,7 @@ void SigmoidOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& 
 }  // namespace frontend
 }  // namespace cinn
 
-CINN_REGISTER_HELPER(paddle_sigmoid) {
-  CINN_REGISTER_OP_MAPPER(sigmoid, cinn::frontend::paddle_mappers::SigmoidOpMapper)
+CINN_REGISTER_HELPER(paddle_atan) {
+  CINN_REGISTER_OP_MAPPER(atan2, cinn::frontend::paddle_mappers::Atan2OpMapper)
   return true;
 }

@@ -14,6 +14,7 @@
 
 #include "cinn/hlir/pe/reduction.h"
 
+#include <algorithm>
 #include <iostream>
 #include <vector>
 
@@ -54,17 +55,22 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
                                               BlockReduceFunc gpu_reduce_without_last_axis_func,
                                               ReduceFunc cpu_reduce_func) {
   std::vector<int> reduce_axes;
+  auto ndim = inputs[0]->shape.size();
   if (attrs.attr_store.count("dim")) {
     reduce_axes = absl::get<std::vector<int>>(attrs.attr_store.at("dim"));
     if (reduce_axes.empty()) {
-      for (int i = 0; i < inputs[0]->shape.size(); ++i) {
+      for (int i = 0; i < ndim; ++i) {
         reduce_axes.push_back(i);
       }
+    } else {
+      std::for_each(reduce_axes.begin(), reduce_axes.end(), [&ndim](int &x) {
+        if (x < 0) x += ndim;
+      });
     }
     std::sort(reduce_axes.begin(), reduce_axes.end());
     // check reduce_axes
-    CHECK_LE(reduce_axes.size(), inputs[0]->shape.size());
-    CHECK_LT(reduce_axes.back(), inputs[0]->shape.size());
+    CHECK_LE(reduce_axes.size(), ndim);
+    CHECK_LT(reduce_axes.back(), ndim);
     for (int idx = 1; idx < reduce_axes.size(); ++idx) {
       CHECK_NE(reduce_axes[idx - 1], reduce_axes[idx]);
     }
@@ -382,6 +388,10 @@ std::vector<shape_t> InferShapeForReduction(const std::vector<shape_t> &inputs_s
     for (int i = 0; i < ndim; ++i) {
       dim.emplace_back(i);
     }
+  } else {
+    std::for_each(dim.begin(), dim.end(), [&ndim](int &x) {
+      if (x < 0) x += ndim;
+    });
   }
 
   std::vector<int> out_shapes;

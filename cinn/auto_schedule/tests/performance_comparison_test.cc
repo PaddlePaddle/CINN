@@ -253,10 +253,9 @@ TEST_F(PerformanceTester, Reshape) {
 
 TEST_F(PerformanceTester, Softmax) {
   std::vector<int32_t> input_shape{batch_size, 1000};
-  int axis                = -1;
-  std::string data_format = "AnyLayout";
+  int axis = -1;
 
-  Evaluate(SoftmaxProgramBuilder(input_shape, axis, data_format)());
+  Evaluate(SoftmaxProgramBuilder(input_shape, {axis})());
 }
 
 TEST_F(PerformanceTester, Scale) {
@@ -266,6 +265,20 @@ TEST_F(PerformanceTester, Scale) {
   bool bias_after_scale = true;
 
   Evaluate(ScaleProgramBuilder(input_shape, scale, bias, bias_after_scale)());
+}
+
+TEST_F(PerformanceTester, LookupTable) {
+  std::vector<int32_t> table_shape{50001, 768};
+  std::vector<int32_t> ids_shape{10, 128, 1};
+
+  Evaluate(LookupTableProgramBuilder(table_shape, ids_shape, -1)());
+}
+
+TEST_F(PerformanceTester, Gather) {
+  std::vector<int32_t> operand_shape{10, 12, 128, 512};
+  std::vector<int32_t> index_shape{128};
+
+  Evaluate(GatherProgramBuilder(operand_shape, index_shape, 3)());
 }
 
 // paddle model test

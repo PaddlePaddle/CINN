@@ -452,10 +452,20 @@ CINN_BUILD_STEP_KIND(AnnotateStringAttr)
     .Attrs({"key", "value"})
     .SetApplyFn(APPLY_FUNC_UNIFORM(AnnotateStringAttr));
 
+CINN_BUILD_STEP_KIND(Unannotate)
+    .Inputs({"block"})
+    .Attrs({"key"})
+    .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(&IRSchedule::Unannotate)));
+
 CINN_BUILD_STEP_KIND(FlattenLoops)
     .Inputs({"loops"})
     .Attrs({"force_flat"})
     .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(&IRSchedule::FlattenLoops)));
+
+CINN_BUILD_STEP_KIND(SamplePerfectTile)
+    .Inputs({"loop"})
+    .Attrs({"n","max_innermost_factor"})
+    .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(&IRSchedule::SamplePerfectTile)));
 
 // clang-format on
 

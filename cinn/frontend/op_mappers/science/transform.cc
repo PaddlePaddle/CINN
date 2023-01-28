@@ -253,7 +253,7 @@ EXPAND_REDUCE_OPMAPPER(All)
 EXPAND_REDUCE_OPMAPPER(Any)
 #undef EXPAND_REDUCE_OPMAPPER
 
-void IndexSelectOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+void GatherOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
   auto x_name = op_desc.Input("X").front();
   CHECK_EQ(op_desc.Input("IndexTensor").size(), 1UL);
@@ -266,11 +266,11 @@ void IndexSelectOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperConte
   auto x     = ctx.GetVar(x_name);
   auto index = ctx.GetVar(index_name);
 
-  VLOG(4) << "IndexSelect " << index_name << " (" << cinn::utils::Join(index->shape, ",") << ") from " << x_name
+  VLOG(4) << "Gather " << index_name << " (" << cinn::utils::Join(index->shape, ",") << ") from " << x_name
           << " shape (" << cinn::utils::Join(x->shape, ",") << ") "
           << "at dimension " << axis;
 
-  auto out = ctx.Builder()->IndexSelect(x, index, axis);
+  auto out = ctx.Builder()->Gather(x, index, axis);
 
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);
@@ -381,8 +381,8 @@ CINN_REGISTER_HELPER(science_transform) {
   CINN_REGISTER_OP_MAPPER(transpose_p, cinn::frontend::science_mappers::TransposeOpMapper)
   CINN_REGISTER_OP_MAPPER(slice_select_p, cinn::frontend::science_mappers::SliceSelectOpMapper)
   CINN_REGISTER_OP_MAPPER(slice_assign_p, cinn::frontend::science_mappers::SliceAssignOpMapper)
-  CINN_REGISTER_OP_MAPPER(index_select_p, cinn::frontend::science_mappers::IndexSelectOpMapper)
-  CINN_REGISTER_OP_MAPPER(gather_p, cinn::frontend::science_mappers::IndexSelectOpMapper)
+  CINN_REGISTER_OP_MAPPER(index_select_p, cinn::frontend::science_mappers::GatherOpMapper)
+  CINN_REGISTER_OP_MAPPER(gather_p, cinn::frontend::science_mappers::GatherOpMapper)
   CINN_REGISTER_OP_MAPPER(index_assign_p, cinn::frontend::science_mappers::IndexAssignOpMapper)
   CINN_REGISTER_OP_MAPPER(scatter_add_p, cinn::frontend::science_mappers::ScatterAddOpMapper)
   CINN_REGISTER_OP_MAPPER(reduce_p, cinn::frontend::science_mappers::ReduceSumOpMapper)

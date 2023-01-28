@@ -386,11 +386,18 @@ void IRCudaScheduleBlockReduceInternal(ir::IRSchedule &ir_sch,
     }
   }
 
-  for (auto &tensor : {tmp_out, out}) {
-    auto loops = ir_sch.GetLoops(tensor->name);
-    ir_sch.Bind(loops[0], "blockIdx.x");
-    if (loops.size() > 1) {
-      ir_sch.Bind(loops[1], "threadIdx.x");
+  auto loops_tmp_out = ir_sch.GetLoops(tmp_out->name);
+  auto loops_out     = ir_sch.GetLoops(out->name);
+  if (loops_tmp_out.size() == 1) {
+    ir_sch.Bind(loops_tmp_out[0], "threadIdx.x");
+    ir_sch.Bind(loops_out[0], "threadIdx.x");
+  } else {
+    ir_sch.Bind(loops_tmp_out[0], "blockIdx.x");
+    ir_sch.Bind(loops_tmp_out[1], "threadIdx.x");
+
+    ir_sch.Bind(loops_out[0], "blockIdx.x");
+    if (loops_out.size() > 1) {
+      ir_sch.Bind(loops_out[1], "threadIdx.x");
     }
   }
 

@@ -1080,7 +1080,10 @@ std::vector<shape_t> InferShapeForBatchNorm(const std::vector<shape_t> &inputs_s
 }
 
 std::vector<Type> InferDtypeForBatchNorm(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
-  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
+  CHECK_EQ(inputs_type.size(), 5U) << "The BatchNorm Infer input's type size should be 5! Please check again.";
+  CHECK_EQ(inputs_type[1], inputs_type[2]) << "The BatchNorm Infer scale type should the same as bias type";
+  CHECK_EQ(inputs_type[1], inputs_type[3]) << "The BatchNorm Infer scale type should the same as moving_mean type";
+  CHECK_EQ(inputs_type[1], inputs_type[4]) << "The BatchNorm Infer scale type should the same as moving_variance type";
   std::vector<Type> res{inputs_type[0]};
   return res;
 }
@@ -1967,13 +1970,13 @@ std::shared_ptr<OpStrategy> StrategyForSoftmax(const framework::NodeAttr &attrs,
 std::vector<std::vector<int>> InferShapeForSoftmax(const std::vector<std::vector<int>> &inputs_shape,
                                                    const framework::AttrMapType &attrs) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
-  std::vector<std::vector<int>> res{inputs_shape[0], inputs_shape[0]};
+  std::vector<std::vector<int>> res{inputs_shape[0]};
   return res;
 }
 
 std::vector<Type> InferDtypeForSoftmax(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
-  std::vector<Type> res{inputs_type[0], inputs_type[0]};
+  std::vector<Type> res{inputs_type[0]};
   return res;
 }
 
@@ -2154,8 +2157,11 @@ std::vector<framework::shape_t> InferShapeForBatchNormTrain(const std::vector<fr
 
 std::vector<Type> InferDtypeForBatchNormTrain(const std::vector<Type> &inputs_type,
                                               const framework::AttrMapType &attrs) {
-  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
-  return {inputs_type[0], inputs_type[0], inputs_type[0], inputs_type[0], inputs_type[0]};
+  CHECK_EQ(inputs_type.size(), 5U) << "The BatchNormTrain input's type size should be 5! Please check again.";
+  CHECK_EQ(inputs_type[1], inputs_type[2]) << "The BatchNormTrain scale type should the same as bias type";
+  CHECK_EQ(inputs_type[1], inputs_type[3]) << "The BatchNormTrain scale type should the same as moving_mean type";
+  CHECK_EQ(inputs_type[1], inputs_type[4]) << "The BatchNormTrain scale type should the same as moving_variance type";
+  return {inputs_type[0], inputs_type[1], inputs_type[1], inputs_type[1], inputs_type[1]};
 }
 
 std::shared_ptr<OpStrategy> StrategyForGradOp(const framework::NodeAttr &attrs,
@@ -2202,8 +2208,12 @@ std::vector<framework::shape_t> InferShapeForBatchNormGrad(const std::vector<fra
 
 std::vector<Type> InferDtypeForBatchNormGrad(const std::vector<Type> &inputs_type,
                                              const framework::AttrMapType &attrs) {
-  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
-  return {inputs_type[0], inputs_type[0], inputs_type[0]};
+  CHECK_EQ(inputs_type.size(), 5U) << "The BatchNormGrad input's type size should be 5! Please check again.";
+
+  CHECK_EQ(inputs_type[0], inputs_type[1]) << "The BatchNormGrad y_grad type should the same as x type";
+  CHECK_EQ(inputs_type[2], inputs_type[3]) << "The BatchNormGrad scale type should the same as save_mean type";
+  CHECK_EQ(inputs_type[2], inputs_type[4]) << "The BatchNormGrad scale type should the same as save_variance type";
+  return {inputs_type[0], inputs_type[2], inputs_type[2]};
 }
 
 // conv2d grad
@@ -2350,7 +2360,7 @@ CINN_REGISTER_HELPER(nn_ops) {
   CINN_REGISTER_OP(softmax)
       .describe("This operator implements the softmax layer")
       .set_num_inputs(1)
-      .set_num_outputs(2)
+      .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForSoftmax)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForSoftmax))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForSoftmax))

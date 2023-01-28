@@ -47,7 +47,7 @@ class AddCacheWrite : public AutoGenRule {
 
  private:
   // Return true if the schedule block expr is applicable by AddCacheWrite
-  bool MeetCondition(const ir::Expr& block_expr) const;
+  bool MeetCondition(ir::IRSchedule* ir_schedule, const ir::Expr& block_expr) const;
   // Applies rule on the ir::ModuleExpr for a schedule block
   void Apply(ir::IRSchedule* ir_schedule, ir::Expr& block_expr);
   // get the spatial loop that is the first one out of the outermost reduce iterator

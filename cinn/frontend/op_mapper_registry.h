@@ -49,6 +49,10 @@ inline std::string GradVarName(const std::string& var_name) {
   result += kGradVarSuffix;
   return result;
 }
+
+// Only used for rename the output of inplace var!
+// Trick solution to fix CINN not support inplace op problem.
+constexpr char InplaceOutSuffix[] = "@InplaceOut";
 }  // namespace paddle
 
 class OpMapperContext {
@@ -78,13 +82,13 @@ class OpMapperContext {
   NetBuilder* Builder() const { return builder_; }
 
   // add Variable into local var_map
-  void AddVar(const std::string& name, const Variable& var, bool replace = false) const;
+  void AddVar(const std::string& name, const Variable& var, bool can_inplace = false) const;
 
   // get Variable from local var_map or scope
   Variable GetVar(const std::string& name) const;
 
   // add map from paddle name to cinn name into var_model_to_program_map
-  void AddVarModelToProgram(const std::string& name, const std::string& id) const;
+  void AddVarModelToProgram(const std::string& name, const std::string& id, bool can_inplace = false) const;
 
   void AddFetchVarName(const std::string& name) const;
 

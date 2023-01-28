@@ -289,8 +289,6 @@ class NetBuilder {
    */
   Variable Clip(const std::vector<Variable>& x, const float& max, const float& min);
 
-  Variable Gather(const Variable& x, const Variable& index, const int& axis = 0);
-
   Variable GatherNd(const Variable& x, const Variable& index, const cinn::utils::ShapeType& axes = {});
 
   Variable Scatter(const Variable& src, const Variable& index, const Variable& out, const int& axis = 0);
@@ -639,7 +637,7 @@ class NetBuilder {
    * @param axis  The dimension in which we index. Default: 0.
    * @return A variable with same data type as x.
    */
-  Variable IndexSelect(const Variable& x, const Variable& index, int axis = 0);
+  Variable Gather(const Variable& x, const Variable& index, int axis = 0);
 
   /**
    * @brief Output is obtained by updating the input on selected indices based on updates.
@@ -703,7 +701,10 @@ class NetBuilder {
    * An optional string from: "AnyLayout", "NHWC", "NCHW". Default: "AnyLayout".
    * @return Output of softmax. The data type and shape are the same as input .
    */
-  Variable Softmax(const Variable& x, int axis = -1, const std::string& data_format = "AnyLayout");
+  Variable Softmax(const Variable& x,
+                   const std::vector<int>& axes   = {-1},
+                   const std::string& mode        = "fast",
+                   const std::string& data_format = "AnyLayout");
 
   // *******************************************
   // Type converter Operator
@@ -959,6 +960,34 @@ class NetBuilder {
    * @return `The concatenated variable of selected values`.
    */
   Variable LookupTable(const Variable& table, const Variable& ids, int64_t padding_idx);
+
+  /**
+   * @brief Gaussian random
+   * @param shape Shape of the variable to be created.
+   * @param mean Mean of the output variable, default is 0.0f.
+   * @param std Standard deviation of the output variable, default is 1.0f.
+   * @param seed Random seed of generator, default is 0.
+   * @param dtype Data type of output variable, supported data types: float32, float64.
+   */
+  Variable GaussianRandom(const std::vector<int>& shape,
+                          float mean               = 0.0f,
+                          float std                = 1.0f,
+                          int seed                 = 0,
+                          const std::string& dtype = "float32");
+
+  /**
+   * @brief Uniform random
+   * @param shape Shape of the variable to be created.
+   * @param min The lower bound of the range of random values ​​generated, min is included in the range.
+   * @param max The upper bound of the range of random values ​​generated, max is not included in the range.
+   * @param seed Random seed of generator, default is 0.
+   * @param dtype Data tpye of output variable, supported data types: float32, float64.
+   */
+  Variable UniformRandom(const std::vector<int>& shape,
+                         float min                = -1.0f,
+                         float max                = 1.0f,
+                         int seed                 = 0,
+                         const std::string& dtype = "float32");
 
  private:
   CINN_DISALLOW_COPY_AND_ASSIGN(NetBuilder);

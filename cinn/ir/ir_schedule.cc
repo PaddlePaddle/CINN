@@ -19,8 +19,10 @@
 #include <algorithm>
 #include <iostream>
 #include <memory>
+#include <random>
 #include <set>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "cinn/common/cas.h"
@@ -70,6 +72,7 @@ class ScheduleImpl {
   Expr GetBlock(const std::string& block_name) const;
   std::vector<Expr> Split(const Expr& loop, const std::vector<int>& factors);
   std::vector<Expr> Split(const std::string& block_name, int loop_index, const std::vector<int>& factors);
+  std::vector<Expr> SamplePerfectTile(const uint32_t seed, const Expr& loop, int n, int max_innermost_factor);
   Expr Fuse(const std::vector<Expr>& loops);
   Expr Fuse(const std::string& block_name, const std::vector<int>& loops_index);
   Expr Fuse(const Expr& block, const std::vector<int>& loops_index);
@@ -94,6 +97,7 @@ class ScheduleImpl {
   Expr Rfactor(const Expr& rf_loop, int rf_axis);
   Expr AddUnitLoop(const Expr& block) const;
   void Annotate(const Expr& block, const std::string& key, const attr_t& value);
+  void Unannotate(Expr& block, const std::string& key);
   void FlattenLoops(const std::vector<Expr>& loops, const bool force_flat = false);
   void CopyTransformAndLoopInfo(const Expr& block, const Expr& block_target);
   void CopyTransformAndLoopInfo(const std::string& block_name, const std::string& block_target_name);
@@ -1509,6 +1513,18 @@ void ScheduleImpl::Annotate(const Expr& block, const std::string& key, const att
   this->Replace(block, copied_block);
 }
 
+void ScheduleImpl::Unannotate(Expr& block, const std::string& ann_key) {
+  CHECK(block.As<ir::ScheduleBlockRealize>());
+  CHECK(block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>());
+  auto* schedule_block = block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>();
+  if (schedule_block->attrs.count(ann_key)) {
+    schedule_block->attrs.erase(ann_key);
+  } else {
+    LOG(WARNING) << "Can't find annotation with key: " << ann_key;
+    return;
+  }
+}
+
 void ScheduleImpl::FlattenLoops(const std::vector<Expr>& loops, const bool flat_tensor) {
   CHECK_GT(loops.size(), 0) << "Loops can't be empty!";
   // compute loop
@@ -1777,6 +1793,32 @@ void ScheduleImpl::CopyTransformAndLoopInfo(const Expr& block, const Expr& block
   this->Replace(all_loops[0], res);
 }
 
+std::vector<Expr> ScheduleImpl::SamplePerfectTile(const uint32_t seed,
+                                                  const Expr& loop,
+                                                  int n,
+                                                  int max_innermost_factor) {
+  CHECK(loop.As<ir::For>()) << "Expr param of SamplePerfectTile should be a For loop";
+  CHECK_GE(n, 2) << "The number of tile factors should be at least 2";
+  CHECK_GE(max_innermost_factor, 1) << "The max innermost factor should be at least 1";
+  CHECK(common::is_zero(loop.As<ir::For>()->min)) << "The For loop should start from 0";
+  int loop_extent = GetLoopExtent(loop);
+  std::vector<int> innermost_factors;
+  for (int i = max_innermost_factor; i >= 1; --i) {
+    if (loop_extent % i == 0) {
+      innermost_factors.push_back(i);
+    }
+  }
+  CHECK(!innermost_factors.empty()) << "No innermost factor found";
+  int innermost_factor = innermost_factors[ir::SampleInt(0, innermost_factors.size() - 1, seed)];
+  auto result          = SampleTile(seed, n - 1, loop_extent / innermost_factor);
+  std::vector<Expr> result_expr;
+  for (auto& factor : result) {
+    result_expr.push_back(Expr(factor));
+  }
+  result_expr.push_back(Expr(innermost_factor));
+  return result_expr;
+}
+
 IRSchedule::IRSchedule() {}
 
 IRSchedule::IRSchedule(const ModuleExpr& module_expr, bool debug_flag) {
@@ -2008,6 +2050,11 @@ void IRSchedule::Annotate(const Expr& block, const std::string& key, const attr_
   LOG(FATAL) << "Value of attribute:" << key << " input unsupported data type";
 }
 
+void IRSchedule::Unannotate(Expr& block, const std::string& key) {
+  impl_->Unannotate(block, key);
+  trace_.Append(ScheduleDesc::Step("Unannotate", {{"block", std::vector<Expr>({block})}}, {{"key", key}}, {}));
+}
+
 void IRSchedule::FlattenLoops(const std::vector<Expr>& loops, const bool force_flat) {
   impl_->FlattenLoops(loops, force_flat);
   trace_.Append(
@@ -2022,6 +2069,15 @@ void IRSchedule::CopyTransformAndLoopInfo(const Expr& block, const Expr& block_t
 void IRSchedule::CopyTransformAndLoopInfo(const std::string& block_name, const std::string& block_target_name) {
   impl_->CopyTransformAndLoopInfo(block_name, block_target_name);
   // don't support to trace, because we can't ensure both blocks are from the same ModuleExpr
+}
+
+std::vector<Expr> IRSchedule::SamplePerfectTile(const Expr& loop, int n, int max_innermost_factor) {
+  auto result = impl_->SamplePerfectTile(ir::RandomSeedController::seed, loop, n, max_innermost_factor);
+  trace_.Append(ScheduleDesc::Step("SamplePerfectTile",
+                                   {{"loop", std::vector<Expr>({loop})}},
+                                   {{"n", n}, {"max_innermost_factor", max_innermost_factor}},
+                                   {result}));
+  return result;
 }
 
 }  // namespace ir

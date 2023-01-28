@@ -336,6 +336,13 @@ class IRSchedule {
   void Annotate(const Expr& block, const std::string& key, const attr_t& value);
 
   /*!
+   * \brief To cancel an annotation within a block using the key
+   * \param block The block to be unannotated
+   * \param key The attribute key
+   */
+  void Unannotate(Expr& block, const std::string& key);
+
+  /*!
    * \brief flatten the loops in one dim.
    * \param loops  the loops to be flatted.
    * \param force_flat force to flat the right value.
@@ -343,6 +350,21 @@ class IRSchedule {
   // Temporary solution for simplify the elementwise/broadcast/injective index.
   // TODO(sunli): Solve Index Simplify.
   void FlattenLoops(const std::vector<Expr>& loops, const bool force_flat = false);
+
+  /*!
+   * \brief Sample the factors to tile a specific loop perfectly
+   * \param loop the loop to be split
+   * \param n the number of loop layers to split
+   * \param max_innermost_factor the maximum factor of the innermost loop
+   * \return the split factors of the loop (The larger the index, the inner the corresponding loop)
+   * For example, return {16,64} means the loop will be like this:
+   * for (i, 0, 16) {
+   *  for (j, 0, 64) {
+   *   ...
+   *  }
+   * }
+   */
+  std::vector<Expr> SamplePerfectTile(const Expr& loop, int n, int max_innermost_factor);
 
  private:
   std::unique_ptr<ScheduleImpl> impl_;

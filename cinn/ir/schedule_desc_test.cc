@@ -641,5 +641,65 @@ TEST_F(TestScheduleDesc, StepKind_Annotate) {
   CheckReplayResult(ir_sch, ir_sch.GetTraceDesc());
 }
 
+TEST_F(TestScheduleDesc, StepKind_Unannotate) {
+  lowered_funcs         = LowerCompute({32, 128}, target);
+  ir::IRSchedule ir_sch = MakeIRSchedule(lowered_funcs);
+
+  auto block_b = ir_sch.GetBlock("B");
+  trace.Append(ScheduleDesc::Step("GetBlock", {}, {{"block_name", std::string("B")}}, {block_b}));
+  ir_sch.Annotate(block_b, "k1", int(64));
+  trace.Append(ScheduleDesc::Step("AnnotateIntAttr",
+                                  {{"block", std::vector<Expr>({block_b})}},
+                                  {{"key", std::string("k1")}, {"value", int(64)}},
+                                  {}));
+
+  block_b = ir_sch.GetBlock("B");
+  trace.Append(ScheduleDesc::Step("GetBlock", {}, {{"block_name", std::string("B")}}, {block_b}));
+  ir_sch.Annotate(block_b, "k2", bool(true));
+  trace.Append(ScheduleDesc::Step("AnnotateBoolAttr",
+                                  {{"block", std::vector<Expr>({block_b})}},
+                                  {{"key", std::string("k2")}, {"value", bool(true)}},
+                                  {}));
+
+  block_b = ir_sch.GetBlock("B");
+  trace.Append(ScheduleDesc::Step("GetBlock", {}, {{"block_name", std::string("B")}}, {block_b}));
+  ir_sch.Unannotate(block_b, "k1");
+  trace.Append(
+      ScheduleDesc::Step("Unannotate", {{"block", std::vector<Expr>({block_b})}}, {{"key", std::string("k1")}}, {}));
+
+  block_b = ir_sch.GetBlock("B");
+  trace.Append(ScheduleDesc::Step("GetBlock", {}, {{"block_name", std::string("B")}}, {block_b}));
+  ir_sch.Unannotate(block_b, "k2");
+  trace.Append(
+      ScheduleDesc::Step("Unannotate", {{"block", std::vector<Expr>({block_b})}}, {{"key", std::string("k2")}}, {}));
+
+  CheckReplayResult(ir_sch, trace);
+  CheckReplayResult(ir_sch, ir_sch.GetTraceDesc());
+}
+
+TEST_F(TestScheduleDesc, StepKind_SamplePerfectTile) {
+  Expr M(1024);
+  Var n(1, "n");
+
+  Placeholder<int> A("A", {M});
+  auto B = Compute(
+      {M}, [&](Expr i) { return A(i) + n; }, "B");
+  lowered_funcs =
+      cinn::lang::LowerVec("test_sample_perfect_tile", CreateStages({A, B}), {A, B}, {}, {}, nullptr, target, true);
+
+  ir::IRSchedule ir_sch = MakeIRSchedule(lowered_funcs);
+  auto loops            = ir_sch.GetLoops("B");
+  trace.Append(ScheduleDesc::Step("GetLoopsWithName", {}, {{"block_name", std::string("B")}}, loops));
+  auto result = ir_sch.SamplePerfectTile(loops[0], 2, 64);
+  trace.Append(ScheduleDesc::Step("SamplePerfectTile",
+                                  {{"loop", std::vector<Expr>({loops[0]})}},
+                                  {{"n", 2}, {"max_innermost_factor", 64}},
+                                  result));
+  CheckTracingOutputs(result, trace);
+  CheckTracingOutputs(result, ir_sch.GetTraceDesc());
+  CheckReplayResult(ir_sch, trace);
+  CheckReplayResult(ir_sch, ir_sch.GetTraceDesc());
+}
+
 }  // namespace ir
 }  // namespace cinn

@@ -27,6 +27,7 @@ DEFINE_bool(cinn_cudnn_deterministic,
 
 using ::GFLAGS_NAMESPACE::BoolFromEnv;
 using ::GFLAGS_NAMESPACE::Int32FromEnv;
+using ::GFLAGS_NAMESPACE::Int64FromEnv;
 using ::GFLAGS_NAMESPACE::StringFromEnv;
 
 DEFINE_string(cinn_x86_builtin_code_root, StringFromEnv("FLAGS_cinn_x86_builtin_code_root", ""), "");
@@ -41,6 +42,10 @@ DEFINE_bool(cinn_use_op_fusion, BoolFromEnv("FLAGS_cinn_use_op_fusion", true), "
 DEFINE_bool(cinn_use_cudnn_conv, BoolFromEnv("FLAGS_cinn_use_cudnn_conv", true), "Whether to use cudnn convolution.");
 
 DEFINE_bool(cinn_use_cublas_gemm, BoolFromEnv("FLAGS_cinn_use_cublas_gemm", true), "Whether to use cublas gemm.");
+
+DEFINE_bool(cinn_use_common_subexpression_elimination,
+            BoolFromEnv("FLAGS_cinn_use_common_subexpression_elimination", false),
+            "Whether to use common subexpression elimination pass.");
 
 DEFINE_bool(cinn_use_fill_constant_folding,
             BoolFromEnv("FLAGS_cinn_use_fill_constant_folding", false),
@@ -67,6 +72,10 @@ DEFINE_bool(cinn_sync_run,
 DEFINE_bool(cinn_self_check_accuracy,
             BoolFromEnv("FLAGS_cinn_self_check_accuracy", false),
             "Whether self-check accuracy after each instruction run, which is used for debug.");
+
+DEFINE_int64(cinn_self_check_accuracy_num,
+             Int64FromEnv("FLAGS_cinn_self_check_accuracy_num", 0L),
+             "Set self-check accuracy print numel, which is used for debug.");
 
 DEFINE_string(cinn_fusion_groups_graphviz_dir,
               StringFromEnv("FLAGS_cinn_fusion_groups_graphviz_dir", ""),
