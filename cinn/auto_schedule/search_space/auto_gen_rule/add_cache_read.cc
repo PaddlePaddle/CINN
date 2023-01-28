@@ -57,7 +57,7 @@ RuleApplyType AddCacheRead::Init(ir::IRSchedule* ir_schedule) {
   }
   VLOG(6) << "Collect applicable_schedule_blocks_:" << num_applicable_;
 
-  return num_applicable_ > 0 ? RuleApplyType::kApplyAndSkipAllRules : RuleApplyType::kCannotApply;
+  return num_applicable_ > 0 ? RuleApplyType::kApplyAndPruneOtherRules : RuleApplyType::kCannotApply;
 }
 
 void AddCacheRead::Apply(int index) {
@@ -72,7 +72,7 @@ RuleApplyType AddCacheRead::AnalyseApplyType(SearchState state, const std::strin
   AnalyzeScheduleBlockReadWriteBuffer(
       block_expr.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>());
   if (MeetCondition(&state->ir_schedule, block_expr)) {
-    return RuleApplyType::kApplyAndSkipAllRules;
+    return RuleApplyType::kApplyAndPruneOtherRules;
   }
 
   return RuleApplyType::kCannotApply;
@@ -92,15 +92,19 @@ bool AddCacheRead::MeetCondition(ir::IRSchedule* ir_schedule, const ir::Expr& bl
   CHECK(sch_block_realize) << "stmt is not a ScheduleBlockRealize:" << block_expr;
 
   if (!NeedsMultiLevelTiling(*sch_block_realize)) return false;
-  // check cross thread reduce axis
+  bool has_reduce_axis = false;
   for (const ir::Expr& for_expr : ir_schedule->GetLoops(block_expr)) {
     const ir::For* for_node = for_expr.As<ir::For>();
-    if (for_node->is_gpu_thread_binded() && for_node->loop_var->is_reduce_axis) {
+    // check cross thread reduce axis
+    if (for_node->is_gpu_thread_binded() && for_node->loop_var->name.substr(0, 6) == "reduce") {
       return false;
+    }
+    if (for_node->loop_var->name.substr(0, 6) == "reduce") {
+      has_reduce_axis = true;
     }
   }
 
-  return true;
+  return has_reduce_axis;
 }
 
 void AddCacheRead::Apply(ir::IRSchedule* ir_schedule, ir::Expr& block_expr) {
