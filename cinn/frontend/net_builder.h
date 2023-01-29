@@ -289,7 +289,7 @@ class NetBuilder {
    */
   Variable Clip(const std::vector<Variable>& x, const float& max, const float& min);
 
-  Variable GatherNd(const Variable& x, const Variable& index, const cinn::utils::ShapeType& axes = {});
+  Variable GatherNd(const Variable& x, const Variable& index);
 
   Variable Scatter(const Variable& src, const Variable& index, const Variable& out, const int& axis = 0);
   Variable Scatter(const Variable& src,
