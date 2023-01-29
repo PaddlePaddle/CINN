@@ -214,6 +214,58 @@ TEST(OP_LOWERING, Reduce_Keep_Dim_Fuse_Elementwise_5) {
   }
 }
 
+TEST(OP_LOWERING, Reduce_Keep_Dim_Fuse_Elementwise_6) {
+  NetBuilder net_builder("Reduce_Keep_Dim_Fuse_Elementwise_6");
+  {
+    auto A = net_builder.CreateInput(Float(32), {16, 64, 1024}, "A");
+    auto B = net_builder.ReduceSum(A, {2}, true);
+  }
+
+  auto program = net_builder.Build();
+  auto target  = common::DefaultTarget();
+  RunDecomposer(&program, target);
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
+
+  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
+  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
+
+  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
+  for (auto& fusion_op : graph->fusion_groups) {
+    auto lowered_func = op_lowerer.Lower(fusion_op);
+    CHECK_EQ(lowered_func.size(), 1);
+    CodeGen(lowered_func[0]);
+  }
+}
+
+TEST(OP_LOWERING, Reduce_Keep_Dim_Fuse_Elementwise_7) {
+  NetBuilder net_builder("Reduce_Keep_Dim_Fuse_Elementwise_7");
+  {
+    auto A = net_builder.CreateInput(Float(32), {16, 64, 16, 1024}, "A");
+    auto B = net_builder.ReduceSum(A, {1, 3}, true);
+  }
+
+  auto program = net_builder.Build();
+  auto target  = common::DefaultTarget();
+  RunDecomposer(&program, target);
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
+
+  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
+  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
+
+  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
+  for (auto& fusion_op : graph->fusion_groups) {
+    auto lowered_func = op_lowerer.Lower(fusion_op);
+    CHECK_EQ(lowered_func.size(), 1);
+    CodeGen(lowered_func[0]);
+  }
+}
+
 TEST(OP_LOWERING, Elementwise_Test_Concat_Before_Reduce) {
   NetBuilder net_builder("Elementwise_Test_Concat_Before_Reduce");
   {
