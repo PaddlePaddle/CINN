@@ -625,7 +625,7 @@ void BindFrontend(pybind11::module *m) {
       .def("cast", &NetBuilder::Cast, py::arg("x"), py::arg("dtype"))
       .def("clip", &NetBuilder::Clip, py::arg("x"), py::arg("max"), py::arg("min"))
       .def("arange", &NetBuilder::Arange, py::arg("start"), py::arg("end"), py::arg("step"), py::arg("dtype"))
-      .def("gather_nd", &NetBuilder::GatherNd, py::arg("x"), py::arg("index"), py::arg("axes") = std::vector<int>{})
+      .def("gather_nd", &NetBuilder::GatherNd, py::arg("x"), py::arg("index"))
       .def("cbrt", &NetBuilder::Cbrt, py::arg("x"))
       .def("clz", &NetBuilder::Clz, py::arg("x"))
       .def("popc", &NetBuilder::Popc, py::arg("x"))

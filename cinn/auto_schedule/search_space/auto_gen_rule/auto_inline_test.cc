@@ -81,14 +81,14 @@ TEST(AutoInline, SingleLoopInline) {
   VLOG(6) << mod_expr_before_inline.GetExprs()[0];
 
   AutoInline auto_inline(target, {"C"});
-  EXPECT_EQ(auto_inline.Init(&ir_sch), RuleApplyType::kApply);
+  EXPECT_EQ(auto_inline.Init(&ir_sch), RuleApplyType::kApplyAndPruneOtherRules);
   EXPECT_EQ(auto_inline.NumberApplicable(), 1);
   auto_inline.ApplyRandomly();
   std::vector<ir::Expr> exprs = ir_sch.GetModule().GetExprs();
   EXPECT_EQ(exprs.size(), 1UL);
 
   // ApplyOnBlock
-  EXPECT_EQ(auto_inline.AnalyseApplyType(state, "B"), RuleApplyType::kApply);
+  EXPECT_EQ(auto_inline.AnalyseApplyType(state, "B"), RuleApplyType::kApplyAndPruneOtherRules);
   auto new_states = auto_inline.ApplyOnBlock(state, "B");
 
   auto test_func = [](ir::IRSchedule* ir_sch) {
@@ -163,7 +163,7 @@ TEST(AutoInline, AddReluInline) {
   SearchState state(ir_sch, 0, {});
 
   AutoInline auto_inline(target, {"var_2"});
-  EXPECT_EQ(auto_inline.Init(&ir_sch), RuleApplyType::kApply);
+  EXPECT_EQ(auto_inline.Init(&ir_sch), RuleApplyType::kApplyAndPruneOtherRules);
   EXPECT_EQ(auto_inline.NumberApplicable(), 2);
 
   auto_inline.Apply(1);
@@ -179,15 +179,15 @@ TEST(AutoInline, AddReluInline) {
   VLOG(6) << expr_str;
 
   // Auto Inline again
-  EXPECT_EQ(auto_inline.Init(&ir_sch), RuleApplyType::kApply);
+  EXPECT_EQ(auto_inline.Init(&ir_sch), RuleApplyType::kApplyAndPruneOtherRules);
   EXPECT_EQ(auto_inline.NumberApplicable(), 1);
   auto_inline.Apply(0);
 
   // ApplyOnBlock
-  EXPECT_EQ(auto_inline.AnalyseApplyType(state, "var_1"), RuleApplyType::kApply);
+  EXPECT_EQ(auto_inline.AnalyseApplyType(state, "var_1"), RuleApplyType::kApplyAndPruneOtherRules);
   auto new_states = auto_inline.ApplyOnBlock(state, "var_1");
   // Auto Inline again
-  EXPECT_EQ(auto_inline.AnalyseApplyType(new_states[0], "var_3"), RuleApplyType::kApply);
+  EXPECT_EQ(auto_inline.AnalyseApplyType(new_states[0], "var_3"), RuleApplyType::kApplyAndPruneOtherRules);
   new_states = auto_inline.ApplyOnBlock(new_states[0], "var_3");
 
   auto test_func = [](ir::IRSchedule* ir_sch) {
