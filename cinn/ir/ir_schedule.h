@@ -107,8 +107,8 @@ class IRSchedule {
   Expr GetBlock(const std::string& block_name) const;
 
   /**
-   * \brief Get all the childblocks of specific Block stored in ModuleExpr.
-   * @param block The block we find childblock in.
+   * \brief Get all the childblocks of specific Expr stored in ModuleExpr.
+   * @param expr The expr we find childblock in, can be a loop or block.
    * @return ChildBlocks of the block.
    */
   std::vector<Expr> GetChildBlocks(const Expr& block) const;
