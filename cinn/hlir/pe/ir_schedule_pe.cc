@@ -557,12 +557,13 @@ void IRCudaTwoStepReduceSchedule(ir::IRSchedule &ir_sch,
                                  const common::Target &target) {
   VLOG(3) << "Before IRCudaTwoStepReduceSchedule : " << ir_sch.GetModule().GetExprs().at(0);
   // fuse axis
-  for (int idx = 0; idx < static_cast<int>(internal->shape.size()) - 2; ++idx) {
+  int fuse_times = ir_sch.GetLoops(internal->name).size() - internal->reduce_axis.size() - 2;
+  for (int idx = 0; idx < fuse_times; ++idx) {
     for (auto &tensor : {internal, tmp_out, out}) {
       auto block      = ir_sch.GetBlock(tensor->name);
       auto loops      = ir_sch.GetLoops(block);
       int reduce_axis = tensor->reduce_axis.size();
-      if (loops.size() > 2 + reduce_axis) ir_sch.Fuse({loops[0], loops[1]});
+      ir_sch.Fuse({loops[0], loops[1]});
     }
   }
 
