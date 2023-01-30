@@ -295,7 +295,7 @@ CINN_BUILD_STEP_KIND(GetAllBlocks)
                 static_cast<std::vector<Expr> (IRSchedule::*)() const>(&IRSchedule::GetAllBlocks))));
 
 CINN_BUILD_STEP_KIND(GetChildBlocks)
-    .Inputs({"block"})
+    .Inputs({"expr"})
     .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(
                 static_cast<std::vector<Expr> (IRSchedule::*)(const Expr&) const>(&IRSchedule::GetChildBlocks))));
 
