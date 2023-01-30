@@ -82,7 +82,6 @@ class DceHelper : public FusionHelperBase {
     }
 
     for (auto node : all_nodes_list) {
-      VLOG(3) << node->id();
       if (nodes_set_.count(node)) {
         continue;
       }
@@ -104,11 +103,11 @@ class DceHelper : public FusionHelperBase {
           auto dest = link_->sink();
           ndata->UnLinkAllTo(dest);
         }
-        VLOG(3) << "Drop : " << ndata->id();
+        VLOG(1) << "Drop : " << ndata->id();
         graph_->DropNode(ndata);
       }
 
-      VLOG(3) << "Drop : " << node->id();
+      VLOG(1) << "Drop : " << node->id();
       graph_->DropNode(node);
     }
   }
