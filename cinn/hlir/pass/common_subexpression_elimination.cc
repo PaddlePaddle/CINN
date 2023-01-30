@@ -222,12 +222,15 @@ void CommonSubexpressionElimination(Graph* graph, std::vector<GraphNode*> store_
   while (!store_nodes.empty()) {
     auto* graph_node = store_nodes[0];
     store_nodes.erase(store_nodes.begin());
+    LOG(INFO) << "size of store_nodes is " << store_nodes.size();
     auto node = graph_node->safe_as<Node>();
     if (node) {
       auto& node_type  = node->op()->name;
       auto& candidates = candidates_map[node_type];
       bool found       = false;
       for (auto* candidate_node : candidates) {
+        // If node is same with candidate_node, continue the next.
+        if (node->id() == candidate_node->id()) continue;
         // If node is different from candidate_node, continue the next.
         if (!IsSameSubexpression(node, candidate_node, shape_dict)) continue;
         found = true;
@@ -254,8 +257,6 @@ void CommonSubexpressionElimination(Graph* graph, std::vector<GraphNode*> store_
             if (std::find(store_nodes.begin(), store_nodes.end(), out_node) == store_nodes.end()) {
               store_nodes.insert(store_nodes.begin(), out_node);
             }
-            out_nodes.erase(node);
-            out_nodes.insert(candidate_node);
           }
         }
         remove_nodes.push_back(node);
