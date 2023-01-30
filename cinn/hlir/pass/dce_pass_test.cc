@@ -36,5 +36,26 @@ TEST(DCE, Test_0) {
   hlir::framework::ApplyPass(graph.get(), "DCE");
 }
 
+TEST(DCE, Test_1) {
+  NetBuilder net_builder("Test_1");
+  // create model
+  int h = 32, w = 32;
+  auto A = net_builder.CreateInput(Float(32), {h, w}, "A");
+  auto B = net_builder.CreateInput(Float(32), {h, w}, "B");
+  auto C = net_builder.Add(A, B);
+  auto D = net_builder.Multiply(A, B);
+  auto E = net_builder.Divide(A, B);
+  auto F = net_builder.Add(C, D);
+  auto G = net_builder.Add(D, E);
+  auto H = net_builder.Add(E, G);
+
+  auto fetch_ids = {F->id};
+  auto program   = net_builder.Build();
+  auto target    = common::DefaultTarget();
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, fetch_ids, target);
+  hlir::framework::ApplyPass(graph.get(), "DCE");
+}
+
 }  // namespace frontend
 }  // namespace cinn
