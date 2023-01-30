@@ -541,13 +541,13 @@ bool RegisteryCustomCallArgsFunc() {
 
 #ifdef CINN_WITH_MKL_CBLAS
 
+  CustomCallArgsFuncRegistry::Global().Register(
+      "cinn_call_cholesky_host", common::DefaultHostTarget(), CustomCallArgsForCholesky);
+
 #endif
 
   CustomCallArgsFuncRegistry::Global().Register(
       "cinn_assert_true", common::DefaultTarget(), CustomCallArgsForAssertTrue);
-
-  CustomCallArgsFuncRegistry::Global().Register(
-      "cinn_call_cholesky_host", common::DefaultHostTarget(), CustomCallArgsForCholesky);
 
   return true;
 }

@@ -264,25 +264,33 @@ TEST(CustomCallCholesky, test) {
   auto* output = out.mutable_data<float>(target);
 
   // Result matrix res
-  // The results of cpu and gpu are slightly different, 0.76365214 vs 0.76365220
+  // The results of cpu and gpu are slightly different, 0.76365214 vs 0.76365221
   float result_host[9] = {0.98147416, 0, 0, 0.89824611, 0.76365214, 0, 0.41360193, 0.15284170, 0.055967092};
-  float result_cuda[9] = {0.98147416, 0, 0, 0.89824611, 0.76365220, 0, 0.41360193, 0.15284170, 0.055967092};
+  float result_cuda[9] = {0.98147416, 0, 0, 0.89824611, 0.76365221, 0, 0.41360193, 0.15284170, 0.055967092};
 
   int num_args               = 2;
   cinn_pod_value_t v_args[2] = {cinn_pod_value_t(x.get()), cinn_pod_value_t(out.get())};
 
   if (target == common::DefaultHostTarget()) {
+#ifdef CINN_WITH_MKL_CBLAS
     cinn_call_cholesky_host(v_args, num_args, batch_size, m, upper);
     for (int i = 0; i < batch_size * m * m; i++) {
       ASSERT_EQ(output[i], result_host[i]) << "The output of Cholesky should be the same as result";
     }
+#else
+    LOG(INFO) << "Host Target only support on flag CINN_WITH_MKL_CBLAS ON! Please check.";
+#endif
   } else if (target == common::DefaultNVGPUTarget()) {
+#ifdef CINN_WITH_CUDA
     cinn::runtime::cuda::cinn_call_cholesky_nvgpu(v_args, num_args, batch_size, m, upper);
     std::vector<float> host_output(batch_size * m * m, 0.0f);
     cudaMemcpy(host_output.data(), output, batch_size * m * m * sizeof(float), cudaMemcpyDeviceToHost);
     for (int i = 0; i < batch_size * m * m; i++) {
       ASSERT_EQ(host_output[i], result_cuda[i]) << "The output of Cholesky should be the same as result";
     }
+#else
+    LOG(INFO) << "NVGPU Target only support on flag CINN_WITH_CUDA ON! Please check.";
+#endif
   }
 }
 

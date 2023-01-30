@@ -19,7 +19,10 @@
 #endif
 
 #include "cinn/runtime/custom_function.h"
+
+#ifdef CINN_WITH_MKL_CBLAS
 #include "mkl_lapacke.h"
+#endif
 
 namespace cinn {
 namespace runtime {
@@ -143,7 +146,13 @@ void cinn_assert_true(void* v_args, int msg, bool only_warning, void* stream) {
   }
 }
 
+/**
+ * This function is temporarily unavailable, see the error message in the following PR for details.
+ * The specific reason may be that the custom call does not support host op.
+ * See: https://github.com/PaddlePaddle/CINN/pull/1133
+ */
 void cinn_call_cholesky_host(void* v_args, int num_args, int batch_size, int m, bool upper) {
+#ifdef CINN_WITH_MKL_CBLAS
   cinn_pod_value_t* args = static_cast<cinn_pod_value_t*>(v_args);
 
   cinn_buffer_t* x   = args[0].operator cinn_buffer_t*();
@@ -168,6 +177,9 @@ void cinn_call_cholesky_host(void* v_args, int num_args, int batch_size, int m, 
       }
     }
   }
+#else
+  CINN_NOT_IMPLEMENTED
+#endif
 }
 
 }  // namespace runtime
