@@ -78,12 +78,12 @@ TEST(AutoUnroll, UnrollableApply) {
   AutoUnroll test_rule(target);
   ir::IRSchedule ir_schedule(ir::ModuleExpr({ast_expr}));
   SearchState state(ir_schedule, 0, {});
-  ASSERT_EQ(test_rule.Init(&ir_schedule), RuleApplyType::kApplyAndSkipThisRule);
+  ASSERT_EQ(test_rule.Init(&ir_schedule), RuleApplyType::kApplyAndPruneOtherRules);
   EXPECT_EQ(test_rule.NumberApplicable(), 1);
   test_rule.ApplyRandomly();
 
   // ApplyOnBlock
-  EXPECT_EQ(test_rule.AnalyseApplyType(state, "C"), RuleApplyType::kApplyAndSkipThisRule);
+  EXPECT_EQ(test_rule.AnalyseApplyType(state, "C"), RuleApplyType::kApplyAndPruneOtherRules);
   std::vector<cinn::auto_schedule::SearchState> states = test_rule.ApplyOnBlock(state, "C");
 
   auto test_func = [](IRSchedule* ir_sch) {

@@ -105,7 +105,7 @@ Expr FloorDivide(Expr a, Expr b) {
 }
 
 Expr Mod(Expr a, Expr b) {
-  CHECK_EQ(a.type(), b.type()) << "FloorDivide's inputs type not equal, where a:" << a.type() << " but b:" << b.type();
+  CHECK_EQ(a.type(), b.type()) << "Mod's inputs type not equal, where a:" << a.type() << " but b:" << b.type();
   auto quotient = lang::FloorDivide(a, b);
   if (a.type().is_int()) {
     auto zero = Zero(a->type());

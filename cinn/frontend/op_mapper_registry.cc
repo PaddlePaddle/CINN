@@ -19,18 +19,34 @@
 namespace cinn {
 namespace frontend {
 
-void OpMapperContext::AddVar(const std::string& origin_name, const Variable& var, bool replace) const {
-  CHECK(replace || !var_map_->count(origin_name))
+void OpMapperContext::AddVar(const std::string& origin_name, const Variable& var, bool can_inplace) const {
+  CHECK(can_inplace || !var_map_->count(origin_name))
       << "Duplicate variable [" << origin_name << "] found, whose id is " << var_map_->at(origin_name)->id;
+  if (var_map_->count(origin_name)) {
+    VLOG(4) << "Inplace arugment [" << origin_name << "] will replace old cinn var [" << var_map_->at(origin_name)->id
+            << "]"
+            << " to new cinn var [" << var->id << "]";
+  }
   (*var_map_)[origin_name] = var;
-  VLOG(4) << "Add variable [" << origin_name << "] to " << var->id << " with shape=["
+  VLOG(4) << "Add variable [" << origin_name << "] to [" << var->id << "] with shape=["
           << cinn::utils::Join(var->shape, ",") << "], dtype=" << var->type;
 }
 
-void OpMapperContext::AddVarModelToProgram(const std::string& name, const std::string& id) const {
+void OpMapperContext::AddVarModelToProgram(const std::string& name, const std::string& id, bool can_inplace) const {
   CHECK(!id.empty()) << "Paddle name [" << name << "]'s program id is empty ! Please check.";
-  (*var_model_to_program_map_)[name] = id;
-  VLOG(4) << "Paddle name [" << name << "] map to program id " << id;
+  if (!var_model_to_program_map_->count(name)) {
+    (*var_model_to_program_map_)[name] = id;
+    VLOG(4) << "Paddle name [" << name << "] map to program id " << id;
+  } else {
+    CHECK(can_inplace) << "Duplicate variable [" << name << "] found, whose id is "
+                       << var_model_to_program_map_->at(name);
+
+    const auto& inplace_out_name                   = name + paddle::InplaceOutSuffix;
+    (*var_model_to_program_map_)[inplace_out_name] = id;
+
+    VLOG(4) << "Paddle name [" << name << "] 's trick output [" << inplace_out_name << "] map to program id [" << id
+            << "]";
+  }
 }
 
 void OpMapperContext::AddFetchVarName(const std::string& name) const { fetch_var_names_->insert(name); }

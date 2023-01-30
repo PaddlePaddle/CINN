@@ -1,4 +1,4 @@
-// Copyright (c) 2022 CINN Authors. All Rights Reserved.
+// Copyright (c) 2023 CINN Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,21 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#pragma once
+#include <gtest/gtest.h>
 
-#include <string>
-#include <vector>
-
-#include "cinn/ir/ir.h"
-#include "cinn/ir/ir_base.h"
-#include "cinn/ir/tensor.h"
+#include "cinn/frontend/decomposer/test_helper.h"
 
 namespace cinn {
 namespace hlir {
-namespace op {
+namespace pass {
 
-ir::Tensor GatherNd(const ir::Tensor& x, const ir::Tensor& index, const std::string& name);
+TEST(Constant_Folding, fold_broadcast_to_const_scalar) {}
 
-}  // namespace op
+TEST(Constant_Folding, fold_broadcast_to_fill_constant) {}
+
+TEST(Constant_Folding, fold_reshape_fill_constant) {}
+
+TEST(Constant_Folding, fold_squeeze_fill_constant) {}
+
+TEST(Constant_Folding, fold_expand_dims_to_fill_constant) {}
+
+}  // namespace pass
 }  // namespace hlir
 }  // namespace cinn

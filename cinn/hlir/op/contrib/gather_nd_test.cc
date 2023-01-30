@@ -37,14 +37,14 @@ TEST(GenerateCode_Cpu, GatherNd) {
 
   common::Target target = common::DefaultHostTarget();
 
-  ir::Expr n(4);
-  ir::Expr h_in1(28);
-  ir::Expr h_in2(14);
-  ir::Expr w(1);
+  ir::Expr dim0(1);
+  ir::Expr dim1(2);
+  ir::Expr dim2(3);
+  ir::Expr dim3(4);
 
-  lang::Placeholder<float> in1("in1", {n, h_in1});
-  lang::Placeholder<int32_t> in2("in2", {n, h_in2, w});
-  ir::Tensor res = GatherNd(in1, in2, {1}, "test_gather_nd_out");
+  lang::Placeholder<float> x("x", {dim1, dim2, dim3});
+  lang::Placeholder<int32_t> index("index", {dim0, dim1, dim2});
+  ir::Tensor res = GatherNd(x, index, "test_gather_nd_out");
 
   poly::StageMap stages = poly::CreateStages({res});
   std::vector<ir::LoweredFunc> funcs =
@@ -71,21 +71,19 @@ TEST(GenerateCode_Cpu, GatherNd) {
 void TestGenerateCodeCpu_GatherNd(void* _args, int32_t num_args)
 {
   cinn_buffer_t* _test_gather_nd_out = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
-  cinn_buffer_t* _in1 = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 4, 28 });
-  cinn_buffer_t* _in2 = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_int32_t(), { 4, 14, 1 });
+  cinn_buffer_t* _index = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_int32_t(), { 1, 2, 3 });
+  cinn_buffer_t* _x = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 2, 3, 4 });
   cinn_buffer_malloc((void*)(0), _test_gather_nd_out);
-  cinn_buffer_malloc((void*)(0), _in1);
-  cinn_buffer_malloc((void*)(0), _in2);
-  const float* in1 = ((const float*)(_in1->memory));
-  const int32_t* in2 = ((const int32_t*)(_in2->memory));
+  cinn_buffer_malloc((void*)(0), _index);
+  cinn_buffer_malloc((void*)(0), _x);
+  const int32_t* index = ((const int32_t*)(_index->memory));
   float* test_gather_nd_out = ((float*)(_test_gather_nd_out->memory));
-  for (int32_t i = 0; i < 4; i += 1) {
-    for (int32_t j = 0; j < 14; j += 1) {
-      test_gather_nd_out[((14 * i) + j)] = in1[((28 * i) + in2[((14 * i) + j)])];
-    };
+  const float* x = ((const float*)(_x->memory));
+  for (int32_t j = 0; j < 2; j += 1) {
+    test_gather_nd_out[j] = x[((12 * index[(3 * j)]) + ((4 * index[(1 + (3 * j))]) + index[(2 + (3 * j))]))];
   };
-  cinn_buffer_free((void*)(0), _in1);
-  cinn_buffer_free((void*)(0), _in2);
+  cinn_buffer_free((void*)(0), _index);
+  cinn_buffer_free((void*)(0), _x);
   cinn_buffer_free((void*)(0), _test_gather_nd_out);
 }
   )ROC";

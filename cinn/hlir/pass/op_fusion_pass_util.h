@@ -189,7 +189,7 @@ CONDITION_FUNC(horizontal_or_vertical_reduce_relation) {
     }
   }
 
-  auto node_shape  = helper->shape_dict_.at(helper->GetProducerNodeData(producer)[0]->id());
+  auto node_shape  = helper->GetNodeDataShape(producer);
   auto node_size   = std::accumulate(node_shape.begin(), node_shape.end(), 1, std::multiplies<int>());
   auto reduce_size = std::accumulate(reduce_shape.begin(), reduce_shape.end(), 1, std::multiplies<int>());
 
