@@ -378,8 +378,8 @@ Variable NetBuilder::ReluGrad(const Variable& lhs, const Variable& rhs) {
   return CustomInstr("relu_grad", {lhs, rhs}, {}).front();
 }
 
-Variable NetBuilder::GatherNd(const Variable& x, const Variable& index, const std::vector<int>& axes) {
-  return CustomInstr("gather_nd", {x, index}, {{"axes", axes}}).front();
+Variable NetBuilder::GatherNd(const Variable& x, const Variable& index) {
+  return CustomInstr("gather_nd", {x, index}, {}).front();
 }
 
 Variable NetBuilder::Scatter(const Variable& src, const Variable& index, const Variable& out, const int& axis) {
