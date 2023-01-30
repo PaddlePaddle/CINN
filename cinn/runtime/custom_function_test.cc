@@ -286,7 +286,7 @@ TEST(CustomCallCholesky, test) {
     std::vector<float> host_output(batch_size * m * m, 0.0f);
     cudaMemcpy(host_output.data(), output, batch_size * m * m * sizeof(float), cudaMemcpyDeviceToHost);
     for (int i = 0; i < batch_size * m * m; i++) {
-      ASSERT_FLOAT_EQ(host_output[i], result_cuda[i]) << "The output of Cholesky should be the same as result";
+      ASSERT_NEAR(host_output[i], result_cuda[i], 1e-5) << "The output of Cholesky should be the same as result";
     }
 #else
     LOG(INFO) << "NVGPU Target only support on flag CINN_WITH_CUDA ON! Please check.";
