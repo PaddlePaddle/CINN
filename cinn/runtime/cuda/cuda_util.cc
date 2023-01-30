@@ -18,7 +18,9 @@
 #include <cublas_v2.h>
 #include <cuda_runtime.h>
 #include <curand.h>
+#include <cusolverDn.h>
 #include <glog/logging.h>
+#include <thrust/device_vector.h>
 
 #include <algorithm>
 #ifdef CINN_WITH_CUDNN
@@ -933,6 +935,62 @@ void GemmStridedBatched(const cublasHandle_t &cublas,
 }
 
 }  // namespace details
+
+void cinn_call_cholesky_nvgpu(void *v_args, int num_args, int batch_size, int m, bool upper, void *stream) {
+  cinn_pod_value_t *args = static_cast<cinn_pod_value_t *>(v_args);
+  cinn_buffer_t *x       = args[0].operator cinn_buffer_t *();
+  cinn_buffer_t *out     = args[1].operator cinn_buffer_t *();
+  // In cuSOLVER, dense matrix stores in COL_MAJOR, thus FILL_MODE needs to be filpped.
+  // See also: https://docs.nvidia.com/cuda/cusolver/index.html#matrix-dense-format
+  cublasFillMode_t uplo = upper ? CUBLAS_FILL_MODE_LOWER : CUBLAS_FILL_MODE_UPPER;
+  size_t numel          = x->num_elements();
+  // Copy data from x to out
+  void *x_ptr   = reinterpret_cast<void *>(x->memory);
+  void *out_ptr = reinterpret_cast<void *>(out->memory);
+  CUDA_CALL(cudaMemcpy(out_ptr, x_ptr, numel * sizeof(float), cudaMemcpyDeviceToDevice));
+  // Generate pointer array
+  std::vector<float *> host_out_ptr(batch_size, nullptr);
+  for (int i = 0; i < batch_size; ++i) {
+    host_out_ptr[i] = reinterpret_cast<float *>(out_ptr) + i * m * m;
+  }
+  thrust::device_vector<float *> dev_out_ptr(host_out_ptr.begin(), host_out_ptr.end());
+  // Store the return value of each matrix
+  std::vector<int> host_info(batch_size, 0);
+  thrust::device_vector<int> dev_info(host_info.begin(), host_info.end());
+
+  cusolverDnHandle_t handler;
+  CUSOLVER_CALL(cusolverDnCreate(&handler));
+  CUSOLVER_CALL(cusolverDnSpotrfBatched(handler,
+                                        uplo,
+                                        m,
+                                        thrust::raw_pointer_cast(dev_out_ptr.data()),
+                                        m,
+                                        thrust::raw_pointer_cast(dev_info.data()),
+                                        batch_size));
+
+  // Set upper/lower triangle of matrices to 0.
+  std::vector<float> matrix(m * m, 0);
+  for (int i = 0; i < batch_size; ++i) {
+    CUDA_CALL(cudaMemcpy(matrix.data(), host_out_ptr[i], m * m * sizeof(float), cudaMemcpyDeviceToHost));
+    if (upper) {
+      for (int j = 0; j < m; j++) {
+        for (int k = 0; k < j; k++) {
+          matrix[j * m + k] = 0;
+        }
+      }
+    } else {
+      for (int j = 0; j < m; j++) {
+        for (int k = j + 1; k < m; k++) {
+          matrix[j * m + k] = 0;
+        }
+      }
+    }
+    CUDA_CALL(cudaMemcpy(host_out_ptr[i], matrix.data(), m * m * sizeof(float), cudaMemcpyHostToDevice));
+  }
+
+  // Clean
+  CUSOLVER_CALL(cusolverDnDestroy(handler));
+}
 
 void cinn_gpu_cublas_mul(const std::vector<int> &attrs,
                          cinn_buffer_t *input1,
