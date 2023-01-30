@@ -11,7 +11,7 @@ gather_srcs(cinnapi_src SRCS
     dot_merger.cc
     check_fusion_accuracy_pass.cc
     custom_call_pass.cc
-    fold_constant_pass.cc
+    constant_fold_pass.cc
     )
 
 #cc_test(test_opfusion SRCS opfusion_test.cc DEPS cinncore)
