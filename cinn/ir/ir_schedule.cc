@@ -1691,8 +1691,8 @@ Expr ScheduleImpl::SimpleCategorical(const uint32_t seed,
   int i = -1;
   // check two sizes
   CHECK_EQ(candidates.size(), probs.size()) << "candidates and probs must have same size.";
-  CHECK(candidates.as_int32());
-  CHECK(probs.as_float());
+  CHECK(candidates.As<IntImm>());
+  CHECK(probs.As<FloatImm>());
   // check candidates
   if (candidates.size() < 1) {
     return Expr{nullptr};
