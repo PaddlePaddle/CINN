@@ -41,6 +41,13 @@ void cinn_gpu_cublas_gemm(const std::vector<int>& attrs,
                           cinn_buffer_t* bias,
                           cinn_buffer_t* output,
                           cudaStream_t stream = nullptr);
+
+void cinn_call_gaussian_random(void* v_args, int num_args, float mean, float std, int seed, void* stream = nullptr);
+
+void cinn_call_uniform_random(void* v_args, int num_args, float min, float max, int seed, void* stream = nullptr);
+
+void cinn_call_cholesky_nvgpu(void* v_args, int num_args, int batch_size, int m, bool upper, void* stream = nullptr);
+
 #ifdef CINN_WITH_CUDNN
 void cinn_gpu_cudnn_conv2d(const absl::flat_hash_map<std::string, int>& attr,
                            cinn_buffer_t* x,

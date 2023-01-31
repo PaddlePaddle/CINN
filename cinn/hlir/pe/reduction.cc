@@ -258,7 +258,7 @@ std::vector<Tensor> WarpReduce(const ir::Tensor& A,
         tmp_indexs.push_back(Expr(0));
         return tmp_out(tmp_indexs);
       },
-      UniqName(output_name));
+      output_name);
 
   return {out, tmp_out};
 }
@@ -343,7 +343,7 @@ std::vector<ir::Tensor> BlockReduceInternal(const ir::Tensor& A,
         tmp_indexs.push_back(Expr(0));
         return tmp_out(tmp_indexs);
       },
-      UniqName(output_name));
+      output_name);
   return {out, tmp_out};
 }
 
@@ -450,7 +450,7 @@ std::vector<ir::Tensor> BlockReduce(const ir::Tensor& A,
         tmp_indexs.push_back(Expr(0));
         return tmp_out(tmp_indexs);
       },
-      UniqName(output_name));
+      output_name);
 
   return {out, tmp_out};
 }
@@ -623,7 +623,7 @@ ir::Tensor BlockShuffleReduce(const ir::Tensor& A,
       [=](const std::vector<Expr>& indexs) -> Expr {
         return lang::CallExtern(reduce_type, {A, A->shape.back(), Expr(stride)});
       },
-      UniqName(output_name));
+      output_name);
   return out;
 }
 

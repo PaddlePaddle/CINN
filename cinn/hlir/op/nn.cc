@@ -460,11 +460,7 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
 
   auto strategy = std::make_shared<framework::OpStrategy>();
   CHECK(out_type.size()) << "Out_type of conv2d op is empty! Please check.";
-  if (out_type[0] == Float(32)) {
-    strategy->AddImpl(conv2d_compute, conv2d_schedule, "strategy.conv2d.x86", 1);
-  } else {
-    LOG(FATAL) << "Conv2d op with dtype != float32 is not implemented yet!";
-  }
+  strategy->AddImpl(conv2d_compute, conv2d_schedule, "strategy.conv2d.x86", 1);
   return strategy;
 }
 
@@ -1084,7 +1080,10 @@ std::vector<shape_t> InferShapeForBatchNorm(const std::vector<shape_t> &inputs_s
 }
 
 std::vector<Type> InferDtypeForBatchNorm(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
-  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
+  CHECK_EQ(inputs_type.size(), 5U) << "The BatchNorm Infer input's type size should be 5! Please check again.";
+  CHECK_EQ(inputs_type[1], inputs_type[2]) << "The BatchNorm Infer scale type should the same as bias type";
+  CHECK_EQ(inputs_type[1], inputs_type[3]) << "The BatchNorm Infer scale type should the same as moving_mean type";
+  CHECK_EQ(inputs_type[1], inputs_type[4]) << "The BatchNorm Infer scale type should the same as moving_variance type";
   std::vector<Type> res{inputs_type[0]};
   return res;
 }
@@ -2158,8 +2157,11 @@ std::vector<framework::shape_t> InferShapeForBatchNormTrain(const std::vector<fr
 
 std::vector<Type> InferDtypeForBatchNormTrain(const std::vector<Type> &inputs_type,
                                               const framework::AttrMapType &attrs) {
-  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
-  return {inputs_type[0], inputs_type[0], inputs_type[0], inputs_type[0], inputs_type[0]};
+  CHECK_EQ(inputs_type.size(), 5U) << "The BatchNormTrain input's type size should be 5! Please check again.";
+  CHECK_EQ(inputs_type[1], inputs_type[2]) << "The BatchNormTrain scale type should the same as bias type";
+  CHECK_EQ(inputs_type[1], inputs_type[3]) << "The BatchNormTrain scale type should the same as moving_mean type";
+  CHECK_EQ(inputs_type[1], inputs_type[4]) << "The BatchNormTrain scale type should the same as moving_variance type";
+  return {inputs_type[0], inputs_type[1], inputs_type[1], inputs_type[1], inputs_type[1]};
 }
 
 std::shared_ptr<OpStrategy> StrategyForGradOp(const framework::NodeAttr &attrs,
@@ -2206,8 +2208,12 @@ std::vector<framework::shape_t> InferShapeForBatchNormGrad(const std::vector<fra
 
 std::vector<Type> InferDtypeForBatchNormGrad(const std::vector<Type> &inputs_type,
                                              const framework::AttrMapType &attrs) {
-  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
-  return {inputs_type[0], inputs_type[0], inputs_type[0]};
+  CHECK_EQ(inputs_type.size(), 5U) << "The BatchNormGrad input's type size should be 5! Please check again.";
+
+  CHECK_EQ(inputs_type[0], inputs_type[1]) << "The BatchNormGrad y_grad type should the same as x type";
+  CHECK_EQ(inputs_type[2], inputs_type[3]) << "The BatchNormGrad scale type should the same as save_mean type";
+  CHECK_EQ(inputs_type[2], inputs_type[4]) << "The BatchNormGrad scale type should the same as save_variance type";
+  return {inputs_type[0], inputs_type[2], inputs_type[2]};
 }
 
 // conv2d grad

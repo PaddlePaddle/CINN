@@ -268,6 +268,39 @@ CINN_REGISTER_HELPER(cinn_cuda_host_api) {
       .AddInputType<void *>()  // stream
       .End();
 
+  using cinn::runtime::cuda::cinn_call_gaussian_random;
+  REGISTER_EXTERN_FUNC_HELPER(cinn_call_gaussian_random, cinn::common::DefaultHostTarget())
+      .SetRetType<void>()
+      .AddInputType<void *>()  // v_args
+      .AddInputType<int>()     // num_args
+      .AddInputType<float>()   // mean
+      .AddInputType<float>()   // std
+      .AddInputType<int>()     // seed
+      .AddInputType<void *>()  // stream
+      .End();
+
+  using cinn::runtime::cuda::cinn_call_uniform_random;
+  REGISTER_EXTERN_FUNC_HELPER(cinn_call_uniform_random, cinn::common::DefaultHostTarget())
+      .SetRetType<void>()
+      .AddInputType<void *>()  // v_args
+      .AddInputType<int>()     // num_args
+      .AddInputType<float>()   // min
+      .AddInputType<float>()   // max
+      .AddInputType<int>()     // seed
+      .AddInputType<void *>()  // stream
+      .End();
+
+  using cinn::runtime::cuda::cinn_call_cholesky_nvgpu;
+  REGISTER_EXTERN_FUNC_HELPER(cinn_call_cholesky_nvgpu, cinn::common::DefaultNVGPUTarget())
+      .SetRetType<void>()
+      .AddInputType<void *>()  // v_args
+      .AddInputType<int>()     // num_args
+      .AddInputType<int>()     // batch_size
+      .AddInputType<int>()     // m
+      .AddInputType<bool>()    // upper
+      .AddInputType<void *>()  // stream
+      .End();
+
 #ifdef CINN_WITH_CUDNN
   using cinn::runtime::cuda::cinn_call_cudnn_conv2d_forward;
   REGISTER_EXTERN_FUNC_HELPER(cinn_call_cudnn_conv2d_forward, cinn::common::DefaultHostTarget())

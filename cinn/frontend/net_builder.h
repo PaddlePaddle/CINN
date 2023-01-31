@@ -289,7 +289,7 @@ class NetBuilder {
    */
   Variable Clip(const std::vector<Variable>& x, const float& max, const float& min);
 
-  Variable GatherNd(const Variable& x, const Variable& index, const cinn::utils::ShapeType& axes = {});
+  Variable GatherNd(const Variable& x, const Variable& index);
 
   Variable Scatter(const Variable& src, const Variable& index, const Variable& out, const int& axis = 0);
   Variable Scatter(const Variable& src,
@@ -960,6 +960,43 @@ class NetBuilder {
    * @return `The concatenated variable of selected values`.
    */
   Variable LookupTable(const Variable& table, const Variable& ids, int64_t padding_idx);
+
+  /**
+   * @brief Gaussian random
+   * @param shape Shape of the variable to be created.
+   * @param mean Mean of the output variable, default is 0.0f.
+   * @param std Standard deviation of the output variable, default is 1.0f.
+   * @param seed Random seed of generator, default is 0.
+   * @param dtype Data type of output variable, supported data types: float32, float64.
+   */
+  Variable GaussianRandom(const std::vector<int>& shape,
+                          float mean               = 0.0f,
+                          float std                = 1.0f,
+                          int seed                 = 0,
+                          const std::string& dtype = "float32");
+
+  /**
+   * @brief Uniform random
+   * @param shape Shape of the variable to be created.
+   * @param min The lower bound of the range of random values ​​generated, min is included in the range.
+   * @param max The upper bound of the range of random values ​​generated, max is not included in the range.
+   * @param seed Random seed of generator, default is 0.
+   * @param dtype Data tpye of output variable, supported data types: float32, float64.
+   */
+  Variable UniformRandom(const std::vector<int>& shape,
+                         float min                = -1.0f,
+                         float max                = 1.0f,
+                         int seed                 = 0,
+                         const std::string& dtype = "float32");
+
+  /**
+   * @brief Compute cholesky decomposition of a positive definite symmetric matrix.
+   * @param x Positive definite symmetric matrix.
+   * @param upper When upper is true, calculate and return the upper triangular matrix.
+                  When upper is false, calculate and return the lower triangular matrix.
+   * @return Triangular matrix, shape is same as input.
+   */
+  Variable Cholesky(const Variable& x, bool upper = false);
 
  private:
   CINN_DISALLOW_COPY_AND_ASSIGN(NetBuilder);

@@ -2871,5 +2871,23 @@ void TestIrSchedule_ReduceSum(void* _args, int32_t num_args)
   ASSERT_EQ(utils::Trim(target_code), utils::Trim(source_code));
 }
 
+TEST(IrSchedule, SamplePerfectTile) {
+  Context::Global().ResetNameId();
+  Expr M(1024);
+  Placeholder<int> A("A", {M});
+  auto B = Compute(
+      {M}, [&](Expr i) { return A(i) + 1; }, "B");
+  poly::StageMap stages = CreateStages({A, B});
+
+  auto funcs = cinn::lang::LowerVec(
+      "test_sampleperfecttile", stages, {A, B}, {}, {}, nullptr, common::DefaultHostTarget(), true);
+
+  ir::IRSchedule ir_sch(ir::ModuleExpr({funcs[0]->body}));
+  auto loops_b             = ir_sch.GetLoops("B");
+  std::vector<Expr> result = ir_sch.SamplePerfectTile(loops_b[0], 3, 64);
+  LOG(INFO) << "SamplePerfectTile result: " << result;
+  ASSERT_EQ(result.size(), 3);
+}
+
 }  // namespace backends
 }  // namespace cinn

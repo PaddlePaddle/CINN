@@ -101,8 +101,6 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
     for (auto &t : out) {
       stages->InsertLazily(t);
     }
-    auto out_shape_e = ToCinnExprs(output_shape);
-    out[0]->Reshape(out_shape_e, stages);
 
     for (auto &t : out) {
       res.push_back(CINNValue(t));
@@ -148,7 +146,7 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
 
 std::vector<std::vector<int>> InferShapeForMatMul(const std::vector<std::vector<int>> &inputs_shape,
                                                   const framework::AttrMapType &attrs) {
-  CHECK_EQ(inputs_shape.size(), 2U) << "The input's shape size should be 2! Please check again.";
+  CHECK_EQ(inputs_shape.size(), 2UL) << "The input's shape size should be 2! Please check again.";
   bool trans_a = GetAttr(attrs, "trans_a", false);
   bool trans_b = GetAttr(attrs, "trans_b", false);
 
@@ -170,7 +168,8 @@ std::vector<std::vector<int>> InferShapeForMatMul(const std::vector<std::vector<
 }
 
 std::vector<Type> InferDtypeForMatMul(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
-  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
+  CHECK_EQ(inputs_type.size(), 2UL) << "The input's type size should be 2! Please check again.";
+  CHECK_EQ(inputs_type[0], inputs_type[1]) << "The input's types should be equal! Please check again.";
 
   std::vector<Type> res{inputs_type[0]};
   return res;
@@ -536,8 +535,6 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
     for (auto &t : out) {
       stages->InsertLazily(t);
     }
-    auto out_shape_e = ToCinnExprs(output_shape);
-    out[0]->Reshape(out_shape_e, stages);
 
     for (auto &t : out) {
       res.push_back(CINNValue(t));
@@ -583,7 +580,7 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
 
 std::vector<std::vector<int>> InferShapeForMul(const std::vector<std::vector<int>> &inputs_shape,
                                                const framework::AttrMapType &attrs) {
-  // CHECK_EQ(inputs_shape.size(), 2U) << "The input's shape size should be 2! Please check again.";
+  CHECK_EQ(inputs_shape.size(), 2U) << "The input's shape size should be 2! Please check again.";
   CHECK_GE(inputs_shape[0].size(), 2U) << "Input matrix X's dim should be >= 2! Please check.";
   CHECK_GE(inputs_shape[1].size(), 2U) << "Input matrix Y's dim should be >= 2! Please check.";
 
@@ -613,7 +610,9 @@ std::vector<std::vector<int>> InferShapeForMul(const std::vector<std::vector<int
 }
 
 std::vector<Type> InferDtypeForMul(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
-  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
+  CHECK_EQ(inputs_type.size(), 2U) << "The input's type size should be 2! Please check again.";
+  CHECK_EQ(inputs_type[0], inputs_type[1]) << "The input's types should be equal! Please check again.";
+
   return {inputs_type[0]};
 }
 
@@ -677,7 +676,7 @@ std::shared_ptr<OpStrategy> StrategyForCublasGemm(const framework::NodeAttr &att
 
 std::vector<shape_t> InferShapeForCublasGemm(const std::vector<std::vector<int>> &input_shapes,
                                              const framework::AttrMapType &attrs) {
-  CHECK_EQ(input_shapes.size(), 3U) << "cublas_gemm should have 3 input shapes";
+  CHECK_EQ(input_shapes.size(), 3UL) << "cublas_gemm should have 3 input shapes";
   CHECK_EQ(input_shapes[0].size(), input_shapes[1].size());
   CHECK_EQ(input_shapes[0].size(), input_shapes[2].size());
   CHECK((input_shapes[0].size() == 2 || input_shapes[0].size() == 3));
@@ -685,7 +684,9 @@ std::vector<shape_t> InferShapeForCublasGemm(const std::vector<std::vector<int>>
 }
 
 std::vector<Type> InferDtypeForCublasGemm(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
-  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
+  CHECK_EQ(inputs_type.size(), 3UL) << "The input's type size is 0! Please check again.";
+  CHECK_EQ(inputs_type[0], inputs_type[1]) << "The input A and B's types should be equal! Please check again.";
+  CHECK_EQ(inputs_type[0], inputs_type[2]) << "The input A and C's types should be equal! Please check again.";
   return {inputs_type[0]};
 }
 

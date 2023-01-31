@@ -156,48 +156,6 @@ std::vector<std::vector<std::string>> InferLayoutForBroadcast(const std::vector<
   }
 }
 
-std::shared_ptr<OpStrategy> StrategyForPow(const framework::NodeAttr &attrs,
-                                           const std::vector<ir::Tensor> &inputs,
-                                           const std::vector<Type> &out_type,
-                                           const std::vector<std::vector<int>> &output_shapes,
-                                           const Target &target) {
-  framework::CINNCompute pow_compute([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input argument of pow compute is empty! Please check.";
-    CINNValuePack pack_args = args[0];
-    CHECK_GE(pack_args.size(), 3U) << "pow 's input is not enough!";
-    CHECK(pack_args[2].is_string());
-    auto tensor_name = pack_args[2].operator std::string();
-
-    Expr A_expr = pack_args[0];
-    Expr B_expr = pack_args[1];
-    CHECK(A_expr.as_tensor());
-    CHECK(B_expr.as_tensor());
-    ir::Tensor A = A_expr.as_tensor_ref();
-    ir::Tensor B = B_expr.as_tensor_ref();
-
-    int axis = -1;
-    if (attrs.attr_store.count("axis")) {
-      axis = absl::get<int>(attrs.attr_store.at("axis"));
-    }
-    auto out    = pe::Pow(A, B, tensor_name, Expr(axis), target);
-    auto stages = CreateStages({A, B, out});
-    *ret        = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
-  });
-
-  auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(pow_compute, GetInjectiveScheduleFunc(output_shapes, target), "strategy.pow.x86", 1);
-  return strategy;
-}
-
-std::vector<Type> InferDtypeForPow(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
-  CHECK_EQ(inputs_type.size(), 2UL) << "The pow op should has two inputs! Please check.";
-  CHECK_EQ(inputs_type[0], inputs_type[1])
-      << "The data type of input tensors of pow op should be equal, but here x:" << inputs_type[0]
-      << " != y:" << inputs_type[1] << "! Please check.";
-  std::vector<Type> res{inputs_type[0]};
-  return res;
-}
-
 std::shared_ptr<OpStrategy> StrategyForBroadcastTo(const framework::NodeAttr &attrs,
                                                    const std::vector<ir::Tensor> &inputs,
                                                    const std::vector<Type> &out_type,
@@ -271,7 +229,10 @@ std::vector<std::vector<std::string>> InferLayoutForBroadcastTo(const std::vecto
 std::vector<Type> InferDtypeForBroadcastGrad(const std::vector<Type> &inputs_type,
                                              const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_type.size(), 3UL);
-  std::vector<Type> out_type{inputs_type[1], inputs_type[2]};
+  // Avoid no need buffer var, like elementwise_add_grad's input X and Y is no need buffer var,
+  // in this situation, the X and Y's type is default value FP32, not the real type,
+  // we should get the real type from dout.
+  std::vector<Type> out_type{inputs_type[0], inputs_type[0]};
   return out_type;
 }
 
@@ -385,6 +346,8 @@ StrategyForBinary(mod, Mod);
 StrategyForBinary(remainder, Remainder);
 StrategyForBinary(max, Maximum);
 StrategyForBinary(min, Minimum);
+StrategyForBinary(pow, Pow);
+
 StrategyForBinary(logical_and, LogicalAnd);
 StrategyForBinary(logical_or, LogicalOr);
 StrategyForBinary(logical_xor, LogicalXOr);
@@ -400,6 +363,7 @@ StrategyForBinary(bitwise_xor, BitwiseXor);
 StrategyForBinary(bitwise_and, BitwiseAnd);
 StrategyForBinary(left_shift, LeftShift);
 StrategyForBinary(right_shift, RightShift);
+StrategyForBinary(logical_right_shift, LogicalRightShift);
 
 #undef StrategyForBinary
 
@@ -443,6 +407,7 @@ CINN_REGISTER_HELPER(broadcast_ops) {
   CINN_REGISTER_BINARY(remainder, Remainder);
   CINN_REGISTER_BINARY(max, Maximum);
   CINN_REGISTER_BINARY(min, Minimum);
+  CINN_REGISTER_BINARY(pow, Pow);
 
   CINN_REGISTER_BINARY_CMP(logical_and, LogicalAnd);
   CINN_REGISTER_BINARY_CMP(logical_or, LogicalOr);
@@ -459,20 +424,8 @@ CINN_REGISTER_HELPER(broadcast_ops) {
   CINN_REGISTER_BINARY(bitwise_and, BitwiseAnd);
   CINN_REGISTER_BINARY(left_shift, LeftShift);
   CINN_REGISTER_BINARY(right_shift, RightShift);
+  CINN_REGISTER_BINARY(logical_right_shift, LogicalRightShift);
 #undef CINN_REGISTER_BINARY
-
-  CINN_REGISTER_OP(pow)
-      .describe("pow op")
-      .set_num_inputs(2)
-      .set_num_outputs(1)
-      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForPow)
-      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForBroadcast))
-      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForPow))
-#ifndef CINN_WITH_CUDA
-      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForBroadcast))
-#endif
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kBroadcast)
-      .set_support_level(4);
 
   CINN_REGISTER_OP(broadcast_to)
       .describe("broadcast one tensor to the target shape")

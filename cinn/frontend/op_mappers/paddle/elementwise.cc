@@ -25,6 +25,25 @@ namespace paddle_mappers {
 enum class EltwiseType { kUnk = 0, kAdd, kDiv, kMul, kSub, kPow, kMod, kMax, kMin };
 
 template <EltwiseType Type>
+std::string GetEltwiseTypeString();
+
+#define EXPAND_ELTWISETYPE_STRING(Type, str)              \
+  template <>                                             \
+  std::string GetEltwiseTypeString<EltwiseType::Type>() { \
+    return str;                                           \
+  }
+
+EXPAND_ELTWISETYPE_STRING(kAdd, " + ")
+EXPAND_ELTWISETYPE_STRING(kDiv, " / ")
+EXPAND_ELTWISETYPE_STRING(kMul, " * ")
+EXPAND_ELTWISETYPE_STRING(kSub, " - ")
+EXPAND_ELTWISETYPE_STRING(kPow, " pow ")
+EXPAND_ELTWISETYPE_STRING(kMod, " % ")
+EXPAND_ELTWISETYPE_STRING(kMax, " max ")
+EXPAND_ELTWISETYPE_STRING(kMin, " min ")
+#undef EXPAND_ELTWISETYPE_STRING
+
+template <EltwiseType Type>
 struct OpBuilder {};
 
 #define ELTWISE_SPEC(enum_t, function)                                                               \
@@ -50,6 +69,8 @@ void AddOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx)
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
   auto out_name = op_desc.Output("Out").front();
 
+  VLOG(4) << out_name << " = " << x_name << " + " << y_name;
+
   auto x   = ctx.GetVar(x_name);
   auto y   = ctx.GetVar(y_name);
   auto out = ctx.Builder()->Add(x, y);
@@ -70,12 +91,14 @@ void ElementwiseOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperConte
 
   auto axis = utils::GetAttrOrDefault<int>(op_desc, "axis", -1);
 
+  VLOG(4) << out_name << " = " << x_name << GetEltwiseTypeString<Type>() << y_name << " at " << axis;
+
   auto x   = ctx.GetVar(x_name);
   auto y   = ctx.GetVar(y_name);
   auto out = (ctx.Builder()->*OpBuilder<Type>::func)(x, y, axis);
 
-  ctx.AddVar(out_name, out);
-  ctx.AddVarModelToProgram(out_name, out->id);
+  ctx.AddVar(out_name, out, true);
+  ctx.AddVarModelToProgram(out_name, out->id, true);
 }
 
 void ElementwiseAddGradOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
@@ -93,6 +116,9 @@ void ElementwiseAddGradOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapp
 
   auto axis = utils::GetAttrOrDefault<int>(op_desc, "axis", -1);
 
+  VLOG(4) << "{X@GRAD=" << dx_name << ", Y@GRAD=" << dy_name << "}=elementwise_add_grad(X=" << x_name
+          << ", Y=" << y_name << ", OUT@GRAD=" << dout_name << ", axis=" << axis << ")";
+
   auto x    = ctx.GetVar(x_name);
   auto y    = ctx.GetVar(y_name);
   auto dout = ctx.GetVar(dout_name);
@@ -101,45 +127,29 @@ void ElementwiseAddGradOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapp
 
   auto dx = outs.front();
   ctx.AddVar(dx_name, dx);
-  ctx.AddVarModelToProgram(dx_name, dx->id);
+  ctx.AddVarModelToProgram(dx_name, dx->id, true);
   auto dy = outs.back();
   ctx.AddVar(dy_name, dy);
-  ctx.AddVarModelToProgram(dy_name, dy->id);
-}
-
-void ElementwiseMulOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
-  CHECK_EQ(op_desc.Input("X").size(), 1UL);
-  auto x_name = op_desc.Input("X").front();
-  CHECK_EQ(op_desc.Input("Y").size(), 1UL);
-  auto y_name = op_desc.Input("Y").front();
-  CHECK_EQ(op_desc.Output("Out").size(), 1UL);
-  auto out_name = op_desc.Output("Out").front();
-
-  auto axis = utils::GetAttrOrDefault<int>(op_desc, "axis", -1);
-
-  auto x   = ctx.GetVar(x_name);
-  auto y   = ctx.GetVar(y_name);
-  auto out = ctx.Builder()->Multiply(x, y, axis);
-
-  ctx.AddVar(out_name, out);
-  ctx.AddVarModelToProgram(out_name, out->id);
+  ctx.AddVarModelToProgram(dy_name, dy->id, true);
 }
 
 void SumOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_GE(op_desc.Input("X").size(), 1UL);
   auto x_names = op_desc.Input("X");
+  CHECK_EQ(op_desc.Output("Out").size(), 1UL);
+  auto out_name = op_desc.Output("Out").front();
 
   std::vector<Variable> xs;
   for (const auto& name : x_names) {
     xs.emplace_back(ctx.GetVar(name));
   }
 
+  VLOG(4) << out_name << " = " << cinn::utils::Join(x_names, " + ");
+
   auto out = ctx.Builder()->Sum(xs);
 
-  CHECK_EQ(op_desc.Output("Out").size(), 1UL);
-  auto out_name = op_desc.Output("Out").front();
-  ctx.AddVar(out_name, out);
-  ctx.AddVarModelToProgram(out_name, out->id);
+  ctx.AddVar(out_name, out, true);
+  ctx.AddVarModelToProgram(out_name, out->id, true);
 }
 
 void CastOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
@@ -152,6 +162,8 @@ void CastOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
       utils::GetAttrOrDefault<int>(op_desc, "out_dtype", static_cast<int>(paddle::cpp::VarDescAPI::Type::FP32));
   auto str_dtype = common::Type2Str(utils::CppVarType2CommonType(static_cast<paddle::cpp::VarDescAPI::Type>(dtype)));
 
+  VLOG(4) << out_name << " = cast(X:" << x_name << ", out_dtype=" << str_dtype << ")";
+
   auto x   = ctx.GetVar(x_name);
   auto out = ctx.Builder()->Cast(x, str_dtype);
 
@@ -163,6 +175,8 @@ void PowOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx)
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
   auto x_name = op_desc.Input("X").front();
   auto x      = ctx.GetVar(x_name);
+  CHECK_EQ(op_desc.Output("Out").size(), 1UL);
+  auto out_name = op_desc.Output("Out").front();
 
   absl::optional<Variable> y;
   if (op_desc.HasInput("FactorTensor") && !op_desc.Input("FactorTensor").empty()) {
@@ -170,7 +184,6 @@ void PowOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx)
     auto y_name = op_desc.Input("FactorTensor").front();
     y           = ctx.GetVar(y_name);
 
-    VLOG(4) << "pow(" << x_name << ", " << y_name << ")";
   } else if (op_desc.HasAttr("factor")) {
     auto factor = utils::GetAttrOrDefault<float>(op_desc, "factor");
     y = ctx.Builder()->FillConstant(x->shape, factor, cinn::UniqName(x_name + "_factor"), common::Type2Str(x->type));
@@ -178,11 +191,9 @@ void PowOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx)
     LOG(FATAL) << "Cannot found [FactorTensor] input or [factor] attribute in paddle.pow! Please check.";
   }
 
+  VLOG(4) << out_name << " = pow(" << x_name << ", " << y.value()->id << ")";
   CHECK_EQ(x->type, y.value()->type) << "The data type of pow's inputs should be equal, but here x:" << x->type
                                      << " != y:" << y.value()->type;
-
-  CHECK_EQ(op_desc.Output("Out").size(), 1UL);
-  auto out_name = op_desc.Output("Out").front();
 
   auto out = ctx.Builder()->Pow(x, y.value());
 

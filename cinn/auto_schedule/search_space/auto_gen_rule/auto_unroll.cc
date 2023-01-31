@@ -84,7 +84,7 @@ RuleApplyType AutoUnroll::Init(ir::IRSchedule* ir_schedule) {
   num_applicable_             = applicable_schedule_blocks_.size();
   VLOG(6) << "Collect applicable_schedule_blocks_:" << num_applicable_;
 
-  return num_applicable_ > 0 ? RuleApplyType::kApplyAndSkipThisRule : RuleApplyType::kCannotApply;
+  return num_applicable_ > 0 ? RuleApplyType::kApplyAndPruneOtherRules : RuleApplyType::kCannotApply;
 }
 
 void AutoUnroll::Apply(int index) {
@@ -103,7 +103,7 @@ RuleApplyType AutoUnroll::AnalyseApplyType(SearchState state, const std::string&
   auto* schedule_block = block_realize->schedule_block.As<ir::ScheduleBlock>();
   CHECK(schedule_block) << "schedule_block field is not a ScheduleBlock:" << Expr(block_realize);
 
-  return MeetCondition(schedule_block) ? RuleApplyType::kApplyAndSkipThisRule : RuleApplyType::kCannotApply;
+  return MeetCondition(schedule_block) ? RuleApplyType::kApplyAndPruneOtherRules : RuleApplyType::kCannotApply;
 }
 
 std::vector<SearchState> AutoUnroll::ApplyOnBlock(SearchState state, const std::string& block_name) {

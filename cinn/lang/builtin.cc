@@ -79,6 +79,9 @@ EXTERN_CALL_IMP_NO_VEC(Asin, asin);
 EXTERN_CALL_IMP_NO_VEC(Asinh, asinh);
 EXTERN_CALL_IMP_NO_VEC(Atan, atan);
 EXTERN_CALL_IMP_NO_VEC(Atanh, atanh);
+EXTERN_CALL_IMP(Cbrt, cbrt);
+EXTERN_CALL_IMP(Clz, clz);
+EXTERN_CALL_IMP(Popc, popc);
 
 #undef EXTERN_CALL_IMP
 #undef EXTERN_CALL_IMP_NO_VEC
@@ -87,6 +90,8 @@ EXTERN_CALL_IMP_NO_VEC(Atanh, atanh);
   Expr name__(Expr a, Expr b) { return ir::Call::Make(a->type(), #target__, {a, b}, {}, ir::CallType::Extern); }
 
 EXTERN_BINARY_CALL_IMP(Remainder, remainder)
+EXTERN_BINARY_CALL_IMP(LogicalRightShift, logical_right_shift)
+EXTERN_BINARY_CALL_IMP(Pow, pow)
 
 #undef EXTERN_BINARY_CALL_IMP
 
@@ -100,7 +105,7 @@ Expr FloorDivide(Expr a, Expr b) {
 }
 
 Expr Mod(Expr a, Expr b) {
-  CHECK_EQ(a.type(), b.type()) << "FloorDivide's inputs type not equal, where a:" << a.type() << " but b:" << b.type();
+  CHECK_EQ(a.type(), b.type()) << "Mod's inputs type not equal, where a:" << a.type() << " but b:" << b.type();
   auto quotient = lang::FloorDivide(a, b);
   if (a.type().is_int()) {
     auto zero = Zero(a->type());

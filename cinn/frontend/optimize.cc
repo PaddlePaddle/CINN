@@ -45,10 +45,14 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
   options.program_passes.emplace_back("TransposeCollapsing");
   options.program_passes.emplace_back("RemoveIdentity");
 
-  options.program_passes.emplace_back("TransposeFoldingInput");
-  options.program_passes.emplace_back("GemmRewriter");
-  options.program_passes.emplace_back("TransposeFoldingOutput");
-  options.program_passes.emplace_back("GemmRewriter");
+#ifdef CINN_WITH_CUDA
+  if (FLAGS_cinn_use_cublas_gemm) {
+    options.program_passes.emplace_back("TransposeFoldingInput");
+    options.program_passes.emplace_back("GemmRewriter");
+    options.program_passes.emplace_back("TransposeFoldingOutput");
+    options.program_passes.emplace_back("GemmRewriter");
+  }
+#endif
 
   options.program_passes.emplace_back("FillConstantRewriter");
   if (FLAGS_cinn_use_fill_constant_folding) {
@@ -62,6 +66,9 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
   if (FLAGS_cinn_use_cublas_gemm) {
     options.graph_passes.push_back("MatmulToCublasCustomCallPass");
   }
+  options.graph_passes.emplace_back("GaussianRandomToCustomCallPass");
+  options.graph_passes.emplace_back("UniformRandomToCustomCallPass");
+  options.graph_passes.emplace_back("CholeskyToCustomCallPass");
 #ifdef CINN_WITH_CUDNN
   if (FLAGS_cinn_use_cudnn_conv) {
     options.graph_passes.push_back("ConvToCudnnCustomCallPass");

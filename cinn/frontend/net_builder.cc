@@ -378,8 +378,8 @@ Variable NetBuilder::ReluGrad(const Variable& lhs, const Variable& rhs) {
   return CustomInstr("relu_grad", {lhs, rhs}, {}).front();
 }
 
-Variable NetBuilder::GatherNd(const Variable& x, const Variable& index, const std::vector<int>& axes) {
-  return CustomInstr("gather_nd", {x, index}, {{"axes", axes}}).front();
+Variable NetBuilder::GatherNd(const Variable& x, const Variable& index) {
+  return CustomInstr("gather_nd", {x, index}, {}).front();
 }
 
 Variable NetBuilder::Scatter(const Variable& src, const Variable& index, const Variable& out, const int& axis) {
@@ -647,6 +647,29 @@ std::vector<Variable> NetBuilder::Conv2dGrad(const Variable& dy,
 Variable NetBuilder::Matmul(const Variable& x, const Variable& y, bool trans_x, bool trans_y, float alpha) {
   return CustomInstr("matmul", {x, y}, {{"trans_a", trans_x}, {"trans_b", trans_y}, {"alpha", alpha}}).front();
   ;
+}
+
+Variable NetBuilder::GaussianRandom(
+    const std::vector<int>& shape, float mean, float std, int seed, const std::string& dtype) {
+  return CustomInstr(
+             "gaussian_random", {}, {{"shape", shape}, {"mean", mean}, {"std", std}, {"seed", seed}, {"dtype", dtype}})
+      .front();
+}
+
+Variable NetBuilder::UniformRandom(
+    const std::vector<int>& shape, float min, float max, int seed, const std::string& dtype) {
+  auto uniform_out =
+      CustomInstr(
+          "uniform_random", {}, {{"shape", shape}, {"min", min}, {"max", max}, {"seed", seed}, {"dtype", dtype}})
+          .front();
+  auto uniform_range   = FillConstant(shape, max - min, UniqName("uniform_range"), dtype);
+  auto uniform_mul_out = Multiply(uniform_out, uniform_range);
+  auto uniform_min     = FillConstant(shape, min, UniqName("uniform_min"), dtype);
+  return Add(uniform_mul_out, uniform_min);
+}
+
+Variable NetBuilder::Cholesky(const Variable& x, bool upper) {
+  return CustomInstr("cholesky", {x}, {{"upper", upper}}).front();
 }
 
 }  // namespace frontend

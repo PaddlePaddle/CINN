@@ -26,17 +26,14 @@ namespace auto_schedule {
  * Enum class representing how this rule can be applied to a ModuleExpr.
  */
 enum class RuleApplyType : int {
-  // This rule cannot be applied to ModuleExpr
+  // This rule cannot be applied to ModuleExpr.
   kCannotApply = 0,
-  // This rule can be applied to ModuleExpr
+  // This rule can be applied to ModuleExpr,
+  // and the original ModuleExpr will be retained for branching with other rules.
   kApply = 1,
-  // This rule can be applied, but after applying, we should skip this rule
-  // to apply on the module again.
-  kApplyAndSkipThisRule = 2,
-  // This rule can be applied, but after applying, we should skip all rules
-  kApplyAndSkipAllRules = 3,
-  // This rule can be applied, but after applying, we need to re-initialize
-  kApplyAndNeedInit = 4
+  // This rule can be applied, but the original ModuleExpr will be deleted,
+  // so the branches with other rules applied on the original ModuleExpr will be pruned.
+  kApplyAndPruneOtherRules = 2,
 };
 
 /**

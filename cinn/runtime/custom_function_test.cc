@@ -19,6 +19,8 @@
 
 #ifdef CINN_WITH_CUDA
 #include <cuda_runtime.h>
+
+#include "cinn/runtime/cuda/cuda_util.h"
 #endif
 
 #include "cinn/runtime/cinn_runtime.h"
@@ -167,6 +169,127 @@ TEST(CinnAssertTrue, test_false_only_warning) {
     cudaMemcpy(&output_h, output, sizeof(bool), cudaMemcpyDeviceToHost);
 
     ASSERT_EQ(input_h, output_h) << "The output of AssertTrue should be the same as input";
+#endif
+  }
+}
+
+TEST(CustomCallGaussianRandom, test_target_nvgpu) {
+  Target target = common::DefaultTarget();
+
+  // Arg mean
+  float mean = 0.0f;
+  // Arg std
+  float std = 1.0f;
+  // Arg seed
+  int seed = 10;
+
+  // Output matrix out
+  CinnBufferAllocHelper out(cinn_x86_device, cinn_float32_t(), {2, 3});
+  auto* output = out.mutable_data<float>(target);
+
+  int num_args               = 1;
+  cinn_pod_value_t v_args[1] = {cinn_pod_value_t(out.get())};
+
+  if (target == common::DefaultHostTarget()) {
+    LOG(INFO) << "Op gaussian random only support on NVGPU";
+  } else if (target == common::DefaultNVGPUTarget()) {
+#ifdef CINN_WITH_CUDA
+    cinn::runtime::cuda::cinn_call_gaussian_random(v_args, num_args, mean, std, seed, nullptr);
+
+    float output_data[6] = {0.0};
+    cudaMemcpy(output_data, output, 6 * sizeof(float), cudaMemcpyDeviceToHost);
+    for (int i = 0; i < 6; i++) {
+      VLOG(6) << output_data[i];
+    }
+#else
+    LOG(FATAL) << "NVGPU Target only support on flag CINN_WITH_CUDA ON! Please check.";
+#endif
+  }
+}
+
+TEST(CustomCallUniformRandom, test_target_nvgpu) {
+  Target target = common::DefaultTarget();
+
+  // Arg min
+  float min = -1.0f;
+  // Arg max
+  float max = 1.0f;
+  // Arg seed
+  int seed = 10;
+
+  // Output matrix out
+  CinnBufferAllocHelper out(cinn_x86_device, cinn_float32_t(), {2, 3});
+  auto* output = out.mutable_data<float>(target);
+
+  int num_args               = 1;
+  cinn_pod_value_t v_args[1] = {cinn_pod_value_t(out.get())};
+
+  if (target == common::DefaultHostTarget()) {
+    LOG(INFO) << "Op uniform random only support on NVGPU";
+  } else if (target == common::DefaultNVGPUTarget()) {
+#ifdef CINN_WITH_CUDA
+    cinn::runtime::cuda::cinn_call_uniform_random(v_args, num_args, min, max, seed, nullptr);
+
+    float output_data[6] = {0.0f};
+    cudaMemcpy(output_data, output, 6 * sizeof(float), cudaMemcpyDeviceToHost);
+    for (int i = 0; i < 6; i++) {
+      VLOG(6) << output_data[i];
+    }
+#else
+    LOG(FATAL) << "NVGPU Target only support on flag CINN_WITH_CUDA ON! Please check.";
+#endif
+  }
+}
+
+TEST(CustomCallCholesky, test) {
+  Target target      = common::DefaultTarget();
+  Target host_target = common::DefaultHostTarget();
+
+  // Batch size
+  int batch_size = 1;
+  // Dim
+  int m = 3;
+  // Upper
+  bool upper = false;
+
+  // Input matrix x
+  CinnBufferAllocHelper x(cinn_x86_device, cinn_float32_t(), {m, m});
+  float input_h[9] = {
+      0.96329159, 0.88160539, 0.40593964, 0.88160539, 1.39001071, 0.48823422, 0.40593964, 0.48823422, 0.19755946};
+  auto* input = x.mutable_data<float>(target);
+  SetInputValue(input, input_h, m * m, target);
+
+  // Output matrix out
+  CinnBufferAllocHelper out(cinn_x86_device, cinn_float32_t(), {m, m});
+  auto* output = out.mutable_data<float>(target);
+
+  // Result matrix res
+  // The results of cpu and gpu are slightly different, 0.76365214 vs 0.76365221
+  float result_host[9] = {0.98147416, 0, 0, 0.89824611, 0.76365214, 0, 0.41360193, 0.15284170, 0.055967092};
+  float result_cuda[9] = {0.98147416, 0, 0, 0.89824611, 0.76365221, 0, 0.41360193, 0.15284170, 0.055967092};
+
+  int num_args               = 2;
+  cinn_pod_value_t v_args[2] = {cinn_pod_value_t(x.get()), cinn_pod_value_t(out.get())};
+
+  if (target == common::DefaultHostTarget()) {
+#ifdef CINN_WITH_MKL_CBLAS
+    cinn_call_cholesky_host(v_args, num_args, batch_size, m, upper);
+    for (int i = 0; i < batch_size * m * m; i++) {
+      ASSERT_EQ(output[i], result_host[i]) << "The output of Cholesky should be the same as result";
+    }
+#else
+    LOG(INFO) << "Host Target only support on flag CINN_WITH_MKL_CBLAS ON! Please check.";
+#endif
+  } else if (target == common::DefaultNVGPUTarget()) {
+#ifdef CINN_WITH_CUDA
+    cinn::runtime::cuda::cinn_call_cholesky_nvgpu(v_args, num_args, batch_size, m, upper);
+    std::vector<float> host_output(batch_size * m * m, 0.0f);
+    cudaMemcpy(host_output.data(), output, batch_size * m * m * sizeof(float), cudaMemcpyDeviceToHost);
+    for (int i = 0; i < batch_size * m * m; i++) {
+      ASSERT_NEAR(host_output[i], result_cuda[i], 1e-5) << "The output of Cholesky should be the same as result";
+    }
+#else
+    LOG(INFO) << "NVGPU Target only support on flag CINN_WITH_CUDA ON! Please check.";
 #endif
   }
 }
