@@ -169,7 +169,7 @@ class GraphCompiler final {
   // parallel compiler
   std::shared_ptr<ParallelCompiler> parallel_compiler_;
 
-  void ProcessFunction(const std::vector<ir::LoweredFunc>& lowered_func);
+  void ProcessFunction(const std::vector<ir::LoweredFunc>& lowered_funcs);
   void SetSubKernels(Instruction* instr, const std::string& func_name);
   Target target_;
   std::shared_ptr<Graph> graph_;

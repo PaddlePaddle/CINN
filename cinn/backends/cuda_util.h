@@ -53,6 +53,14 @@
     }                                            \
   }
 
+#define CUSOLVER_CALL(func)                       \
+  {                                               \
+    auto status = func;                           \
+    if (status != CUSOLVER_STATUS_SUCCESS) {      \
+      LOG(FATAL) << "CUSOLVER Error: " << status; \
+    }                                             \
+  }
+
 #define CUBLAS_CALL(func)                  \
   {                                        \
     auto status = func;                    \

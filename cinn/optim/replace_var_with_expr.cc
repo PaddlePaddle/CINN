@@ -220,10 +220,11 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
       auto copy2   = IRCopy(*indice);
       ReplaceVarWithExpr(&copy1, Var(var_name), Expr(extent_i - 1));
       ReplaceVarWithExpr(&copy2, Var(var_name), Expr(0));
-      auto res            = copy1 - copy2;
-      tensor_shape[index] = tensor_shape[index] - res;
+      auto diff           = copy1 - copy2;
+      diff                = common::AutoSimplify(diff);
+      tensor_shape[index] = tensor_shape[index] - diff;
       tensor_shape[index] = common::AutoSimplify(tensor_shape[index]);
-      VLOG(2) << "tensor_shape[index] - res is : " << tensor_shape[index];
+      VLOG(2) << "diff = " << diff << ", tensor_shape[" << index << "] - diff = " << tensor_shape[index];
       if (tensor_shape[index].is_constant() && tensor_shape[index].get_constant() <= 0) {
         tensor_shape[index] = Expr(1);
       } else if (!tensor_shape[index].is_constant()) {

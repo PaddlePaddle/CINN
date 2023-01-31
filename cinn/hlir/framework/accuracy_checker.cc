@@ -218,9 +218,11 @@ CheckResult AccuracyChecker::CheckNanOrInf(const Tensor& cpu_tensor) {
       return CheckResult::kNaN;
     } else if (std::isinf(data[i])) {
       return CheckResult::kInf;
-    } else if (data[i] != static_cast<T>(0)) {
+    }
+    if (data[i] != static_cast<T>(0)) {
       zero_flag = false;
-    } else if (data[i] != static_cast<T>(1)) {
+    }
+    if (data[i] != static_cast<T>(1)) {
       one_flag = false;
     }
   }

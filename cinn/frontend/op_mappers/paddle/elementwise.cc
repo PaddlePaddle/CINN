@@ -97,8 +97,8 @@ void ElementwiseOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperConte
   auto y   = ctx.GetVar(y_name);
   auto out = (ctx.Builder()->*OpBuilder<Type>::func)(x, y, axis);
 
-  ctx.AddVar(out_name, out);
-  ctx.AddVarModelToProgram(out_name, out->id);
+  ctx.AddVar(out_name, out, true);
+  ctx.AddVarModelToProgram(out_name, out->id, true);
 }
 
 void ElementwiseAddGradOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
@@ -127,10 +127,10 @@ void ElementwiseAddGradOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapp
 
   auto dx = outs.front();
   ctx.AddVar(dx_name, dx);
-  ctx.AddVarModelToProgram(dx_name, dx->id);
+  ctx.AddVarModelToProgram(dx_name, dx->id, true);
   auto dy = outs.back();
   ctx.AddVar(dy_name, dy);
-  ctx.AddVarModelToProgram(dy_name, dy->id);
+  ctx.AddVarModelToProgram(dy_name, dy->id, true);
 }
 
 void SumOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
@@ -148,8 +148,8 @@ void SumOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx)
 
   auto out = ctx.Builder()->Sum(xs);
 
-  ctx.AddVar(out_name, out);
-  ctx.AddVarModelToProgram(out_name, out->id);
+  ctx.AddVar(out_name, out, true);
+  ctx.AddVarModelToProgram(out_name, out->id, true);
 }
 
 void CastOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {

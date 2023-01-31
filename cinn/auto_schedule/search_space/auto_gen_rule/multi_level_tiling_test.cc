@@ -108,12 +108,12 @@ TEST(MultiLevelTile, SimpleLoops) {
   MultiLevelTiling multi_level_tiling(target);
   ir::IRSchedule ir_schedule(ir::ModuleExpr({ast_expr}));
   SearchState state(ir_schedule, 0, {});
-  EXPECT_EQ(multi_level_tiling.Init(&ir_schedule), RuleApplyType::kApplyAndSkipThisRule);
+  EXPECT_EQ(multi_level_tiling.Init(&ir_schedule), RuleApplyType::kApplyAndPruneOtherRules);
   EXPECT_EQ(multi_level_tiling.NumberApplicable(), 1);
   multi_level_tiling.ApplyRandomly();
 
   // ApplyOnBlock
-  EXPECT_EQ(multi_level_tiling.AnalyseApplyType(state, "C"), RuleApplyType::kApplyAndSkipThisRule);
+  EXPECT_EQ(multi_level_tiling.AnalyseApplyType(state, "C"), RuleApplyType::kApplyAndPruneOtherRules);
   auto new_states = multi_level_tiling.ApplyOnBlock(state, "C");
 
   auto test_func = [](ir::IRSchedule* ir_sch) {
@@ -160,12 +160,12 @@ TEST(MulitLevelTile, MatrixMultiply) {
   MultiLevelTiling multi_level_tiling(target);
   ir::IRSchedule ir_schedule(ir::ModuleExpr({ast_expr}));
   SearchState state(ir_schedule, 0, {});
-  EXPECT_EQ(multi_level_tiling.Init(&ir_schedule), RuleApplyType::kApplyAndSkipThisRule);
+  EXPECT_EQ(multi_level_tiling.Init(&ir_schedule), RuleApplyType::kApplyAndPruneOtherRules);
   EXPECT_EQ(multi_level_tiling.NumberApplicable(), 1);
   multi_level_tiling.ApplyRandomly();
 
   // ApplyOnBlock
-  EXPECT_EQ(multi_level_tiling.AnalyseApplyType(state, "C"), RuleApplyType::kApplyAndSkipThisRule);
+  EXPECT_EQ(multi_level_tiling.AnalyseApplyType(state, "C"), RuleApplyType::kApplyAndPruneOtherRules);
   auto new_states = multi_level_tiling.ApplyOnBlock(state, "C");
 
   auto test_func = [](ir::IRSchedule* ir_sch) {
