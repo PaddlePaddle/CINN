@@ -366,6 +366,14 @@ class IRSchedule {
    */
   std::vector<Expr> SamplePerfectTile(const Expr& loop, int n, int max_innermost_factor);
 
+  /**
+   * \brief Randomly sample an integer according to the given distribution.
+   * @param candidates Candidate set of integers.
+   * @param probs Probability distribution of candidate integer set.
+   * @return Random variables sampled.
+   */
+  Expr SimpleCategorical(const std::vector<int>& candidates, const std::vector<float>& probs);
+
  private:
   std::unique_ptr<ScheduleImpl> impl_;
   mutable ScheduleDesc trace_;  // trace the scheduling process
