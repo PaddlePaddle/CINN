@@ -101,7 +101,7 @@ class ScheduleImpl {
   void FlattenLoops(const std::vector<Expr>& loops, const bool force_flat = false);
   void CopyTransformAndLoopInfo(const Expr& block, const Expr& block_target);
   void CopyTransformAndLoopInfo(const std::string& block_name, const std::string& block_target_name);
-  Expr SimpleCategorical(const std::vector<int>& candidates, const std::vector<float>& probs);
+  Expr SimpleCategorical(const uint32_t seed, const std::vector<int>& candidates, const std::vector<float>& probs);
 
  private:
   void Replace(const Expr& src_sref, const Expr& tgt_stmt);
