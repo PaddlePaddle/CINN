@@ -34,13 +34,13 @@ using AlterFunction = std::function<void(const FusionHelperBase*, Graph*, Node*)
 //
 class ConstantFoldPassHelper : public FusionHelperBase {
  public:
-  ConstantFoldPassHelper(Graph* graph) : FusionHelperBase(graph), graph_(graph) {}
+  ConstantFoldPassHelper(Graph* graph) : FusionHelperBase(graph), graph_(graph) { RegisterAlterFunction(); }
 
   void operator()() {
-    auto nodes_inorder = std::get<0>(graph_->topological_order());
-    bool update        = false;
+    bool update = false;
     do {
-      update = false;
+      update             = false;
+      auto nodes_inorder = std::get<0>(graph_->topological_order());
       for (auto node : nodes_inorder) {
         if (!node->safe_as<Node>()) {
           continue;
@@ -60,13 +60,11 @@ class ConstantFoldPassHelper : public FusionHelperBase {
         }
 
         if (!can_fold) continue;
-
         auto key = GetTypeName(node->safe_as<Node>());
         if (alter_function_.count(key)) {
           alter_function_[key](this, graph_, node->safe_as<Node>());
+          update = true;
         }
-
-        update = true;
       }
     } while (update);
   }
@@ -77,7 +75,7 @@ class ConstantFoldPassHelper : public FusionHelperBase {
                        {"broadcast_to_fill_constant", fold_broadcast_to_constant},
                        {"reshape_fill_constant", fold_reshape_fill_constant},
                        {"squeeze_fill_constant", fold_squeeze_fill_constant},
-                       {"expand_dims_to_fill_constant", fold_expand_dims_to_fill_constant}};
+                       {"expand_dims_fill_constant", fold_expand_dims_fill_constant}};
   }
 
   std::string GetTypeName(Node* node) {
@@ -102,9 +100,9 @@ void ConstantFoldPassInternal(Graph* graph) {
 }  // namespace hlir
 }  // namespace cinn
 
-CINN_REGISTER_HELPER(ConstantFoldPass) {
-  CINN_REGISTER_PASS(ConstantFoldPass)
-      .describe("Op Fusion Pass which performs \"fold constant\"")
+CINN_REGISTER_HELPER(ConstantFold) {
+  CINN_REGISTER_PASS(ConstantFold)
+      .describe("Constant Fold Pass which performs \"Constant Folding\"")
       .set_change_structure(true)
       .set_body(cinn::hlir::pass::ConstantFoldPassInternal);
 

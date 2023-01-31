@@ -42,12 +42,12 @@ inline void fold_broadcast_to_constant(const FusionHelperBase* helper, Graph* gr
   // drop node.
   auto constant_node_data = helper->GetNodeData(constant_op);
   if (constant_node_data->outlinks().size() == 1) {
-    graph->DropNode(node_tmp);
+    graph->DropNode(node);
     graph->DropNode(constant_op);
     graph->DropNode(constant_node_data);
   } else {
     constant_node_data->UnLinkSingleTo(node);
-    graph->DropNode(node_tmp);
+    graph->DropNode(node);
   }
 }
 
@@ -73,19 +73,19 @@ inline void fold_reshape_fill_constant(const FusionHelperBase* helper, Graph* gr
   // drop node.
   auto constant_node_data = helper->GetNodeData(constant_op);
   if (constant_node_data->outlinks().size() == 1) {
-    graph->DropNode(node_tmp);
+    graph->DropNode(node);
     graph->DropNode(constant_op);
     graph->DropNode(constant_node_data);
   } else {
     constant_node_data->UnLinkSingleTo(node);
-    graph->DropNode(node_tmp);
+    graph->DropNode(node);
   }
 }
 
 inline void fold_squeeze_fill_constant(const FusionHelperBase* helper, Graph* graph, Node* node) {
   auto constant_op = helper->GetProducerNode(node)[0];
   CHECK(constant_op->attrs.attr_store.count("shape"));
-  auto shape = absl::get<std::vector<int>>(node->attrs.attr_store.at("shape"));
+  auto shape = absl::get<std::vector<int>>(constant_op->attrs.attr_store.at("shape"));
   CHECK(node->attrs.attr_store.count("axes"));
   auto axes = absl::get<std::vector<int>>(node->attrs.attr_store.at("axes"));
 
@@ -120,31 +120,37 @@ inline void fold_squeeze_fill_constant(const FusionHelperBase* helper, Graph* gr
   // drop node.
   auto constant_node_data = helper->GetNodeData(constant_op);
   if (constant_node_data->outlinks().size() == 1) {
-    graph->DropNode(node_tmp);
+    graph->DropNode(node);
     graph->DropNode(constant_op);
     graph->DropNode(constant_node_data);
   } else {
     constant_node_data->UnLinkSingleTo(node);
-    graph->DropNode(node_tmp);
+    graph->DropNode(node);
   }
 }
 
-inline void fold_expand_dims_to_fill_constant(const FusionHelperBase* helper, Graph* graph, Node* node) {
+inline void fold_expand_dims_fill_constant(const FusionHelperBase* helper, Graph* graph, Node* node) {
   auto constant_op = helper->GetProducerNode(node)[0];
   CHECK(constant_op->attrs.attr_store.count("shape"));
-  auto shape = absl::get<std::vector<int>>(node->attrs.attr_store.at("shape"));
+  auto shape = absl::get<std::vector<int>>(constant_op->attrs.attr_store.at("shape"));
   CHECK(node->attrs.attr_store.count("axes"));
   auto axes = absl::get<std::vector<int>>(node->attrs.attr_store.at("axes"));
 
   // create constant op.
   Node* node_tmp = new Node(Operator::Get("fill_constant"), "fill_constant", common::UniqName("fill_constant"));
-  std::vector<int> n_shape;
-  for (int idx = 0; idx < shape.size(); ++idx) {
-    if (std::find(axes.begin(), axes.end(), idx) != axes.end()) {
-      n_shape.push_back(1);
-    }
-    n_shape.push_back(shape[idx]);
+  // check axes can't repeat.
+  std::sort(axes.begin(), axes.end(), std::less<int>());
+  for (int idx = 0; idx < axes.size() - 2; ++idx) {
+    CHECK_NE(axes[idx], axes[idx + 1]);
   }
+  // insert 1 to new shape.
+  std::vector<int> n_shape(axes.size() + shape.size(), 1);
+  for (int idx = 0, index = 0; idx < n_shape.size(); ++idx) {
+    if (std::find(axes.begin(), axes.end(), idx) == axes.end()) {
+      n_shape[idx] = shape[index++];
+    }
+  }
+
   // set node attr
   node_tmp->attrs.attr_store["shape"]     = n_shape;
   node_tmp->attrs.attr_store["value"]     = constant_op->attrs.attr_store.at("value");
@@ -159,12 +165,12 @@ inline void fold_expand_dims_to_fill_constant(const FusionHelperBase* helper, Gr
   // drop node.
   auto constant_node_data = helper->GetNodeData(constant_op);
   if (constant_node_data->outlinks().size() == 1) {
-    graph->DropNode(node_tmp);
+    graph->DropNode(node);
     graph->DropNode(constant_op);
     graph->DropNode(constant_node_data);
   } else {
     constant_node_data->UnLinkSingleTo(node);
-    graph->DropNode(node_tmp);
+    graph->DropNode(node);
   }
 }
 
