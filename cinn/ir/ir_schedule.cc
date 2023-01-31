@@ -102,7 +102,7 @@ class ScheduleImpl {
   void CopyTransformAndLoopInfo(const Expr& block, const Expr& block_target);
   void CopyTransformAndLoopInfo(const std::string& block_name, const std::string& block_target_name);
   Expr SimpleCategorical(const std::vector<int>& candidates, const std::vector<float>& probs);
-  
+
  private:
   void Replace(const Expr& src_sref, const Expr& tgt_stmt);
 
@@ -1688,23 +1688,23 @@ void ScheduleImpl::FlattenLoops(const std::vector<Expr>& loops, const bool flat_
 Expr ScheduleImpl::SimpleCategorical(const uint32_t seed,
                                      const std::vector<int>& candidates,
                                      const std::vector<float>& probs) {
-  //check two sizes
+  // check two sizes
   CHECK_EQ(candidates.size(), probs.size()) << "candidates and probs must have same size.";
   CHECK(candidates.As<int>());
   CHECK(probs.As<float>());
-  //check candidates
+  // check candidates
   if (candidates.size() < 1) {
     return Expr{nullptr};
   }
-  //check probs
+  // check probs
   if (probs.size() < 1) {
     return Expr{nullptr};
   }
-  //float to int
-  //std::vector<int> prob_int(probs.begin(),probs.end());
-  std::discrete_distribution<int> prob_int(probs.begin(),probs.end());
+  // float to int
+  // std::vector<int> prob_int(probs.begin(),probs.end());
+  std::discrete_distribution<int> prob_int(probs.begin(), probs.end());
   std::linear_congruential_engine<int> rand_(seed);
-  i=prob_int(rand_);
+  i = prob_int(rand_);
   return candidates[i];
 }
 
@@ -1842,8 +1842,6 @@ std::vector<Expr> ScheduleImpl::SamplePerfectTile(const uint32_t seed,
   result_expr.push_back(Expr(innermost_factor));
   return result_expr;
 }
-
-
 
 IRSchedule::IRSchedule() {}
 

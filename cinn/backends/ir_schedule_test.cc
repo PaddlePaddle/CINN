@@ -2889,7 +2889,7 @@ TEST(IrSchedule, SamplePerfectTile) {
   ASSERT_EQ(result.size(), 3);
 }
 
-TEST(IrSchedule,SimpleCategorical) {
+TEST(IrSchedule, SimpleCategorical) {
   Context::Global().ResetNameId();
   Expr M(32);
   Expr N(32);
