@@ -1688,7 +1688,7 @@ void ScheduleImpl::FlattenLoops(const std::vector<Expr>& loops, const bool flat_
 Expr ScheduleImpl::SimpleCategorical(const uint32_t seed,
                                      const std::vector<int>& candidates,
                                      const std::vector<float>& probs) {
-  int i=-1;
+  int i = -1;
   // check two sizes
   CHECK_EQ(candidates.size(), probs.size()) << "candidates and probs must have same size.";
   CHECK(candidates.as_int32());
