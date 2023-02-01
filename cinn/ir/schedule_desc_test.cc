@@ -190,7 +190,6 @@ TEST_F(TestScheduleDesc, StepKind_GetChildBlocks) {
   ir_sch.ComputeAt(block_b, loops[1]);
   trace.Append(ScheduleDesc::Step(
       "ComputeAt", {{"block", std::vector<Expr>({block_b})}, {"loop", std::vector<Expr>({loops[1]})}}, {}, {}));
-
   loops = ir_sch.GetLoops("B");
   trace.Append(ScheduleDesc::Step("GetLoopsWithName", {}, {{"block_name", std::string("B")}}, loops));
   auto root_block = ir_sch.GetRootBlock(loops[1]);
