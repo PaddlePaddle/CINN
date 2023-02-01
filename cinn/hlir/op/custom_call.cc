@@ -236,14 +236,14 @@ std::vector<ir::Expr> CustomCallArgsForBatchedCublas(const framework::NodeAttr &
   bool is_infer      = attr_store.count("is_infer") ? absl::get<bool>(attr_store.at("is_infer")) : false;
   CHECK((x_num_col_dims == 0 && y_num_col_dims == 0) || (x_num_col_dims > 0 && y_num_col_dims > 0));
 
+  ir::Tensor left, right;
   CHECK(attr_store.count("side"));
-
-  if (attr_store.at("side") == "left") {
-    ir::Tensor left  = inputs[0];
-    ir::Tensor right = inputs[1];
+  if (absl::get<std::string>(attr_store.at("side")) == "left") {
+    left  = inputs[0];
+    right = inputs[1];
   } else {
-    ir::Tensor left  = inputs[1];
-    ir::Tensor right = inputs[0];
+    left  = inputs[1];
+    right = inputs[0];
   }
 
   std::vector<ir::Expr> a_shape, b_shape;
@@ -322,12 +322,12 @@ std::vector<ir::Expr> CustomCallArgsForBatchedCublas(const framework::NodeAttr &
   CHECK_EQ(a_shape.size(), 4);
   CHECK_EQ(b_shape.size(), 4);
   // func args
-  std::vector<ir::Expr> args = {attr_store.count("side") == "left" ? ir::Expr(0) ? ir::Expr(1),
+  std::vector<ir::Expr> args = {absl::get<std::string>(attr_store.at("side")) == "left" ? ir::Expr(0) : ir::Expr(1),
                                 ir::Expr(trans_a),
                                 ir::Expr(trans_b),
                                 ir::Expr(trans_out),
                                 ir::Expr(alpha),
-                                ir::Expr(beta) };
+                                ir::Expr(beta)};
   args.insert(args.end(), a_shape.begin(), a_shape.end());
   args.insert(args.end(), b_shape.begin(), b_shape.end());
   return args;

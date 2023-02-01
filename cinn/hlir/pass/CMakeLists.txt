@@ -12,6 +12,7 @@ gather_srcs(cinnapi_src SRCS
     check_fusion_accuracy_pass.cc
     custom_call_pass.cc
     dce_pass.cc
+    dense_merge_pass.cc
     )
 
 #cc_test(test_opfusion SRCS opfusion_test.cc DEPS cinncore)
@@ -29,3 +30,4 @@ if (NOT WITH_CUDA)
 endif()
 cc_test(test_dot_merger SRCS test_dot_merger.cc DEPS cinncore)
 cc_test(test_dce_pass SRCS dce_pass_test.cc DEPS cinncore)
+cc_test(test_dense_merge_pass SRCS dense_merge_pass_test.cc DEPS cinncore)

@@ -1,4 +1,4 @@
-// Copyright (c) 2022 CINN Authors. All Rights Reserved.
+// Copyright (c) 2023 CINN Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "cinn/common/type.h"
-#include "cinn/hlir/pass/fusion_merge_base.h"
+#include "cinn/hlir/pass/fusion_helper_base.h"
 
 namespace cinn {
 namespace hlir {
@@ -37,7 +37,7 @@ class DenseMergePassHelper : public FusionHelperBase {
     auto nodes_inorder = std::get<0>(graph_->topological_order());
     for (auto node : nodes_inorder) {
       if (node->safe_as<NodeData>()) {
-        MergeDense(node);
+        MergeDense(node->safe_as<NodeData>());
       }
     }
   }
@@ -51,7 +51,7 @@ class DenseMergePassHelper : public FusionHelperBase {
 
     std::vector<Node*> lhs_ops, rhs_ops;
     for (auto op : dense_ops) {
-      if (op->inlinks_in_order()[0]->source == node) {
+      if (op->inlinks_in_order()[0]->source() == node) {
         lhs_ops.push_back(op);
       } else {
         rhs_ops.push_back(op);
@@ -64,11 +64,10 @@ class DenseMergePassHelper : public FusionHelperBase {
 
   std::vector<Node*> GetDenseOp(NodeData* node) {
     std::vector<Node*> dense_ops;
-    auto outlinks = node->outlinks();
-    for (auto link : outlinks) {
+    for (auto link : node->outlinks()) {
       auto sink = link->sink()->safe_as<Node>();
-      if (node->op()->name == "matmul" || node->op()->name == "mul" || node->op()->name == "cublas_gemm" ||
-          node->op()->name == "cublas_matmul") {
+      if (sink->op()->name == "matmul" || sink->op()->name == "mul" || sink->op()->name == "cublas_gemm" ||
+          sink->op()->name == "cublas_matmul") {
         dense_ops.push_back(sink);
       }
     }
@@ -80,10 +79,12 @@ class DenseMergePassHelper : public FusionHelperBase {
   void RightMerge(NodeData* node, std::vector<Node*> dense_ops) { DoMerge(node, dense_ops, 0, "right"); }
 
   void DoMerge(NodeData* node, std::vector<Node*> dense_ops, int pos, std::string side) {
+    LOG(INFO) << pos << " " << side;
     // split dense op by it's attr
     std::unordered_map<std::string, std::vector<Node*>> dense_op_map;
     for (auto dense_op : dense_ops) {
-      auto sign = GenOpSign(dense_op->inlinks_in_order()[pos]->safe_as<NodeData>(), dense_op->attrs);
+      auto sign = GenOpSign(dense_op->inlinks_in_order(true)[pos]->source()->safe_as<NodeData>(), dense_op->attrs);
+      LOG(INFO) << sign;
       if (dense_op_map.count(sign)) {
         dense_op_map[sign].push_back(dense_op);
       } else {
@@ -96,35 +97,39 @@ class DenseMergePassHelper : public FusionHelperBase {
         continue;
       }
 
+      LOG(INFO) << dense_op.first;
+      LOG(INFO) << dense_op.second.size();
       // create custom call node
       Node* node_tmp = new Node(Operator::Get("custom_call"), "custom_call", common::UniqName("custom_call"));
-      graph_->RegisterNode(node_tmp);
-      node_tmp->attrs         = dense_op.second[0]->attrs;
-      node_tmp->attrs["side"] = side node_tmp->attrs["custom_call"] = "cinn_call_batched_cublas";
+      graph_->RegisterNode(node_tmp->id(), node_tmp);
+      node_tmp->attrs                           = dense_op.second[0]->attrs;
+      node_tmp->attrs.attr_store["side"]        = side;
+      node_tmp->attrs.attr_store["custom_call"] = "cinn_call_batched_cublas";
 
       // update inlink.
       node->LinkTo(node_tmp);
-      for (auto dense_op : op.second) {
-        node->UnLinkSingleTo(dense_op);
+      for (auto op : dense_op.second) {
+        node->UnLinkSingleTo(op);
         // link to new node
-        dense_op->inlinks_in_order()[pos]->source()->LinkTo(node_tmp);
+        op->inlinks_in_order()[pos]->source()->LinkTo(node_tmp);
         // unlink old dense node
-        dense_op->inlinks_in_order()[pos]->source()->UnLinkSingleTo(dense_op);
+        op->inlinks_in_order()[pos]->source()->UnLinkSingleTo(op);
         // dense_node_data link to node_tmp
-        auto dense_node_data = GetNodeData(dense_op);
-        dense_op->UnLinkSingleTo(dense_node_data);
-        node_tmp->LinkTo(dense_node_data);
+        auto op_node_data = GetNodeData(op);
+        op->UnLinkSingleTo(op_node_data);
+        node_tmp->LinkTo(op_node_data);
         // update node tmp.
-        dense_node_data->Source_node.Reset(node_tmp);
+        op_node_data->source_node.Reset(node_tmp);
 
         // drop dense op.
-        graph_->DropNode(dense_op);
+        graph_->DropNode(op);
       }
     }
   }
 
-  std::string GenOpSign(const NodeData* node, const NodeAttr& attr) {
-    auto shape         = shape_dict_.at(node0->id());
+  std::string GenOpSign(const NodeData* node, const NodeAttr& attrs) {
+    LOG(INFO) << node->id();
+    auto attr_store    = attrs.attr_store;
     bool trans_a       = attr_store.count("trans_a") ? absl::get<bool>(attr_store.at("trans_a")) : false;
     bool trans_b       = attr_store.count("trans_b") ? absl::get<bool>(attr_store.at("trans_b")) : false;
     bool trans_out     = attr_store.count("trans_out") ? absl::get<bool>(attr_store.at("trans_out")) : false;
@@ -141,6 +146,7 @@ class DenseMergePassHelper : public FusionHelperBase {
     sign += "_" + std::to_string(beta);
     sign += "_" + std::to_string(x_num_col_dims);
     sign += "_" + std::to_string(y_num_col_dims);
+    auto shape = shape_dict_.at(node->id());
     for (auto s : shape) {
       sign += "_" + std::to_string(s);
     }
@@ -160,8 +166,8 @@ void DenseMergePassInternal(Graph* graph) {
 }  // namespace hlir
 }  // namespace cinn
 
-CINN_REGISTER_HELPER(DenseMerge) {
-  CINN_REGISTER_PASS(DenseMerge)
+CINN_REGISTER_HELPER(DenseMergePass) {
+  CINN_REGISTER_PASS(DenseMergePass)
       .describe("")
       .set_change_structure(true)
       .provide_graph_attr("infershape")

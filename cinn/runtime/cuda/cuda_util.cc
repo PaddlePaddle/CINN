@@ -240,7 +240,6 @@ void cinn_call_cublas(void *v_args,
       void **ptr_b = ptr.data() + std::max(l1, r1) * std::max(l2, r2);
       void **ptr_c = ptr.data() + std::max(l1, r1) * std::max(l2, r2) * 2;
 
-      int bytes = (cuda_dtype == CUDA_R_32F) ? 4 : 2;
       for (int idx = 0, index = 0; idx < std::max(l1, r1); ++idx) {
         for (int idy = 0; idy < std::max(l2, r2); ++idy) {
           ptr_a[index] = reinterpret_cast<uint8_t *>(lhs) + (idx * bstride_l + idy * stride_l) * bytes;
@@ -346,9 +345,8 @@ void cinn_call_batched_cublas(void *v_args,
 
   void **ptr_arr        = nullptr;
   cudaStream_t g_stream = CublasHandle::GetInstance().GetCuStream();
-  CUDA_CALL(cudaMallocAsync(&ptr_arr, sizeof(void *) * ptrs.size(), g_stream));
+  CUDA_CALL(cudaMallocAsync(&ptr_arr, sizeof(void *) * ptr.size(), g_stream));
 
-  int bytes = (cuda_dtype == CUDA_R_32F) ? 4 : 2;
   for (int g = 0, index = 0; g < num_gemm; ++g) {
     void *A = args[0].operator cinn_buffer_t *()->memory;
     void *B = args[1 + g].operator cinn_buffer_t *()->memory;
@@ -374,7 +372,7 @@ void cinn_call_batched_cublas(void *v_args,
     }
   }
 
-  CUDA_CALL(cudaMemcpyAsync(ptr_arr, ptr.data(), ptrs.size() * sizeof(void *), cudaMemcpyHostToDevice, g_stream));
+  CUDA_CALL(cudaMemcpyAsync(ptr_arr, ptr.data(), ptr.size() * sizeof(void *), cudaMemcpyHostToDevice, g_stream));
   CUDA_CALL(cudaStreamSynchronize(g_stream));
 
   CUBLAS_CALL(cublasGemmBatched(cuda_dtype,
