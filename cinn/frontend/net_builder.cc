@@ -668,5 +668,9 @@ Variable NetBuilder::UniformRandom(
   return Add(uniform_mul_out, uniform_min);
 }
 
+Variable NetBuilder::Cholesky(const Variable& x, bool upper) {
+  return CustomInstr("cholesky", {x}, {{"upper", upper}}).front();
+}
+
 }  // namespace frontend
 }  // namespace cinn

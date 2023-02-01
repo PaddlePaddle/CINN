@@ -989,6 +989,15 @@ class NetBuilder {
                          int seed                 = 0,
                          const std::string& dtype = "float32");
 
+  /**
+   * @brief Compute cholesky decomposition of a positive definite symmetric matrix.
+   * @param x Positive definite symmetric matrix.
+   * @param upper When upper is true, calculate and return the upper triangular matrix.
+                  When upper is false, calculate and return the lower triangular matrix.
+   * @return Triangular matrix, shape is same as input.
+   */
+  Variable Cholesky(const Variable& x, bool upper = false);
+
  private:
   CINN_DISALLOW_COPY_AND_ASSIGN(NetBuilder);
 };
