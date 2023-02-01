@@ -114,6 +114,26 @@ TEST(OpFusionPass, Brodcast_Test_1) {
   CHECK_EQ(graph->fusion_groups.size(), 2);
 }
 
+TEST(OpFusionPass, Brodcast_Test_2) {
+  int n = 2, c = 16, h = 32, w = 32;
+  NetBuilder net_builder("Brodcast_Test_2");
+  // create model
+  {
+    auto A = net_builder.CreateInput(Float(32), {c}, "A");
+    auto B = net_builder.CreateInput(Float(32), {n, c, h, w}, "B");
+    auto C = net_builder.Reshape(A, {c, 1, 1});
+    auto D = net_builder.Multiply(B, C);
+  }
+
+  auto program = net_builder.Build();
+  auto target  = common::DefaultTarget();
+  RunDecomposer(&program, target);
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+  CHECK_EQ(graph->fusion_groups.size(), 2);
+}
+
 TEST(OpFusionPass, Reduce_Test_0) {
   int h = 32, w = 32;
   NetBuilder net_builder("Reduce_Test_0");
