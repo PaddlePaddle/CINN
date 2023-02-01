@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.0)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
-project(CINN)
+project(CINN CXX C)
 
 set(CMAKE_CXX_STANDARD 14)
 
@@ -112,8 +112,12 @@ add_subdirectory(tutorials)
 set(core_src "${cinnapi_src}")
 
 set(Python_VIRTUALENV FIRST)
+if(NOT PYTHON_EXECUTABLE)
 find_package(PythonInterp ${PY_VERSION} REQUIRED)
+endif()
+if(NOT PYTHON_LIBRARIES)
 find_package(PythonLibs ${PY_VERSION} REQUIRED)
+endif()
 message(STATUS "PYTHON_LIBRARIES: ${PYTHON_LIBRARIES}")
 message(STATUS "PYTHON_INCLUDE_DIR: ${PYTHON_INCLUDE_DIR}")
 
