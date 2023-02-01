@@ -275,6 +275,7 @@ void cinn_call_cublas(void *v_args,
 
 void cinn_call_batched_cublas(void *v_args,
                               int num_args,
+                              int opside,
                               bool trans_a,
                               bool trans_b,
                               bool trans_o,
@@ -352,6 +353,13 @@ void cinn_call_batched_cublas(void *v_args,
     void *A = args[0].operator cinn_buffer_t *()->memory;
     void *B = args[1 + g].operator cinn_buffer_t *()->memory;
     void *C = args[1 + num_gemm + g].operator cinn_buffer_t *()->memory;
+
+    // if opside is 1, exhange A,B.
+    if (opside) {
+      auto tmp = A;
+      A        = B;
+      B        = tmp;
+    }
 
     void *lhs = trans_o ? A : B;
     void *rhs = trans_o ? B : A;

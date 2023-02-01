@@ -116,6 +116,7 @@ void cinn_call_cublas(void* v_args,
 
 void cinn_call_batched_cublas(void* v_args,
                               int num_args,
+                              int opside,
                               bool trans_a,
                               bool trans_b,
                               bool trans_o,
