@@ -1698,7 +1698,7 @@ Expr ScheduleImpl::SimpleCategorical(const std::vector<int>& candidates, const s
 
   std::random_device seed;
   std::default_random_engine engine(seed());
-  i          = prob_int(engine);
+  i           = prob_int(engine);
   auto result = candidates[i];
   Expr result_Expr(result);
   return result_Expr;
@@ -2101,10 +2101,7 @@ std::vector<Expr> IRSchedule::SamplePerfectTile(const Expr& loop, int n, int max
 }
 Expr IRSchedule::SimpleCategorical(const std::vector<int>& candidates, const std::vector<float>& probs) {
   auto result = impl_->SimpleCategorical(candidates, probs);
-  trace_.Append(ScheduleDesc::Step("SimpleCategorical",
-                                   {},
-                                   {{"candidates", candidates}, {"probs", probs}},
-                                   {result}));
+  trace_.Append(ScheduleDesc::Step("SimpleCategorical", {}, {{"candidates", candidates}, {"probs", probs}}, {result}));
   return result;
 }
 }  // namespace ir
