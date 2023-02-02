@@ -1685,8 +1685,7 @@ void ScheduleImpl::FlattenLoops(const std::vector<Expr>& loops, const bool flat_
   this->Replace(loops[0], loop);
 }
 
-int ScheduleImpl::SimpleCategorical(const std::vector<int>& candidates,
-                                     const std::vector<float>& probs) {
+int ScheduleImpl::SimpleCategorical(const std::vector<int>& candidates, const std::vector<float>& probs) {
   int i = -1;
   // check two sizes
   CHECK_EQ(candidates.size(), probs.size()) << "candidates and probs must have same size.";
@@ -1700,16 +1699,16 @@ int ScheduleImpl::SimpleCategorical(const std::vector<int>& candidates,
   if (probs.size() < 1) {
     return Expr{nullptr};
   }
-  //generate
+  // generate
   std::vector<double> weights;
-  for (auto p:probs){
+  for (auto p : probs) {
     weights.push_back(p);
   }
   std::discrete_distribution<int32_t> prob_int(weights.begin(), weights.end());
 
   std::random_device seed;
   std::default_random_engine engine(seed());
-  i = probs(engine);
+  i          = probs(engine);
   int result = candidates[i];
   return result;
 }
