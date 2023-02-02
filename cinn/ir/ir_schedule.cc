@@ -101,7 +101,7 @@ class ScheduleImpl {
   void FlattenLoops(const std::vector<Expr>& loops, const bool force_flat = false);
   void CopyTransformAndLoopInfo(const Expr& block, const Expr& block_target);
   void CopyTransformAndLoopInfo(const std::string& block_name, const std::string& block_target_name);
-  Expr SimpleCategorical(const uint32_t seed, const std::vector<int>& candidates, const std::vector<float>& probs);
+  int SimpleCategorical(const std::vector<int>& candidates, const std::vector<float>& probs);
 
  private:
   void Replace(const Expr& src_sref, const Expr& tgt_stmt);
@@ -1685,8 +1685,7 @@ void ScheduleImpl::FlattenLoops(const std::vector<Expr>& loops, const bool flat_
   this->Replace(loops[0], loop);
 }
 
-Expr ScheduleImpl::SimpleCategorical(const uint32_t seed,
-                                     const std::vector<int>& candidates,
+int ScheduleImpl::SimpleCategorical(const std::vector<int>& candidates,
                                      const std::vector<float>& probs) {
   int i = -1;
   // check two sizes
@@ -1701,12 +1700,18 @@ Expr ScheduleImpl::SimpleCategorical(const uint32_t seed,
   if (probs.size() < 1) {
     return Expr{nullptr};
   }
-  // float to int
-  // std::vector<int> prob_int(probs.begin(),probs.end());
-  std::discrete_distribution<int> prob_int(probs.begin(), probs.end());
-  std::linear_congruential_engine<int> rand_(seed);
-  i = prob_int(rand_);
-  return candidates[i];
+  //generate
+  std::vector<double> weights;
+  for (auto p:probs){
+    weights.push_back(p);
+  }
+  std::discrete_distribution<int32_t> prob_int(weights.begin(), weights.end());
+
+  std::random_device seed;
+  std::default_random_engine engine(seed());
+  i = probs(engine);
+  int result = candidates[i];
+  return result;
 }
 
 void ScheduleImpl::CopyTransformAndLoopInfo(const std::string& block_name, const std::string& block_target_name) {
@@ -2104,8 +2109,8 @@ std::vector<Expr> IRSchedule::SamplePerfectTile(const Expr& loop, int n, int max
                                    {result}));
   return result;
 }
-Expr IRSchedule::SimpleCategorical() {
-  auto result = impl_->SimpleCategorical(ir::RandomSeedController::seed, candidates, probs);
+int IRSchedule::SimpleCategorical(const std::vector<int>& candidates, const std::vector<float>& probs) {
+  auto result = impl_->SimpleCategorical(candidates, probs);
   trace_.Append(ScheduleDesc::Step("SimpleCategorical",
                                    {{"candidates", std::vector<int>(candidates)}},
                                    {{"probs", std::vector<float>(probs)}},
