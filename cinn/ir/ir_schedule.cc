@@ -101,7 +101,7 @@ class ScheduleImpl {
   void FlattenLoops(const std::vector<Expr>& loops, const bool force_flat = false);
   void CopyTransformAndLoopInfo(const Expr& block, const Expr& block_target);
   void CopyTransformAndLoopInfo(const std::string& block_name, const std::string& block_target_name);
-  int SimpleCategorical(const std::vector<int>& candidates, const std::vector<float>& probs);
+  Expr SimpleCategorical(const std::vector<int>& candidates, const std::vector<float>& probs);
 
  private:
   void Replace(const Expr& src_sref, const Expr& tgt_stmt);
@@ -1685,20 +1685,10 @@ void ScheduleImpl::FlattenLoops(const std::vector<Expr>& loops, const bool flat_
   this->Replace(loops[0], loop);
 }
 
-int ScheduleImpl::SimpleCategorical(const std::vector<int>& candidates, const std::vector<float>& probs) {
+Expr ScheduleImpl::SimpleCategorical(const std::vector<int>& candidates, const std::vector<float>& probs) {
   int i = -1;
   // check two sizes
   CHECK_EQ(candidates.size(), probs.size()) << "candidates and probs must have same size.";
-  // CHECK(candidates.As<IntImm>());
-  // CHECK(probs.As<FloatImm>());
-  // check candidates
-  if (candidates.size() < 1) {
-    return Expr{nullptr};
-  }
-  // check probs
-  if (probs.size() < 1) {
-    return Expr{nullptr};
-  }
   // generate
   std::vector<double> weights;
   for (auto p : probs) {
@@ -1708,9 +1698,10 @@ int ScheduleImpl::SimpleCategorical(const std::vector<int>& candidates, const st
 
   std::random_device seed;
   std::default_random_engine engine(seed());
-  i          = probs(engine);
-  int result = candidates[i];
-  return result;
+  i          = prob_int(engine);
+  auto result = candidates[i];
+  Expr result_Expr(result);
+  return result_Expr;
 }
 
 void ScheduleImpl::CopyTransformAndLoopInfo(const std::string& block_name, const std::string& block_target_name) {
@@ -2108,11 +2099,11 @@ std::vector<Expr> IRSchedule::SamplePerfectTile(const Expr& loop, int n, int max
                                    {result}));
   return result;
 }
-int IRSchedule::SimpleCategorical(const std::vector<int>& candidates, const std::vector<float>& probs) {
+Expr IRSchedule::SimpleCategorical(const std::vector<int>& candidates, const std::vector<float>& probs) {
   auto result = impl_->SimpleCategorical(candidates, probs);
   trace_.Append(ScheduleDesc::Step("SimpleCategorical",
-                                   {{"candidates", std::vector<int>(candidates)}},
-                                   {{"probs", std::vector<float>(probs)}},
+                                   {},
+                                   {{"candidates", candidates}, {"probs", probs}},
                                    {result}));
   return result;
 }

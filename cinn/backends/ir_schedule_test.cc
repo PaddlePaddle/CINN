@@ -2902,7 +2902,7 @@ TEST(IrSchedule, SimpleCategorical) {
       "test_simplecategorical", stages, {A, B}, {}, {}, nullptr, common::DefaultHostTarget(), true);
 
   ir::IRSchedule ir_sch(ir::ModuleExpr({funcs[0]->body}));
-  std::vector<Expr> result = ir_sch.SimpleCategorical({1, 2, 3}, {1.0, 2.0, 3.0});
+  Expr result = ir_sch.SimpleCategorical({1, 2, 3}, {1.0, 2.0, 3.0});
   LOG(INFO) << "SimpleCategorical result: " << result;
   ASSERT_EQ(result.size(), 3);
 }

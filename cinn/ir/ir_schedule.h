@@ -372,7 +372,7 @@ class IRSchedule {
    * @param probs Probability distribution of candidate integer set.
    * @return Random variables sampled.
    */
-  int SimpleCategorical(const std::vector<int>& candidates, const std::vector<float>& probs);
+  Expr SimpleCategorical(const std::vector<int>& candidates, const std::vector<float>& probs);
 
  private:
   std::unique_ptr<ScheduleImpl> impl_;
