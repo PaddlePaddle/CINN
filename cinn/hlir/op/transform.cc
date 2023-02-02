@@ -101,8 +101,6 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
     for (auto &t : out) {
       stages->InsertLazily(t);
     }
-    auto out_shape_e = ToCinnExprs(output_shape);
-    out[0]->Reshape(out_shape_e, stages);
 
     for (auto &t : out) {
       res.push_back(CINNValue(t));
@@ -537,8 +535,6 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
     for (auto &t : out) {
       stages->InsertLazily(t);
     }
-    auto out_shape_e = ToCinnExprs(output_shape);
-    out[0]->Reshape(out_shape_e, stages);
 
     for (auto &t : out) {
       res.push_back(CINNValue(t));

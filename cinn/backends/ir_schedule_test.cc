@@ -2703,7 +2703,7 @@ TEST(IrSchedule, Annotate) {
       {M, N}, [&](Var i, Var j) { return A(i, j); }, "B");
 
   auto funcs = cinn::lang::LowerVec(
-      "test_split_and_fuse1", CreateStages({A, B}), {A, B}, {}, {}, nullptr, common::DefaultHostTarget(), true);
+      "test_annotate", CreateStages({A, B}), {A, B}, {}, {}, nullptr, common::DefaultHostTarget(), true);
   ir::IRSchedule ir_sch(ir::ModuleExpr({funcs[0]->body}));
   auto fused   = ir_sch.Fuse("B", {0, 1});
   auto block_b = ir_sch.GetBlock("B");
@@ -2740,7 +2740,7 @@ TEST(IrSchedule, Unannotate) {
       {M, N}, [&](Var i, Var j) { return A(i, j); }, "B");
 
   auto funcs = cinn::lang::LowerVec(
-      "test_split_and_fuse1", CreateStages({A, B}), {A, B}, {}, {}, nullptr, common::DefaultHostTarget(), true);
+      "test_unannotate", CreateStages({A, B}), {A, B}, {}, {}, nullptr, common::DefaultHostTarget(), true);
   ir::IRSchedule ir_sch(ir::ModuleExpr({funcs[0]->body}));
   auto fused   = ir_sch.Fuse("B", {0, 1});
   auto block_b = ir_sch.GetBlock("B");
@@ -2889,22 +2889,36 @@ TEST(IrSchedule, SamplePerfectTile) {
   ASSERT_EQ(result.size(), 3);
 }
 
-TEST(IrSchedule, SimpleCategorical) {
+TEST(IrSchedule, GetChildBlocks) {
   Context::Global().ResetNameId();
   Expr M(32);
   Expr N(32);
-  Placeholder<int> A("A", {M, N});
+  Expr K(32);
+  Placeholder<float> A("A", {M, N, K});
   auto B = Compute(
-      {M, N}, [&](Var i, Var j) { return A(i, j); }, "B");
-  poly::StageMap stages = CreateStages({A, B});
-
+      {M, N, K}, [&A](Var i, Var j, Var k) { return A(i, j, k); }, "B");
+  auto C = Compute(
+      {M, N, K}, [&B](Var i, Var j, Var k) { return B(i, j, k); }, "C");
   auto funcs = cinn::lang::LowerVec(
-      "test_simplecategorical", stages, {A, B}, {}, {}, nullptr, common::DefaultHostTarget(), true);
-
+      "test_getchildblocks", CreateStages({A, B, C}), {A, C}, {}, {}, nullptr, common::DefaultHostTarget(), true);
   ir::IRSchedule ir_sch(ir::ModuleExpr({funcs[0]->body}));
-  Expr result = ir_sch.SimpleCategorical({1, 2, 3}, {1.0, 2.0, 3.0});
-  LOG(INFO) << "SimpleCategorical result: " << result;
-  ASSERT_EQ(result.size(), 3);
+
+  auto block_b = ir_sch.GetBlock("B");
+  auto loops   = ir_sch.GetLoops("C");
+  ir_sch.ComputeAt(block_b, loops[1]);
+  loops           = ir_sch.GetLoops("B");
+  auto root_block = ir_sch.GetRootBlock(loops[1]);
+
+  std::string expected_expr = R"ROC(ScheduleBlock(B)
+{
+  i0, i1, i2 = axis.bind(i, j, (0 + ax0))
+  B[i0, i1, i2] = A[i0, i1, i2]
+}, ScheduleBlock(C)
+{
+  i0, i1, i2 = axis.bind(i, j, k)
+  C[i0, i1, i2] = B[i0, i1, i2]
+})ROC";
+  ASSERT_EQ(utils::GetStreamCnt(ir_sch.GetChildBlocks(root_block)), expected_expr);
 }
 
 }  // namespace backends

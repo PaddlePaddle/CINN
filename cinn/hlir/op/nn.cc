@@ -460,11 +460,7 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
 
   auto strategy = std::make_shared<framework::OpStrategy>();
   CHECK(out_type.size()) << "Out_type of conv2d op is empty! Please check.";
-  if (out_type[0] == Float(32)) {
-    strategy->AddImpl(conv2d_compute, conv2d_schedule, "strategy.conv2d.x86", 1);
-  } else {
-    LOG(FATAL) << "Conv2d op with dtype != float32 is not implemented yet!";
-  }
+  strategy->AddImpl(conv2d_compute, conv2d_schedule, "strategy.conv2d.x86", 1);
   return strategy;
 }
 

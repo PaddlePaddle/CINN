@@ -107,6 +107,13 @@ class IRSchedule {
   Expr GetBlock(const std::string& block_name) const;
 
   /**
+   * \brief Get all the childblocks of specific Expr stored in ModuleExpr.
+   * @param expr The expr we find childblock in, can be a loop or block.
+   * @return ChildBlocks of the block.
+   */
+  std::vector<Expr> GetChildBlocks(const Expr& expr) const;
+
+  /**
    * \brief Split a for loop into multiple loops, based on the factors.
    * @param loop The loop to be splited.
    * @param factors The factors we used to split the loop.
