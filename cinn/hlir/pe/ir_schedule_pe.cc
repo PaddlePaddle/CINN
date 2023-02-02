@@ -317,7 +317,11 @@ void IRCudaScheduleReduce(ir::IRSchedule &ir_sch,
   if (parallel_thread_num > max_block_size) {
     auto loops = ir_sch.GetLoops(output->name);
     CHECK_GE(loops.size(), index + 1);
-    for (int idx = 1024; idx > 0; --idx) {
+
+    auto *for_node = loops[index].As<ir::For>();
+    CHECK(for_node->extent.is_constant()) << "The For node's extent must be constant! Please check.";
+    int tot_extent = for_node->extent.get_constant();
+    for (int idx = tot_extent; idx > 0; --idx) {
       if (parallel_thread_num % idx == 0) {
         auto nloops = ir_sch.Split(loops[index], {-1, idx});
         ir_sch.Bind(nloops.back(), "threadIdx.x");
