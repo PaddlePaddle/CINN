@@ -31,11 +31,13 @@ void SliceOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ct
   auto ends = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "ends");
   CHECK(op_desc.HasAttr("axes"));
   auto axes = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "axes");
+  CHECK(op_desc.HasAttr("decrease_axis"));
+  auto decrease_axis = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "decrease_axis");
 
   auto infer_flags = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "infer_flags");
   auto strides     = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "strides");
   auto x           = ctx.GetVar(x_name);
-  auto out         = ctx.Builder()->Slice(x, axes, starts, ends, infer_flags, strides);
+  auto out         = ctx.Builder()->Slice(x, axes, starts, ends, infer_flags, strides, decrease_axis);
 
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);

@@ -1429,7 +1429,7 @@ std::shared_ptr<OpStrategy> StrategyForSlice(const framework::NodeAttr &attrs,
 std::vector<std::vector<int>> InferShapeForSlice(const std::vector<std::vector<int>> &inputs_shape,
                                                  const framework::AttrMapType &attrs) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
-  std::vector<int> starts, ends, axes, strides;
+  std::vector<int> starts, ends, axes, strides, decrease_axis, infer_flags;
   for (auto &iter : attrs) {
     if (iter.first == "starts") {
       starts = absl::get<std::vector<int>>(iter.second);
@@ -1439,8 +1439,10 @@ std::vector<std::vector<int>> InferShapeForSlice(const std::vector<std::vector<i
       axes = absl::get<std::vector<int>>(iter.second);
     } else if (iter.first == "strides") {
       strides = absl::get<std::vector<int>>(iter.second);
+    } else if (iter.first == "decrease_axis") {
+      decrease_axis = absl::get<std::vector<int>>(iter.second);
     } else if (iter.first == "infer_flags") {
-      auto infer_flags = absl::get<std::vector<int>>(iter.second);
+      infer_flags = absl::get<std::vector<int>>(iter.second);
       if (std::find_if(infer_flags.begin(), infer_flags.end(), [](int v) { return v < 0; }) != infer_flags.end()) {
         LOG(WARNING) << "The attr [infer_flags] has negative values, and its value is "
                      << utils::Join(infer_flags, ", ");
@@ -1493,6 +1495,33 @@ std::vector<std::vector<int>> InferShapeForSlice(const std::vector<std::vector<i
       output_shape[axes[i]] = (starts[i] - ends[i] + (-strides[i]) - 1) / (-strides[i]);
     }
   }
+
+  std::vector<uint8_t> decrease_flag(output_shape.size(), 0);
+  if (decrease_axis.size() > 0) {
+    for (size_t i = 0; i < decrease_axis.size(); ++i) {
+      int axis            = decrease_axis[i];
+      decrease_flag[axis] = 1;
+      if (infer_flags[i] != -1) {
+        CHECK(output_shape[axis] == 1) << "Decrease dim should be 1, but now received " << output_shape[axis];
+      }
+    }
+
+    std::vector<int> new_shape;
+    for (int i = 0; i < output_shape.size(); ++i) {
+      if (decrease_flag[i] == 0) {
+        new_shape.push_back(output_shape[i]);
+      }
+    }
+
+    // NOTE(liym27): Paddle does not support that the rank of Tensor is 0, and
+    // uses [1] instead.
+    if (new_shape.size() == 0) {
+      new_shape.push_back(1);
+    }
+
+    output_shape = new_shape;
+  }
+
   VLOG(4) << "Output shape of Slice is: " << cinn::utils::Join(output_shape, ",");
   std::vector<std::vector<int>> res{output_shape};
   return res;

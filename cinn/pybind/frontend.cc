@@ -467,8 +467,9 @@ void BindFrontend(pybind11::module *m) {
            py::arg("axes"),
            py::arg("starts"),
            py::arg("ends"),
-           py::arg("infer_flags") = std::vector<int>{},
-           py::arg("strides")     = std::vector<int>{})
+           py::arg("infer_flags")   = std::vector<int>{},
+           py::arg("strides")       = std::vector<int>{},
+           py::arg("decrease_axis") = std::vector<int>{})
       .def("reverse", &NetBuilder::Reverse, py::arg("x"), py::arg("axis"))
       .def("select", &NetBuilder::Select, py::arg("condition"), py::arg("true_value"), py::arg("false_value"))
       .def("split", &NetBuilder::Split, py::arg("x"), py::arg("num_or_sections"), py::arg("axis") = 0)
