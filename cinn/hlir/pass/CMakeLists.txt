@@ -10,7 +10,7 @@ gather_srcs(cinnapi_src SRCS
     fusion_merge_pass.cc
     dot_merger.cc
     check_fusion_accuracy_pass.cc
-    custom_call_pass.cc
+    mark_custom_call_pass.cc
     dce_pass.cc
     )
 

@@ -74,14 +74,12 @@ std::shared_ptr<OpStrategy> StrategyForCustomCall(const framework::NodeAttr &att
   framework::CINNCompute compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK_EQ(args.size(), 1UL);
     CINNValuePack pack_args = args[0];
-    CHECK(pack_args.back().is_string());
+    CHECK_EQ(pack_args.size(), 2UL);
+    CHECK(pack_args[0].is_string() && pack_args[1].is_string());
+    std::string func_name       = pack_args[0].operator std::string();
+    std::string custom_call_api = pack_args[1].operator std::string();
 
-    auto &attr_store = attrs.attr_store;
-    CHECK(attr_store.count("custom_call"));
-    std::string custom_call_api = absl::get<std::string>(attr_store.at("custom_call"));
-    auto args_func              = CustomCallArgsFuncRegistry::Global().Lookup(custom_call_api, target);
-
-    std::string func_name = pack_args.back().operator std::string();
+    auto args_func = CustomCallArgsFuncRegistry::Global().Lookup(custom_call_api, target);
     // create call function.
     ir::Var kernel_args(KERNEL_ARGS, type_of<void *>());
     ir::Var kernel_args_num(KERNEL_ARGS_NUM, type_of<int>());
@@ -223,7 +221,6 @@ std::vector<ir::Expr> CustomCallArgsForCudnnConvForward(const framework::NodeAtt
                                                         const std::vector<ir::Tensor> &inputs,
                                                         const std::vector<std::vector<int>> &output_shapes) {
   CHECK_EQ(inputs.size(), 2UL);
-  // CHECK_EQ(output_shapes.size(), 1UL);
   auto attr_store = attrs.attr_store;
   float alpha     = attr_store.count("alpha") ? absl::get<float>(attr_store.at("alpha")) : 1.0f;
   float beta      = attr_store.count("beta") ? absl::get<float>(attr_store.at("beta")) : 0.0f;
@@ -271,7 +268,6 @@ std::vector<ir::Expr> CustomCallArgsForCudnnConvBackwardData(const framework::No
                                                              const std::vector<ir::Tensor> &inputs,
                                                              const std::vector<std::vector<int>> &output_shapes) {
   CHECK_EQ(inputs.size(), 2UL);
-  CHECK_EQ(output_shapes.size(), 1UL);
   auto attr_store = attrs.attr_store;
   float alpha     = attr_store.count("alpha") ? absl::get<float>(attr_store.at("alpha")) : 1.0f;
   float beta      = attr_store.count("beta") ? absl::get<float>(attr_store.at("beta")) : 0.0f;
@@ -318,7 +314,6 @@ std::vector<ir::Expr> CustomCallArgsForCudnnConvBackwardFilter(const framework::
                                                                const std::vector<ir::Tensor> &inputs,
                                                                const std::vector<std::vector<int>> &output_shapes) {
   CHECK_EQ(inputs.size(), 2UL);
-  CHECK_EQ(output_shapes.size(), 1UL);
   auto attr_store = attrs.attr_store;
   float alpha     = attr_store.count("alpha") ? absl::get<float>(attr_store.at("alpha")) : 1.0f;
   float beta      = attr_store.count("beta") ? absl::get<float>(attr_store.at("beta")) : 0.0f;

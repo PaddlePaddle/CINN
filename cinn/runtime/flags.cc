@@ -39,9 +39,16 @@ DEFINE_int32(cinn_parallel_compile_size,
 
 DEFINE_bool(cinn_use_op_fusion, BoolFromEnv("FLAGS_cinn_use_op_fusion", true), "Whether to use op fusion pass.");
 
-DEFINE_bool(cinn_use_cudnn_conv, BoolFromEnv("FLAGS_cinn_use_cudnn_conv", true), "Whether to use cudnn convolution.");
+DEFINE_bool(cinn_use_gemm_rewriter,
+            BoolFromEnv("FLAGS_cinn_use_gemm_rewriter", true),
+            "Whether to use GemmRewriter pass to rewrite matmul");
+DEFINE_string(cinn_custom_call_mark_excluded_ops,
+              StringFromEnv("FLAGS_cinn_custom_call_mark_excluded_ops", ""),
+              "a blacklist of op excluded on MarkCustomCallOps pass, separated by ;");
 
-DEFINE_bool(cinn_use_cublas_gemm, BoolFromEnv("FLAGS_cinn_use_cublas_gemm", true), "Whether to use cublas gemm.");
+DEFINE_bool(cinn_use_custom_call,
+            BoolFromEnv("FLAGS_cinn_use_custom_call", true),
+            "Whether to use custom_call for ops with external_api registered");
 
 DEFINE_bool(cinn_use_fill_constant_folding,
             BoolFromEnv("FLAGS_cinn_use_fill_constant_folding", false),

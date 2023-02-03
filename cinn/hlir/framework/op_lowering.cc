@@ -14,6 +14,7 @@
 
 #include "cinn/hlir/framework/op_lowering.h"
 
+#include "cinn/hlir/op/external_api_registry.h"
 #include "cinn/optim/transform_gpu_forloop.h"
 
 DECLARE_bool(cinn_ir_schedule);
@@ -38,6 +39,7 @@ using namespace lang;
 
 using Comparator = Graph::Group::SharedGroupComparator;
 using Hasher     = Graph::Group::SharedGroupHasher;
+using cinn::hlir::op::ExternalApiRegistry;
 
 NodeData* GetNodeData(const Node* node) {
   auto node_data = (*node->outlinks().begin())->sink()->safe_as<NodeData>();
@@ -1298,9 +1300,12 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerNonFusibleOp(GroupPtr& group, boo
   }
 
   auto impl = OpStrategy::SelectImpl(cinn_strategy[node->op()](node->attrs, inputs, out_types, out_shapes, target_));
-  // if node op is custom call, return compute.
-  if (node->op()->name == "custom_call") {
-    cinn_inputs.push_back(common::CINNValue(group->GetFuncName()));
+  // if node op is marked to use custom_call, return its compute.
+  if (node->attrs.attr_store.count("enable_custom_call") &&
+      absl::get<bool>(node->attrs.attr_store.at("enable_custom_call"))) {
+    std::vector<common::CINNValue> compute_args = {
+        common::CINNValue(ExternalApiRegistry::Global()->GetExternalApi(node, target_)),
+        common::CINNValue(group->GetFuncName())};
     common::CINNValuePack pack = impl->fcompute(common::CINNValuePack{cinn_inputs});
     CHECK_EQ(pack.size(), 1UL);
     // reset input names as extern api input args can't be remove duplicate.
