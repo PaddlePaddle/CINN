@@ -310,16 +310,14 @@ void IRCudaScheduleReduce(ir::IRSchedule &ir_sch,
   int index = ir_sch.GetLoops(output->name + "__reduce_init").size() - last_dimension_num;
   for (int idx = output_shape.size() - last_dimension_num; idx < static_cast<int>(output_shape.size()) - 1; ++idx) {
     auto loops = ir_sch.GetLoops(output->name);
-    if (loops.size() > index + 2) ir_sch.Fuse({loops[index], loops[index + 1]});
+    ir_sch.Fuse({loops[index], loops[index + 1]});
   }
 
   int max_block_size = target.max_num_threads();
   if (parallel_thread_num > max_block_size) {
     auto loops = ir_sch.GetLoops(output->name);
     CHECK_GE(loops.size(), index + 1);
-
-    int tot_extent = GetLoopExtent(loops[index]);
-    for (int idx = std::min(max_block_size, tot_extent); idx > 0; --idx) {
+    for (int idx = max_block_size; idx > 0; --idx) {
       if (parallel_thread_num % idx == 0) {
         auto nloops = ir_sch.Split(loops[index], {-1, idx});
         ir_sch.Bind(nloops.back(), "threadIdx.x");

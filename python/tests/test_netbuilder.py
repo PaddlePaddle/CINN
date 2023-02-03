@@ -115,5 +115,28 @@ class TestNetBuilderOp(unittest.TestCase):
         print(res)
 
 
+class TestNetBuilderOp1(unittest.TestCase):
+    def setUp(self):
+        if enable_gpu == "ON":
+            self.target = DefaultNVGPUTarget()
+        else:
+            self.target = DefaultHostTarget()
+
+    def test_exp(self):
+        np.random.seed(1234)
+        builder = NetBuilder("testreduce")
+
+        a = builder.create_input(Float(32), (1, 16, 256), "A")
+        b = builder.reduce_sum(a, [0])
+        prog = builder.build()
+
+        tensor_data = [
+            np.random.random([1, 16, 256]).astype("float32")
+        ]
+        result = prog.build_and_get_output(self.target, [a], tensor_data, [b])
+        res = result[0].numpy(self.target)
+        print(res)
+
+
 if __name__ == "__main__":
     unittest.main()
