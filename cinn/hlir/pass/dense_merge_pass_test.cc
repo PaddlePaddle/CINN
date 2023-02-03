@@ -20,24 +20,100 @@ namespace cinn {
 namespace frontend {
 
 TEST(DenseMergePass, Test_Matmul_0) {
-  NetBuilder net_builder("Test_0");
-  auto A         = net_builder.CreateInput(Float(32), {128, 64}, "A");
-  auto B         = net_builder.CreateInput(Float(32), {64, 128}, "B");
-  auto C         = net_builder.CreateInput(Float(32), {64, 128}, "C");
-  auto D         = net_builder.Matmul(A, B);
-  auto E         = net_builder.Matmul(A, C);
-  auto fetch_ids = {D->id, E->id};
+  NetBuilder net_builder("Test_Matmul_0");
+  auto A = net_builder.CreateInput(Float(32), {128, 64}, "A");
+  auto B = net_builder.CreateInput(Float(32), {64, 128}, "B");
+  auto C = net_builder.CreateInput(Float(32), {64, 128}, "C");
+  auto D = net_builder.Matmul(A, B);
+  auto E = net_builder.Matmul(A, C);
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
+  auto fetch_ids = {D->id, E->id};
+  auto program   = net_builder.Build();
+  auto target    = common::DefaultTarget();
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, fetch_ids, target);
   hlir::framework::ApplyPass(graph.get(), "DenseMergePass");
+  CHECK_EQ(graph->nodes().size(), 6);
 }
 
-TEST(DenseMergePass, Test_Matmul_1) {}
+TEST(DenseMergePass, Test_Matmul_1) {
+  NetBuilder net_builder("Test_Matmul_1");
+  auto A = net_builder.CreateInput(Float(32), {128, 64}, "A");
+  auto B = net_builder.CreateInput(Float(32), {128, 64}, "B");
+  auto C = net_builder.CreateInput(Float(32), {64, 128}, "C");
+  auto D = net_builder.Matmul(A, C);
+  auto E = net_builder.Matmul(B, C);
 
-TEST(DenseMergePass, Test_Matmul_2) {}
+  auto fetch_ids = {D->id, E->id};
+  auto program   = net_builder.Build();
+  auto target    = common::DefaultTarget();
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, fetch_ids, target);
+  hlir::framework::ApplyPass(graph.get(), "DenseMergePass");
+  CHECK_EQ(graph->nodes().size(), 6);
+}
+
+TEST(DenseMergePass, Test_Matmul_2) {
+  NetBuilder net_builder("Test_Matmul_2");
+  auto A = net_builder.CreateInput(Float(32), {128, 64}, "A");
+  auto B = net_builder.CreateInput(Float(32), {128, 64}, "B");
+  auto C = net_builder.CreateInput(Float(32), {128, 64}, "C");
+  auto D = net_builder.CreateInput(Float(32), {128, 64}, "D");
+  auto E = net_builder.CreateInput(Float(32), {64, 128}, "E");
+  auto F = net_builder.Matmul(A, E);
+  auto G = net_builder.Matmul(B, E);
+  auto H = net_builder.Matmul(C, E);
+  auto I = net_builder.Matmul(D, E);
+
+  auto fetch_ids = {F->id, G->id, H->id, I->id};
+  auto program   = net_builder.Build();
+  auto target    = common::DefaultTarget();
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, fetch_ids, target);
+  hlir::framework::ApplyPass(graph.get(), "DenseMergePass");
+  CHECK_EQ(graph->nodes().size(), 10);
+}
+
+TEST(DenseMergePass, Test_Matmul_3) {
+  NetBuilder net_builder("Test_Matmul_3");
+  auto A = net_builder.CreateInput(Float(32), {128, 64}, "A");
+  auto B = net_builder.CreateInput(Float(32), {128, 64}, "B");
+  auto C = net_builder.CreateInput(Float(32), {64, 128}, "C");
+  auto D = net_builder.CreateInput(Float(32), {128, 64}, "D");
+  auto E = net_builder.CreateInput(Float(32), {128, 64}, "E");
+  auto F = net_builder.Matmul(A, C);
+  auto G = net_builder.Matmul(B, C);
+  auto H = net_builder.Matmul(C, D);
+  auto I = net_builder.Matmul(C, E);
+
+  auto fetch_ids = {F->id, G->id, H->id, I->id};
+  auto program   = net_builder.Build();
+  auto target    = common::DefaultTarget();
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, fetch_ids, target);
+  hlir::framework::ApplyPass(graph.get(), "DenseMergePass");
+  CHECK_EQ(graph->nodes().size(), 11);
+}
+
+TEST(DenseMergePass, Test_Matmul_4) {
+  NetBuilder net_builder("Test_Matmul_4");
+  auto A = net_builder.CreateInput(Float(32), {128, 64}, "A");
+  auto B = net_builder.CreateInput(Float(32), {128, 64}, "B");
+  auto C = net_builder.CreateInput(Float(32), {64, 128}, "C");
+  auto D = net_builder.CreateInput(Float(32), {64, 128}, "D");
+  auto F = net_builder.Matmul(A, C);
+  auto G = net_builder.Matmul(B, C);
+  auto H = net_builder.Matmul(A, D);
+  auto I = net_builder.Matmul(B, D);
+
+  auto fetch_ids = {F->id, G->id, H->id, I->id};
+  auto program   = net_builder.Build();
+  auto target    = common::DefaultTarget();
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, fetch_ids, target);
+  hlir::framework::ApplyPass(graph.get(), "DenseMergePass");
+  CHECK_EQ(graph->nodes().size(), 10);
+}
 
 }  // namespace frontend
 }  // namespace cinn

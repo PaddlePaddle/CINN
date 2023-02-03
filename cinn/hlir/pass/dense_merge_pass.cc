@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cinn/common/graph_utils.h"
 #include "cinn/common/type.h"
 #include "cinn/hlir/pass/fusion_helper_base.h"
 
@@ -19,6 +20,7 @@ namespace cinn {
 namespace hlir {
 namespace pass {
 
+using common::GraphNode;
 using framework::Graph;
 using framework::Node;
 using framework::NodeAttr;
@@ -36,6 +38,9 @@ class DenseMergePassHelper : public FusionHelperBase {
   void operator()() {
     auto nodes_inorder = std::get<0>(graph_->topological_order());
     for (auto node : nodes_inorder) {
+      if (removed_node_set_.count(node)) {
+        continue;
+      }
       if (node->safe_as<NodeData>()) {
         MergeDense(node->safe_as<NodeData>());
       }
@@ -68,6 +73,7 @@ class DenseMergePassHelper : public FusionHelperBase {
       auto sink = link->sink()->safe_as<Node>();
       if (sink->op()->name == "matmul" || sink->op()->name == "mul" || sink->op()->name == "cublas_gemm" ||
           sink->op()->name == "cublas_matmul") {
+        LOG(INFO) << sink->id() << " " << sink->op()->name;
         dense_ops.push_back(sink);
       }
     }
@@ -79,12 +85,10 @@ class DenseMergePassHelper : public FusionHelperBase {
   void RightMerge(NodeData* node, std::vector<Node*> dense_ops) { DoMerge(node, dense_ops, 0, "right"); }
 
   void DoMerge(NodeData* node, std::vector<Node*> dense_ops, int pos, std::string side) {
-    LOG(INFO) << pos << " " << side;
     // split dense op by it's attr
     std::unordered_map<std::string, std::vector<Node*>> dense_op_map;
     for (auto dense_op : dense_ops) {
       auto sign = GenOpSign(dense_op->inlinks_in_order(true)[pos]->source()->safe_as<NodeData>(), dense_op->attrs);
-      LOG(INFO) << sign;
       if (dense_op_map.count(sign)) {
         dense_op_map[sign].push_back(dense_op);
       } else {
@@ -97,12 +101,10 @@ class DenseMergePassHelper : public FusionHelperBase {
         continue;
       }
 
-      LOG(INFO) << dense_op.first;
-      LOG(INFO) << dense_op.second.size();
       // create custom call node
       Node* node_tmp = new Node(Operator::Get("custom_call"), "custom_call", common::UniqName("custom_call"));
       graph_->RegisterNode(node_tmp->id(), node_tmp);
-      node_tmp->attrs                           = dense_op.second[0]->attrs;
+      node_tmp->attrs.attr_store                = dense_op.second[0]->attrs.attr_store;
       node_tmp->attrs.attr_store["side"]        = side;
       node_tmp->attrs.attr_store["custom_call"] = "cinn_call_batched_cublas";
 
@@ -121,14 +123,13 @@ class DenseMergePassHelper : public FusionHelperBase {
         // update node tmp.
         op_node_data->source_node.Reset(node_tmp);
 
-        // drop dense op.
+        removed_node_set_.insert(op);
         graph_->DropNode(op);
       }
     }
   }
 
   std::string GenOpSign(const NodeData* node, const NodeAttr& attrs) {
-    LOG(INFO) << node->id();
     auto attr_store    = attrs.attr_store;
     bool trans_a       = attr_store.count("trans_a") ? absl::get<bool>(attr_store.at("trans_a")) : false;
     bool trans_b       = attr_store.count("trans_b") ? absl::get<bool>(attr_store.at("trans_b")) : false;
@@ -154,6 +155,8 @@ class DenseMergePassHelper : public FusionHelperBase {
     return sign;
   }
 
+ private:
+  std::unordered_set<GraphNode*> removed_node_set_;
   Graph* graph_;
 };
 
