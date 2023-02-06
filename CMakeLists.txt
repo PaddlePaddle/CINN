@@ -101,6 +101,21 @@ find_package(Threads REQUIRED)
 set(LINK_FLAGS "-Wl,--version-script ${CMAKE_CURRENT_SOURCE_DIR}/cmake/export.map" CACHE INTERNAL "")
 set(global_test_args "--cinn_x86_builtin_code_root=${CMAKE_SOURCE_DIR}/cinn/backends")
 
+set(Python_VIRTUALENV FIRST)
+
+if(NOT PYTHON_EXECUTABLE)
+find_package(PythonInterp ${PY_VERSION} REQUIRED)
+endif()
+
+if(NOT PYTHON_LIBRARIES)
+find_package(PythonLibs ${PY_VERSION} REQUIRED)
+endif()
+
+message(STATUS "PYTHON_LIBRARIES: ${PYTHON_LIBRARIES}")
+message(STATUS "PYTHON_INCLUDE_DIR: ${PYTHON_INCLUDE_DIR}")
+
+INCLUDE_DIRECTORIES(${PYTHON_INCLUDE_DIR})
+
 set(core_deps CACHE INTERNAL "" FORCE)
 set(hlir_src CACHE INTERNAL "" FORCE)
 add_subdirectory(cinn)
@@ -112,17 +127,6 @@ add_subdirectory(tutorials)
 
 set(core_src "${cinnapi_src}")
 
-set(Python_VIRTUALENV FIRST)
-if(NOT PYTHON_EXECUTABLE)
-find_package(PythonInterp ${PY_VERSION} REQUIRED)
-endif()
-if(NOT PYTHON_LIBRARIES)
-find_package(PythonLibs ${PY_VERSION} REQUIRED)
-endif()
-message(STATUS "PYTHON_LIBRARIES: ${PYTHON_LIBRARIES}")
-message(STATUS "PYTHON_INCLUDE_DIR: ${PYTHON_INCLUDE_DIR}")
-
-INCLUDE_DIRECTORIES(${PYTHON_INCLUDE_DIR})
 cc_library(cinnapi SHARED SRCS ${cinnapi_src} DEPS glog ${llvm_libs} framework_proto param_proto
  auto_schedule_proto schedule_desc_proto absl isl ginac pybind ${jitify_deps})
 add_dependencies(cinnapi GEN_LLVM_RUNTIME_IR_HEADER ZLIB::ZLIB)
