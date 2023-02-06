@@ -67,7 +67,8 @@ cmake -G Ninja ../llvm \
 #]==]
 
 # The matched llvm-project version is f9dc2b7079350d0fed3bb3775f496b90483c9e42 (currently a temporary commit)
-# Update: to beild it in manylinux docker with glibc-2.17, the patch https://gist.github.com/zhiqiu/6e8d969176dce13d98fd15338a16265e is needed.
+# Update: to build llvm in manylinux docker with glibc-2.17, and use it in manylinux and ubuntu docker,
+# the patch https://gist.github.com/zhiqiu/6e8d969176dce13d98fd15338a16265e is needed.
 
 add_definitions(${LLVM_DEFINITIONS})
 
