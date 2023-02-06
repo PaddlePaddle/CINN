@@ -1299,15 +1299,22 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerNonFusibleOp(GroupPtr& group, boo
     cinn_inputs.push_back(common::CINNValue(node_data->id()));
   }
 
-  // if node op is marked to use custom_call, return its compute.
-  if (node->attrs.attr_store.count("enable_custom_call") &&
-      absl::get<bool>(node->attrs.attr_store.at("enable_custom_call"))) {
+  // if node op is custom_call or is marked to use custom_call, apply custom_call compute.
+  if (node->op()->name == "custom_call" || node->attrs.attr_store.count("enable_custom_call") &&
+                                               absl::get<bool>(node->attrs.attr_store.at("enable_custom_call"))) {
     auto impl = OpStrategy::SelectImpl(
         cinn_strategy[Operator::Get("custom_call")](node->attrs, inputs, out_types, out_shapes, target_));
-    std::vector<common::CINNValue> compute_args = {
-        common::CINNValue(group->GetFuncName()),
-        common::CINNValue(ExternalApiRegistry::Global()->GetExternalApi(node, target_))};
-    common::CINNValuePack pack = impl->fcompute(common::CINNValuePack{compute_args});
+
+    std::string external_api;
+    if (node->op()->name == "custom_call") {
+      CHECK(node->attrs.attr_store.count("custom_call"));
+      external_api = absl::get<std::string>(node->attrs.attr_store.at("custom_call"));
+    } else {
+      external_api = ExternalApiRegistry::Global()->GetExternalApi(node, target_);
+    }
+    std::vector<common::CINNValue> compute_args = {common::CINNValue(group->GetFuncName()),
+                                                   common::CINNValue(external_api)};
+    common::CINNValuePack pack                  = impl->fcompute(common::CINNValuePack{compute_args});
     CHECK_EQ(pack.size(), 1UL);
     // reset input names as extern api input args can't be remove duplicate.
     group->input_names.clear();
@@ -2205,12 +2212,23 @@ std::vector<ir::LoweredFunc> OpLowerer::LowerNonFusibleOp(GroupPtr& group) {
     out_shapes.push_back(this->shape_dict_.at(node_data->id()));
   }
 
-  auto impl =
-      OpStrategy::SelectImpl(cinn_strategy[node->op()](node->attrs, tensor_inputs, out_types, out_shapes, target_));
-  // if node op is custom call, return compute.
-  if (node->op()->name == "custom_call") {
-    cinn_inputs.push_back(common::CINNValue(group->GetFuncName()));
-    common::CINNValuePack pack = impl->fcompute(common::CINNValuePack{cinn_inputs});
+  // if node op is custom_call or is marked to use custom_call, apply custom_call compute.
+  if (node->op()->name == "custom_call" || node->attrs.attr_store.count("enable_custom_call") &&
+                                               absl::get<bool>(node->attrs.attr_store.at("enable_custom_call"))) {
+    auto impl = OpStrategy::SelectImpl(
+        cinn_strategy[Operator::Get("custom_call")](node->attrs, tensor_inputs, out_types, out_shapes, target_));
+
+    std::string external_api;
+    if (node->op()->name == "custom_call") {
+      CHECK(node->attrs.attr_store.count("custom_call"));
+      external_api = absl::get<std::string>(node->attrs.attr_store.at("custom_call"));
+    } else {
+      external_api = ExternalApiRegistry::Global()->GetExternalApi(node, target_);
+    }
+    std::vector<common::CINNValue> compute_args = {common::CINNValue(group->GetFuncName()),
+                                                   common::CINNValue(external_api)};
+
+    common::CINNValuePack pack = impl->fcompute(common::CINNValuePack{compute_args});
     CHECK_EQ(pack.size(), 1UL);
     // reset input names as extern api input args can't be remove duplicate.
     group->input_names.clear();
@@ -2219,6 +2237,9 @@ std::vector<ir::LoweredFunc> OpLowerer::LowerNonFusibleOp(GroupPtr& group) {
     }
     return {pack[0].operator ir::Expr().as_lowered_func_ref()};
   }
+
+  auto impl =
+      OpStrategy::SelectImpl(cinn_strategy[node->op()](node->attrs, tensor_inputs, out_types, out_shapes, target_));
   // do compute
   common::CINNValuePack value_pack = impl->fcompute(common::CINNValuePack{cinn_inputs});
   // do schedule
