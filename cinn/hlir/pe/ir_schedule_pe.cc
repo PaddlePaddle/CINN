@@ -350,7 +350,8 @@ void IRCudaScheduleBlockReduceInternal(ir::IRSchedule &ir_sch,
                                        ir::Tensor out,
                                        const common::Target &target) {
   VLOG(3) << "Before IRCudaScheduleBlockReduceInternal : " << ir_sch.GetModule().GetExprs().at(0);
-  for (int idx = 0; idx < static_cast<int>(tmp_out->shape.size()) - 2; ++idx) {
+  int fuse_times = ir_sch.GetLoops(tmp_out->name).size() - 2;
+  for (int idx = 0; idx < fuse_times; ++idx) {
     for (auto &tensor : {tmp_out, out}) {
       auto loops = ir_sch.GetLoops(tensor->name);
       CHECK_GE(loops.size(), 2U);
