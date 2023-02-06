@@ -51,6 +51,7 @@ if (WITH_CUDA)
     message(STATUS "Enable CUDNN")
     add_definitions(-DCINN_WITH_CUDNN)
   endif()
+
   enable_language(CUDA)
   find_package(CUDA REQUIRED)
   include_directories(${CUDA_INCLUDE_DIRS})
@@ -61,11 +62,18 @@ if (WITH_CUDA)
   message(STATUS "copy cinn/common/float16.h to $ENV{runtime_include_dir}")
   file(COPY cinn/common/float16.h DESTINATION $ENV{runtime_include_dir})
 
+  # I found libcuda.so is not needed by any target, while libcuda.so.1 is needed.
   find_library(CUDASTUB libcuda.so HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib64/stubs/ REQUIRED)
   find_library(CUBLAS libcublas.so HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib64 /usr/lib REQUIRED)
   find_library(CUDNN libcudnn.so HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib64 /usr/lib REQUIRED)
   find_library(CURAND libcurand.so HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib64 /usr/lib REQUIRED)
   find_library(CUSOLVER libcusolver.so HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib64 /usr/lib REQUIRED)
+
+  # In manylinux docker, the libcuda.so.1 is located in /usr/local/cuda-11.2/compat, add it to RPATH
+  execute_process(COMMAND bash "-c" "find /usr -name libcuda.so.1 | head -n 1"  OUTPUT_VARIABLE CUDASO_PATH OUTPUT_STRIP_TRAILING_WHITESPACE)
+  execute_process(COMMAND bash "-c" "dirname ${CUDASO_PATH}"  OUTPUT_VARIABLE CUDASO_LIB OUTPUT_STRIP_TRAILING_WHITESPACE)
+  # find_library(CUDA_SO libcuda.so.1 HINTS ${CUDASO_LIB} REQUIRED)
+  message(STATUS "Found libcuda.so.1 in ${CUDASO_LIB}")
 endif()
 
 find_package(Threads REQUIRED)
@@ -144,7 +152,7 @@ if (WITH_MKL_CBLAS)
 endif()
 
 if (WITH_CUDA)
-  target_link_libraries(cinnapi ${CUDA_NVRTC_LIB} ${CUDA_LIBRARIES} ${CUDASTUB} ${CUBLAS} ${CUDNN} ${CURAND} ${CUSOLVER})
+  target_link_libraries(cinnapi ${CUDA_NVRTC_LIB} ${CUDA_LIBRARIES} ${CUDASTUB} ${CUBLAS} ${CUDNN} ${CURAND} ${CUSOLVER} ${CUDASO_PATH})
   if (NVTX_FOUND)
     target_link_libraries(cinnapi ${CUDA_NVTX_LIB})
   endif()
@@ -173,7 +181,7 @@ function(gen_cinncore LINKTYPE)
 
   if (WITH_CUDA)
     target_link_libraries(${CINNCORE_TARGET} ${CUDA_NVRTC_LIB} ${CUDA_LIBRARIES} ${CUDASTUB} ${CUBLAS} ${CUDNN}
-      ${CURAND} ${CUSOLVER} ${jitify_deps})
+      ${CURAND} ${CUSOLVER} ${jitify_deps} ${CUDASO_PATH})
     if (NVTX_FOUND)
       target_link_libraries(${CINNCORE_TARGET} ${CUDA_NVTX_LIB})
     endif()

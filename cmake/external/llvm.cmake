@@ -1,7 +1,10 @@
 include(FetchContent)
 
-set(LLVM_DOWNLOAD_URL https://paddle-inference-dist.bj.bcebos.com/CINN/llvm11.tar.gz)
-set(LLVM_MD5 39d32b6be466781dddf5869318dcba53)
+# set(LLVM_DOWNLOAD_URL https://paddle-inference-dist.bj.bcebos.com/CINN/llvm11.tar.gz)
+# set(LLVM_MD5 39d32b6be466781dddf5869318dcba53)
+
+set(LLVM_DOWNLOAD_URL https://paddle-inference-dist.bj.bcebos.com/CINN/llvm11-glibc2.17.tar.gz)
+set(LLVM_MD5 e784ddd0f8938e05af613e44357f4992)
 
 set(FETCHCONTENT_BASE_DIR ${THIRD_PARTY_PATH}/llvm)
 set(FETCHCONTENT_QUIET OFF)
