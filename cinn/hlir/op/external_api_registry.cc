@@ -27,7 +27,7 @@ std::string ExternalApiRegistry::GetExternalApi(const framework::Node* op_node, 
   const ExternalApiInfo* external_api_info = Find(GenKey(op_name, target));
   CHECK(external_api_info) << "Op:" << op_name << " doesn't register external_api on " << target;
   std::string external_api = external_api_info->api_name;
-  if (external_api.empty()) {
+  if (external_api.empty()) {  // if api_name not set directly, call trans_func to acquire
     auto&& trans_func = external_api_info->trans_func;
     CHECK(trans_func) << "Op:" << op_name << " register invalid ExternalApiInfo on " << target;
     external_api = trans_func(op_node);

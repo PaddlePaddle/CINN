@@ -29,6 +29,9 @@ namespace op {
 
 using OpNodeTransToExternalApiFunction = std::function<std::string(const framework::Node* op_node)>;
 
+// This class contains detail external api information of a specified Operator.
+// To provide the external api name, we can directly set it through `set_api_name`
+// or set a transform function wth `set_trans_func` that return a api name finally
 struct ExternalApiInfo {
   std::string name;
   std::string api_name;
@@ -45,6 +48,7 @@ struct ExternalApiInfo {
   }
 };
 
+// A registry that stores external api for ops supported by vendor library
 class ExternalApiRegistry : public Registry<ExternalApiInfo> {
  public:
   static ExternalApiRegistry* Global() {
@@ -58,12 +62,14 @@ class ExternalApiRegistry : public Registry<ExternalApiInfo> {
     return nullptr != Registry<ExternalApiInfo>::Find(GenKey(op_name, target));
   }
 
+  // return the api name on the specified target
   std::string GetExternalApi(const framework::Node* op_node, const common::Target& target);
 
  private:
   ExternalApiRegistry() = default;
   CINN_DISALLOW_COPY_AND_ASSIGN(ExternalApiRegistry);
 
+  // the registered key consist of the name of op and the specified target
   std::string GenKey(const std::string& op_name, const common::Target& target);
 };
 
