@@ -1299,14 +1299,15 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerNonFusibleOp(GroupPtr& group, boo
     cinn_inputs.push_back(common::CINNValue(node_data->id()));
   }
 
-  auto impl = OpStrategy::SelectImpl(cinn_strategy[node->op()](node->attrs, inputs, out_types, out_shapes, target_));
   // if node op is marked to use custom_call, return its compute.
   if (node->attrs.attr_store.count("enable_custom_call") &&
       absl::get<bool>(node->attrs.attr_store.at("enable_custom_call"))) {
+    auto impl = OpStrategy::SelectImpl(
+        cinn_strategy[Operator::Get("custom_call")](node->attrs, inputs, out_types, out_shapes, target_));
     std::vector<common::CINNValue> compute_args = {
         common::CINNValue(group->GetFuncName()),
         common::CINNValue(ExternalApiRegistry::Global()->GetExternalApi(node, target_))};
-    common::CINNValuePack pack = impl->fcompute(common::CINNValuePack{cinn_inputs});
+    common::CINNValuePack pack = impl->fcompute(common::CINNValuePack{compute_args});
     CHECK_EQ(pack.size(), 1UL);
     // reset input names as extern api input args can't be remove duplicate.
     group->input_names.clear();
@@ -1316,6 +1317,7 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerNonFusibleOp(GroupPtr& group, boo
     return {pack[0].operator ir::Expr().as_lowered_func_ref()};
   }
 
+  auto impl = OpStrategy::SelectImpl(cinn_strategy[node->op()](node->attrs, inputs, out_types, out_shapes, target_));
   common::CINNValuePack pack = impl->fcompute(common::CINNValuePack{cinn_inputs});
   for (int i = 0; i < pack->size() - 1; i++) {
     ir::Expr temp = pack[i];
