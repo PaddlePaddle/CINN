@@ -521,6 +521,14 @@ void BindFrontend(pybind11::module *m) {
       .def("argmax", &NetBuilder::Argmax, py::arg("x"), py::arg("axis"), py::arg("keep_dim") = false)
       .def("argmin", &NetBuilder::Argmin, py::arg("x"), py::arg("axis"), py::arg("keep_dim") = false)
       .def("lookup_table", &NetBuilder::LookupTable, py::arg("table"), py::arg("ids"), py::arg("padding_idx"))
+      .def("one_hot",
+           &NetBuilder::OneHot,
+           py::arg("indices"),
+           py::arg("on_value"),
+           py::arg("off_value"),
+           py::arg("depth"),
+           py::arg("axis")  = -1,
+           py::arg("dtype") = "float32")
       .def("conv2d",
            &NetBuilder::Conv2d,
            py::arg("x"),
