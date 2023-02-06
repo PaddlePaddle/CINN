@@ -4,7 +4,7 @@ include(FetchContent)
 # set(LLVM_MD5 39d32b6be466781dddf5869318dcba53)
 
 set(LLVM_DOWNLOAD_URL https://paddle-inference-dist.bj.bcebos.com/CINN/llvm11-glibc2.17.tar.gz)
-set(LLVM_MD5 e784ddd0f8938e05af613e44357f4992)
+set(LLVM_MD5 33c7d3cc6d370585381e8d90bd7c2198)
 
 set(FETCHCONTENT_BASE_DIR ${THIRD_PARTY_PATH}/llvm)
 set(FETCHCONTENT_QUIET OFF)
@@ -62,8 +62,12 @@ cmake -G Ninja ../llvm \
   -DLLVM_ENABLE_ASSERTIONS=ON \
   -DLLVM_ENABLE_ZLIB=OFF \
   -DLLVM_ENABLE_RTTI=ON \
+  -DLLVM_ENABLE_TERMINFO=OFF \
+  -DCMAKE_INSTALL_PREFIX=./install
 #]==]
+
 # The matched llvm-project version is f9dc2b7079350d0fed3bb3775f496b90483c9e42 (currently a temporary commit)
+# Update: to beild it in manylinux docker with glibc-2.17, the patch https://gist.github.com/zhiqiu/6e8d969176dce13d98fd15338a16265e is needed.
 
 add_definitions(${LLVM_DEFINITIONS})
 
