@@ -29,14 +29,17 @@ using framework::Node;
 
 class GraphAlterHelper {
  public:
-  GraphAlterHelper(Graph* graph) : graph_(graph) {}
+  GraphAlterHelper(Graph* graph) : graph_(graph), excluded_ops_(nullptr) {
+    if (graph_->HasAttr("custom_call_excluded_ops")) {
+      excluded_ops_ = &graph_->GetAttrs<std::unordered_set<std::string>>("custom_call_excluded_ops");
+    }
+  }
   void MarkCustomCallOps(const common::Target& target) {
-    auto&& excluded_ops = graph_->GetAttrs<std::unordered_set<std::string>>("custom_call_excluded_ops");
-    auto mark_nodes     = graph_->CollectNodes([&target, &excluded_ops](const common::GraphNode* graph_node) -> bool {
+    auto mark_nodes = graph_->CollectNodes([this, &target](const common::GraphNode* graph_node) -> bool {
       if (graph_node->safe_as<Node>()) {
         auto node      = graph_node->safe_as<Node>();
         auto&& op_name = node->op()->name;
-        if (!excluded_ops.count(op_name) && ExternalApiRegistry::Global()->Has(op_name, target)) {
+        if (!IsExcluded(op_name) && ExternalApiRegistry::Global()->Has(op_name, target)) {
           VLOG(4) << "Op:" << op_name << " will not use custom_call";
           return true;
         }
@@ -53,6 +56,9 @@ class GraphAlterHelper {
 
  private:
   Graph* graph_;
+  const std::unordered_set<std::string>* excluded_ops_;
+
+  bool IsExcluded(const std::string& op_name) { return excluded_ops_ && excluded_ops_->count(op_name); }
 };
 
 void MarkCustomCallOpsInternal(Graph* graph) {
