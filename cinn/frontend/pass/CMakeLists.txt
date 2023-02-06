@@ -11,6 +11,7 @@ gather_srcs(cinnapi_src SRCS
     fill_constant_rewriter.cc
     fill_constant_folding.cc
     cast_collapsing.cc
+    auto_cast.cc
     )
 
 if (WITH_CUDA)
