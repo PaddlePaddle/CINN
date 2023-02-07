@@ -347,15 +347,16 @@ class FusionMergePassHelper : public FusionHelperBase {
       }
     }
 
-    if (static_cast<int>(framework::kReduction) > static_cast<int>((*consumers.begin())->op_pattern_kind)) {
-      auto consumer = *consumers.begin();
+    if (static_cast<int>(framework::kReduction) > static_cast<int>((consumers.back())->op_pattern_kind)) {
+      auto consumer = consumers.back();
+
       for (auto& node : consumer->master_nodes) {
         fused_group->master_nodes.insert(node);
       }
     } else {
-      for (auto consumer : consumers) {
+      for (auto consumer = consumers.rbegin(); consumer != consumers.rend(); ++consumer) {
         Node* master_node = nullptr;
-        for (auto& node : consumer->master_nodes) {
+        for (auto& node : (*consumer)->master_nodes) {
           if (GetOpKind(node) != framework::kReduction) {
             master_node = node;
             break;

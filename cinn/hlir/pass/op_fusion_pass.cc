@@ -397,7 +397,7 @@ void InsertBroadcastTo(Graph* graph) {
               axis = absl::get<int>(node->attrs.attr_store["axis"]);
             }
             if (axis == -1) {
-              axis = output_shape.size() - 1;
+              axis = output_shape.size() - input_shape.size();
             }
             node->attrs.attr_store = {};
             CHECK_LE(axis + input_shape.size(), output_shape.size())
