@@ -23,7 +23,8 @@ ExternalApiInfo& ExternalApiRegistry::Register(const std::string& op_name, const
 }
 
 std::string ExternalApiRegistry::GetExternalApi(const framework::Node* op_node, const common::Target& target) {
-  auto&& op_name                           = op_node->op()->name;
+  CHECK(op_node->attrs.attr_store.count("original_op")) << "a custom_call op must store its original op name";
+  std::string op_name                      = absl::get<std::string>(op_node->attrs.attr_store.at("original_op"));
   const ExternalApiInfo* external_api_info = Find(GenKey(op_name, target));
   CHECK(external_api_info) << "Op:" << op_name << " doesn't register external_api on " << target;
   std::string external_api = external_api_info->api_name;

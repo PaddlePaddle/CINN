@@ -42,9 +42,9 @@ DEFINE_bool(cinn_use_op_fusion, BoolFromEnv("FLAGS_cinn_use_op_fusion", true), "
 DEFINE_bool(cinn_use_gemm_rewriter,
             BoolFromEnv("FLAGS_cinn_use_gemm_rewriter", true),
             "Whether to use GemmRewriter pass to rewrite matmul");
-DEFINE_string(cinn_custom_call_mark_excluded_ops,
-              StringFromEnv("FLAGS_cinn_custom_call_mark_excluded_ops", ""),
-              "a blacklist of op excluded on MarkCustomCallOps pass, separated by ;");
+DEFINE_string(cinn_custom_call_deny_ops,
+              StringFromEnv("FLAGS_cinn_custom_call_deny_ops", ""),
+              "a blacklist of op are denied by MarkCustomCallOps pass, separated by ;");
 
 DEFINE_bool(cinn_use_custom_call,
             BoolFromEnv("FLAGS_cinn_use_custom_call", true),

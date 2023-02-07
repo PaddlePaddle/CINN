@@ -32,7 +32,6 @@ DECLARE_bool(cinn_use_op_fusion);
 DECLARE_bool(cinn_use_gemm_rewriter);
 DECLARE_bool(cinn_check_fusion_accuracy_pass);
 DECLARE_bool(cinn_use_custom_call);
-DECLARE_string(cinn_custom_call_mark_excluded_ops);
 
 namespace cinn {
 namespace frontend {
@@ -101,13 +100,6 @@ std::shared_ptr<hlir::framework::Graph> Optimize(frontend::Program* program,
   frontend::ProgramPass::Apply(program, fetch_ids, target, options.program_passes);
   // Apply graph passes
   auto graph = std::make_shared<hlir::framework::Graph>(*program, fetch_ids, target);
-
-  // delivering the set of ops that are forbidden to use custom_call through graph attribute
-  if (FLAGS_cinn_use_custom_call) {
-    auto splited_names = cinn::utils::Split(FLAGS_cinn_custom_call_mark_excluded_ops, ";");
-    std::unordered_set<std::string> custom_call_excluded_ops(splited_names.begin(), splited_names.end());
-    graph->attrs["custom_call_excluded_ops"] = std::make_shared<absl::any>(custom_call_excluded_ops);
-  }
 
   VLOG(3) << "Before hlir::framework::ApplyPasses";
   hlir::framework::ApplyPasses(graph.get(), options.graph_passes);

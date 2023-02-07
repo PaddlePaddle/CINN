@@ -17,7 +17,7 @@
 #include "cinn/hlir/op/external_api_registry.h"
 #include "cinn/utils/string.h"
 
-DECLARE_string(cinn_custom_call_mark_excluded_ops);
+DECLARE_string(cinn_custom_call_deny_ops);
 
 namespace cinn {
 namespace hlir {
@@ -29,9 +29,10 @@ using framework::Node;
 
 class GraphAlterHelper {
  public:
-  GraphAlterHelper(Graph* graph) : graph_(graph), excluded_ops_(nullptr) {
-    if (graph_->HasAttr("custom_call_excluded_ops")) {
-      excluded_ops_ = &graph_->GetAttrs<std::unordered_set<std::string>>("custom_call_excluded_ops");
+  GraphAlterHelper(Graph* graph) : graph_(graph) {
+    if (!FLAGS_cinn_custom_call_deny_ops.empty()) {
+      auto splited_names = cinn::utils::Split(FLAGS_cinn_custom_call_deny_ops, ";");
+      deny_ops_          = {splited_names.begin(), splited_names.end()};
     }
   }
   void MarkCustomCallOps(const common::Target& target) {
@@ -51,16 +52,17 @@ class GraphAlterHelper {
     });
 
     for (auto* graph_node : mark_nodes) {
-      auto* node                                   = graph_node->safe_as<Node>();
-      node->attrs.attr_store["enable_custom_call"] = true;
+      auto* node                            = graph_node->safe_as<Node>();
+      node->attrs.attr_store["original_op"] = node->op()->name;
+      node->attrs.op                        = framework::Operator::Get("custom_call");
     }
   }
 
  private:
   Graph* graph_;
-  const std::unordered_set<std::string>* excluded_ops_;
+  std::unordered_set<std::string> deny_ops_;
 
-  bool IsExcluded(const std::string& op_name) { return excluded_ops_ && excluded_ops_->count(op_name); }
+  bool IsExcluded(const std::string& op_name) { return deny_ops_.count(op_name); }
 };
 
 void MarkCustomCallOpsInternal(Graph* graph) {
@@ -76,7 +78,7 @@ void MarkCustomCallOpsInternal(Graph* graph) {
 CINN_REGISTER_HELPER(MarkCustomCallOpsPass) {
   CINN_REGISTER_PASS(MarkCustomCallOps)
       .describe(
-          "This pass which mark all ops with external_api registered on the specified target, "
+          "This pass which mark all ops with external_api registered on the specified target to be custom_call op, "
           "except the blacklist specified by FLAGS_cinn_custom_call_mark_excluded_ops")
       .set_change_structure(false)
       .set_body(cinn::hlir::pass::MarkCustomCallOpsInternal);
