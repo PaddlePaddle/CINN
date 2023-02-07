@@ -73,7 +73,6 @@ class DenseMergePassHelper : public FusionHelperBase {
       auto sink = link->sink()->safe_as<Node>();
       if (sink->op()->name == "matmul" || sink->op()->name == "mul" || sink->op()->name == "cublas_gemm" ||
           sink->op()->name == "cublas_matmul") {
-        LOG(INFO) << sink->id() << " " << sink->op()->name;
         dense_ops.push_back(sink);
       }
     }
@@ -106,7 +105,7 @@ class DenseMergePassHelper : public FusionHelperBase {
       graph_->RegisterNode(node_tmp->id(), node_tmp);
       node_tmp->attrs.attr_store                = dense_op.second[0]->attrs.attr_store;
       node_tmp->attrs.attr_store["side"]        = side;
-      node_tmp->attrs.attr_store["custom_call"] = "cinn_call_batched_cublas";
+      node_tmp->attrs.attr_store["custom_call"] = std::string("cinn_call_batched_cublas");
 
       // update inlink.
       node->LinkTo(node_tmp);

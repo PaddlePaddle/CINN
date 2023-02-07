@@ -33,7 +33,14 @@ TEST(DenseMergePass, Test_Matmul_0) {
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, fetch_ids, target);
   hlir::framework::ApplyPass(graph.get(), "DenseMergePass");
+
   CHECK_EQ(graph->nodes().size(), 6);
+  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
+
+  auto scope = BuildScope(target, graph);
+  hlir::framework::GraphCompiler gc(target, scope, graph);
+  auto run_program = gc.Build();
 }
 
 TEST(DenseMergePass, Test_Matmul_1) {
