@@ -33,13 +33,14 @@ TEST(ExternalApiRegistry, Has) {
 }
 
 TEST(ExternalApiRegistry, GetExternalApi) {
-  auto matmul_node = std::make_unique<Node>(Operator::Get("matmul"), "matmul");
+  auto node                             = std::make_unique<Node>(Operator::Get("custom_call"), "custom_call");
+  node->attrs.attr_store["original_op"] = std::string("matmul");
   ASSERT_EQ("cinn_call_cublas",
-            ExternalApiRegistry::Global()->GetExternalApi(matmul_node.get(), common::DefaultNVGPUTarget()));
-  auto conv2d_node                           = std::make_unique<Node>(Operator::Get("conv2d"), "conv2d");
-  conv2d_node->attrs.attr_store["conv_type"] = std::string("backward_data");
+            ExternalApiRegistry::Global()->GetExternalApi(node.get(), common::DefaultNVGPUTarget()));
+  node->attrs.attr_store["conv_type"]   = std::string("backward_data");
+  node->attrs.attr_store["original_op"] = std::string("conv2d");
   ASSERT_EQ("cinn_call_cudnn_conv2d_backward_data",
-            ExternalApiRegistry::Global()->GetExternalApi(conv2d_node.get(), common::DefaultNVGPUTarget()));
+            ExternalApiRegistry::Global()->GetExternalApi(node.get(), common::DefaultNVGPUTarget()));
 }
 
 }  // namespace framework
