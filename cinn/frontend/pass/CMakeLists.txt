@@ -30,3 +30,4 @@ cc_test(test_transpose_scale_folding SRCS transpose_scale_folding_test.cc DEPS c
 endif()
 cc_test(test_transpose_collapsing SRCS transpose_collapsing_test.cc DEPS cinncore)
 cc_test(test_cast_collapsing SRCS cast_collapsing_test.cc DEPS cinncore)
+cc_test(test_auto_cast SRCS auto_cast_test.cc DEPS cinncore)

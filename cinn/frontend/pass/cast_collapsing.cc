@@ -89,7 +89,10 @@ class CastCollapsingPass : public ProgramPass {
         all_cast.erase(instr);
       }
     }
-    FoldingCastHorizontal(all_cast, fetch_ids, in2instr, out2instr, &remove_instrs);
+    // TODO(thisjiang): reopen after CINN support recompute for performance
+    // due to recompute unsupported, if the op output to two group, it will also create a new group,
+    // so that the horizontal fuse will not improve performance.
+    // FoldingCastHorizontal(all_cast, fetch_ids, in2instr, out2instr, &remove_instrs);
 
     NetBuilder builder("cast_collapsing_builder");
     for (auto& var : program->GetInputs()) {
