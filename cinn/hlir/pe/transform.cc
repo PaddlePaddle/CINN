@@ -934,15 +934,13 @@ ir::Tensor Slice(const ir::Tensor& A,
       output_shape,
       [=](const std::vector<Expr>& indice) {
         std::vector<Expr> temp;
-        if (!decrease_axis.empty()) {
-          int indice_i = 0;
-          for (int i = 0; i < input_shape.size(); ++i) {
-            if (std::find(decrease_axis.cbegin(), decrease_axis.cend(), i) != decrease_axis.cend()) {
-              temp.emplace_back(0);
-            } else {
-              temp.emplace_back(indice[indice_i]);
-              indice_i++;
-            }
+        int indice_i = 0;
+        for (int i = 0; i < input_shape.size(); ++i) {
+          if (std::find(decrease_axis.cbegin(), decrease_axis.cend(), i) != decrease_axis.cend()) {
+            temp.emplace_back(0);
+          } else {
+            temp.emplace_back(indice[indice_i]);
+            indice_i++;
           }
         }
         for (int i = 0; i < axes.size(); i++) {
