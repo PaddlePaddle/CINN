@@ -186,4 +186,22 @@ foreach(op_mapper_test_name ${CINN_OP_MAPPER_TEST})
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     )
 endforeach()
+
+# test pass test
+if (WITH_CUDNN)
+file(GLOB CINN_PASS_TEST RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" "tests/passes/test_*.py")
+
+foreach(pass_test_name ${EXCLUDE_OP_MAPPER})
+    list(REMOVE_ITEM CINN_PASS_TEST tests/passes/${pass_test_name}.py)
+endforeach()
+
+foreach(pass_test_name ${CINN_PASS_TEST})
+    string(REGEX REPLACE ".py" "" pass_test_name ${pass_test_name})
+    ADD_TEST(NAME ${pass_test_name}
+        COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
+        python3 ${CMAKE_CURRENT_SOURCE_DIR}/${pass_test_name}.py
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    )
+endforeach()
+
 endif()

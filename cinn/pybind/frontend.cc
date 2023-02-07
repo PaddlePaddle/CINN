@@ -161,17 +161,18 @@ void BindFrontend(pybind11::module *m) {
 
             const auto &default_program_pass = DefaultTrainingOptimizeOptions().program_passes;
             const auto &default_graph_pass   = DefaultTrainingOptimizeOptions().graph_passes;
-            for (const auto &pass : passes) {
-              if (std::find(default_program_pass.begin(), default_program_pass.end(), pass) !=
-                  default_program_pass.end()) {
+            for (const auto &pass : default_program_pass) {
+              if (std::find(passes.begin(), passes.end(), pass) != passes.end()) {
                 program_passes.emplace_back(pass);
-              } else if (std::find(default_graph_pass.begin(), default_graph_pass.end(), pass) !=
-                         default_graph_pass.end()) {
-                graph_passes.emplace_back(pass);
-              } else {
-                LOG(WARNING) << "Cannot find pass: " << pass << " in CINN! Please check.";
               }
             }
+            for (const auto &pass : default_graph_pass) {
+              if (std::find(passes.begin(), passes.end(), pass) != passes.end()) {
+                graph_passes.emplace_back(pass);
+              }
+            }
+            CHECK_EQ(passes.size(), program_passes.size() + graph_passes.size())
+                << "Cannot found some test pass in CINN! Please check.";
             if (program_passes.empty()) {
               program_passes = default_program_pass;
             }
@@ -229,11 +230,37 @@ void BindFrontend(pybind11::module *m) {
               const std::unordered_set<std::string> &fetch_ids,
               const common::Target &target,
               const std::vector<std::string> &passes = {}) {
-             auto real_passes = passes;
-             if (real_passes.empty()) {
-               real_passes = DefaultTrainingOptimizeOptions().program_passes;
+             std::vector<std::string> program_passes, graph_passes;
+
+             const auto &default_program_pass = DefaultTrainingOptimizeOptions().program_passes;
+             const auto &default_graph_pass   = DefaultTrainingOptimizeOptions().graph_passes;
+             for (const auto &pass : default_program_pass) {
+               if (std::find(passes.begin(), passes.end(), pass) != passes.end()) {
+                 program_passes.emplace_back(pass);
+               }
              }
-             frontend::ProgramPass::Apply(&self, fetch_ids, target, real_passes);
+             for (const auto &pass : default_graph_pass) {
+               if (std::find(passes.begin(), passes.end(), pass) != passes.end()) {
+                 graph_passes.emplace_back(pass);
+               }
+             }
+             CHECK_EQ(passes.size(), program_passes.size() + graph_passes.size())
+                 << "Cannot found some test pass in CINN! Please check.";
+
+             if (program_passes.empty()) {
+               program_passes = default_program_pass;
+             }
+             frontend::ProgramPass::Apply(&self, fetch_ids, target, program_passes);
+
+             if (graph_passes.empty()) {
+               // no need run graph pass, return program size
+               return self.size();
+             }
+
+             auto graph = std::make_shared<hlir::framework::Graph>(self, fetch_ids, target);
+             hlir::framework::ApplyPasses(graph.get(), graph_passes);
+
+             return graph->nodes().size();
            })
 
       /**
