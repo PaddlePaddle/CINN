@@ -467,8 +467,9 @@ void BindFrontend(pybind11::module *m) {
            py::arg("axes"),
            py::arg("starts"),
            py::arg("ends"),
-           py::arg("infer_flags") = std::vector<int>{},
-           py::arg("strides")     = std::vector<int>{})
+           py::arg("infer_flags")   = std::vector<int>{},
+           py::arg("strides")       = std::vector<int>{},
+           py::arg("decrease_axis") = std::vector<int>{})
       .def("reverse", &NetBuilder::Reverse, py::arg("x"), py::arg("axis"))
       .def("select", &NetBuilder::Select, py::arg("condition"), py::arg("true_value"), py::arg("false_value"))
       .def("split", &NetBuilder::Split, py::arg("x"), py::arg("num_or_sections"), py::arg("axis") = 0)
@@ -520,6 +521,14 @@ void BindFrontend(pybind11::module *m) {
       .def("argmax", &NetBuilder::Argmax, py::arg("x"), py::arg("axis"), py::arg("keep_dim") = false)
       .def("argmin", &NetBuilder::Argmin, py::arg("x"), py::arg("axis"), py::arg("keep_dim") = false)
       .def("lookup_table", &NetBuilder::LookupTable, py::arg("table"), py::arg("ids"), py::arg("padding_idx"))
+      .def("one_hot",
+           &NetBuilder::OneHot,
+           py::arg("indices"),
+           py::arg("on_value"),
+           py::arg("off_value"),
+           py::arg("depth"),
+           py::arg("axis")  = -1,
+           py::arg("dtype") = "float32")
       .def("conv2d",
            &NetBuilder::Conv2d,
            py::arg("x"),
