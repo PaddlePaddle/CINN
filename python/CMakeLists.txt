@@ -186,6 +186,7 @@ foreach(op_mapper_test_name ${CINN_OP_MAPPER_TEST})
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     )
 endforeach()
+endif()
 
 # test pass test
 if (WITH_CUDNN)
