@@ -905,6 +905,7 @@ ir::Tensor Slice(const ir::Tensor& A,
                  const std::vector<int>& starts,
                  const std::vector<int>& axes,
                  const std::vector<int>& strides,
+                 const std::vector<int>& decrease_axis,
                  const std::vector<Expr>& output_shape,
                  const std::string& output_name) {
   std::vector<int> input_shape;
@@ -932,7 +933,18 @@ ir::Tensor Slice(const ir::Tensor& A,
   return Compute(
       output_shape,
       [=](const std::vector<Expr>& indice) {
-        std::vector<Expr> temp = indice;
+        std::vector<Expr> temp;
+        if (!decrease_axis.empty()) {
+          int indice_i = 0;
+          for (int i = 0; i < input_shape.size(); ++i) {
+            if (std::find(decrease_axis.cbegin(), decrease_axis.cend(), i) != decrease_axis.cend()) {
+              temp.emplace_back(0);
+            } else {
+              temp.emplace_back(indice[indice_i]);
+              indice_i++;
+            }
+          }
+        }
         for (int i = 0; i < axes.size(); i++) {
           temp[axes[i]] = temp[axes[i]] * Expr(strides[i]) + Expr(new_starts[i]);
         }
