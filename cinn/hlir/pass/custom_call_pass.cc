@@ -53,11 +53,9 @@ class GraphAlterHelper {
     });
 
     for (auto* graph_node : mark_nodes) {
-      auto* node                            = graph_node->safe_as<Node>();
-      node->attrs.attr_store["original_op"] = node->op()->name;
-      node->attrs.op                        = framework::Operator::Get("custom_call");
-      // revise the output edges for conv2d because the compute implement of codegen-registered is not consistent with
-      // cudnn
+      auto* node = graph_node->safe_as<Node>();
+      // revise the output edges for conv2d because the compute implement of
+      // codegen-registered is not consistent with cudnn
       if (node->op()->name == "conv2d" && target == common::DefaultNVGPUTarget()) {
         auto out_links = node->outlinks_in_order(true);
         for (int idx = 1; idx < out_links.size(); ++idx) {
@@ -67,6 +65,9 @@ class GraphAlterHelper {
           graph_->DropNode(link->sink());
         }
       }
+
+      node->attrs.attr_store["original_op"] = node->op()->name;
+      node->attrs.op                        = framework::Operator::Get("custom_call");
     }
   }
 

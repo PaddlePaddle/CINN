@@ -58,6 +58,7 @@ CINN_REGISTER_HELPER(op_external_api) {
   CINN_OP_REGISTER_EXTERNAL_API(uniform_random, default_nvgpu).set_api_name("cinn_call_uniform_random");
   CINN_OP_REGISTER_EXTERNAL_API(cholesky, default_nvgpu).set_api_name("cinn_call_cholesky_nvgpu");
   CINN_OP_REGISTER_EXTERNAL_API(cholesky, default_host).set_api_name("cinn_call_cholesky_host");
+#ifdef CINN_WITH_CUDNN
   CINN_OP_REGISTER_EXTERNAL_API(conv2d, default_nvgpu).set_trans_func([](const ::cinn::hlir::framework::Node* node) {
     CHECK(node->attrs.attr_store.count("conv_type"));
     std::string conv_type = absl::get<std::string>(node->attrs.attr_store.at("conv_type"));
@@ -65,5 +66,6 @@ CINN_REGISTER_HELPER(op_external_api) {
         << "unknown conv_type=" << conv_type;
     return "cinn_call_cudnn_conv2d_" + conv_type;
   });
+#endif
   return true;
 }
