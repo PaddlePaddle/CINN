@@ -216,6 +216,8 @@ class DotMergerPass {
         for (size_t j = i + 1; j < dots.size(); ++j) {
           auto* b = dots[j];
           if (!b || nodes_to_remove.count(a) || nodes_to_remove.count(b) || accessible(a, b) || accessible(b, a)) {
+            VLOG(5) << "Because nodes `" << a->id() << "` and `" << b->id()
+                    << " have data dependencies or have been deleted, they cannot be merged.";
             continue;
           }
           if (!is_merge(&builder, a, b)) {
