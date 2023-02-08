@@ -154,7 +154,7 @@ class TestSliceOpWithDecreaseAxisCase1(TestSliceOpWithDecreaseAxis):
         self.inputs = {"inputs": np.random.random([10, 12]).astype("float32")}
         self.axes = [0, 1]
         self.starts = [2, 2]
-        self.ends = [5, 3]
+        self.ends = [3, 3]
         self.strides = [1, 1]
         self.decrease_axis = [0, 1]
 
