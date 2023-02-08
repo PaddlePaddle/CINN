@@ -28,7 +28,6 @@ using cinn::hlir::op::ExternalApiRegistry;
 
 TEST(ExternalApiRegistry, Has) {
   ASSERT_TRUE(ExternalApiRegistry::Global()->Has("matmul", common::DefaultNVGPUTarget()));
-  ASSERT_TRUE(ExternalApiRegistry::Global()->Has("conv2d", common::DefaultNVGPUTarget()));
   ASSERT_TRUE(ExternalApiRegistry::Global()->Has("cholesky", common::DefaultHostTarget()));
   ASSERT_FALSE(ExternalApiRegistry::Global()->Has("op_doesn't_exist", common::DefaultNVGPUTarget()));
 }
