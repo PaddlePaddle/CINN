@@ -99,7 +99,10 @@ class TransposeCollapsingPass : public ProgramPass {
         all_transpose.erase(instr);
       }
     }
-    FoldingTransposeHorizontal(all_transpose, fetch_ids, in2instr, out2instr, &remove_instrs);
+    // TODO(thisjiang): reopen after CINN support recompute for performance
+    // due to recompute unsupported, if the op output to two group, it will also create a new group,
+    // so that the horizontal fuse will not improve performance.
+    // FoldingTransposeHorizontal(all_transpose, fetch_ids, in2instr, out2instr, &remove_instrs);
 
     NetBuilder builder("transpose_collapsing_builder");
     for (auto& var : program->GetInputs()) {

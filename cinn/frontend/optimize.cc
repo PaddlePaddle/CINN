@@ -38,6 +38,7 @@ namespace frontend {
 
 OptimizeOptions DefaultTrainingOptimizeOptions() {
   OptimizeOptions options;
+  options.program_passes.emplace_back("AutoCast");
   options.program_passes.emplace_back("Decomposer");
   options.program_passes.emplace_back("RemoveIdentity");
 

@@ -329,6 +329,8 @@ class OpFusionPassHelper : public FusionHelperBase {
     if (relation.op_kind.count(GetOpKind(consumer))) {
       auto& consumer_group = fusion_groups_[consumer];
       // second step: check producer can be fused into consumer group
+      VLOG(3) << "Call ConditionFunction, Producer Op Pattern : " << GetOpKind(producer)
+              << " , Consumer Group Pattern : " << consumer_group->op_pattern_kind;
       return relation.fusion_op_kind[consumer_group->op_pattern_kind](this, producer, fusion_groups_[consumer]);
     }
 
