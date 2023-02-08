@@ -37,10 +37,12 @@ TEST(ExternalApiRegistry, GetExternalApi) {
   node->attrs.attr_store["original_op"] = std::string("matmul");
   ASSERT_EQ("cinn_call_cublas",
             ExternalApiRegistry::Global()->GetExternalApi(node.get(), common::DefaultNVGPUTarget()));
+#ifdef CINN_WITH_CUDNN
   node->attrs.attr_store["conv_type"]   = std::string("backward_data");
   node->attrs.attr_store["original_op"] = std::string("conv2d");
   ASSERT_EQ("cinn_call_cudnn_conv2d_backward_data",
             ExternalApiRegistry::Global()->GetExternalApi(node.get(), common::DefaultNVGPUTarget()));
+#endif
 }
 
 }  // namespace framework
