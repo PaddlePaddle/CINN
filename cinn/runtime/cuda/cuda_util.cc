@@ -385,12 +385,12 @@ void cinn_call_batched_cublas(void *v_args,
                                 alpha,
                                 ptr_arr,
                                 ldl,
-                                ptr_arr + std::max(l1, r1) * std::max(l2, r2),
+                                ptr_arr + std::max(l1, r1) * std::max(l2, r2) * num_gemm,
                                 ldr,
                                 beta,
-                                ptr_arr + std::max(l1, r1) * std::max(l2, r2) * 2,
+                                ptr_arr + std::max(l1, r1) * std::max(l2, r2) * 2 * num_gemm,
                                 ldc,
-                                std::max(l1, r1) * std::max(l2, r2)));
+                                std::max(l1, r1) * std::max(l2, r2) * num_gemm));
   CUDA_CALL(cudaFreeAsync(ptr_arr, custream));
 }
 

@@ -19,28 +19,86 @@
 namespace cinn {
 namespace frontend {
 
+int GetSize(std::vector<int>& shape) { return std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<int>()); }
+
+void RunModelTest(Program& program,
+                  const std::vector<Variable>&& inputs,
+                  const std::unordered_set<std::string>& fetch_ids) {
+  // init input data.
+  std::vector<std::vector<float>> inputs_data;
+  for (auto input : inputs) {
+    inputs_data.emplace_back(GetSize(input->shape));
+    InitRandomVector<float>(&inputs_data.back(), inputs_data.back().size(), 0.0f, 1.0f, 1e-3);
+  }
+
+  auto target = common::DefaultTarget();
+  std::unordered_map<std::string, std::pair<std::vector<float>, std::vector<float>>> outputs;
+  {
+    auto graph = std::make_shared<hlir::framework::Graph>(program, fetch_ids, target);
+    hlir::framework::ApplyPass(graph.get(), "MatmulToCublasCustomCallPass");
+    hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+    hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
+
+    auto scope = BuildScope(target, graph);
+    hlir::framework::GraphCompiler gc(target, scope, graph);
+    auto run_program = gc.Build();
+
+    for (int idx = 0; idx < inputs.size(); ++idx) {
+      scope->Var<hlir::framework::Tensor>(inputs[idx]->id);
+      auto tensor = scope->GetTensor(inputs[idx]->id);
+      auto* data  = tensor->mutable_data<float>(target);
+      CopyFromVector(inputs_data[idx], tensor, target);
+    }
+    run_program->Execute();
+    for (auto id : fetch_ids) {
+      auto tensor = scope->GetTensor(id);
+      std::vector<float> data(tensor->shape().numel());
+      CopyToVector(tensor, &data);
+      outputs[id] = std::pair<std::vector<float>, std::vector<float>>(data, std::vector<float>());
+    }
+  }
+  {
+    auto graph = std::make_shared<hlir::framework::Graph>(program, fetch_ids, target);
+    hlir::framework::ApplyPass(graph.get(), "DenseMergePass");
+    hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+    hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
+
+    auto scope = BuildScope(target, graph);
+    hlir::framework::GraphCompiler gc(target, scope, graph);
+    auto run_program = gc.Build();
+
+    for (int idx = 0; idx < inputs.size(); ++idx) {
+      scope->Var<hlir::framework::Tensor>(inputs[idx]->id);
+      auto tensor = scope->GetTensor(inputs[idx]->id);
+      auto* data  = tensor->mutable_data<float>(target);
+      CopyFromVector(inputs_data[idx], tensor, target);
+    }
+    run_program->Execute();
+    for (auto id : fetch_ids) {
+      auto tensor = scope->GetTensor(id);
+      std::vector<float> data(tensor->shape().numel());
+      CopyToVector(tensor, &data);
+      outputs[id].second = data;
+    }
+  }
+
+  for (auto& output : outputs) {
+    CheckOutput<float>(output.second.first, output.second.second, 1e-8, 1e-4);
+  }
+}
+
 TEST(DenseMergePass, Test_Matmul_0) {
+  int m = 128, k = 64, n = 128;
   NetBuilder net_builder("Test_Matmul_0");
-  auto A = net_builder.CreateInput(Float(32), {128, 64}, "A");
-  auto B = net_builder.CreateInput(Float(32), {64, 128}, "B");
-  auto C = net_builder.CreateInput(Float(32), {64, 128}, "C");
+  auto A = net_builder.CreateInput(Float(32), {m, k}, "A");
+  auto B = net_builder.CreateInput(Float(32), {k, n}, "B");
+  auto C = net_builder.CreateInput(Float(32), {k, n}, "C");
   auto D = net_builder.Matmul(A, B);
   auto E = net_builder.Matmul(A, C);
 
   auto fetch_ids = {D->id, E->id};
   auto program   = net_builder.Build();
-  auto target    = common::DefaultTarget();
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, fetch_ids, target);
-  hlir::framework::ApplyPass(graph.get(), "DenseMergePass");
-
-  CHECK_EQ(graph->nodes().size(), 6);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-
-  auto scope = BuildScope(target, graph);
-  hlir::framework::GraphCompiler gc(target, scope, graph);
-  auto run_program = gc.Build();
+  RunModelTest(program, {A, B, C}, fetch_ids);
 }
 
 TEST(DenseMergePass, Test_Matmul_1) {
@@ -53,17 +111,7 @@ TEST(DenseMergePass, Test_Matmul_1) {
 
   auto fetch_ids = {D->id, E->id};
   auto program   = net_builder.Build();
-  auto target    = common::DefaultTarget();
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, fetch_ids, target);
-  hlir::framework::ApplyPass(graph.get(), "DenseMergePass");
-  CHECK_EQ(graph->nodes().size(), 6);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-
-  auto scope = BuildScope(target, graph);
-  hlir::framework::GraphCompiler gc(target, scope, graph);
-  auto run_program = gc.Build();
+  RunModelTest(program, {A, B, C}, fetch_ids);
 }
 
 TEST(DenseMergePass, Test_Matmul_2) {
@@ -80,17 +128,7 @@ TEST(DenseMergePass, Test_Matmul_2) {
 
   auto fetch_ids = {F->id, G->id, H->id, I->id};
   auto program   = net_builder.Build();
-  auto target    = common::DefaultTarget();
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, fetch_ids, target);
-  hlir::framework::ApplyPass(graph.get(), "DenseMergePass");
-  CHECK_EQ(graph->nodes().size(), 10);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-
-  auto scope = BuildScope(target, graph);
-  hlir::framework::GraphCompiler gc(target, scope, graph);
-  auto run_program = gc.Build();
+  RunModelTest(program, {A, B, C, D, E}, fetch_ids);
 }
 
 TEST(DenseMergePass, Test_Matmul_3) {
@@ -107,17 +145,7 @@ TEST(DenseMergePass, Test_Matmul_3) {
 
   auto fetch_ids = {F->id, G->id, H->id, I->id};
   auto program   = net_builder.Build();
-  auto target    = common::DefaultTarget();
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, fetch_ids, target);
-  hlir::framework::ApplyPass(graph.get(), "DenseMergePass");
-  CHECK_EQ(graph->nodes().size(), 11);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-
-  auto scope = BuildScope(target, graph);
-  hlir::framework::GraphCompiler gc(target, scope, graph);
-  auto run_program = gc.Build();
+  RunModelTest(program, {A, B, C, D, E}, fetch_ids);
 }
 
 TEST(DenseMergePass, Test_Matmul_4) {
@@ -133,17 +161,7 @@ TEST(DenseMergePass, Test_Matmul_4) {
 
   auto fetch_ids = {F->id, G->id, H->id, I->id};
   auto program   = net_builder.Build();
-  auto target    = common::DefaultTarget();
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, fetch_ids, target);
-  hlir::framework::ApplyPass(graph.get(), "DenseMergePass");
-  CHECK_EQ(graph->nodes().size(), 10);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-
-  auto scope = BuildScope(target, graph);
-  hlir::framework::GraphCompiler gc(target, scope, graph);
-  auto run_program = gc.Build();
+  RunModelTest(program, {A, B, C, D}, fetch_ids);
 }
 
 }  // namespace frontend
