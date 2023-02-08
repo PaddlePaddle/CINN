@@ -19,6 +19,31 @@
 namespace cinn {
 namespace frontend {
 
+int GetSize(std::vector<int>& shape) { return std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<int>()); }
+
+std::unordered_map<std::string, std::vector<float>> RunModelTest(Program& program,
+                                                                 const std::vector<std::string>&& passes,
+                                                                 const std::unordered_set<std::string>& fetch_ids) {
+  auto target = common::DefaultTarget();
+  auto graph  = std::make_shared<hlir::framework::Graph>(program, fetch_ids, target);
+  hlir::framework::ApplyPasses(graph.get(), passes);
+
+  auto scope = BuildScope(target, graph);
+  hlir::framework::GraphCompiler gc(target, scope, graph);
+  auto run_program = gc.Build();
+  run_program->Execute();
+
+  std::unordered_map<std::string, std::vector<float>> outputs;
+  for (auto id : fetch_ids) {
+    auto tensor = scope->GetTensor(id);
+    std::vector<float> data(tensor->shape().numel());
+    CopyToVector(tensor, &data);
+    outputs[id] = data;
+  }
+
+  return outputs;
+}
+
 TEST(Constant_Folding, fold_broadcast_to_const_scalar_1) {
   NetBuilder net_builder("fold_broadcast_to_const_scalar_1");
   // create model
@@ -30,11 +55,13 @@ TEST(Constant_Folding, fold_broadcast_to_const_scalar_1) {
 
   auto fetch_ids = {D->id};
   auto program   = net_builder.Build();
-  auto target    = common::DefaultTarget();
+  auto output0   = RunModelTest(program, {"OpFusionPass", "FusionMergePass"}, fetch_ids);
+  auto output1   = RunModelTest(program, {"ConstantFolding", "OpFusionPass", "FusionMergePass"}, fetch_ids);
 
-  auto graph = std::make_shared<hlir::framework::Graph>(program, fetch_ids, target);
-  hlir::framework::ApplyPass(graph.get(), "ConstantFold");
-  CHECK_EQ(graph->nodes().size(), 5);
+  for (auto& output : output0) {
+    CHECK(output1.count(output.first));
+    CheckOutput<float>(output.second, output1[output.first], 1e-8, 1e-4);
+  }
 }
 
 TEST(Constant_Folding, fold_broadcast_to_const_scalar_2) {
@@ -50,11 +77,13 @@ TEST(Constant_Folding, fold_broadcast_to_const_scalar_2) {
 
   auto fetch_ids = {E->id, F->id};
   auto program   = net_builder.Build();
-  auto target    = common::DefaultTarget();
+  auto output0   = RunModelTest(program, {"OpFusionPass", "FusionMergePass"}, fetch_ids);
+  auto output1   = RunModelTest(program, {"ConstantFolding", "OpFusionPass", "FusionMergePass"}, fetch_ids);
 
-  auto graph = std::make_shared<hlir::framework::Graph>(program, fetch_ids, target);
-  hlir::framework::ApplyPass(graph.get(), "ConstantFold");
-  CHECK_EQ(graph->nodes().size(), 10);
+  for (auto& output : output0) {
+    CHECK(output1.count(output.first));
+    CheckOutput<float>(output.second, output1[output.first], 1e-8, 1e-4);
+  }
 }
 
 TEST(Constant_Folding, fold_broadcast_to_const_scalar_3) {
@@ -71,11 +100,13 @@ TEST(Constant_Folding, fold_broadcast_to_const_scalar_3) {
 
   auto fetch_ids = {G->id, F->id};
   auto program   = net_builder.Build();
-  auto target    = common::DefaultTarget();
+  auto output0   = RunModelTest(program, {"OpFusionPass", "FusionMergePass"}, fetch_ids);
+  auto output1   = RunModelTest(program, {"ConstantFolding", "OpFusionPass", "FusionMergePass"}, fetch_ids);
 
-  auto graph = std::make_shared<hlir::framework::Graph>(program, fetch_ids, target);
-  hlir::framework::ApplyPass(graph.get(), "ConstantFold");
-  CHECK_EQ(graph->nodes().size(), 10);
+  for (auto& output : output0) {
+    CHECK(output1.count(output.first));
+    CheckOutput<float>(output.second, output1[output.first], 1e-8, 1e-4);
+  }
 }
 
 TEST(Constant_Folding, fold_broadcast_to_fill_constant_1) {
@@ -89,11 +120,13 @@ TEST(Constant_Folding, fold_broadcast_to_fill_constant_1) {
 
   auto fetch_ids = {D->id};
   auto program   = net_builder.Build();
-  auto target    = common::DefaultTarget();
+  auto output0   = RunModelTest(program, {"OpFusionPass", "FusionMergePass"}, fetch_ids);
+  auto output1   = RunModelTest(program, {"ConstantFolding", "OpFusionPass", "FusionMergePass"}, fetch_ids);
 
-  auto graph = std::make_shared<hlir::framework::Graph>(program, fetch_ids, target);
-  hlir::framework::ApplyPass(graph.get(), "ConstantFold");
-  CHECK_EQ(graph->nodes().size(), 5);
+  for (auto& output : output0) {
+    CHECK(output1.count(output.first));
+    CheckOutput<float>(output.second, output1[output.first], 1e-8, 1e-4);
+  }
 }
 
 TEST(Constant_Folding, fold_broadcast_to_fill_constant_2) {
@@ -109,11 +142,13 @@ TEST(Constant_Folding, fold_broadcast_to_fill_constant_2) {
 
   auto fetch_ids = {E->id, F->id};
   auto program   = net_builder.Build();
-  auto target    = common::DefaultTarget();
+  auto output0   = RunModelTest(program, {"OpFusionPass", "FusionMergePass"}, fetch_ids);
+  auto output1   = RunModelTest(program, {"ConstantFolding", "OpFusionPass", "FusionMergePass"}, fetch_ids);
 
-  auto graph = std::make_shared<hlir::framework::Graph>(program, fetch_ids, target);
-  hlir::framework::ApplyPass(graph.get(), "ConstantFold");
-  CHECK_EQ(graph->nodes().size(), 10);
+  for (auto& output : output0) {
+    CHECK(output1.count(output.first));
+    CheckOutput<float>(output.second, output1[output.first], 1e-8, 1e-4);
+  }
 }
 
 TEST(Constant_Folding, fold_reshape_fill_constant_1) {
@@ -127,11 +162,13 @@ TEST(Constant_Folding, fold_reshape_fill_constant_1) {
 
   auto fetch_ids = {D->id};
   auto program   = net_builder.Build();
-  auto target    = common::DefaultTarget();
+  auto output0   = RunModelTest(program, {"OpFusionPass", "FusionMergePass"}, fetch_ids);
+  auto output1   = RunModelTest(program, {"ConstantFolding", "OpFusionPass", "FusionMergePass"}, fetch_ids);
 
-  auto graph = std::make_shared<hlir::framework::Graph>(program, fetch_ids, target);
-  hlir::framework::ApplyPass(graph.get(), "ConstantFold");
-  CHECK_EQ(graph->nodes().size(), 5);
+  for (auto& output : output0) {
+    CHECK(output1.count(output.first));
+    CheckOutput<float>(output.second, output1[output.first], 1e-8, 1e-4);
+  }
 }
 
 TEST(Constant_Folding, fold_reshape_fill_constant_2) {
@@ -147,11 +184,13 @@ TEST(Constant_Folding, fold_reshape_fill_constant_2) {
 
   auto fetch_ids = {E->id, F->id};
   auto program   = net_builder.Build();
-  auto target    = common::DefaultTarget();
+  auto output0   = RunModelTest(program, {"OpFusionPass", "FusionMergePass"}, fetch_ids);
+  auto output1   = RunModelTest(program, {"ConstantFolding", "OpFusionPass", "FusionMergePass"}, fetch_ids);
 
-  auto graph = std::make_shared<hlir::framework::Graph>(program, fetch_ids, target);
-  hlir::framework::ApplyPass(graph.get(), "ConstantFold");
-  CHECK_EQ(graph->nodes().size(), 10);
+  for (auto& output : output0) {
+    CHECK(output1.count(output.first));
+    CheckOutput<float>(output.second, output1[output.first], 1e-8, 1e-4);
+  }
 }
 
 TEST(Constant_Folding, fold_squeeze_fill_constant_1) {
@@ -165,11 +204,13 @@ TEST(Constant_Folding, fold_squeeze_fill_constant_1) {
 
   auto fetch_ids = {D->id};
   auto program   = net_builder.Build();
-  auto target    = common::DefaultTarget();
+  auto output0   = RunModelTest(program, {"OpFusionPass", "FusionMergePass"}, fetch_ids);
+  auto output1   = RunModelTest(program, {"ConstantFolding", "OpFusionPass", "FusionMergePass"}, fetch_ids);
 
-  auto graph = std::make_shared<hlir::framework::Graph>(program, fetch_ids, target);
-  hlir::framework::ApplyPass(graph.get(), "ConstantFold");
-  CHECK_EQ(graph->nodes().size(), 5);
+  for (auto& output : output0) {
+    CHECK(output1.count(output.first));
+    CheckOutput<float>(output.second, output1[output.first], 1e-8, 1e-4);
+  }
 }
 
 TEST(Constant_Folding, fold_squeeze_fill_constant_2) {
@@ -185,11 +226,13 @@ TEST(Constant_Folding, fold_squeeze_fill_constant_2) {
 
   auto fetch_ids = {E->id, F->id};
   auto program   = net_builder.Build();
-  auto target    = common::DefaultTarget();
+  auto output0   = RunModelTest(program, {"OpFusionPass", "FusionMergePass"}, fetch_ids);
+  auto output1   = RunModelTest(program, {"ConstantFolding", "OpFusionPass", "FusionMergePass"}, fetch_ids);
 
-  auto graph = std::make_shared<hlir::framework::Graph>(program, fetch_ids, target);
-  hlir::framework::ApplyPass(graph.get(), "ConstantFold");
-  CHECK_EQ(graph->nodes().size(), 10);
+  for (auto& output : output0) {
+    CHECK(output1.count(output.first));
+    CheckOutput<float>(output.second, output1[output.first], 1e-8, 1e-4);
+  }
 }
 
 TEST(Constant_Folding, fold_expand_dims_to_fill_constant_1) {
@@ -203,11 +246,13 @@ TEST(Constant_Folding, fold_expand_dims_to_fill_constant_1) {
 
   auto fetch_ids = {D->id};
   auto program   = net_builder.Build();
-  auto target    = common::DefaultTarget();
+  auto output0   = RunModelTest(program, {"OpFusionPass", "FusionMergePass"}, fetch_ids);
+  auto output1   = RunModelTest(program, {"ConstantFolding", "OpFusionPass", "FusionMergePass"}, fetch_ids);
 
-  auto graph = std::make_shared<hlir::framework::Graph>(program, fetch_ids, target);
-  hlir::framework::ApplyPass(graph.get(), "ConstantFold");
-  CHECK_EQ(graph->nodes().size(), 5);
+  for (auto& output : output0) {
+    CHECK(output1.count(output.first));
+    CheckOutput<float>(output.second, output1[output.first], 1e-8, 1e-4);
+  }
 }
 
 TEST(Constant_Folding, fold_expand_dims_to_fill_constant_2) {
@@ -228,11 +273,13 @@ TEST(Constant_Folding, fold_expand_dims_to_fill_constant_2) {
 
   auto fetch_ids = {E->id, F->id};
   auto program   = net_builder.Build();
-  auto target    = common::DefaultTarget();
+  auto output0   = RunModelTest(program, {"OpFusionPass", "FusionMergePass"}, fetch_ids);
+  auto output1   = RunModelTest(program, {"ConstantFolding", "OpFusionPass", "FusionMergePass"}, fetch_ids);
 
-  auto graph = std::make_shared<hlir::framework::Graph>(program, fetch_ids, target);
-  hlir::framework::ApplyPass(graph.get(), "ConstantFold");
-  CHECK_EQ(graph->nodes().size(), 10);
+  for (auto& output : output0) {
+    CHECK(output1.count(output.first));
+    CheckOutput<float>(output.second, output1[output.first], 1e-8, 1e-4);
+  }
 }
 
 }  // namespace frontend

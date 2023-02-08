@@ -57,7 +57,7 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
   options.program_passes.emplace_back("RemoveIdentity");
   options.program_passes.emplace_back("DeadCodeEliminate");
 
-  options.graph_passes = {};
+  options.graph_passes = {"ConstantFolding"};
 #ifdef CINN_WITH_CUDA
   if (FLAGS_cinn_use_cublas_gemm) {
     options.graph_passes.push_back("MatmulToCublasCustomCallPass");

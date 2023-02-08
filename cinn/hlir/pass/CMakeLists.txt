@@ -11,7 +11,7 @@ gather_srcs(cinnapi_src SRCS
     dot_merger.cc
     check_fusion_accuracy_pass.cc
     custom_call_pass.cc
-    constant_fold_pass.cc
+    constant_folding_pass.cc
     dce_pass.cc
     )
 
@@ -30,4 +30,4 @@ if (NOT WITH_CUDA)
 endif()
 cc_test(test_dot_merger SRCS test_dot_merger.cc DEPS cinncore)
 cc_test(test_dce_pass SRCS dce_pass_test.cc DEPS cinncore)
-cc_test(test_constant_fold_pass SRCS constant_fold_pass_test.cc DEPS cinncore)
+cc_test(test_constant_folding_pass SRCS constant_folding_pass_test.cc DEPS cinncore)

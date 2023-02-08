@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "cinn/common/type.h"
-#include "cinn/hlir/pass/constant_fold_pass_util.h"
+#include "cinn/hlir/pass/constant_folding_pass_util.h"
 
 namespace cinn {
 namespace hlir {
@@ -32,9 +32,9 @@ using AlterFunction = std::function<void(const FusionHelperBase*, Graph*, Node*)
 
 // Constant Fold Pass
 //
-class ConstantFoldPassHelper : public FusionHelperBase {
+class ConstantFoldingPassHelper : public FusionHelperBase {
  public:
-  ConstantFoldPassHelper(Graph* graph) : FusionHelperBase(graph), graph_(graph) { RegisterAlterFunction(); }
+  ConstantFoldingPassHelper(Graph* graph) : FusionHelperBase(graph), graph_(graph) { RegisterAlterFunction(); }
 
   void operator()() {
     bool update = false;
@@ -91,20 +91,20 @@ class ConstantFoldPassHelper : public FusionHelperBase {
   Graph* graph_;
 };
 
-void ConstantFoldPassInternal(Graph* graph) {
-  ConstantFoldPassHelper constant_fold_pass_helper(graph);
-  constant_fold_pass_helper();
+void ConstantFoldingPassInternal(Graph* graph) {
+  ConstantFoldingPassHelper constant_folding_pass_helper(graph);
+  constant_folding_pass_helper();
 }
 
 }  // namespace pass
 }  // namespace hlir
 }  // namespace cinn
 
-CINN_REGISTER_HELPER(ConstantFold) {
-  CINN_REGISTER_PASS(ConstantFold)
+CINN_REGISTER_HELPER(ConstantFolding) {
+  CINN_REGISTER_PASS(ConstantFolding)
       .describe("Constant Fold Pass which performs \"Constant Folding\"")
       .set_change_structure(true)
-      .set_body(cinn::hlir::pass::ConstantFoldPassInternal);
+      .set_body(cinn::hlir::pass::ConstantFoldingPassInternal);
 
   return true;
 }
