@@ -69,6 +69,7 @@ class ScheduleImpl {
   std::vector<Expr> GetLoops(const Expr& block) const;
   std::vector<Expr> GetLoops(const std::string& block_name) const;
   std::vector<Expr> GetAllBlocks() const;
+  std::vector<Expr> GetChildBlocks(const Expr& expr) const;
   Expr GetBlock(const std::string& block_name) const;
   std::vector<Expr> Split(const Expr& loop, const std::vector<int>& factors);
   std::vector<Expr> Split(const std::string& block_name, int loop_index, const std::vector<int>& factors);
@@ -1476,6 +1477,13 @@ std::vector<Expr> ScheduleImpl::GetAllBlocks() const {
   return result;
 }
 
+std::vector<Expr> ScheduleImpl::GetChildBlocks(const Expr& expr) const {
+  CHECK(expr.As<ir::ScheduleBlockRealize>() || expr.As<ir::For>());
+  ir::FindBlocksVisitor visitor;
+  std::vector<Expr> result = visitor(&expr);
+  return result;
+}
+
 bool ScheduleImpl::HasBlock(const std::string& block_name) const {
   auto exprs = module_expr_.GetExprs();
   for (auto& it_expr : exprs) {
@@ -1882,6 +1890,12 @@ std::vector<Expr> IRSchedule::GetLoops(const std::string& block_name) const {
 std::vector<Expr> IRSchedule::GetAllBlocks() const {
   auto results = impl_->GetAllBlocks();
   trace_.Append(ScheduleDesc::Step("GetAllBlocks", {}, {}, results));
+  return results;
+}
+
+std::vector<Expr> IRSchedule::GetChildBlocks(const Expr& expr) const {
+  auto results = impl_->GetChildBlocks(expr);
+  trace_.Append(ScheduleDesc::Step("GetChildBlocks", {{"expr", std::vector<Expr>({expr})}}, {}, results));
   return results;
 }
 

@@ -399,7 +399,7 @@ TEST(TransposeCollapsing, FuseTwoHorizontalTranspose) {
 
   auto folded_out = RunWithProgram(program, target, {"X"}, fetch_list);
 
-  ASSERT_EQ(origin_size, folded_size + 1);
+  ASSERT_EQ(origin_size - folded_size, 0);
   ASSERT_EQ(origin_out.size(), folded_out.size());
   for (size_t i = 0; i < origin_out.size(); ++i) {
     ASSERT_EQ(origin_out[i].size(), folded_out[i].size());
@@ -442,7 +442,7 @@ TEST(TransposeCollapsing, FuseVerAndHorTranspose) {
 
   auto folded_out = RunWithProgram(program, target, {"X"}, fetch_list);
 
-  ASSERT_EQ(origin_size, folded_size + 2);
+  ASSERT_EQ(origin_size - folded_size, 1);
   ASSERT_EQ(origin_out.size(), folded_out.size());
   for (size_t i = 0; i < origin_out.size(); ++i) {
     ASSERT_EQ(origin_out[i].size(), folded_out[i].size());
