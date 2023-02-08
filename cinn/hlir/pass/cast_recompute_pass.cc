@@ -64,6 +64,7 @@ class CastRecomputePass {
   }
 
   void operator()() {
+    int new_cast_num   = 0;
     auto nodes_inorder = std::get<0>(graph_->topological_order());
 
     for (auto* graph_node : nodes_inorder) {
@@ -113,8 +114,11 @@ class CastRecomputePass {
       for (auto* node : need_cast_nodes) {
         CreateCastNode(cast_in_data, dtype, node);
         cast_out_data->UnLinkSingleTo(node);
+        new_cast_num++;
       }
     }
+
+    VLOG(3) << "Total add " << new_cast_num << " cast op in graph.";
   }
 
   framework::Graph* graph_;
