@@ -63,14 +63,15 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
   options.program_passes.emplace_back("DeadCodeEliminate");
 
   options.graph_passes = {};
-  if (FLAGS_cinn_use_custom_call) {
-    options.graph_passes.emplace_back("TransToCustomCallPass");
-  }
 #ifdef CINN_WITH_CUDA
   if (FLAGS_cinn_use_cublas_gemm) {
     options.graph_passes.push_back("DenseMergePass");
   }
 #endif
+
+  if (FLAGS_cinn_use_custom_call) {
+    options.graph_passes.emplace_back("TransToCustomCallPass");
+  }
 
   if (FLAGS_cinn_use_op_fusion) {
     options.graph_passes.push_back("OpFusionPass");
