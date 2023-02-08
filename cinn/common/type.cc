@@ -254,8 +254,14 @@ Type &Type::operator=(const Type &other) {
   return *this;
 }
 
-Type::Storage &Type::GetStorage() { return *storage_; }
-const Type::Storage &Type::GetStorage() const { return *storage_; }
+Type::Storage &Type::GetStorage() {
+  CHECK(storage_) << "The type not initializated! Please check.";
+  return *storage_;
+}
+const Type::Storage &Type::GetStorage() const {
+  CHECK(storage_) << "The type not initializated! Please check.";
+  return *storage_;
+}
 
 Type::Type() : storage_(new Storage) {}
 Type::Type(Type &&other) : storage_(std::move(other.storage_)) {}

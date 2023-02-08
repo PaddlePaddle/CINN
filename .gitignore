@@ -22,3 +22,4 @@ docs/source/doxygen_output
 docs/source/tutorials
 cinn/runtime/cuda/float16.h
 .vscode*
+python/op_mapper_test_save_model/*

@@ -57,4 +57,20 @@ TEST(AutoCast, BatchNorm) {
   CompareProgramPassResult(&program, target, {out[0]->id}, -2, passes);
 }
 
+TEST(AutoCast, ComplexOperator) {
+  NetBuilder builder("net_builder");
+  auto x       = builder.CreateInput(Float(16), {4, 5, 3}, "X");
+  auto y       = builder.CreateInput(Float(16), {4, 5, 3}, "Y");
+  auto x1      = builder.Identity(x);
+  auto y1      = builder.Identity(y);
+  auto z1      = builder.Exp(x1);
+  auto z2      = builder.Log(y1);
+  auto out     = builder.Add(z1, z2);
+  auto program = builder.Build();
+
+  common::Target target = common::DefaultNVGPUTarget();
+  std::pair<std::vector<std::string>, std::vector<std::string>> passes{{}, {"AutoCast", "Decomposer"}};
+  CompareProgramPassResult(&program, target, {out->id}, -2, passes);
+}
+
 }  // namespace cinn::frontend

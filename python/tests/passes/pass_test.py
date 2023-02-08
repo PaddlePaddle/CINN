@@ -15,10 +15,8 @@
 import unittest
 from cinn.frontend import *
 from cinn.common import *
-import numpy as np
-import paddle
 import logging
-import os, copy
+import os
 from tests.ops.op_test import OpTest, OpTestTool
 
 logging.basicConfig(level=os.environ.get('LOG_LEVEL', 'INFO').upper())
@@ -43,6 +41,10 @@ class PassTest(OpTest):
         self.assertEqual(
             len(inputs), len(self.feed_data),
             "The feed data size not equal to program input size!")
+        self.assertIsNotNone(outputs, "The program's output should not empty!")
+        self.assertIsInstance(
+            outputs[0], Variable,
+            "The program's output should be list(cinn.frontend.Variable)")
 
         pass_prog = net_builder.build()
         return pass_prog, inputs, outputs

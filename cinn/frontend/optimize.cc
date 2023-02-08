@@ -76,6 +76,7 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
   }
 #endif
 #endif
+  options.graph_passes.emplace_back("CastRecomputePass");
 
   if (FLAGS_cinn_use_op_fusion) {
     options.graph_passes.push_back("OpFusionPass");
