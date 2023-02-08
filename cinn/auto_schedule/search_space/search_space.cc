@@ -41,7 +41,8 @@ DECLARE_bool(auto_schedule_use_cost_model);
 namespace cinn {
 namespace auto_schedule {
 
-SearchSpace::SearchSpace(const TuneTask& tune_task) : tune_task_(tune_task) {
+SearchSpace::SearchSpace(const TuneTask& tune_task, utils::LinearRandomEngine::StateType rand_seed)
+    : tune_task_(tune_task), rand_seed_(utils::LinearRandomEngine::NormalizeState(rand_seed)) {
   const auto& target = tune_task_.target;
   // initialize a set of rules and they are commonly used by all states
   // TODO(zhhsplendid): pass correct output names to AutoInline
@@ -119,7 +120,8 @@ SearchState SearchSpace::RandomScheduleMutate(const SearchState& state) {
 
 std::vector<SearchState> SearchSpace::InitSketchWithRandomStrategy(int num) {
   VLOG(5) << "SearchSpace::GetRandomInitialSketch with num=" << num;
-  ir::IRSchedule init_schedule(ir::ModuleExpr(tune_task_.GetLoweredFuncBodyExprs()));
+  ir::IRSchedule init_schedule(ir::ModuleExpr(tune_task_.GetLoweredFuncBodyExprs()),
+                               utils::ForkRandomState(&rand_seed_));
   std::vector<AutoGenRule*> init_rules;
   std::transform(sketch_rules_.begin(), sketch_rules_.end(), std::back_inserter(init_rules), [](const auto& rule) {
     return rule.get();
@@ -144,7 +146,8 @@ std::vector<SearchState> SearchSpace::InitSketchWithRandomStrategy(int num) {
 
 std::vector<SearchState> SearchSpace::InitSketchWithRandomPrunedStrategy() {
   VLOG(5) << "SearchSpace::InitSketchWithRandomPrunedStrategy";
-  ir::IRSchedule init_schedule(ir::ModuleExpr(tune_task_.GetLoweredFuncBodyExprs()));
+  ir::IRSchedule init_schedule(ir::ModuleExpr(tune_task_.GetLoweredFuncBodyExprs()),
+                               utils::ForkRandomState(&rand_seed_));
   auto all_blocks    = init_schedule.GetAllBlocks();
   auto block_sampler = BlockSampler::Make(all_blocks, true, "probabilistic");
 
@@ -184,7 +187,8 @@ std::vector<SearchState> SearchSpace::InitSketchWithRandomPrunedStrategy() {
 
 std::vector<SearchState> SearchSpace::InitiSketchWithRulePrunedStrategy() {
   VLOG(5) << "SearchSpace::InitiSketchWithRulePrunedStrategy";
-  ir::IRSchedule init_schedule(ir::ModuleExpr(tune_task_.GetLoweredFuncBodyExprs()));
+  ir::IRSchedule init_schedule(ir::ModuleExpr(tune_task_.GetLoweredFuncBodyExprs()),
+                               utils::ForkRandomState(&rand_seed_));
   auto all_blocks = init_schedule.GetAllBlocks();
   std::reverse(all_blocks.begin(), all_blocks.end());
   auto block_sampler = BlockSampler::Make(all_blocks, true, "traversal");

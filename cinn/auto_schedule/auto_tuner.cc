@@ -76,9 +76,11 @@ void AutoTuner::Initialize(const Config& config, hlir::framework::GraphCompiler*
   }
 
   // create task optimizers
+  utils::LinearRandomEngine::StateType initial_seed = 1;
   task_optimizers_.resize(tasks_.size());
   std::transform(tasks_.begin(), tasks_.end(), task_optimizers_.begin(), [&](const TuneTask& task) {
-    return std::make_unique<TaskOptimizer>(task, schedule_measurer_.get(), database_.get());
+    return std::make_unique<TaskOptimizer>(
+        task, schedule_measurer_.get(), database_.get(), utils::ForkRandomState(&initial_seed));
   });
 
   // create task scheduler

@@ -40,7 +40,7 @@ namespace auto_schedule {
  */
 class SearchSpace {
  public:
-  SearchSpace(const TuneTask& tune_task);
+  SearchSpace(const TuneTask& tune_task, utils::LinearRandomEngine::StateType rand_seed = -1);
 
   // Sketch mutate, returns the mutated ModuleExpr and estimited cost
   virtual SearchState GetScheduleMutate(const SearchState& state, const ExprCostModel& cost_model);
@@ -97,6 +97,7 @@ class SearchSpace {
   int init_sketch_random_depth_ = 6;
   // supported AutoGenRules, every task holds a set
   std::vector<std::unique_ptr<AutoGenRule>> sketch_rules_;
+  utils::LinearRandomEngine::StateType rand_seed_;
 };
 
 }  // namespace auto_schedule
