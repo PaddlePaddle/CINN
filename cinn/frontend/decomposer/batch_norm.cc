@@ -135,7 +135,7 @@ void batch_norm_train(const Instruction& instr, const DecomposerContext& context
   CHECK_EQ(instr->outputs.size(), 5UL) << "The number of the given outputs is not equal to the required for op "
                                        << instr->op_type;
 
-  auto& x_orig          = instr->inputs[0];
+  auto& x               = instr->inputs[0];
   auto& scale           = instr->inputs[1];
   auto& bias            = instr->inputs[2];
   auto& moving_mean     = instr->inputs[3];
@@ -149,9 +149,7 @@ void batch_norm_train(const Instruction& instr, const DecomposerContext& context
   std::string layout = instr.GetAttrs<std::string>("data_layout");
 
   NetBuilder* builder = context.builder();
-  BatchNormHelper helper(builder, x_orig->shape, scale->shape, layout, "batch_norm_train");
-
-  auto x = builder->Cast(x_orig, common::Type2Str(scale->type));
+  BatchNormHelper helper(builder, x->shape, scale->shape, layout, "batch_norm_train");
 
   auto mean_variance = helper.MeanAndVariance(x);
   auto mean          = mean_variance[0];
@@ -166,9 +164,7 @@ void batch_norm_train(const Instruction& instr, const DecomposerContext& context
   auto bias_4d           = builder->BroadcastTo(bias, x->shape, {helper.channel_dim});
   auto normalized        = builder->Multiply(builder->Subtract(x, mean_4d), std_variance_inv_4d);
   auto scaled_normalized = builder->Multiply(normalized, scale_4d);
-  auto y_orig            = builder->Add(scaled_normalized, bias_4d);
-
-  auto y = builder->Cast(y_orig, common::Type2Str(x_orig->type));
+  auto y                 = builder->Add(scaled_normalized, bias_4d);
 
   // moving_mean = moving_mean * momentum + (1.0 - momentum) * mean, shape = [c]
   auto new_moving_mean = helper.UpdateMeanVariance(moving_mean, mean, momentum);
@@ -189,12 +185,12 @@ void batch_norm_grad(const Instruction& instr, const DecomposerContext& context)
   CHECK_EQ(instr->outputs.size(), 3UL) << " The number of the given outputs is not equal to the required"
                                        << instr->op_type;
 
-  auto& y_grad_orig   = instr->inputs[0];
-  auto& x_orig        = instr->inputs[1];
+  auto& y_grad        = instr->inputs[0];
+  auto& x             = instr->inputs[1];
   auto& scale         = instr->inputs[2];
   auto& save_mean     = instr->inputs[3];
   auto& save_variance = instr->inputs[4];
-  CHECK_EQ(y_grad_orig->type, x_orig->type);
+  CHECK_EQ(y_grad->type, x->type);
   CHECK_EQ(scale->type, save_mean->type);
   CHECK_EQ(scale->type, save_variance->type);
 
@@ -202,11 +198,7 @@ void batch_norm_grad(const Instruction& instr, const DecomposerContext& context)
   auto layout  = instr.GetAttrs<std::string>("data_layout");
 
   NetBuilder* builder = context.builder();
-  BatchNormHelper helper(builder, x_orig->shape, scale->shape, layout, "batch_norm_grad");
-
-  // Cast input y_grad and x to fp32 for accuracy
-  auto y_grad = builder->Cast(y_grad_orig, common::Type2Str(scale->type));
-  auto x      = builder->Cast(x_orig, common::Type2Str(scale->type));
+  BatchNormHelper helper(builder, x->shape, scale->shape, layout, "batch_norm_grad");
 
   auto vars                          = helper.GradBiasAndScale(x, save_mean, y_grad);
   auto bias_grad                     = vars[0];
@@ -244,9 +236,7 @@ void batch_norm_grad(const Instruction& instr, const DecomposerContext& context)
   auto variance_add_eps_4d = builder->BroadcastTo(variance_add_eps, x->shape, {helper.channel_dim});
   auto tmp3                = builder->Divide(tmp3_0, variance_add_eps_4d);
 
-  auto x_grad_orig = builder->Multiply(tmp0, builder->Subtract(builder->Subtract(tmp1, tmp2), tmp3));
-
-  auto x_grad = builder->Cast(x_grad_orig, common::Type2Str(x_orig->type));
+  auto x_grad = builder->Multiply(tmp0, builder->Subtract(builder->Subtract(tmp1, tmp2), tmp3));
 
   context.MapOutToOrigin(x_grad, instr->outputs[0]);
   context.MapOutToOrigin(scale_grad, instr->outputs[1]);
@@ -259,7 +249,7 @@ void batch_norm(const Instruction& instr, const DecomposerContext& context) {
   CHECK_EQ(instr->outputs.size(), 1UL) << "The number of the given outputs is not equal to the required for op "
                                        << instr->op_type;
 
-  auto& x_orig          = instr->inputs[0];
+  auto& x               = instr->inputs[0];
   auto& scale           = instr->inputs[1];
   auto& bias            = instr->inputs[2];
   auto& moving_mean     = instr->inputs[3];
@@ -273,9 +263,7 @@ void batch_norm(const Instruction& instr, const DecomposerContext& context) {
   std::string layout = instr.GetAttrs<std::string>("data_layout");
 
   NetBuilder* builder = context.builder();
-  BatchNormHelper helper(builder, x_orig->shape, scale->shape, layout, "batch_norm");
-
-  auto x = builder->Cast(x_orig, common::Type2Str(scale->type));
+  BatchNormHelper helper(builder, x->shape, scale->shape, layout, "batch_norm");
 
   auto mean_4d = builder->BroadcastTo(moving_mean, x->shape, {helper.channel_dim});
   // std_variance_inv = rsqrt(variance + epsilon), shape = [c]
@@ -286,9 +274,7 @@ void batch_norm(const Instruction& instr, const DecomposerContext& context) {
   auto bias_4d           = builder->BroadcastTo(bias, x->shape, {helper.channel_dim});
   auto normalized        = builder->Multiply(builder->Subtract(x, mean_4d), std_variance_inv_4d);
   auto scaled_normalized = builder->Multiply(normalized, scale_4d);
-  auto y_orig            = builder->Add(scaled_normalized, bias_4d);
-
-  auto y = builder->Cast(y_orig, common::Type2Str(x_orig->type));
+  auto y                 = builder->Add(scaled_normalized, bias_4d);
 
   context.MapOutToOrigin(y, instr->outputs[0]);
 }
