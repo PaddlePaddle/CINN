@@ -65,7 +65,10 @@ class PassTest(OpTest):
     def check_pass_outputs(self,
                            pass_diff,
                            test_passes,
-                           base_passes=["AutoCast", "Decomposer"],
+                           base_passes=[
+                               "AutoCast", "Decomposer", "OpFusionPass",
+                               "FusionMergePass"
+                           ],
                            max_relative_error=1e-5,
                            all_equal=False,
                            equal_nan=False):
