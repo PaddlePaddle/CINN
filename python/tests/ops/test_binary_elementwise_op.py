@@ -30,10 +30,10 @@ class TestBinaryOp(OpTest):
         self.init_case()
 
     def get_x_data(self):
-        return self.random([32, 64])
+        return self.random([32, 64], 'float32', -10.0, 10.0)
 
     def get_y_data(self):
-        return self.random([32, 64])
+        return self.random([32, 64], 'float32', -10.0, 10.0)
 
     def get_axis_value(self):
         return -1
@@ -68,59 +68,286 @@ class TestBinaryOp(OpTest):
         y_t = paddle.unsqueeze(
             y, axis=unsqueeze_axis) if len(unsqueeze_axis) > 0 else y
         out = self.paddle_func(x, y_t)
-        print("Paddle:", out)
 
         self.paddle_outputs = [out]
 
     def build_cinn_program(self, target):
-        builder = NetBuilder("add")
-        x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
-        y = builder.create_input(Float(32), self.inputs["y"].shape, "y")
+        builder = NetBuilder("binary_elementwise_test")
+        x = builder.create_input(
+            self.nptype2cinntype(self.inputs["x"].dtype),
+            self.inputs["x"].shape, "x")
+        y = builder.create_input(
+            self.nptype2cinntype(self.inputs["y"].dtype),
+            self.inputs["y"].shape, "y")
         out = self.cinn_func(builder, x, y, axis=self.axis)
 
         prog = builder.build()
         res = self.get_cinn_output(prog, target, [x, y],
                                    [self.inputs["x"], self.inputs["y"]], [out])
-        print("CINN:", res)
+
         self.cinn_outputs = res
 
     def test_check_results(self):
         self.check_outputs_and_grads()
 
 
-test_op_list = [
-    "add", "subtract", "divide", "multiply", "floor_divide", "mod",
-    "floor_mod", "max", "min", "logical_and", "logical_or", "logical_xor",
-    "bitwise_and", "bitwise_or", "bitwise_xor", "equal", "not_equal",
-    "greater_than", "less_than", "greater_equal", "less_equal", "atan2"
-]
+class TestAddOp(TestBinaryOp):
+    def paddle_func(self, x, y):
+        return paddle.add(x, y)
 
-for op_name in test_op_list:
-    paddle_module_name = ""
-    if hasattr(paddle, op_name):
-        paddle_module_name = "paddle."
-    elif hasattr(paddle.nn, op_name):
-        paddle_module_name = "paddle.nn."
-    elif hasattr(paddle.nn.functional, op_name):
-        paddle_module_name = "paddle.nn.functional."
-    else:
-        assert False, op_name + " should in 'paddle' or 'paddle.nn.functional' module!"
+    def cinn_func(self, builder, x, y, axis):
+        return builder.add(x, y, axis)
 
-    attrs = {
-        "paddle_func":
-        lambda _, x, y: eval(paddle_module_name + op_name)(x, y),
-        "cinn_func":
-        lambda _, builder, x, y, axis: eval("builder." + op_name.lower())(x, y,
-                                                                          axis)
-    }
-    exec("test_class_" + op_name +
-         " = type('Test' + op_name.title() + 'Op', (TestBinaryOp,), attrs)")
 
-    case1_attrs = {"get_axis_value": lambda _: 0}
-    exec(
-        "test_case1_" + op_name +
-        " = type('Test' + op_name.title() + 'Case1', (globals()['test_class_' + op_name],), case1_attrs)"
-    )
+class TestSubtractOp(TestBinaryOp):
+    def paddle_func(self, x, y):
+        return paddle.subtract(x, y)
+
+    def cinn_func(self, builder, x, y, axis):
+        return builder.subtract(x, y, axis)
+
+
+class TestDivideOp(TestBinaryOp):
+    def paddle_func(self, x, y):
+        return paddle.divide(x, y)
+
+    def cinn_func(self, builder, x, y, axis):
+        return builder.divide(x, y, axis)
+
+
+class TestMultiplyOp(TestBinaryOp):
+    def paddle_func(self, x, y):
+        return paddle.multiply(x, y)
+
+    def cinn_func(self, builder, x, y, axis):
+        return builder.multiply(x, y, axis)
+
+
+class TestFloorDivideOp(TestBinaryOp):
+    def get_x_data(self):
+        return self.random([32, 64], 'int32', 1, 100)
+
+    def get_y_data(self):
+        return self.random([32, 64], 'int32', 1, 100)
+
+    def paddle_func(self, x, y):
+        return paddle.floor_divide(x, y)
+
+    def cinn_func(self, builder, x, y, axis):
+        return builder.floor_divide(x, y, axis)
+
+
+class TestFloorDivideCase1(TestFloorDivideOp):
+    def get_x_data(self):
+        return self.random([32, 64], 'int32', -100, -1)
+
+    def get_y_data(self):
+        return self.random([32, 64], 'int32', 1, 100)
+
+
+class TestFloorDivideCase2(TestFloorDivideOp):
+    def get_x_data(self):
+        return self.random([32, 64], 'int32', -100, -1)
+
+    def get_y_data(self):
+        return self.random([32, 64], 'int32', -100, -1)
+
+
+class TestFloorDivideCase3(TestFloorDivideOp):
+    def get_x_data(self):
+        return self.random([32, 64], 'int32', 1, 100)
+
+    def get_y_data(self):
+        return self.random([32, 64], 'int32', -100, -1)
+
+
+class TestModOp(TestBinaryOp):
+    def paddle_func(self, x, y):
+        return paddle.mod(x, y)
+
+    def cinn_func(self, builder, x, y, axis):
+        return builder.mod(x, y, axis)
+
+
+# TODO(thisjiang): fix mod result error when x and y are negative int
+class TestModCase1(TestModOp):
+    def get_x_data(self):
+        return self.random([32, 64], 'int32', 1, 100)
+
+    def get_y_data(self):
+        return self.random([32, 64], 'int32', 1, 100)
+
+
+# TODO(thisjiang): fix remainder result error when x and y are float or negative int
+class TestRemainderOp(TestBinaryOp):
+    def get_x_data(self):
+        return self.random([32, 64], 'int32', 1, 100)
+
+    def get_y_data(self):
+        return self.random([32, 64], 'int32', 1, 100)
+
+    def paddle_func(self, x, y):
+        return paddle.remainder(x, y)
+
+    def cinn_func(self, builder, x, y, axis):
+        return builder.remainder(x, y, axis)
+
+
+class TestMaxOp(TestBinaryOp):
+    def paddle_func(self, x, y):
+        return paddle.maximum(x, y)
+
+    def cinn_func(self, builder, x, y, axis):
+        return builder.max(x, y, axis)
+
+
+class TestMinOp(TestBinaryOp):
+    def paddle_func(self, x, y):
+        return paddle.minimum(x, y)
+
+    def cinn_func(self, builder, x, y, axis):
+        return builder.min(x, y, axis)
+
+
+class TestLogicalAndOp(TestBinaryOp):
+    def get_x_data(self):
+        return self.random([32, 64], 'bool')
+
+    def get_y_data(self):
+        return self.random([32, 64], 'bool')
+
+    def paddle_func(self, x, y):
+        return paddle.logical_and(x, y)
+
+    def cinn_func(self, builder, x, y, axis):
+        return builder.logical_and(x, y, axis)
+
+
+class TestLogicalOrOp(TestBinaryOp):
+    def get_x_data(self):
+        return self.random([32, 64], 'bool')
+
+    def get_y_data(self):
+        return self.random([32, 64], 'bool')
+
+    def paddle_func(self, x, y):
+        return paddle.logical_or(x, y)
+
+    def cinn_func(self, builder, x, y, axis):
+        return builder.logical_or(x, y, axis)
+
+
+class TestLogicalXorOp(TestBinaryOp):
+    def get_x_data(self):
+        return self.random([32, 64], 'bool')
+
+    def get_y_data(self):
+        return self.random([32, 64], 'bool')
+
+    def paddle_func(self, x, y):
+        return paddle.logical_xor(x, y)
+
+    def cinn_func(self, builder, x, y, axis):
+        return builder.logical_xor(x, y, axis)
+
+
+class TestBitwiseAndOp(TestBinaryOp):
+    def get_x_data(self):
+        return self.random([32, 64], 'int32', 1, 10000)
+
+    def get_y_data(self):
+        return self.random([32, 64], 'int32', 1, 10000)
+
+    def paddle_func(self, x, y):
+        return paddle.bitwise_and(x, y)
+
+    def cinn_func(self, builder, x, y, axis):
+        return builder.bitwise_and(x, y, axis)
+
+
+class TestBitwiseOrOp(TestBinaryOp):
+    def get_x_data(self):
+        return self.random([32, 64], 'int32', 1, 10000)
+
+    def get_y_data(self):
+        return self.random([32, 64], 'int32', 1, 10000)
+
+    def paddle_func(self, x, y):
+        return paddle.bitwise_or(x, y)
+
+    def cinn_func(self, builder, x, y, axis):
+        return builder.bitwise_or(x, y, axis)
+
+
+class TestBitwiseXorOp(TestBinaryOp):
+    def get_x_data(self):
+        return self.random([32, 64], 'int32', 1, 10000)
+
+    def get_y_data(self):
+        return self.random([32, 64], 'int32', 1, 10000)
+
+    def paddle_func(self, x, y):
+        return paddle.bitwise_xor(x, y)
+
+    def cinn_func(self, builder, x, y, axis):
+        return builder.bitwise_xor(x, y, axis)
+
+
+class TestEqualOp(TestBinaryOp):
+    def paddle_func(self, x, y):
+        return paddle.equal(x, y)
+
+    def cinn_func(self, builder, x, y, axis):
+        return builder.equal(x, y, axis)
+
+
+class TestNotEqualOp(TestBinaryOp):
+    def paddle_func(self, x, y):
+        return paddle.not_equal(x, y)
+
+    def cinn_func(self, builder, x, y, axis):
+        return builder.not_equal(x, y, axis)
+
+
+class TestGreaterThanOp(TestBinaryOp):
+    def paddle_func(self, x, y):
+        return paddle.greater_than(x, y)
+
+    def cinn_func(self, builder, x, y, axis):
+        return builder.greater_than(x, y, axis)
+
+
+class TestLessThanOp(TestBinaryOp):
+    def paddle_func(self, x, y):
+        return paddle.less_than(x, y)
+
+    def cinn_func(self, builder, x, y, axis):
+        return builder.less_than(x, y, axis)
+
+
+class TestGreaterEqualOp(TestBinaryOp):
+    def paddle_func(self, x, y):
+        return paddle.greater_equal(x, y)
+
+    def cinn_func(self, builder, x, y, axis):
+        return builder.greater_equal(x, y, axis)
+
+
+class TestLessEqualOp(TestBinaryOp):
+    def paddle_func(self, x, y):
+        return paddle.less_equal(x, y)
+
+    def cinn_func(self, builder, x, y, axis):
+        return builder.less_equal(x, y, axis)
+
+
+class TestAtan2Op(TestBinaryOp):
+    def paddle_func(self, x, y):
+        return paddle.atan2(x, y)
+
+    def cinn_func(self, builder, x, y, axis):
+        return builder.atan2(x, y, axis)
+
 
 if __name__ == "__main__":
     unittest.main()

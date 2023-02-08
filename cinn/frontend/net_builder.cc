@@ -60,7 +60,6 @@ void NetBuilder::InferShape(Instruction instr) const {
       instr->inputs.begin(), instr->inputs.end(), in_shapes.begin(), [](const Variable& var) { return var->shape; });
   std::transform(
       instr->inputs.begin(), instr->inputs.end(), in_types.begin(), [](const Variable& var) { return var->type; });
-
   auto key        = Operator::Get(instr->op_type);
   auto out_shapes = op_infershape[key](in_shapes, instr->attrs);
   auto out_types  = op_inferdtype[key](in_types, instr->attrs);
@@ -312,11 +311,16 @@ Variable NetBuilder::Slice(const Variable& operand,
                            const std::vector<int>& starts,
                            const std::vector<int>& ends,
                            const std::vector<int>& infer_flags,
-                           const std::vector<int>& strides) {
-  return CustomInstr(
-             "slice",
-             {operand},
-             {{"axes", axes}, {"starts", starts}, {"ends", ends}, {"infer_flags", infer_flags}, {"strides", strides}})
+                           const std::vector<int>& strides,
+                           const std::vector<int>& decrease_axis) {
+  return CustomInstr("slice",
+                     {operand},
+                     {{"axes", axes},
+                      {"starts", starts},
+                      {"ends", ends},
+                      {"infer_flags", infer_flags},
+                      {"strides", strides},
+                      {"decrease_axis", decrease_axis}})
       .front();
 }
 
@@ -378,8 +382,8 @@ Variable NetBuilder::ReluGrad(const Variable& lhs, const Variable& rhs) {
   return CustomInstr("relu_grad", {lhs, rhs}, {}).front();
 }
 
-Variable NetBuilder::GatherNd(const Variable& x, const Variable& index, const std::vector<int>& axes) {
-  return CustomInstr("gather_nd", {x, index}, {{"axes", axes}}).front();
+Variable NetBuilder::GatherNd(const Variable& x, const Variable& index) {
+  return CustomInstr("gather_nd", {x, index}, {}).front();
 }
 
 Variable NetBuilder::Scatter(const Variable& src, const Variable& index, const Variable& out, const int& axis) {
@@ -654,6 +658,22 @@ Variable NetBuilder::GaussianRandom(
   return CustomInstr(
              "gaussian_random", {}, {{"shape", shape}, {"mean", mean}, {"std", std}, {"seed", seed}, {"dtype", dtype}})
       .front();
+}
+
+Variable NetBuilder::UniformRandom(
+    const std::vector<int>& shape, float min, float max, int seed, const std::string& dtype) {
+  auto uniform_out =
+      CustomInstr(
+          "uniform_random", {}, {{"shape", shape}, {"min", min}, {"max", max}, {"seed", seed}, {"dtype", dtype}})
+          .front();
+  auto uniform_range   = FillConstant(shape, max - min, UniqName("uniform_range"), dtype);
+  auto uniform_mul_out = Multiply(uniform_out, uniform_range);
+  auto uniform_min     = FillConstant(shape, min, UniqName("uniform_min"), dtype);
+  return Add(uniform_mul_out, uniform_min);
+}
+
+Variable NetBuilder::Cholesky(const Variable& x, bool upper) {
+  return CustomInstr("cholesky", {x}, {{"upper", upper}}).front();
 }
 
 }  // namespace frontend

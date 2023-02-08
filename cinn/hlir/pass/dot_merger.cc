@@ -161,11 +161,12 @@ class DotBuilder {
       std::vector<int> axes, std::vector<int> starts, std::vector<int> ends, NodeData* input, NodeData* output) {
     const std::string type{"slice"};
     auto instr = common::Shared<Node>(new Node(framework::Operator::Get(type), type, node_name(type)));
-    instr->attrs.attr_store["axes"]        = std::move(axes);
-    instr->attrs.attr_store["starts"]      = std::move(starts);
-    instr->attrs.attr_store["ends"]        = std::move(ends);
-    instr->attrs.attr_store["infer_flags"] = std::vector<int>{};
-    instr->attrs.attr_store["strides"]     = std::vector<int>{};
+    instr->attrs.attr_store["axes"]          = std::move(axes);
+    instr->attrs.attr_store["starts"]        = std::move(starts);
+    instr->attrs.attr_store["ends"]          = std::move(ends);
+    instr->attrs.attr_store["infer_flags"]   = std::vector<int>{};
+    instr->attrs.attr_store["strides"]       = std::vector<int>{};
+    instr->attrs.attr_store["decrease_axis"] = std::vector<int>{};
     input->LinkTo(instr.get());
     instr->LinkTo(output);
     graph_->RegisterNode(instr->id(), instr.get());

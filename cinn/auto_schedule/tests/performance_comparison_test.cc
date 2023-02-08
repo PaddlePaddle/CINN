@@ -274,6 +274,13 @@ TEST_F(PerformanceTester, LookupTable) {
   Evaluate(LookupTableProgramBuilder(table_shape, ids_shape, -1)());
 }
 
+TEST_F(PerformanceTester, Gather) {
+  std::vector<int32_t> operand_shape{10, 12, 128, 512};
+  std::vector<int32_t> index_shape{128};
+
+  Evaluate(GatherProgramBuilder(operand_shape, index_shape, 3)());
+}
+
 // paddle model test
 TEST_F(PerformanceTester, ResNet50) {
   std::vector<std::string> input_names       = {"inputs"};

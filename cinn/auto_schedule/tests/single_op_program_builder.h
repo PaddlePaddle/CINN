@@ -337,5 +337,24 @@ class LookupTableProgramBuilder : public TestProgramBuilder {
   int64_t padding_idx_;
 };
 
+class GatherProgramBuilder : public TestProgramBuilder {
+ public:
+  GatherProgramBuilder(const std::vector<int32_t>& operand_shape, const std::vector<int32_t>& index_shape, int32_t axis)
+      : operand_shape_(operand_shape), index_shape_(index_shape), axis_(axis) {}
+
+  frontend::Program operator()() override {
+    frontend::NetBuilder builder("gather_builder");
+    auto operand = builder.CreateInput(Float(32), operand_shape_, "operand");
+    auto index   = builder.CreateInput(Int(32), index_shape_, "index");
+    auto out     = builder.Gather(operand, index, axis_);
+    return builder.Build();
+  }
+
+ private:
+  std::vector<int32_t> operand_shape_;
+  std::vector<int32_t> index_shape_;
+  int32_t axis_;
+};
+
 }  // namespace auto_schedule
 }  // namespace cinn

@@ -116,6 +116,52 @@ class GraphAlterHelper {
     }
   }
 
+  void UniformRandomToCustomCall() {
+    auto nodes = graph_->CollectNodes([](const common::GraphNode* graph_node) -> bool {
+      if (graph_node->safe_as<Node>()) {
+        auto node = graph_node->safe_as<Node>();
+        if (node->op()->name == "uniform_random") {
+          return true;
+        }
+      }
+
+      return false;
+    });
+
+    for (auto gnode : nodes) {
+      auto src = gnode->safe_as<Node>();
+      CHECK(src);
+      src->attrs.op                        = framework::Operator::Get("custom_call");
+      src->attrs.attr_store["custom_call"] = std::string("cinn_call_uniform_random");
+    }
+  }
+
+  void CholeskyToCustomCall() {
+    auto nodes = graph_->CollectNodes([](const common::GraphNode* graph_node) -> bool {
+      if (graph_node->safe_as<Node>()) {
+        auto node = graph_node->safe_as<Node>();
+        if (node->op()->name == "cholesky") {
+          return true;
+        }
+      }
+
+      return false;
+    });
+
+    Target target = graph_->target_;
+
+    for (auto gnode : nodes) {
+      auto src = gnode->safe_as<Node>();
+      CHECK(src);
+      src->attrs.op = framework::Operator::Get("custom_call");
+      if (target.arch == Target::Arch::X86) {
+        src->attrs.attr_store["custom_call"] = std::string("cinn_call_cholesky_host");
+      } else if (target.arch == Target::Arch::NVGPU) {
+        src->attrs.attr_store["custom_call"] = std::string("cinn_call_cholesky_nvgpu");
+      }
+    }
+  }
+
  private:
   Graph* graph_;
 };
@@ -138,6 +184,18 @@ void GaussianRandomToCustomCallInternal(Graph* graph) {
   VLOG(3) << "GaussianRandomToCustomCall Finish...!";
 }
 
+void UniformRandomToCustomCallInternal(Graph* graph) {
+  VLOG(3) << "UniformRandomToCustomCall...!";
+  GraphAlterHelper(graph).UniformRandomToCustomCall();
+  VLOG(3) << "UniformRandomToCustomCall Finish...!";
+}
+
+void CholeskyToCustomCallPassInternal(Graph* graph) {
+  VLOG(3) << "CholeskyToCustomCallPass...!";
+  GraphAlterHelper(graph).CholeskyToCustomCall();
+  VLOG(3) << "CholeskyToCustomCallPass Finish...!";
+}
+
 }  // namespace pass
 }  // namespace hlir
 }  // namespace cinn
@@ -152,6 +210,10 @@ CINN_REGISTER_HELPER(CustomCallPass) {
       .describe("This pass which convert gaussian random op to custom call pass.")
       .set_change_structure(false)
       .set_body(cinn::hlir::pass::GaussianRandomToCustomCallInternal);
+  CINN_REGISTER_PASS(UniformRandomToCustomCallPass)
+      .describe("This pass which convert uniform random op to custom call pass.")
+      .set_change_structure(false)
+      .set_body(cinn::hlir::pass::UniformRandomToCustomCallInternal);
 #endif
 #ifdef CINN_WITH_CUDNN
   CINN_REGISTER_PASS(ConvToCudnnCustomCallPass)
@@ -159,5 +221,10 @@ CINN_REGISTER_HELPER(CustomCallPass) {
       .set_change_structure(false)
       .set_body(cinn::hlir::pass::ConvToCudnnCustomCallPassInternal);
 #endif
+  CINN_REGISTER_PASS(CholeskyToCustomCallPass)
+      .describe("This pass which convert cholesky op to custom call pass.")
+      .set_change_structure(false)
+      .set_body(cinn::hlir::pass::CholeskyToCustomCallPassInternal);
+
   return true;
 }

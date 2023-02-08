@@ -98,5 +98,54 @@ class TestSliceCase4(TestSliceOp):
         self.strides = [-1, -2]
 
 
+@OpTestTool.skip_if(not is_compiled_with_cuda(),
+                    "x86 test will be skipped due to timeout.")
+class TestSliceOpWithDecreaseAxis(OpTest):
+    def setUp(self):
+        self.init_case()
+
+    def init_case(self):
+        self.inputs = {"inputs": np.random.random([10, 12]).astype("float32")}
+        self.axes = [0, 1]
+        self.starts = [2, 2]
+        self.ends = [5, 3]
+        self.strides = [1, 1]
+        self.decrease_axis = [1]
+
+    def build_paddle_program(self, target):
+        x = paddle.to_tensor(self.inputs["inputs"], stop_gradient=True)
+        y = paddle.strided_slice(x, self.axes, self.starts, self.ends,
+                                 self.strides)
+        out_shape = []
+        for i in range(len(y.shape)):
+            if i in self.decrease_axis:
+                self.assertEqual(y.shape[i], 1)
+            else:
+                out_shape.append(y.shape[i])
+
+        res = paddle.reshape(y, out_shape)
+        self.paddle_outputs = [res]
+
+    def build_cinn_program(self, target):
+        builder = NetBuilder("slice")
+        inputs = builder.create_input(
+            Float(32), self.inputs["inputs"].shape, "inputs")
+        out = builder.slice(
+            inputs,
+            axes=self.axes,
+            starts=self.starts,
+            ends=self.ends,
+            strides=self.strides,
+            decrease_axis=self.decrease_axis)
+
+        prog = builder.build()
+        res = self.get_cinn_output(prog, target, [inputs],
+                                   [self.inputs["inputs"]], [out])
+        self.cinn_outputs = res
+
+    def test_check_results(self):
+        self.check_outputs_and_grads(all_equal=True)
+
+
 if __name__ == "__main__":
     unittest.main()

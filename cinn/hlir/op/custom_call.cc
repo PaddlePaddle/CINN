@@ -470,12 +470,56 @@ std::vector<ir::Expr> CustomCallArgsForGaussianRandom(const framework::NodeAttr 
   return args;
 }
 
+std::vector<ir::Expr> CustomCallArgsForUniformRandom(const framework::NodeAttr &attrs,
+                                                     const std::vector<ir::Tensor> &inputs,
+                                                     const std::vector<std::vector<int>> &output_shapes) {
+  CHECK_EQ(output_shapes.size(), 1UL);
+
+  auto attr_store = attrs.attr_store;
+
+  float min = attr_store.count("min") ? absl::get<float>(attrs.attr_store.at("min")) : -1.0f;
+  float max = attr_store.count("max") ? absl::get<float>(attrs.attr_store.at("max")) : 1.0f;
+  int seed  = attr_store.count("seed") ? absl::get<int>(attrs.attr_store.at("seed")) : 0;
+
+  CHECK_GE(max, min) << "Arg max must greater than min, please check.";
+
+  std::vector<ir::Expr> args = {ir::Expr(min), ir::Expr(max), ir::Expr(seed)};
+
+  return args;
+}
+
+std::vector<ir::Expr> CustomCallArgsForCholesky(const framework::NodeAttr &attrs,
+                                                const std::vector<ir::Tensor> &inputs,
+                                                const std::vector<std::vector<int>> &output_shapes) {
+  CHECK_EQ(inputs.size(), 1UL);
+  auto attr_store = attrs.attr_store;
+  CHECK(attr_store.count("upper"));
+
+  ir::Tensor x   = inputs.front();
+  int ndim       = static_cast<int>(x->shape.size());
+  int batch_size = 1;
+  for (int i = 0; i < ndim - 2; i++) {
+    batch_size *= x->shape[i].as_int32();
+  }
+  int m = x->shape[ndim - 1].as_int32();
+
+  auto upper = absl::get<bool>(attrs.attr_store.at("upper"));
+
+  std::vector<ir::Expr> args = {ir::Expr(batch_size), ir::Expr(m), ir::Expr(upper)};
+
+  return args;
+}
+
 bool RegisteryCustomCallArgsFunc() {
 #ifdef CINN_WITH_CUDA
   CustomCallArgsFuncRegistry::Global().Register(
       "cinn_call_cublas", common::DefaultNVGPUTarget(), CustomCallArgsForCublas);
   CustomCallArgsFuncRegistry::Global().Register(
       "cinn_call_gaussian_random", common::DefaultNVGPUTarget(), CustomCallArgsForGaussianRandom);
+  CustomCallArgsFuncRegistry::Global().Register(
+      "cinn_call_uniform_random", common::DefaultNVGPUTarget(), CustomCallArgsForUniformRandom);
+  CustomCallArgsFuncRegistry::Global().Register(
+      "cinn_call_cholesky_nvgpu", common::DefaultNVGPUTarget(), CustomCallArgsForCholesky);
 #endif
 
 #ifdef CINN_WITH_CUDNN
@@ -496,6 +540,9 @@ bool RegisteryCustomCallArgsFunc() {
 #endif
 
 #ifdef CINN_WITH_MKL_CBLAS
+
+  CustomCallArgsFuncRegistry::Global().Register(
+      "cinn_call_cholesky_host", common::DefaultHostTarget(), CustomCallArgsForCholesky);
 
 #endif
 

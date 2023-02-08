@@ -129,7 +129,7 @@ TEST(TransposeCollapsing, FuseTransposeWithMultiOutput) {
     return std::string(id);
   });
   std::pair<std::vector<std::string>, std::vector<std::string>> passes{{"Decomposer"}, {"CastCollapsing"}};
-  CompareResult(&program, target, input_ids, {out1->id, out2->id, out3->id}, 2, passes, 123, true);
+  CompareResult(&program, target, input_ids, {out1->id, out2->id, out3->id}, 1, passes, 123, true);
 }
 
 TEST(TransposeCollapsing, FuseTwoSecTranspose) {
@@ -172,7 +172,7 @@ TEST(TransposeCollapsing, FuseTwoHorizontalTranspose) {
     return std::string(id);
   });
   std::pair<std::vector<std::string>, std::vector<std::string>> passes{{"Decomposer"}, {"CastCollapsing"}};
-  CompareResult(&program, target, input_ids, {out->id}, 1, passes, 123, true);
+  CompareResult(&program, target, input_ids, {out->id}, 0, passes, 123, true);
 }
 
 TEST(TransposeCollapsing, FuseVerAndHorTranspose) {

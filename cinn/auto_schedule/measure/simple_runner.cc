@@ -33,6 +33,18 @@ using hlir::framework::Buffer;
 using hlir::framework::Shape;
 using hlir::framework::Tensor;
 
+// Parameters that needs to be initialized to 0.
+// Key is the Op name, and value is the index of the input parameter in the Op.
+static const std::unordered_map<std::string, std::vector<int>> kInitWithZeroParams = {
+    {"lookup_table", {1}},
+    {"gather", {1}},
+    {"gather_nd", {1}},
+    {"scatter", {1}},
+    {"scatter_nd", {1}},
+    {"scatter_assign", {2}},
+    {"scatter_add", {2}},
+};
+
 // Generate random value and populate them to the output address of memeory
 static void PopulateRandomValue(const common::Type& type, const int numel, void* raw_ptr) {
   std::random_device seed;
@@ -46,31 +58,69 @@ static void PopulateRandomValue(const common::Type& type, const int numel, void*
     auto* fmt_ptr = reinterpret_cast<int*>(raw_ptr);
     std::uniform_int_distribution<int> dist(std::numeric_limits<int>::min(), std::numeric_limits<int>::max());
     std::generate_n(fmt_ptr, numel, [&engine, &dist]() { return dist(engine); });
+  } else if (type == common::I64()) {
+    auto* fmt_ptr = reinterpret_cast<int64_t*>(raw_ptr);
+    std::uniform_int_distribution<int64_t> dist(std::numeric_limits<int64_t>::min(),
+                                                std::numeric_limits<int64_t>::max());
+    std::generate_n(fmt_ptr, numel, [&engine, &dist]() { return dist(engine); });
   } else if (type == common::F32()) {
     auto* fmt_ptr = reinterpret_cast<float*>(raw_ptr);
     std::uniform_real_distribution<float> dist(std::numeric_limits<float>::min(), std::numeric_limits<float>::max());
     std::generate_n(fmt_ptr, numel, [&engine, &dist]() { return dist(engine); });
   } else {
-    LOG(FATAL) << "Unsupported type:" << type;
+    CHECK_EQ(type.bytes(), 8) << "Unsupported type: " << type << ", type.bytes = " << type.bytes();
+    auto* fmt_ptr = reinterpret_cast<uint8_t*>(raw_ptr);
+    std::uniform_int_distribution<uint8_t> dist(std::numeric_limits<uint8_t>::min(),
+                                                std::numeric_limits<uint8_t>::max());
+    std::generate_n(fmt_ptr, numel, [&engine, &dist]() { return dist(engine); });
   }
 }
 
-// Initialize a tensor with 0.
-static void InitTensorData(Tensor tensor, const common::Target& target) {
+// Initialize a tensor with 0 if init_with_zero == true, otherwise initialize the tensor with random value.
+static void InitTensorData(Tensor tensor, const common::Target& target, bool init_with_zero) {
   int mem_size      = tensor->shape().numel() * tensor->type().bytes();
   auto* tensor_data = tensor->mutable_data(target, tensor->type());
 #ifdef CINN_WITH_CUDA
   if (target == common::DefaultNVGPUTarget()) {
-    cudaMemset(tensor_data, 0, mem_size);
-  } else if (target == common::DefaultHostTarget()) {
-    memset(tensor_data, 0, mem_size);
-  } else {
-    CINN_NOT_IMPLEMENTED
+    if (init_with_zero) {
+      cudaMemset(tensor_data, 0, mem_size);
+    } else {
+      void* tmp_buffer = malloc(mem_size);
+      PopulateRandomValue(tensor->type(), tensor->shape().numel(), tmp_buffer);
+      cudaMemcpy(tensor_data, tmp_buffer, mem_size, cudaMemcpyHostToDevice);
+      free(tmp_buffer);
+    }
   }
-#else
-  CHECK(target == common::DefaultHostTarget());
-  memset(tensor_data, 0, mem_size);
 #endif
+  if (target == common::DefaultHostTarget()) {
+    if (init_with_zero) {
+      memset(tensor_data, 0, mem_size);
+    } else {
+      PopulateRandomValue(tensor->type(), tensor->shape().numel(), tensor_data);
+    }
+  }
+}
+
+// Find all parameter names in the task corresponding to the MeasureInput
+// that need to be initialized to 0 when measuring.
+static std::unordered_set<std::string> ParamsNeedInitWithZero(const MeasureInput& input) {
+  std::unordered_set<std::string> res;
+  for (const auto& task_graph : input.task->task_graph) {
+    std::vector<hlir::framework::Node*> nodes = task_graph->CollectNodes();
+    for (auto* node : nodes) {
+      if (kInitWithZeroParams.count(node->op()->name) != 0) {
+        std::vector<int> param_idxs = kInitWithZeroParams.at(node->op()->name);
+        for (int param_idx : param_idxs) {
+          auto& edge             = node->inlinks_in_order().at(param_idx);
+          std::string param_name = edge->source()->as<hlir::framework::NodeData>()->id();
+          VLOG(6) << "param needs to be init with 0: " << param_name;
+          res.insert(param_name);
+        }
+      }
+    }
+  }
+
+  return res;
 }
 
 SimpleRunner::SimpleRunner(int repeat_times) : repeat_times_(repeat_times) {
@@ -89,6 +139,8 @@ std::map<std::string, cinn_pod_value_t> SimpleRunner::PrepareArgs(const MeasureI
   const auto* input_args     = input.execution_args;
   const auto* compiled_scope = build_result.compiled_scope;
   const auto& instructions   = build_result.runtime_program->GetRunInstructions();
+
+  std::unordered_set<std::string> params_need_init_with_zero = ParamsNeedInitWithZero(input);
 
   auto fill_arg_fn = [&](const std::string& param) {
     VLOG(6) << "Filling argument:" << param;
@@ -119,7 +171,7 @@ std::map<std::string, cinn_pod_value_t> SimpleRunner::PrepareArgs(const MeasureI
     temp_tensor->Resize(compiled_tensor->shape());
     temp_tensor->set_type(compiled_tensor->type());
     temp_tensor->mutable_data(target, compiled_tensor->type());
-    InitTensorData(temp_tensor, target);
+    InitTensorData(temp_tensor, target, params_need_init_with_zero.count(param) != 0);
 
     result.emplace(param, temp_tensor->buffer());
   };

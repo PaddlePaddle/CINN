@@ -642,42 +642,43 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
   return func;
 }
 
-void GraphCompiler::ProcessFunction(const std::vector<ir::LoweredFunc>& lowered_func) {
-  if (lowered_func.size() > 1) {
-    for (auto& i : lowered_func) {
-      VLOG(3) << "In lowered_func, its name is : " << i->name;
-      std::vector<std::string> input_args;
-      std::vector<std::string> output_args;
-      for (auto& j : i->args) {
-        std::string temp_arg = j.name();
-        if (temp_arg[0] == '_') temp_arg = temp_arg.substr(1);
-        if (j.io == ir::Argument::IO::kOutput)
-          output_args.push_back(temp_arg);
-        else if (j.io == ir::Argument::IO::kInput)
-          input_args.push_back(temp_arg);
-        auto* var = scope_->FindVar(temp_arg);
-        // For tensor not in scope, create it.
-        if (!var) {
-          auto* new_var = scope_->Var<Tensor>(temp_arg);
-          auto& tensor  = absl::get<Tensor>(*new_var);
-          std::vector<Shape::dim_t> shape;
-          CHECK(j.is_buffer());
-          VLOG(3) << "Tensor " << temp_arg << " is not found in scope. Now create it with shape:";
-          for (auto& shape_dim : j.buffer_arg()->shape) {
-            VLOG(3) << shape_dim << ",";
-            CHECK(shape_dim.is_constant());
-            shape.push_back(static_cast<int>(shape_dim.get_constant()));
-          }
-          tensor->Resize(Shape{shape});
-          tensor->set_type(j.type());
-        }
+void GraphCompiler::ProcessFunction(const std::vector<ir::LoweredFunc>& lowered_funcs) {
+  for (auto&& func : lowered_funcs) {
+    std::vector<std::string> input_args;
+    std::vector<std::string> output_args;
+    for (auto&& arg : func->args) {
+      std::string arg_name = arg.name();
+      if (arg_name[0] == '_') arg_name = arg_name.substr(1);
+      if (arg.io == ir::Argument::IO::kOutput)
+        output_args.push_back(arg_name);
+      else if (arg.io == ir::Argument::IO::kInput)
+        input_args.push_back(arg_name);
+      auto* var = scope_->FindVar(arg_name);
+      if (!arg.is_buffer()) {
+        VLOG(3) << "function:" << func->name << "-argument:" << arg_name << " type is not buffer, lowered_func:\n"
+                << func;
       }
-      function2input_args_[i->name]  = input_args;
-      function2output_args_[i->name] = output_args;
-      m_builder_.AddFunction(i);
+      if (!var && arg.is_buffer()) {  // For argument buffer not in scope, create it.
+        auto* new_var = scope_->Var<Tensor>(arg_name);
+        auto& tensor  = absl::get<Tensor>(*new_var);
+        std::vector<Shape::dim_t> shape;
+        for (auto& shape_dim : arg.buffer_arg()->shape) {
+          CHECK(shape_dim.is_constant());
+          shape.push_back(static_cast<int>(shape_dim.get_constant()));
+        }
+        tensor->Resize(Shape{shape});
+        tensor->set_type(arg.buffer_arg()->dtype);
+        VLOG(3) << utils::StringFormat(
+            "Will create a new variable in scope for argument[%s] in function[%s] with shape[%s],dtype[%s]",
+            arg_name.c_str(),
+            func->name.c_str(),
+            utils::Join(tensor->shape().data(), ","),
+            common::Type2Str(tensor->type()));
+      }
     }
-  } else {
-    m_builder_.AddFunction(lowered_func[0]);
+    function2input_args_[func->name]  = input_args;
+    function2output_args_[func->name] = output_args;
+    m_builder_.AddFunction(func);
   }
 }
 
@@ -1244,7 +1245,7 @@ static void BufferMallocWithCallback(void* args, int num_args) {
   cinn_pod_value_t* pod_args = static_cast<cinn_pod_value_t*>(args);
   for (int i = 0; i < num_args; ++i) {
     cinn_buffer_t* buffer = static_cast<cinn_buffer_t*>(pod_args[i]);
-    CHECK(buffer->external_malloc) << "external_malloc is nullptr";
+    CHECK(buffer->external_malloc) << "external_malloc is nullptr at " << i << "-th argumemnts";
     buffer->external_malloc->operator()(nullptr, buffer);
   }
 }
@@ -1305,6 +1306,7 @@ void GraphCompiler::InsertBufferHandlers(std::vector<std::unique_ptr<Instruction
       auto function_name           = "malloc_buffer_instruction_" + std::to_string(step);
       auto malloc_instr            = std::make_unique<Instruction>(
           common::DefaultHostTarget(), scope_.get(), malloc_var_names, std::vector<std::string>({}), function_name);
+      VLOG(4) << "seting malloc function " << function_name << " for var " << cinn::utils::Join(malloc_var_names, ", ");
       malloc_instr->SetLoweredFunc(reinterpret_cast<void*>(BufferMallocWithCallback), function_name);
       malloc_instr->Finalize();
       results.emplace_back(std::move(malloc_instr));
@@ -1321,6 +1323,7 @@ void GraphCompiler::InsertBufferHandlers(std::vector<std::unique_ptr<Instruction
       auto function_name         = "free_buffer_instruction_" + std::to_string(step);
       auto free_instr            = std::make_unique<Instruction>(
           common::DefaultHostTarget(), scope_.get(), std::vector<std::string>({}), free_var_names, function_name);
+      VLOG(4) << "seting free function " << function_name << " for var " << cinn::utils::Join(free_var_names, ", ");
       free_instr->SetLoweredFunc(reinterpret_cast<void*>(BufferFreeWithCallback), function_name);
       free_instr->Finalize();
       results.emplace_back(std::move(free_instr));
