@@ -101,8 +101,6 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
     for (auto &t : out) {
       stages->InsertLazily(t);
     }
-    auto out_shape_e = ToCinnExprs(output_shape);
-    out[0]->Reshape(out_shape_e, stages);
 
     for (auto &t : out) {
       res.push_back(CINNValue(t));
@@ -537,8 +535,6 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
     for (auto &t : out) {
       stages->InsertLazily(t);
     }
-    auto out_shape_e = ToCinnExprs(output_shape);
-    out[0]->Reshape(out_shape_e, stages);
 
     for (auto &t : out) {
       res.push_back(CINNValue(t));
@@ -1367,7 +1363,7 @@ std::shared_ptr<OpStrategy> StrategyForSlice(const framework::NodeAttr &attrs,
                                              const std::vector<Type> &out_type,
                                              const std::vector<std::vector<int>> &output_shapes,
                                              const Target &target) {
-  std::vector<int> starts, ends, axes, strides;
+  std::vector<int> starts, ends, axes, strides, decrease_axis;
   if (attrs.attr_store.find("starts") != attrs.attr_store.end()) {
     starts = absl::get<std::vector<int>>(attrs.attr_store.at("starts"));
   }
@@ -1379,6 +1375,9 @@ std::shared_ptr<OpStrategy> StrategyForSlice(const framework::NodeAttr &attrs,
   }
   if (attrs.attr_store.find("strides") != attrs.attr_store.end()) {
     strides = absl::get<std::vector<int>>(attrs.attr_store.at("strides"));
+  }
+  if (attrs.attr_store.find("decrease_axis") != attrs.attr_store.end()) {
+    decrease_axis = absl::get<std::vector<int>>(attrs.attr_store.at("decrease_axis"));
   }
 
   CHECK(!starts.empty()) << "The Slice op doesn't find [starts] attrbute! It it a mandatory attribute, please check.";
@@ -1419,7 +1418,7 @@ std::shared_ptr<OpStrategy> StrategyForSlice(const framework::NodeAttr &attrs,
       tensor_name = arg_pack[1].operator std::string();
     }
 
-    auto out    = pe::Slice(A, starts, axes, strides, output_shape, tensor_name);
+    auto out    = pe::Slice(A, starts, axes, strides, decrease_axis, output_shape, tensor_name);
     auto stages = CreateStages({out});
     *ret        = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
   });
@@ -1433,7 +1432,7 @@ std::shared_ptr<OpStrategy> StrategyForSlice(const framework::NodeAttr &attrs,
 std::vector<std::vector<int>> InferShapeForSlice(const std::vector<std::vector<int>> &inputs_shape,
                                                  const framework::AttrMapType &attrs) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
-  std::vector<int> starts, ends, axes, strides;
+  std::vector<int> starts, ends, axes, strides, decrease_axis, infer_flags;
   for (auto &iter : attrs) {
     if (iter.first == "starts") {
       starts = absl::get<std::vector<int>>(iter.second);
@@ -1443,12 +1442,10 @@ std::vector<std::vector<int>> InferShapeForSlice(const std::vector<std::vector<i
       axes = absl::get<std::vector<int>>(iter.second);
     } else if (iter.first == "strides") {
       strides = absl::get<std::vector<int>>(iter.second);
+    } else if (iter.first == "decrease_axis") {
+      decrease_axis = absl::get<std::vector<int>>(iter.second);
     } else if (iter.first == "infer_flags") {
-      auto infer_flags = absl::get<std::vector<int>>(iter.second);
-      if (std::find_if(infer_flags.begin(), infer_flags.end(), [](int v) { return v < 0; }) != infer_flags.end()) {
-        LOG(WARNING) << "The attr [infer_flags] has negative values, and its value is "
-                     << utils::Join(infer_flags, ", ");
-      }
+      infer_flags = absl::get<std::vector<int>>(iter.second);
     } else {
       LOG(ERROR) << "Unsupported attr: " << iter.first << std::endl;
     }
@@ -1497,6 +1494,21 @@ std::vector<std::vector<int>> InferShapeForSlice(const std::vector<std::vector<i
       output_shape[axes[i]] = (starts[i] - ends[i] + (-strides[i]) - 1) / (-strides[i]);
     }
   }
+
+  if (decrease_axis.size() > 0) {
+    std::vector<int> new_shape;
+    for (int i = 0; i < output_shape.size(); ++i) {
+      if (std::find(decrease_axis.cbegin(), decrease_axis.cend(), i) != decrease_axis.cend()) {
+        CHECK_EQ(output_shape[i], 1) << "Decrease dim should be 1, but now received " << output_shape[i];
+      } else {
+        new_shape.emplace_back(output_shape[i]);
+      }
+    }
+    CHECK(!new_shape.empty()) << "Cannot decrease all dims, the output shape of slice should not empty!";
+
+    output_shape = new_shape;
+  }
+
   VLOG(4) << "Output shape of Slice is: " << cinn::utils::Join(output_shape, ",");
   std::vector<std::vector<int>> res{output_shape};
   return res;

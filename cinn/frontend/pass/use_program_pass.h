@@ -16,6 +16,7 @@
 
 #include "cinn/common/macros.h"
 
+CINN_USE_REGISTER(AutoCast)
 CINN_USE_REGISTER(Decomposer)
 CINN_USE_REGISTER(DeadCodeEliminate)
 CINN_USE_REGISTER(RemoveIdentity)

@@ -24,8 +24,9 @@
 #include <immintrin.h>
 #endif
 
-#include <math.h>
 #include <stdint.h>
+
+#include <cmath>
 
 #ifdef CINN_WITH_CUDA
 #include <cuda.h>

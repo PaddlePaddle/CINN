@@ -219,8 +219,12 @@ CONDITION_FUNC(horizontal_or_vertical_reduce_relation) {
 CONDITION_FUNC(horizontal_or_can_inline) {
   // horizontal relation.
   if (is_horizontal_relation(helper, producer, consumer)) {
-    CHECK(is_same_size(helper, producer, consumer));
-    return true;
+    if (is_same_size(helper, producer, consumer)) {
+      return true;
+    } else {
+      // if do broadcast, check can compute inline.
+      return helper->output_nodes_set_.count(producer) == 0;
+    }
   }
   // vertical relation: 1.can compute inline
   if (helper->GetNodeData(producer)->outlinks().size() == 1 && helper->output_nodes_set_.count(producer) == 0) {
