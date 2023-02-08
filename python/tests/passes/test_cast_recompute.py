@@ -64,9 +64,7 @@ class TestSimpleRecomputePassCase1(PassTest):
 
     def test_check_results(self):
         self.check_pass_outputs(
-            pass_diff=-3,
-            test_passes=["CastRecomputePass"],
-            max_relative_error=1e-2)
+            pass_diff=-3, test_passes=["CastRecomputePass"])
 
 
 if __name__ == "__main__":
