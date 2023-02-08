@@ -157,7 +157,7 @@ if (NOT "${PROTOBUF_ROOT}" STREQUAL "")
     endif()
 endif()
 
-FUNCTION(build_protobuf TARGET_NAME BUILD_FOR_HOST)
+FUNCTION(build_protobuf TARGET_NAME)
     STRING(REPLACE "extern_" "" TARGET_DIR_NAME "${TARGET_NAME}")
     SET(PROTOBUF_SOURCES_DIR ${THIRD_PARTY_PATH}/${TARGET_DIR_NAME})
     SET(PROTOBUF_INSTALL_DIR ${THIRD_PARTY_PATH}/install/${TARGET_DIR_NAME})
@@ -182,96 +182,48 @@ FUNCTION(build_protobuf TARGET_NAME BUILD_FOR_HOST)
     SET(OPTIONAL_CACHE_ARGS "")
     SET(OPTIONAL_ARGS "")
 
-    IF(BUILD_FOR_HOST)
-        SET(OPTIONAL_ARGS
-            "-DCMAKE_C_COMPILER=${HOST_C_COMPILER}"
-            "-DCMAKE_CXX_COMPILER=${HOST_CXX_COMPILER}"
-            "-Dprotobuf_WITH_ZLIB=OFF"
-            "-DZLIB_ROOT:FILEPATH=${ZLIB_ROOT}")
-        SET(OPTIONAL_CACHE_ARGS "-DZLIB_ROOT:STRING=${ZLIB_ROOT}")
-    ELSE()
-        # protobuf have compile issue when use android stl c++_static
-        SET(PROTOBUF_REPO "https://github.com/tensor-tang/protobuf.git")
-        SET(PROTOBUF_TAG "mobile")
-        SET(OPTIONAL_ARGS "-Dprotobuf_WITH_ZLIB=OFF"
-                ${CROSS_COMPILE_CMAKE_ARGS}
-                "-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}"
-                "-DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}"
-                "-DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}"
-                "-DCMAKE_C_FLAGS_DEBUG=${CMAKE_C_FLAGS_DEBUG}"
-                "-DCMAKE_C_FLAGS_RELEASE=${CMAKE_C_FLAGS_RELEASE}"
-                "-DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}"
-                "-DCMAKE_CXX_FLAGS_RELEASE=${CMAKE_CXX_FLAGS_RELEASE}"
-                "-DCMAKE_CXX_FLAGS_DEBUG=${CMAKE_CXX_FLAGS_DEBUG}")
-    ENDIF()
+    
+    SET(OPTIONAL_ARGS
+        "-DCMAKE_C_COMPILER=${HOST_C_COMPILER}"
+        "-DCMAKE_CXX_COMPILER=${HOST_CXX_COMPILER}"
+        "-Dprotobuf_WITH_ZLIB=OFF"
+        "-DZLIB_ROOT:FILEPATH=${ZLIB_ROOT}")
+    SET(OPTIONAL_CACHE_ARGS "-DZLIB_ROOT:STRING=${ZLIB_ROOT}")
     IF(WIN32)
         SET(OPTIONAL_ARGS ${OPTIONAL_ARGS} "-DCMAKE_GENERATOR_PLATFORM=x64")
     ENDIF()
 
-    if(LITE_WITH_LIGHT_WEIGHT_FRAMEWORK)
-        ExternalProject_Add(
-            ${TARGET_NAME}
-            ${EXTERNAL_PROJECT_LOG_ARGS}
-            PREFIX          ${PROTOBUF_SOURCES_DIR}
-            SOURCE_SUBDIR   cmake
-            UPDATE_COMMAND  ""
-            GIT_REPOSITORY  ${PROTOBUF_REPO}
-            GIT_TAG         ${PROTOBUF_TAG}
-            CMAKE_ARGS
-                ${OPTIONAL_ARGS}
-                -Dprotobuf_BUILD_TESTS=OFF
-                -DCMAKE_SKIP_RPATH=ON
-                -DCMAKE_POSITION_INDEPENDENT_CODE=ON
-                -DCMAKE_BUILD_TYPE=${THIRD_PARTY_BUILD_TYPE}
-                -DCMAKE_INSTALL_PREFIX=${PROTOBUF_INSTALL_DIR}
-                -DCMAKE_INSTALL_LIBDIR=lib
-                -DBUILD_SHARED_LIBS=OFF
-            CMAKE_CACHE_ARGS
-                -DCMAKE_INSTALL_PREFIX:PATH=${PROTOBUF_INSTALL_DIR}
-                -DCMAKE_BUILD_TYPE:STRING=${THIRD_PARTY_BUILD_TYPE}
-                -DCMAKE_VERBOSE_MAKEFILE:BOOL=OFF
-                -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=ON
-                ${OPTIONAL_CACHE_ARGS}
-        )
-    else()
-        ExternalProject_Add(
-            ${TARGET_NAME}
-            ${EXTERNAL_PROJECT_LOG_ARGS}
-            PREFIX          ${PROTOBUF_SOURCES_DIR}
-            UPDATE_COMMAND  ""
-            GIT_REPOSITORY  ${PROTOBUF_REPO}
-            GIT_TAG         ${PROTOBUF_TAG}
-            CONFIGURE_COMMAND
-            ${CMAKE_COMMAND} ${PROTOBUF_SOURCES_DIR}/src/${TARGET_NAME}/cmake
-                ${OPTIONAL_ARGS}
-                -Dprotobuf_BUILD_TESTS=OFF
-                -DCMAKE_SKIP_RPATH=ON
-                -DCMAKE_POSITION_INDEPENDENT_CODE=ON
-                -DCMAKE_BUILD_TYPE=${THIRD_PARTY_BUILD_TYPE}
-                -DCMAKE_INSTALL_PREFIX=${PROTOBUF_INSTALL_DIR}
-                -DCMAKE_INSTALL_LIBDIR=lib
-                -DBUILD_SHARED_LIBS=OFF
-            CMAKE_CACHE_ARGS
-                -DCMAKE_INSTALL_PREFIX:PATH=${PROTOBUF_INSTALL_DIR}
-                -DCMAKE_BUILD_TYPE:STRING=${THIRD_PARTY_BUILD_TYPE}
-                -DCMAKE_VERBOSE_MAKEFILE:BOOL=OFF
-                -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=ON
-                ${OPTIONAL_CACHE_ARGS}
-        )
-    endif()
+    ExternalProject_Add(
+        ${TARGET_NAME}
+        ${EXTERNAL_PROJECT_LOG_ARGS}
+        PREFIX          ${PROTOBUF_SOURCES_DIR}
+        UPDATE_COMMAND  ""
+        GIT_REPOSITORY  ${PROTOBUF_REPO}
+        GIT_TAG         ${PROTOBUF_TAG}
+        CONFIGURE_COMMAND
+        ${CMAKE_COMMAND} ${PROTOBUF_SOURCES_DIR}/src/${TARGET_NAME}/cmake
+            ${OPTIONAL_ARGS}
+            -Dprotobuf_BUILD_TESTS=OFF
+            -DCMAKE_SKIP_RPATH=ON
+            -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+            -DCMAKE_BUILD_TYPE=${THIRD_PARTY_BUILD_TYPE}
+            -DCMAKE_INSTALL_PREFIX=${PROTOBUF_INSTALL_DIR}
+            -DCMAKE_INSTALL_LIBDIR=lib
+            -DBUILD_SHARED_LIBS=OFF
+        CMAKE_CACHE_ARGS
+            -DCMAKE_INSTALL_PREFIX:PATH=${PROTOBUF_INSTALL_DIR}
+            -DCMAKE_BUILD_TYPE:STRING=${THIRD_PARTY_BUILD_TYPE}
+            -DCMAKE_VERBOSE_MAKEFILE:BOOL=OFF
+            -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=ON
+            ${OPTIONAL_CACHE_ARGS}
+    )
 ENDFUNCTION()
 
 SET(PROTOBUF_VERSION 4.21.12)
 
-IF(LITE_WITH_LIGHT_WEIGHT_FRAMEWORK)
-    build_protobuf(protobuf_host TRUE)
-    LIST(APPEND external_project_dependencies protobuf_host)
-    SET(PROTOBUF_PROTOC_EXECUTABLE ${protobuf_host_PROTOC_EXECUTABLE}
-        CACHE FILEPATH "protobuf executable." FORCE)
-ENDIF()
-
 IF(NOT PROTOBUF_FOUND)
-    build_protobuf(extern_protobuf FALSE)
+    message("No protobuf was found, build from external git")
+    build_protobuf(extern_protobuf)
 
     SET(PROTOBUF_INCLUDE_DIR ${extern_protobuf_INCLUDE_DIR}
         CACHE PATH "protobuf include directory." FORCE)
@@ -281,13 +233,8 @@ IF(NOT PROTOBUF_FOUND)
         CACHE FILEPATH "protobuf library." FORCE)
     SET(PROTOBUF_PROTOC_LIBRARY ${extern_protobuf_PROTOC_LIBRARY}
         CACHE FILEPATH "protoc library." FORCE)
-
-    IF(LITE_WITH_LIGHT_WEIGHT_FRAMEWORK)
-        PROMPT_PROTOBUF_LIB(protobuf_host extern_protobuf)
-    ELSE()
-        SET(PROTOBUF_PROTOC_EXECUTABLE ${extern_protobuf_PROTOC_EXECUTABLE}
-            CACHE FILEPATH "protobuf executable." FORCE)
-        PROMPT_PROTOBUF_LIB(extern_protobuf)
-    ENDIF()
+    SET(PROTOBUF_PROTOC_EXECUTABLE ${extern_protobuf_PROTOC_EXECUTABLE}
+        CACHE FILEPATH "protobuf executable." FORCE)
+    PROMPT_PROTOBUF_LIB(extern_protobuf)
 
 ENDIF(NOT PROTOBUF_FOUND)
