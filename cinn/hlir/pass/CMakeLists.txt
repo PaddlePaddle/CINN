@@ -18,6 +18,7 @@ gather_srcs(cinnapi_src SRCS
 if (WITH_CUDA)
 cc_test(test_primitive_ops SRCS test_primitive_ops.cc DEPS cinncore)
 cc_test(test_const_propagate SRCS const_propagate_test.cc DEPS cinncore)
+cc_test(test_dot_merger_pass SRCS dot_merger_test.cc DEPS cinncore)
 
 # TODO(thisjiang): move when test bug in x86 is fixed
 cc_test(test_check_fusion_accuracy_pass SRCS check_fusion_accuracy_pass_test.cc DEPS cinncore decomposer_test_helper)
