@@ -123,6 +123,8 @@ class TestSliceOpWithDecreaseAxis(OpTest):
             else:
                 out_shape.append(y.shape[i])
 
+        if len(out_shape) == 0:
+            out_shape = [1]
         res = paddle.reshape(y, out_shape)
         self.paddle_outputs = [res]
 
@@ -145,6 +147,16 @@ class TestSliceOpWithDecreaseAxis(OpTest):
 
     def test_check_results(self):
         self.check_outputs_and_grads(all_equal=True)
+
+
+class TestSliceOpWithDecreaseAxisCase1(TestSliceOpWithDecreaseAxis):
+    def init_case(self):
+        self.inputs = {"inputs": np.random.random([10, 12]).astype("float32")}
+        self.axes = [0, 1]
+        self.starts = [2, 2]
+        self.ends = [5, 3]
+        self.strides = [1, 1]
+        self.decrease_axis = [0, 1]
 
 
 if __name__ == "__main__":
