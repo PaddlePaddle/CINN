@@ -59,6 +59,10 @@ class TestCumsumOp(OpMapperTest):
 
 
 class TestCumsumCase1(TestCumsumOp):
+    """
+    Test case with negative axis
+    """
+
     def init_input_data(self):
         super().init_input_data()
         self.axis = -3
