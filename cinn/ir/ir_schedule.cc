@@ -1829,31 +1829,46 @@ std::vector<Expr> ScheduleImpl::SamplePerfectTile(const uint32_t seed,
 
 IRSchedule::IRSchedule() {}
 
-IRSchedule::IRSchedule(const ModuleExpr& module_expr, bool debug_flag) {
+IRSchedule::IRSchedule(const ModuleExpr& module_expr, utils::LinearRandomEngine::StateType rand_seed, bool debug_flag) {
   impl_ = std::make_unique<ScheduleImpl>(module_expr, debug_flag);
+  this->InitSeed(rand_seed);
 }
 
-IRSchedule::IRSchedule(ir::ModuleExpr&& mod_expr, ScheduleDesc&& trace)
-    : impl_(std::make_unique<ScheduleImpl>(std::move(mod_expr))), trace_(std::move(trace)) {}
+IRSchedule::IRSchedule(ir::ModuleExpr&& mod_expr, ScheduleDesc&& trace, utils::LinearRandomEngine::StateType rand_seed)
+    : impl_(std::make_unique<ScheduleImpl>(std::move(mod_expr))), trace_(std::move(trace)) {
+  this->InitSeed(rand_seed);
+}
 
 IRSchedule::IRSchedule(const IRSchedule& other)
-    : impl_(std::make_unique<ScheduleImpl>(optim::IRCopy(other.GetModule()))), trace_(other.trace_) {}
+    : impl_(std::make_unique<ScheduleImpl>(optim::IRCopy(other.GetModule()))), trace_(other.trace_) {
+  this->InitSeed(other.ForkSeed());
+}
 
 IRSchedule& IRSchedule::operator=(const IRSchedule& src) {
   impl_  = std::make_unique<ScheduleImpl>(optim::IRCopy(src.GetModule()));
   trace_ = src.trace_;
+  this->InitSeed(src.ForkSeed());
   return *this;
 }
 
-IRSchedule::IRSchedule(IRSchedule&& other) : impl_(std::move(other.impl_)), trace_(std::move(other.trace_)) {}
+IRSchedule::IRSchedule(IRSchedule&& other) : impl_(std::move(other.impl_)), trace_(std::move(other.trace_)) {
+  this->InitSeed(other.ForkSeed());
+}
 
 IRSchedule& IRSchedule::operator=(IRSchedule&& src) {
   impl_  = std::move(src.impl_);
   trace_ = std::move(src.trace_);
+  this->InitSeed(src.ForkSeed());
   return *this;
 }
 
 IRSchedule::~IRSchedule() {}
+
+void IRSchedule::InitSeed(utils::LinearRandomEngine::StateType rand_seed) {
+  this->rand_seed_ = utils::LinearRandomEngine::NormalizeState(rand_seed);
+}
+
+utils::LinearRandomEngine::StateType IRSchedule::ForkSeed() const { return utils::ForkRandomState(&rand_seed_); }
 
 void IRSchedule::SetExprs(const std::vector<Expr>& exprs) {
   return impl_->SetExprs(exprs);
