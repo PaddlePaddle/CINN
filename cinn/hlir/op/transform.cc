@@ -929,7 +929,7 @@ std::shared_ptr<OpStrategy> StrategyForTranspose(const framework::NodeAttr &attr
     CHECK_EQ(axis.size(), output_shapes[0].size())
         << "axis size is not equal output_shapes size! Please check setting.\n";
     // check axis and shape
-    for (int idx = 0; idx < axis.size(); ++idx) {
+    for (int idx = 1; idx < axis.size(); ++idx) {
       CHECK(axis[idx] >= 0 && axis[idx] < axis.size());
       for (int idy = idx + 1; idy < axis.size(); ++idy) {
         CHECK_NE(axis[idx], axis[idy]) << "axis can't repeat!";
@@ -959,8 +959,13 @@ std::shared_ptr<OpStrategy> StrategyForTranspose(const framework::NodeAttr &attr
     *ret        = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
   });
 
+  std::vector<std::vector<int>> tmp;
+  for (auto &shape : output_shapes) {
+    tmp.emplace_back(shape.begin() + 1, shape.end());
+  }
+
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(transpose_compute, GetInjectiveScheduleFunc(output_shapes, target), "strategy.transpose.x86", 1);
+  strategy->AddImpl(transpose_compute, GetInjectiveScheduleFunc(tmp, target), "strategy.transpose.x86", 1);
   return strategy;
 }
 
@@ -972,6 +977,7 @@ std::vector<framework::shape_t> InferShapeForTranspose(const std::vector<framewo
     auto axis = absl::get<std::vector<int>>(attrs.at("axis"));
     CHECK_EQ(axis.size(), inputs_shape[0].size()) << "input size and axis size is not equal!";
     std::vector<int> output_shape;
+    output_shape.push_back(0);
     for (int idx = 0; idx < axis.size(); ++idx) {
       CHECK(axis[idx] >= 0 && axis[idx] < axis.size());
       for (int idy = idx + 1; idy < axis.size(); ++idy) {
