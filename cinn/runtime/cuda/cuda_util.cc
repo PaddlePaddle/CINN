@@ -240,7 +240,6 @@ void cinn_call_cublas(void *v_args,
       void **ptr_b = ptr.data() + std::max(l1, r1) * std::max(l2, r2);
       void **ptr_c = ptr.data() + std::max(l1, r1) * std::max(l2, r2) * 2;
 
-      int bytes = (cuda_dtype == CUDA_R_32F) ? 4 : 2;
       for (int idx = 0, index = 0; idx < std::max(l1, r1); ++idx) {
         for (int idy = 0; idy < std::max(l2, r2); ++idy) {
           ptr_a[index] = reinterpret_cast<uint8_t *>(lhs) + (idx * bstride_l + idy * stride_l) * bytes;
@@ -271,6 +270,128 @@ void cinn_call_cublas(void *v_args,
       CUDA_CALL(cudaFreeAsync(ptr_arr, custream));
     }
   }
+}
+
+void cinn_call_batched_cublas(void *v_args,
+                              int num_args,
+                              int opside,
+                              bool trans_a,
+                              bool trans_b,
+                              bool trans_o,
+                              float alpha,
+                              float beta,
+                              int a1,
+                              int a2,
+                              int a3,
+                              int a4,
+                              int b1,
+                              int b2,
+                              int b3,
+                              int b4,
+                              void *stream) {
+  // A * [B, C, D, ...] or [B, C, D, ...] * A
+  CHECK_EQ((num_args - 1) % 2, 0);
+  cublasHandle_t &cuhandle = CublasHandle::GetInstance().GetCublasHandle();
+  cinn_pod_value_t *args   = static_cast<cinn_pod_value_t *>(v_args);
+  cudaStream_t custream    = static_cast<cudaStream_t>(stream);
+  CUBLAS_CALL(cublasSetStream(cuhandle, custream));
+
+  cudaDataType_t cuda_dtype;
+  auto type_code = args[0].operator cinn_buffer_t *()->type.code;
+  bool is_float  = type_code == cinn_type_float;
+  int bytes      = args[0].operator cinn_buffer_t *()->type.bits / CHAR_BIT;
+  if (is_float && bytes == sizeof(common::float16)) {
+    cuda_dtype = CUDA_R_16F;
+  } else if (is_float && bytes == sizeof(float)) {
+    cuda_dtype = CUDA_R_32F;
+  } else {
+    LOG(FATAL) << "unsupported cublas data type: " << static_cast<int>(type_code) << ", bytes = " << bytes;
+  }
+
+  int m = trans_o ? (trans_a ? a4 : a3) : (trans_b ? b3 : b4);
+  int n = trans_o ? (trans_b ? b3 : b4) : (trans_a ? a4 : a3);
+  int k = trans_a ? a3 : a4;
+
+  cublasOperation_t trans_op_l =
+      trans_o ? (trans_a ? CUBLAS_OP_N : CUBLAS_OP_T) : (trans_b ? CUBLAS_OP_T : CUBLAS_OP_N);
+  cublasOperation_t trans_op_r =
+      trans_o ? (trans_b ? CUBLAS_OP_N : CUBLAS_OP_T) : (trans_a ? CUBLAS_OP_T : CUBLAS_OP_N);
+  int ldl = trans_op_l == CUBLAS_OP_N ? m : k;  // trans_o ? (trans_a ? k : m) : (trans_b ? k : m);
+  int ldr = trans_op_r == CUBLAS_OP_N ? k : n;  // trans_o ? (trans_b ? n : k) : (trans_a ? n : k);
+  int ldc = m;
+
+  int l1 = trans_o ? a1 : b1, l2 = trans_o ? a2 : b2, l3 = trans_o ? a3 : b3, l4 = trans_o ? a4 : b4;
+  int r1 = trans_o ? b1 : a1, r2 = trans_o ? b2 : a2, r3 = trans_o ? b3 : a3, r4 = trans_o ? b4 : a4;
+
+  // (N, L): L * M * K
+  // (N, 1): 1 * M * K
+  // (1, L): 0
+  // (1, 1): 0
+  int bstride_l = (l1 != 1 && l2 != 1) ? (l2 * m * k) : ((l1 != 1) ? m * k : 0);
+  int bstride_r = (r1 != 1 && r2 != 1) ? (r2 * k * n) : ((r1 != 1) ? k * n : 0);
+  int bstride_c = std::max(l2, r2) * m * n;
+  // (N, L): K * N
+  // (N, 1): 0
+  // (1, L): K * N
+  // (1, 1): 0
+  int stride_l = l2 == 1 ? 0 : l3 * l4;
+  int stride_r = r2 == 1 ? 0 : r3 * r4;
+
+  int num_gemm = ((num_args - 1) / 2);
+  std::vector<void *> ptr(3 * std::max(l1, r1) * std::max(l2, r2) * num_gemm);
+  void **ptr_a = ptr.data();
+  void **ptr_b = ptr.data() + std::max(l1, r1) * std::max(l2, r2) * num_gemm;
+  void **ptr_c = ptr.data() + std::max(l1, r1) * std::max(l2, r2) * num_gemm * 2;
+
+  void **ptr_arr        = nullptr;
+  cudaStream_t g_stream = CublasHandle::GetInstance().GetCuStream();
+  CUDA_CALL(cudaMallocAsync(&ptr_arr, sizeof(void *) * ptr.size(), g_stream));
+
+  for (int g = 0, index = 0; g < num_gemm; ++g) {
+    void *A = args[0].operator cinn_buffer_t *()->memory;
+    void *B = args[1 + g].operator cinn_buffer_t *()->memory;
+    void *C = args[1 + num_gemm + g].operator cinn_buffer_t *()->memory;
+
+    // if opside is 1, exhange A,B.
+    if (opside) {
+      auto tmp = A;
+      A        = B;
+      B        = tmp;
+    }
+
+    void *lhs = trans_o ? A : B;
+    void *rhs = trans_o ? B : A;
+
+    for (int idx = 0; idx < std::max(l1, r1); ++idx) {
+      for (int idy = 0; idy < std::max(l2, r2); ++idy) {
+        ptr_a[index] = reinterpret_cast<uint8_t *>(lhs) + (idx * bstride_l + idy * stride_l) * bytes;
+        ptr_b[index] = reinterpret_cast<uint8_t *>(rhs) + (idx * bstride_r + idy * stride_r) * bytes;
+        ptr_c[index] = reinterpret_cast<uint8_t *>(C) + (idx * bstride_c + idy * m * n) * bytes;
+        ++index;
+      }
+    }
+  }
+
+  CUDA_CALL(cudaMemcpyAsync(ptr_arr, ptr.data(), ptr.size() * sizeof(void *), cudaMemcpyHostToDevice, g_stream));
+  CUDA_CALL(cudaStreamSynchronize(g_stream));
+
+  CUBLAS_CALL(cublasGemmBatched(cuda_dtype,
+                                cuhandle,
+                                trans_op_l,
+                                trans_op_r,
+                                m,
+                                n,
+                                k,
+                                alpha,
+                                ptr_arr,
+                                ldl,
+                                ptr_arr + std::max(l1, r1) * std::max(l2, r2) * num_gemm,
+                                ldr,
+                                beta,
+                                ptr_arr + std::max(l1, r1) * std::max(l2, r2) * 2 * num_gemm,
+                                ldc,
+                                std::max(l1, r1) * std::max(l2, r2) * num_gemm));
+  CUDA_CALL(cudaFreeAsync(ptr_arr, custream));
 }
 
 #ifdef CINN_WITH_CUDNN

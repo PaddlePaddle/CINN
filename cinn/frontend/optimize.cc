@@ -29,7 +29,7 @@
 
 DECLARE_bool(cinn_use_fill_constant_folding);
 DECLARE_bool(cinn_use_op_fusion);
-DECLARE_bool(cinn_use_gemm_rewriter);
+DECLARE_bool(cinn_use_cublas_gemm);
 DECLARE_bool(cinn_check_fusion_accuracy_pass);
 DECLARE_bool(cinn_use_custom_call);
 
@@ -47,7 +47,7 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
   options.program_passes.emplace_back("RemoveIdentity");
 
 #ifdef CINN_WITH_CUDA
-  if (FLAGS_cinn_use_gemm_rewriter) {
+  if (FLAGS_cinn_use_cublas_gemm) {
     options.program_passes.emplace_back("TransposeFoldingInput");
     options.program_passes.emplace_back("GemmRewriter");
     options.program_passes.emplace_back("TransposeFoldingOutput");
@@ -66,6 +66,11 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
   if (FLAGS_cinn_use_custom_call) {
     options.graph_passes.emplace_back("TransToCustomCallPass");
   }
+#ifdef CINN_WITH_CUDA
+  if (FLAGS_cinn_use_cublas_gemm) {
+    options.graph_passes.push_back("DenseMergePass");
+  }
+#endif
 
   if (FLAGS_cinn_use_op_fusion) {
     options.graph_passes.push_back("OpFusionPass");

@@ -114,6 +114,24 @@ void cinn_call_cublas(void* v_args,
                       int b4,
                       void* stream);
 
+void cinn_call_batched_cublas(void* v_args,
+                              int num_args,
+                              int opside,
+                              bool trans_a,
+                              bool trans_b,
+                              bool trans_o,
+                              float alpha,
+                              float beta,
+                              int a1,
+                              int a2,
+                              int a3,
+                              int a4,
+                              int b1,
+                              int b2,
+                              int b3,
+                              int b4,
+                              void* stream);
+
 #ifdef CINN_WITH_CUDNN
 
 void cinn_call_cudnn_conv2d_forward(void* v_args,

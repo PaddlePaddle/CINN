@@ -39,9 +39,8 @@ DEFINE_int32(cinn_parallel_compile_size,
 
 DEFINE_bool(cinn_use_op_fusion, BoolFromEnv("FLAGS_cinn_use_op_fusion", true), "Whether to use op fusion pass.");
 
-DEFINE_bool(cinn_use_gemm_rewriter,
-            BoolFromEnv("FLAGS_cinn_use_gemm_rewriter", true),
-            "Whether to use GemmRewriter pass to rewrite matmul");
+DEFINE_bool(cinn_use_cublas_gemm, BoolFromEnv("FLAGS_cinn_use_cublas_gemm", true), "Whether to use cublas gemm.");
+
 DEFINE_string(cinn_custom_call_deny_ops,
               StringFromEnv("FLAGS_cinn_custom_call_deny_ops", ""),
               "a blacklist of op are denied by MarkCustomCallOps pass, separated by ;");
