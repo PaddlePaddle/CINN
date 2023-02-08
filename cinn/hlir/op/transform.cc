@@ -1363,7 +1363,7 @@ std::shared_ptr<OpStrategy> StrategyForSlice(const framework::NodeAttr &attrs,
                                              const std::vector<Type> &out_type,
                                              const std::vector<std::vector<int>> &output_shapes,
                                              const Target &target) {
-  std::vector<int> starts, ends, axes, strides;
+  std::vector<int> starts, ends, axes, strides, decrease_axis;
   if (attrs.attr_store.find("starts") != attrs.attr_store.end()) {
     starts = absl::get<std::vector<int>>(attrs.attr_store.at("starts"));
   }
@@ -1375,6 +1375,9 @@ std::shared_ptr<OpStrategy> StrategyForSlice(const framework::NodeAttr &attrs,
   }
   if (attrs.attr_store.find("strides") != attrs.attr_store.end()) {
     strides = absl::get<std::vector<int>>(attrs.attr_store.at("strides"));
+  }
+  if (attrs.attr_store.find("decrease_axis") != attrs.attr_store.end()) {
+    decrease_axis = absl::get<std::vector<int>>(attrs.attr_store.at("decrease_axis"));
   }
 
   CHECK(!starts.empty()) << "The Slice op doesn't find [starts] attrbute! It it a mandatory attribute, please check.";
@@ -1415,7 +1418,7 @@ std::shared_ptr<OpStrategy> StrategyForSlice(const framework::NodeAttr &attrs,
       tensor_name = arg_pack[1].operator std::string();
     }
 
-    auto out    = pe::Slice(A, starts, axes, strides, output_shape, tensor_name);
+    auto out    = pe::Slice(A, starts, axes, strides, decrease_axis, output_shape, tensor_name);
     auto stages = CreateStages({out});
     *ret        = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
   });
@@ -1492,28 +1495,16 @@ std::vector<std::vector<int>> InferShapeForSlice(const std::vector<std::vector<i
     }
   }
 
-  std::vector<uint8_t> decrease_flag(output_shape.size(), 0);
   if (decrease_axis.size() > 0) {
-    for (size_t i = 0; i < decrease_axis.size(); ++i) {
-      int axis            = decrease_axis[i];
-      decrease_flag[axis] = 1;
-      if (infer_flags[i] != -1) {
-        CHECK_EQ(output_shape[axis], 1) << "Decrease dim should be 1, but now received " << output_shape[axis];
-      }
-    }
-
     std::vector<int> new_shape;
     for (int i = 0; i < output_shape.size(); ++i) {
-      if (decrease_flag[i] == 0) {
-        new_shape.push_back(output_shape[i]);
+      if (std::find(decrease_axis.cbegin(), decrease_axis.cend(), i) != decrease_axis.cend()) {
+        CHECK_EQ(output_shape[i], 1) << "Decrease dim should be 1, but now received " << output_shape[i];
+      } else {
+        new_shape.emplace_back(output_shape[i]);
       }
     }
-
-    // NOTE(liym27): Paddle does not support that the rank of Tensor is 0, and
-    // uses [1] instead.
-    if (new_shape.size() == 0) {
-      new_shape.push_back(1);
-    }
+    CHECK(!new_shape.empty()) << "Cannot decrease all dims, the output shape of slice should not empty!";
 
     output_shape = new_shape;
   }
