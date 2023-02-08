@@ -81,6 +81,12 @@ void LayerNormOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
 
   // compute mean
   auto* builder = ctx.Builder();
+
+  const auto& x_type = x->type;
+  if (x_type.is_float(16)) {
+    x = builder->Cast(x, "float32");
+  }
+
   std::vector<int> shape{left, right};
   auto x_reshape = builder->Reshape(x, shape);
   auto x_reduce  = builder->ReduceSum(x_reshape, {1});
@@ -119,6 +125,10 @@ void LayerNormOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
 
   // reshape to the original shape
   y_out = builder->Reshape(y_out, x_shape);
+
+  if (x_type.is_float(16)) {
+    y_out = builder->Cast(y_out, "float16");
+  }
 
   // get output names
   auto y_name        = get_output("Y");

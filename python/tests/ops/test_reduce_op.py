@@ -108,6 +108,13 @@ class TestReduceSumCase5(TestReduceSumOp):
         self.keep_dim = False
 
 
+class TestReduceSumCase6(TestReduceSumOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([1, 12, 9, 9], "float32", -1.0, 1.0)}
+        self.dim = [-1]
+        self.keep_dim = False
+
+
 class TestReduceProdOp(TestReduceBaseOp):
     def paddle_func(self, x):
         return paddle.prod(x, axis=self.dim, keepdim=self.keep_dim)

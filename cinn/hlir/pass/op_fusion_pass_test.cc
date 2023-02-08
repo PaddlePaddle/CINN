@@ -232,6 +232,24 @@ TEST(OpFusionPass, Injective_Test_0) {
   CHECK_EQ(graph->fusion_groups.size(), 1);
 }
 
+TEST(OP_LOWERING, Injective_Test_1) {
+  NetBuilder net_builder("Injective_Test_1");
+  auto A = net_builder.CreateInput(Float(32), {1, 19}, "A");
+  auto B = net_builder.CreateInput(Float(32), {1, 19, 204}, "B");
+  auto C = net_builder.ExpandDims(A, {1});
+  auto D = net_builder.BroadcastTo(C, {1, 204, 19}, {0, 1, 2});
+  auto E = net_builder.Transpose(B, {0, 2, 1});
+  auto F = net_builder.Add(D, E);
+
+  auto program = net_builder.Build();
+  auto target  = common::DefaultTarget();
+  RunDecomposer(&program, target);
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+  CHECK_EQ(graph->fusion_groups.size(), 1);
+}
+
 TEST(OpFusionPass, Test_Insert_BroadcastTo) {
   int h = 32, w = 32;
   NetBuilder net_builder("Test_Insert_BroadcastTo");

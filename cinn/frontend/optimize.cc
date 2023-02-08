@@ -38,6 +38,7 @@ namespace frontend {
 
 OptimizeOptions DefaultTrainingOptimizeOptions() {
   OptimizeOptions options;
+  options.program_passes.emplace_back("AutoCast");
   options.program_passes.emplace_back("Decomposer");
   options.program_passes.emplace_back("RemoveIdentity");
 
@@ -64,6 +65,7 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
   options.graph_passes = {};
 #ifdef CINN_WITH_CUDA
   if (FLAGS_cinn_use_cublas_gemm) {
+    options.graph_passes.push_back("DenseMergePass");
     options.graph_passes.push_back("MatmulToCublasCustomCallPass");
   }
   options.graph_passes.emplace_back("GaussianRandomToCustomCallPass");
