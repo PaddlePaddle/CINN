@@ -268,6 +268,27 @@ CINN_REGISTER_HELPER(cinn_cuda_host_api) {
       .AddInputType<void *>()  // stream
       .End();
 
+  using cinn::runtime::cuda::cinn_call_batched_cublas;
+  REGISTER_EXTERN_FUNC_HELPER(cinn_call_batched_cublas, cinn::common::DefaultHostTarget())
+      .SetRetType<void>()
+      .AddInputType<void *>()  // v_args
+      .AddInputType<int>()     // num_args
+      .AddInputType<int>()     // opside
+      .AddInputType<bool>()    // trans_a
+      .AddInputType<bool>()    // trans_b
+      .AddInputType<float>()   // alpha
+      .AddInputType<float>()   // beta
+      .AddInputType<int>()     // a1
+      .AddInputType<int>()     // a2
+      .AddInputType<int>()     // a3
+      .AddInputType<int>()     // a4
+      .AddInputType<int>()     // b1
+      .AddInputType<int>()     // b2
+      .AddInputType<int>()     // b3
+      .AddInputType<int>()     // b4
+      .AddInputType<void *>()  // stream
+      .End();
+
   using cinn::runtime::cuda::cinn_call_gaussian_random;
   REGISTER_EXTERN_FUNC_HELPER(cinn_call_gaussian_random, cinn::common::DefaultHostTarget())
       .SetRetType<void>()
