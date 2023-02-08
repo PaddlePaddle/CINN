@@ -63,7 +63,7 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
 
   options.graph_passes = {};
   if (FLAGS_cinn_use_custom_call) {
-    options.graph_passes.emplace_back("MarkCustomCallOps");
+    options.graph_passes.emplace_back("TransToCustomCallPass");
   }
 
   if (FLAGS_cinn_use_op_fusion) {

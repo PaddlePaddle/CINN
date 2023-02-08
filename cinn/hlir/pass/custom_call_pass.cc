@@ -26,6 +26,7 @@ namespace pass {
 using cinn::hlir::op::ExternalApiRegistry;
 using framework::Graph;
 using framework::Node;
+using framework::NodeData;
 
 class GraphAlterHelper {
  public:
@@ -35,7 +36,7 @@ class GraphAlterHelper {
       deny_ops_          = {splited_names.begin(), splited_names.end()};
     }
   }
-  void MarkCustomCallOps(const common::Target& target) {
+  void TransToCustomCall(const common::Target& target) {
     // collect candidate nodes
     auto mark_nodes = graph_->CollectNodes([this, &target](const common::GraphNode* graph_node) -> bool {
       if (graph_node->safe_as<Node>()) {
@@ -55,6 +56,17 @@ class GraphAlterHelper {
       auto* node                            = graph_node->safe_as<Node>();
       node->attrs.attr_store["original_op"] = node->op()->name;
       node->attrs.op                        = framework::Operator::Get("custom_call");
+      // revise the output edges for conv2d because the compute implement of codegen-registered is not consistent with
+      // cudnn
+      if (node->op()->name == "conv2d" && target == common::DefaultNVGPUTarget()) {
+        auto out_links = node->outlinks_in_order(true);
+        for (int idx = 1; idx < out_links.size(); ++idx) {
+          auto link = out_links[idx];
+          CHECK(link->sink()->safe_as<NodeData>());
+          node->UnLinkSingleTo(link->sink());
+          graph_->DropNode(link->sink());
+        }
+      }
     }
   }
 
@@ -65,22 +77,22 @@ class GraphAlterHelper {
   bool IsExcluded(const std::string& op_name) { return deny_ops_.count(op_name); }
 };
 
-void MarkCustomCallOpsInternal(Graph* graph) {
-  VLOG(3) << "MarkCustomCallOps...!";
-  GraphAlterHelper(graph).MarkCustomCallOps(graph->target_);
-  VLOG(3) << "MarkCustomCallOps Finish...!";
+void TransToCustomCallInternal(Graph* graph) {
+  VLOG(3) << "TransToCustomCallPass...!";
+  GraphAlterHelper(graph).TransToCustomCall(graph->target_);
+  VLOG(3) << "TransToCustomCallPass Finish...!";
 }
 
 }  // namespace pass
 }  // namespace hlir
 }  // namespace cinn
 
-CINN_REGISTER_HELPER(MarkCustomCallOpsPass) {
-  CINN_REGISTER_PASS(MarkCustomCallOps)
+CINN_REGISTER_HELPER(TransToCustomCallPass) {
+  CINN_REGISTER_PASS(TransToCustomCallPass)
       .describe(
-          "This pass which mark all ops with external_api registered on the specified target to be custom_call op, "
-          "except the blacklist specified by FLAGS_cinn_custom_call_mark_excluded_ops")
+          "This pass replaces every op with external_api registered on the specified target to be custom_call op, "
+          "except the blacklist specified by FLAGS_cinn_custom_call_deny_ops")
       .set_change_structure(false)
-      .set_body(cinn::hlir::pass::MarkCustomCallOpsInternal);
+      .set_body(cinn::hlir::pass::TransToCustomCallInternal);
   return true;
 }
