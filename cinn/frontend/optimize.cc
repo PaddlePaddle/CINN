@@ -65,7 +65,7 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
   options.graph_passes = {"ConstantFolding"};
 #ifdef CINN_WITH_CUDA
   if (FLAGS_cinn_use_cublas_gemm) {
-    options.graph_passes.push_back("DenseMergePass");
+    // options.graph_passes.push_back("DenseMergePass");
     options.graph_passes.push_back("MatmulToCublasCustomCallPass");
   }
   options.graph_passes.emplace_back("GaussianRandomToCustomCallPass");

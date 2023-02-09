@@ -77,7 +77,7 @@ void IRInjectiveSchedule(ir::IRSchedule &ir_sch, const std::vector<int> &output_
   } else {
     // IRScheduleInjectiveCPU(ir_sch, output_shape, target, false);
     auto blocks = ir_sch.GetAllBlocks();
-    ir_sch.FlattenLoops(ir_sch.GetLoops(blocks[0]), true);
+    ir_sch.FlattenLoops(ir_sch.GetLoops(blocks[0]), false);
   }
   VLOG(3) << "After IRInjectiveSchedule, new ir is : " << ir_sch.GetModule().GetExprs().at(0);
 }
