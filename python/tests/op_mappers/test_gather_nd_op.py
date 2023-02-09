@@ -38,8 +38,8 @@ class TestGatherNdOp(OpMapperTest):
 
     def init_input_data(self):
         self.feed_data = {
-            'x': self.random([10, 12, 128, 128], 'float32'),
-            'index': self.random([5], 'int32', 0, 10)
+            'x': self.random([2, 3, 4], 'float32'),
+            'index': np.array([[1]], dtype='int32')
         }
 
     def set_paddle_program(self):
@@ -51,7 +51,7 @@ class TestGatherNdOp(OpMapperTest):
             name='index',
             shape=self.feed_data['index'].shape,
             dtype=self.feed_data['index'].dtype)
-        out = paddle.gather(x, index, self.axis)
+        out = paddle.gather_nd(x, index)
 
         return ([x.name, index.name], [out])
 
@@ -62,10 +62,9 @@ class TestGatherNdOp(OpMapperTest):
 class TestGatherNdCase1(TestGatherNdOp):
     def init_input_data(self):
         self.feed_data = {
-            'x': self.random([10, 12, 128, 128], 'float32'),
-            'index': self.random([64], 'int32', 0, 128),
+            'x': self.random([2, 3, 4], 'float32'),
+            'index': np.array([[1, 2, 3]], dtype='int32')
         }
-        self.axis = 2
 
 
 if __name__ == "__main__":
