@@ -24,7 +24,7 @@ namespace optim {
 static const std::set<std::string> kExternFp32CallsGPU{
     {"exp",   "erf",  "sigmoid",  "sqrt",  "log",       "log2",  "log10", "floor", "ceil",  "round", "trunc",
      "cos",   "cosh", "tan",      "sin",   "sinh",      "acos",  "acosh", "asin",  "asinh", "atan",  "atanh",
-     "isnan", "tanh", "isfinite", "isinf", "remainder", "rsqrt", "cbrt",  "abs",   "pow"}};
+     "isnan", "tanh", "isfinite", "isinf", "remainder", "rsqrt", "cbrt",  "abs",   "pow",   "mod"}};
 
 static const std::set<std::string> kExternInt32CallsGPU{{"left_shift",
                                                          "right_shift",
@@ -35,7 +35,8 @@ static const std::set<std::string> kExternInt32CallsGPU{{"left_shift",
                                                          "pow",
                                                          "logical_right_shift",
                                                          "clz",
-                                                         "popc"}};
+                                                         "popc",
+                                                         "mod"}};
 
 static const std::set<std::string> kExternFp32CallsCPU = {
     "erf", "acos", "acosh", "asin", "asinh", "atan", "atanh", "remainder"};
