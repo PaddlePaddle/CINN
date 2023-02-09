@@ -112,5 +112,21 @@ class TestModCase6(TestModOp):
         }
 
 
+class TestModCase7(TestModOp):
+    def init_case(self):
+        self.inputs = {
+            "x": self.random([32, 64], "int32", -100, -20),
+            "y": self.random([32, 64], "int32", 1, 20),
+        }
+
+
+class TestModCase8(TestModOp):
+    def init_case(self):
+        self.inputs = {
+            "x": self.random([32, 64], "int32", -100, -20),
+            "y": self.random([32, 64], "int32", -20, -1),
+        }
+
+
 if __name__ == "__main__":
     unittest.main()
