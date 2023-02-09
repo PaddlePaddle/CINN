@@ -127,7 +127,6 @@ class CastRecomputePass {
 };
 
 void CastRecomputePassImpl(Graph* graph) {
-  CHECK_GT(graph->outputs.size(), 0) << "Graph's output should not empty!\n" << graph->DebugGroupedGraph();
   std::unordered_set<std::string> fetch_ids;
   std::transform(graph->outputs.begin(),
                  graph->outputs.end(),
