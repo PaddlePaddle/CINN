@@ -41,10 +41,9 @@ class CastRecomputePass {
         dtype_dict_(&graph->GetMutableAttrs<DtypeDict>("inferdtype")),
         shape_dict_(&graph->GetMutableAttrs<ShapeDict>("infershape")) {}
 
-  void CreateCastNode(NodeData* input_data, const Type& dtype, Node* output_op) {
+  void CreateCastNode(NodeData* input_data, const int index, const Type& dtype, Node* output_op) {
     // create node
-    auto tmp_node =
-        new Node(framework::Operator::Get("cast"), "cast", "cast_" + std::to_string(graph_->num_nodes() + 1));
+    auto tmp_node = new Node(framework::Operator::Get("cast"), "cast", "cast_" + std::to_string(index));
     tmp_node->attrs.attr_store["dtype"] = common::Type2Str(dtype);
     input_data->LinkTo(tmp_node);
     graph_->RegisterNode(tmp_node->id(), tmp_node);
@@ -112,7 +111,7 @@ class CastRecomputePass {
         need_cast_nodes.emplace_back(next_op);
       }
       for (auto* node : need_cast_nodes) {
-        CreateCastNode(cast_in_data, dtype, node);
+        CreateCastNode(cast_in_data, nodes_inorder.size() + new_cast_num, dtype, node);
         cast_out_data->UnLinkSingleTo(node);
         new_cast_num++;
       }
