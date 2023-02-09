@@ -35,7 +35,6 @@ void RunModelTest(Program& program,
   std::unordered_map<std::string, std::pair<std::vector<float>, std::vector<float>>> outputs;
   {
     auto graph = std::make_shared<hlir::framework::Graph>(program, fetch_ids, target);
-    hlir::framework::ApplyPass(graph.get(), "TransToCustomCallPass");
     hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
     hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
 
@@ -59,7 +58,7 @@ void RunModelTest(Program& program,
   }
   {
     auto graph = std::make_shared<hlir::framework::Graph>(program, fetch_ids, target);
-    hlir::framework::ApplyPass(graph.get(), "DenseMergePass");
+    hlir::framework::ApplyPass(graph.get(), "DotMerger");
     hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
     hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
 
@@ -87,81 +86,26 @@ void RunModelTest(Program& program,
   }
 }
 
-TEST(DenseMergePass, Test_Matmul_0) {
-  int m = 128, k = 64, n = 128;
-  NetBuilder net_builder("Test_Matmul_0");
-  auto A = net_builder.CreateInput(Float(32), {m, k}, "A");
-  auto B = net_builder.CreateInput(Float(32), {k, n}, "B");
-  auto C = net_builder.CreateInput(Float(32), {k, n}, "C");
-  auto D = net_builder.Matmul(A, B);
-  auto E = net_builder.Matmul(A, C);
-
-  auto fetch_ids = {D->id, E->id};
+TEST(DotMerger, Test_dot_merger0) {
+  int m = 2, k = 1024, n = 100, n1 = 100, n2 = 100, axis = 1;
+  NetBuilder net_builder("Test_dot_merger0");
+  auto A         = net_builder.CreateInput(Float(32), {m, k}, "A");
+  auto B         = net_builder.CreateInput(Float(32), {k, n1}, "B");
+  auto C         = net_builder.CreateInput(Float(32), {k, n2}, "C");
+  auto D         = net_builder.CreateInput(Float(32), {n1, k}, "D");
+  auto E         = net_builder.CreateInput(Float(32), {n2, k}, "E");
+  auto F         = net_builder.CreateInput(Float(32), {k, n}, "F");
+  auto G         = net_builder.Matmul(A, B);
+  auto H         = net_builder.Matmul(A, C);
+  auto G1        = net_builder.Matmul(D, F);
+  auto H1        = net_builder.Matmul(E, F);
+  auto G2        = net_builder.Concat({G, H}, axis);
+  auto H2        = net_builder.Concat({G1, H1}, (1 - axis));
+  auto F1        = net_builder.Matmul(G2, H2);
+  auto fetch_ids = {F1->id};
   auto program   = net_builder.Build();
-  RunModelTest(program, {A, B, C}, fetch_ids);
-}
-
-TEST(DenseMergePass, Test_Matmul_1) {
-  NetBuilder net_builder("Test_Matmul_1");
-  auto A = net_builder.CreateInput(Float(32), {128, 64}, "A");
-  auto B = net_builder.CreateInput(Float(32), {128, 64}, "B");
-  auto C = net_builder.CreateInput(Float(32), {64, 128}, "C");
-  auto D = net_builder.Matmul(A, C);
-  auto E = net_builder.Matmul(B, C);
-
-  auto fetch_ids = {D->id, E->id};
-  auto program   = net_builder.Build();
-  RunModelTest(program, {A, B, C}, fetch_ids);
-}
-
-TEST(DenseMergePass, Test_Matmul_2) {
-  NetBuilder net_builder("Test_Matmul_2");
-  auto A = net_builder.CreateInput(Float(32), {128, 64}, "A");
-  auto B = net_builder.CreateInput(Float(32), {128, 64}, "B");
-  auto C = net_builder.CreateInput(Float(32), {128, 64}, "C");
-  auto D = net_builder.CreateInput(Float(32), {128, 64}, "D");
-  auto E = net_builder.CreateInput(Float(32), {64, 128}, "E");
-  auto F = net_builder.Matmul(A, E);
-  auto G = net_builder.Matmul(B, E);
-  auto H = net_builder.Matmul(C, E);
-  auto I = net_builder.Matmul(D, E);
-
-  auto fetch_ids = {F->id, G->id, H->id, I->id};
-  auto program   = net_builder.Build();
-  RunModelTest(program, {A, B, C, D, E}, fetch_ids);
-}
-
-TEST(DenseMergePass, Test_Matmul_3) {
-  NetBuilder net_builder("Test_Matmul_3");
-  auto A = net_builder.CreateInput(Float(32), {128, 64}, "A");
-  auto B = net_builder.CreateInput(Float(32), {128, 64}, "B");
-  auto C = net_builder.CreateInput(Float(32), {64, 128}, "C");
-  auto D = net_builder.CreateInput(Float(32), {128, 64}, "D");
-  auto E = net_builder.CreateInput(Float(32), {128, 64}, "E");
-  auto F = net_builder.Matmul(A, C);
-  auto G = net_builder.Matmul(B, C);
-  auto H = net_builder.Matmul(C, D);
-  auto I = net_builder.Matmul(C, E);
-
-  auto fetch_ids = {F->id, G->id, H->id, I->id};
-  auto program   = net_builder.Build();
-  RunModelTest(program, {A, B, C, D, E}, fetch_ids);
-}
-
-TEST(DenseMergePass, Test_Matmul_4) {
-  NetBuilder net_builder("Test_Matmul_4");
-  auto A = net_builder.CreateInput(Float(32), {128, 64}, "A");
-  auto B = net_builder.CreateInput(Float(32), {128, 64}, "B");
-  auto C = net_builder.CreateInput(Float(32), {64, 128}, "C");
-  auto D = net_builder.CreateInput(Float(32), {64, 128}, "D");
-  auto F = net_builder.Matmul(A, C);
-  auto G = net_builder.Matmul(B, C);
-  auto H = net_builder.Matmul(A, D);
-  auto I = net_builder.Matmul(B, D);
-
-  auto fetch_ids = {F->id, G->id, H->id, I->id};
-  auto program   = net_builder.Build();
-  RunModelTest(program, {A, B, C, D}, fetch_ids);
+  std::cout << "RunModelTest" << std::endl;
+  RunModelTest(program, {A, B, C, D, E, F}, fetch_ids);
 }
 
 }  // namespace frontend

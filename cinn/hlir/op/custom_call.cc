@@ -74,14 +74,12 @@ std::shared_ptr<OpStrategy> StrategyForCustomCall(const framework::NodeAttr &att
   framework::CINNCompute compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK_EQ(args.size(), 1UL);
     CINNValuePack pack_args = args[0];
-    CHECK(pack_args.back().is_string());
+    CHECK_EQ(pack_args.size(), 2UL);
+    CHECK(pack_args[0].is_string() && pack_args[1].is_string());
+    std::string func_name       = pack_args[0].operator std::string();
+    std::string custom_call_api = pack_args[1].operator std::string();
 
-    auto &attr_store = attrs.attr_store;
-    CHECK(attr_store.count("custom_call"));
-    std::string custom_call_api = absl::get<std::string>(attr_store.at("custom_call"));
-    auto args_func              = CustomCallArgsFuncRegistry::Global().Lookup(custom_call_api, target);
-
-    std::string func_name = pack_args.back().operator std::string();
+    auto args_func = CustomCallArgsFuncRegistry::Global().Lookup(custom_call_api, target);
     // create call function.
     ir::Var kernel_args(KERNEL_ARGS, type_of<void *>());
     ir::Var kernel_args_num(KERNEL_ARGS_NUM, type_of<int>());
