@@ -37,7 +37,7 @@ class TestSimpleRecomputePass(PassTest):
 
     def test_check_results(self):
         self.check_pass_outputs(
-            pass_diff=-2, test_passes=["CastRecomputePass"])
+            pass_diff=-2, test_passes=["SimpleRecomputePass"])
 
 
 class TestSimpleRecomputePassCase1(PassTest):
@@ -64,7 +64,63 @@ class TestSimpleRecomputePassCase1(PassTest):
 
     def test_check_results(self):
         self.check_pass_outputs(
-            pass_diff=-3, test_passes=["CastRecomputePass"])
+            pass_diff=-3, test_passes=["SimpleRecomputePass"])
+
+
+class TestSimpleRecomputePassCase2(PassTest):
+    def init_input_data(self):
+        self.shape = [4, 5, 6]
+        self.feed_data = [
+            self.random(self.shape, "float32"),
+            self.random(self.shape, "float32"),
+        ]
+
+    def build_program(self, builder, target):
+        x1 = builder.create_input(
+            self.nptype2cinntype(self.feed_data[0].dtype),
+            self.feed_data[0].shape, "x1")
+        x2 = builder.create_input(
+            self.nptype2cinntype(self.feed_data[1].dtype),
+            self.feed_data[0].shape, "x2")
+
+        y = builder.fill_constant(self.shape, 1.0, 'y',
+                                  str(self.feed_data[0].dtype))
+        z1 = builder.add(x1, y)
+        z2 = builder.subtract(x2, y)
+        z3 = builder.exp(y)
+        out = builder.sum([z1, z2, z3])
+
+        return [x1, x2], [out]
+
+    def test_check_results(self):
+        self.check_pass_outputs(
+            pass_diff=-2, test_passes=["SimpleRecomputePass"])
+
+
+class TestSimpleRecomputePassCase3(PassTest):
+    def init_input_data(self):
+        self.shape = [4, 5, 6]
+        self.feed_data = [
+            self.random(self.shape, "float16"),
+        ]
+
+    def build_program(self, builder, target):
+        x = builder.create_input(
+            self.nptype2cinntype(self.feed_data[0].dtype),
+            self.feed_data[0].shape, "x")
+        y = builder.fill_constant(self.shape, 1.0, 'y', "float32")
+
+        x_fp32 = builder.cast(x, "float32")
+        z1 = builder.add(x_fp32, y)
+        z2 = builder.subtract(x_fp32, y)
+        z3 = builder.multiply(x_fp32, y)
+        out = builder.sum([z1, z2, z3])
+
+        return [x], [out]
+
+    def test_check_results(self):
+        self.check_pass_outputs(
+            pass_diff=-4, test_passes=["SimpleRecomputePass"])
 
 
 if __name__ == "__main__":
