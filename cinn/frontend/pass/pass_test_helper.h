@@ -153,8 +153,8 @@ struct OptimizeConfig {
     this->program_passes.exp  = program_passes.second;
 
     if (FLAGS_cinn_use_op_fusion) {
-      graph_passes = {{"MatmulToCublasCustomCallPass", "OpFusionPass", "FusionMergePass"},
-                      {"MatmulToCublasCustomCallPass", "OpFusionPass", "FusionMergePass"}};
+      graph_passes = {{"TransToCustomCallPass", "OpFusionPass", "FusionMergePass"},
+                      {"TransToCustomCallPass", "OpFusionPass", "FusionMergePass"}};
     }
   }
 

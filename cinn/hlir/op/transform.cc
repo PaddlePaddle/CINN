@@ -1504,7 +1504,10 @@ std::vector<std::vector<int>> InferShapeForSlice(const std::vector<std::vector<i
         new_shape.emplace_back(output_shape[i]);
       }
     }
-    CHECK(!new_shape.empty()) << "Cannot decrease all dims, the output shape of slice should not empty!";
+    if (new_shape.empty()) {
+      // output shape should not empty
+      new_shape = {1};
+    }
 
     output_shape = new_shape;
   }
