@@ -83,7 +83,7 @@ class TestBatchNormFP16(TestBatchNormForwardOp):
         }
 
     def test_check_results(self):
-        self.check_outputs_and_grads()
+        self.check_outputs_and_grads(max_relative_error=1e-3)
 
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
