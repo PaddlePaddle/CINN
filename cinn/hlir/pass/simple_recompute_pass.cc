@@ -112,6 +112,22 @@ class GraphPassHelper {
   ShapeDict* shape_dict_;
 };
 
+void IdentityRecomputeImpl(
+    Graph* graph, Node* recompute_op, const int index, const NodeAttrType& attrs, Node* output_node) {
+  GraphPassHelper helper(graph);
+
+  auto* in_data  = helper.GetOpNodeInput(recompute_op, 0);
+  auto* out_data = helper.GetOpNodeOutput(recompute_op, 0);
+
+  auto* new_node = helper.CreateOpNode(recompute_op->op()->name, index, attrs);
+  in_data->LinkTo(new_node);
+
+  auto* new_output_data =
+      helper.CreateOutputNode(new_node, helper.GetNodeDataShape(out_data), helper.GetNodeDataType(out_data));
+  new_output_data->LinkTo(output_node);
+  out_data->UnLinkSingleTo(output_node);
+}
+
 void ConstRecomputeImpl(
     Graph* graph, Node* recompute_op, const int index, const NodeAttrType& attrs, Node* output_node) {
   GraphPassHelper helper(graph);
@@ -128,29 +144,16 @@ void ConstRecomputeImpl(
 }
 
 static std::unordered_map<std::string, CreateNewNodeFunc> need_recompute_op_list = {
-    {"cast",
-     [](Graph* graph, Node* recompute_op, const int index, const NodeAttrType& attrs, Node* output_node) {
-       GraphPassHelper helper(graph);
-
-       auto* cast_in_data  = helper.GetOpNodeInput(recompute_op, 0);
-       auto* cast_out_data = helper.GetOpNodeOutput(recompute_op, 0);
-
-       auto* new_node = helper.CreateOpNode("cast", index, attrs);
-       cast_in_data->LinkTo(new_node);
-
-       auto* new_output_data = helper.CreateOutputNode(
-           new_node, helper.GetNodeDataShape(cast_out_data), helper.GetNodeDataType(cast_out_data));
-       new_output_data->LinkTo(output_node);
-       cast_out_data->UnLinkSingleTo(output_node);
-     }},
+    {"identity", IdentityRecomputeImpl},
+    {"cast", IdentityRecomputeImpl},
     {"fill_constant", ConstRecomputeImpl},
     {"const_scalar", ConstRecomputeImpl},
     {"arange", ConstRecomputeImpl}};
 }  // namespace
 
-class CastRecomputePass {
+class SimpleRecomputePass {
  public:
-  CastRecomputePass(Graph* graph) : graph_(graph) {}
+  SimpleRecomputePass(Graph* graph) : graph_(graph) {}
 
   void operator()() {
     GraphPassHelper helper(graph_);
@@ -214,28 +217,28 @@ class CastRecomputePass {
   framework::Graph* graph_;
 };
 
-void CastRecomputePassImpl(Graph* graph) {
+void SimpleRecomputePassImpl(Graph* graph) {
   std::unordered_set<std::string> fetch_ids;
   std::transform(graph->outputs.begin(),
                  graph->outputs.end(),
                  std::inserter(fetch_ids, fetch_ids.begin()),
                  [](const NodeData* node) { return node->id(); });
-  VLOG(3) << "Before CastRecomputePass:\n" << graph->DebugGroupedGraph(fetch_ids);
+  VLOG(3) << "Before SimpleRecomputePass:\n" << graph->DebugGroupedGraph(fetch_ids);
 
-  CastRecomputePass pass(graph);
+  SimpleRecomputePass pass(graph);
   pass();
 
-  VLOG(3) << "After CastRecomputePass:\n" << graph->DebugGroupedGraph(fetch_ids);
+  VLOG(3) << "After SimpleRecomputePass:\n" << graph->DebugGroupedGraph(fetch_ids);
 }
 
 }  // namespace pass
 }  // namespace hlir
 }  // namespace cinn
 
-CINN_REGISTER_HELPER(CastRecomputePass) {
-  CINN_REGISTER_PASS(CastRecomputePass)
-      .describe("CastRecompute Pass which performs \"operator recompute\"")
+CINN_REGISTER_HELPER(SimpleRecomputePass) {
+  CINN_REGISTER_PASS(SimpleRecomputePass)
+      .describe("SimpleRecomputePass Pass which performs \"copy new op for each output op\"")
       .set_change_structure(true)
-      .set_body(cinn::hlir::pass::CastRecomputePassImpl);
+      .set_body(cinn::hlir::pass::SimpleRecomputePassImpl);
   return true;
 }
