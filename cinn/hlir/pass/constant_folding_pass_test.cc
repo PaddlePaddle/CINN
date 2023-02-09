@@ -21,9 +21,21 @@ namespace frontend {
 
 int GetSize(std::vector<int>& shape) { return std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<int>()); }
 
-std::unordered_map<std::string, std::vector<float>> RunModelTest(Program& program,
-                                                                 const std::vector<std::string>&& passes,
-                                                                 const std::unordered_set<std::string>& fetch_ids) {
+std::unordered_map<std::string, std::vector<float>> GetInputRandom(const std::vector<Variable>&& inputs) {
+  std::unordered_map<std::string, std::vector<float>> input_data;
+  for (auto input : inputs) {
+    input_data[input->id] = std::vector<float>(GetSize(input->shape));
+    InitRandomVector<float>(&input_data[input->id], input_data[input->id].size(), 0.0f, 1.0f, 1e-3);
+  }
+
+  return input_data;
+}
+
+std::unordered_map<std::string, std::vector<float>> RunModelTest(
+    Program& program,
+    const std::vector<std::string>&& passes,
+    const std::unordered_map<std::string, std::vector<float>>& input_data,
+    const std::unordered_set<std::string>& fetch_ids) {
   auto target = common::DefaultTarget();
   auto graph  = std::make_shared<hlir::framework::Graph>(program, fetch_ids, target);
   hlir::framework::ApplyPasses(graph.get(), passes);
@@ -31,6 +43,12 @@ std::unordered_map<std::string, std::vector<float>> RunModelTest(Program& progra
   auto scope = BuildScope(target, graph);
   hlir::framework::GraphCompiler gc(target, scope, graph);
   auto run_program = gc.Build();
+
+  for (auto& data : input_data) {
+    scope->Var<hlir::framework::Tensor>(data.first);
+    auto tensor = scope->GetTensor(data.first);
+    CopyFromVector(data.second, tensor, target);
+  }
   run_program->Execute();
 
   std::unordered_map<std::string, std::vector<float>> outputs;
@@ -53,10 +71,11 @@ TEST(Constant_Folding, fold_broadcast_to_const_scalar_1) {
   auto C = net_builder.CreateInput(Float(32), {h, w}, "C");
   auto D = net_builder.Add(B, C);
 
-  auto fetch_ids = {D->id};
-  auto program   = net_builder.Build();
-  auto output0   = RunModelTest(program, {"OpFusionPass", "FusionMergePass"}, fetch_ids);
-  auto output1   = RunModelTest(program, {"ConstantFolding", "OpFusionPass", "FusionMergePass"}, fetch_ids);
+  auto fetch_ids  = {D->id};
+  auto input_data = GetInputRandom({C});
+  auto program    = net_builder.Build();
+  auto output0    = RunModelTest(program, {"OpFusionPass", "FusionMergePass"}, input_data, fetch_ids);
+  auto output1 = RunModelTest(program, {"ConstantFolding", "OpFusionPass", "FusionMergePass"}, input_data, fetch_ids);
 
   for (auto& output : output0) {
     CHECK(output1.count(output.first));
@@ -75,10 +94,11 @@ TEST(Constant_Folding, fold_broadcast_to_const_scalar_2) {
   auto E = net_builder.Add(B, C);
   auto F = net_builder.Add(A, D);
 
-  auto fetch_ids = {E->id, F->id};
-  auto program   = net_builder.Build();
-  auto output0   = RunModelTest(program, {"OpFusionPass", "FusionMergePass"}, fetch_ids);
-  auto output1   = RunModelTest(program, {"ConstantFolding", "OpFusionPass", "FusionMergePass"}, fetch_ids);
+  auto fetch_ids  = {E->id, F->id};
+  auto input_data = GetInputRandom({C, D});
+  auto program    = net_builder.Build();
+  auto output0    = RunModelTest(program, {"OpFusionPass", "FusionMergePass"}, input_data, fetch_ids);
+  auto output1 = RunModelTest(program, {"ConstantFolding", "OpFusionPass", "FusionMergePass"}, input_data, fetch_ids);
 
   for (auto& output : output0) {
     CHECK(output1.count(output.first));
@@ -98,10 +118,11 @@ TEST(Constant_Folding, fold_broadcast_to_const_scalar_3) {
   auto F = net_builder.Add(B, C);
   auto G = net_builder.Add(D, E);
 
-  auto fetch_ids = {G->id, F->id};
-  auto program   = net_builder.Build();
-  auto output0   = RunModelTest(program, {"OpFusionPass", "FusionMergePass"}, fetch_ids);
-  auto output1   = RunModelTest(program, {"ConstantFolding", "OpFusionPass", "FusionMergePass"}, fetch_ids);
+  auto fetch_ids  = {G->id, F->id};
+  auto input_data = GetInputRandom({C, E});
+  auto program    = net_builder.Build();
+  auto output0    = RunModelTest(program, {"OpFusionPass", "FusionMergePass"}, input_data, fetch_ids);
+  auto output1 = RunModelTest(program, {"ConstantFolding", "OpFusionPass", "FusionMergePass"}, input_data, fetch_ids);
 
   for (auto& output : output0) {
     CHECK(output1.count(output.first));
@@ -118,10 +139,11 @@ TEST(Constant_Folding, fold_broadcast_to_fill_constant_1) {
   auto C = net_builder.CreateInput(Float(32), {h, w}, "C");
   auto D = net_builder.Add(B, C);
 
-  auto fetch_ids = {D->id};
-  auto program   = net_builder.Build();
-  auto output0   = RunModelTest(program, {"OpFusionPass", "FusionMergePass"}, fetch_ids);
-  auto output1   = RunModelTest(program, {"ConstantFolding", "OpFusionPass", "FusionMergePass"}, fetch_ids);
+  auto fetch_ids  = {D->id};
+  auto input_data = GetInputRandom({C});
+  auto program    = net_builder.Build();
+  auto output0    = RunModelTest(program, {"OpFusionPass", "FusionMergePass"}, input_data, fetch_ids);
+  auto output1 = RunModelTest(program, {"ConstantFolding", "OpFusionPass", "FusionMergePass"}, input_data, fetch_ids);
 
   for (auto& output : output0) {
     CHECK(output1.count(output.first));
@@ -140,10 +162,11 @@ TEST(Constant_Folding, fold_broadcast_to_fill_constant_2) {
   auto E = net_builder.Add(B, C);
   auto F = net_builder.Add(A, D);
 
-  auto fetch_ids = {E->id, F->id};
-  auto program   = net_builder.Build();
-  auto output0   = RunModelTest(program, {"OpFusionPass", "FusionMergePass"}, fetch_ids);
-  auto output1   = RunModelTest(program, {"ConstantFolding", "OpFusionPass", "FusionMergePass"}, fetch_ids);
+  auto fetch_ids  = {E->id, F->id};
+  auto input_data = GetInputRandom({C, D});
+  auto program    = net_builder.Build();
+  auto output0    = RunModelTest(program, {"OpFusionPass", "FusionMergePass"}, input_data, fetch_ids);
+  auto output1 = RunModelTest(program, {"ConstantFolding", "OpFusionPass", "FusionMergePass"}, input_data, fetch_ids);
 
   for (auto& output : output0) {
     CHECK(output1.count(output.first));
@@ -160,10 +183,11 @@ TEST(Constant_Folding, fold_reshape_fill_constant_1) {
   auto C = net_builder.CreateInput(Float(32), {h, w}, "C");
   auto D = net_builder.Add(B, C);
 
-  auto fetch_ids = {D->id};
-  auto program   = net_builder.Build();
-  auto output0   = RunModelTest(program, {"OpFusionPass", "FusionMergePass"}, fetch_ids);
-  auto output1   = RunModelTest(program, {"ConstantFolding", "OpFusionPass", "FusionMergePass"}, fetch_ids);
+  auto fetch_ids  = {D->id};
+  auto input_data = GetInputRandom({C});
+  auto program    = net_builder.Build();
+  auto output0    = RunModelTest(program, {"OpFusionPass", "FusionMergePass"}, input_data, fetch_ids);
+  auto output1 = RunModelTest(program, {"ConstantFolding", "OpFusionPass", "FusionMergePass"}, input_data, fetch_ids);
 
   for (auto& output : output0) {
     CHECK(output1.count(output.first));
@@ -182,10 +206,11 @@ TEST(Constant_Folding, fold_reshape_fill_constant_2) {
   auto E = net_builder.Add(B, C);
   auto F = net_builder.Add(A, D);
 
-  auto fetch_ids = {E->id, F->id};
-  auto program   = net_builder.Build();
-  auto output0   = RunModelTest(program, {"OpFusionPass", "FusionMergePass"}, fetch_ids);
-  auto output1   = RunModelTest(program, {"ConstantFolding", "OpFusionPass", "FusionMergePass"}, fetch_ids);
+  auto fetch_ids  = {E->id, F->id};
+  auto input_data = GetInputRandom({C, D});
+  auto program    = net_builder.Build();
+  auto output0    = RunModelTest(program, {"OpFusionPass", "FusionMergePass"}, input_data, fetch_ids);
+  auto output1 = RunModelTest(program, {"ConstantFolding", "OpFusionPass", "FusionMergePass"}, input_data, fetch_ids);
 
   for (auto& output : output0) {
     CHECK(output1.count(output.first));
@@ -202,10 +227,11 @@ TEST(Constant_Folding, fold_squeeze_fill_constant_1) {
   auto C = net_builder.CreateInput(Float(32), {h, w}, "C");
   auto D = net_builder.Add(B, C);
 
-  auto fetch_ids = {D->id};
-  auto program   = net_builder.Build();
-  auto output0   = RunModelTest(program, {"OpFusionPass", "FusionMergePass"}, fetch_ids);
-  auto output1   = RunModelTest(program, {"ConstantFolding", "OpFusionPass", "FusionMergePass"}, fetch_ids);
+  auto fetch_ids  = {D->id};
+  auto input_data = GetInputRandom({C});
+  auto program    = net_builder.Build();
+  auto output0    = RunModelTest(program, {"OpFusionPass", "FusionMergePass"}, input_data, fetch_ids);
+  auto output1 = RunModelTest(program, {"ConstantFolding", "OpFusionPass", "FusionMergePass"}, input_data, fetch_ids);
 
   for (auto& output : output0) {
     CHECK(output1.count(output.first));
@@ -224,10 +250,11 @@ TEST(Constant_Folding, fold_squeeze_fill_constant_2) {
   auto E = net_builder.Add(B, C);
   auto F = net_builder.Add(A, D);
 
-  auto fetch_ids = {E->id, F->id};
-  auto program   = net_builder.Build();
-  auto output0   = RunModelTest(program, {"OpFusionPass", "FusionMergePass"}, fetch_ids);
-  auto output1   = RunModelTest(program, {"ConstantFolding", "OpFusionPass", "FusionMergePass"}, fetch_ids);
+  auto fetch_ids  = {E->id, F->id};
+  auto input_data = GetInputRandom({C, D});
+  auto program    = net_builder.Build();
+  auto output0    = RunModelTest(program, {"OpFusionPass", "FusionMergePass"}, input_data, fetch_ids);
+  auto output1 = RunModelTest(program, {"ConstantFolding", "OpFusionPass", "FusionMergePass"}, input_data, fetch_ids);
 
   for (auto& output : output0) {
     CHECK(output1.count(output.first));
@@ -244,10 +271,11 @@ TEST(Constant_Folding, fold_expand_dims_to_fill_constant_1) {
   auto C = net_builder.CreateInput(Float(32), {h, 1, w, 1}, "C");
   auto D = net_builder.Add(B, C);
 
-  auto fetch_ids = {D->id};
-  auto program   = net_builder.Build();
-  auto output0   = RunModelTest(program, {"OpFusionPass", "FusionMergePass"}, fetch_ids);
-  auto output1   = RunModelTest(program, {"ConstantFolding", "OpFusionPass", "FusionMergePass"}, fetch_ids);
+  auto fetch_ids  = {D->id};
+  auto input_data = GetInputRandom({C});
+  auto program    = net_builder.Build();
+  auto output0    = RunModelTest(program, {"OpFusionPass", "FusionMergePass"}, input_data, fetch_ids);
+  auto output1 = RunModelTest(program, {"ConstantFolding", "OpFusionPass", "FusionMergePass"}, input_data, fetch_ids);
 
   for (auto& output : output0) {
     CHECK(output1.count(output.first));
@@ -262,19 +290,15 @@ TEST(Constant_Folding, fold_expand_dims_to_fill_constant_2) {
   auto A = net_builder.FillConstant<float>({h, w}, 1.0f, "A");
   auto B = net_builder.ExpandDims(A, {1, 3});
   auto C = net_builder.CreateInput(Float(32), {h, 1, w, 1}, "C");
-  auto D = net_builder.CreateInput(Float(32),
-                                   {
-                                       h,
-                                       w,
-                                   },
-                                   "D");
+  auto D = net_builder.CreateInput(Float(32), {h, w}, "D");
   auto E = net_builder.Add(B, C);
   auto F = net_builder.Add(A, D);
 
-  auto fetch_ids = {E->id, F->id};
-  auto program   = net_builder.Build();
-  auto output0   = RunModelTest(program, {"OpFusionPass", "FusionMergePass"}, fetch_ids);
-  auto output1   = RunModelTest(program, {"ConstantFolding", "OpFusionPass", "FusionMergePass"}, fetch_ids);
+  auto fetch_ids  = {E->id, F->id};
+  auto input_data = GetInputRandom({C, D});
+  auto program    = net_builder.Build();
+  auto output0    = RunModelTest(program, {"OpFusionPass", "FusionMergePass"}, input_data, fetch_ids);
+  auto output1 = RunModelTest(program, {"ConstantFolding", "OpFusionPass", "FusionMergePass"}, input_data, fetch_ids);
 
   for (auto& output : output0) {
     CHECK(output1.count(output.first));

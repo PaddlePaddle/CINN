@@ -52,7 +52,9 @@ void IRElementwiseSchedule(ir::IRSchedule &ir_sch, const std::vector<int> &outpu
       ir_sch.Bind(splited[1], "threadIdx.x");
     }
   } else {
-    IRScheduleInjectiveCPU(ir_sch, output_shape, target, false);
+    // IRScheduleInjectiveCPU(ir_sch, output_shape, target, false);
+    auto blocks = ir_sch.GetAllBlocks();
+    ir_sch.FlattenLoops(ir_sch.GetLoops(blocks[0]), true);
   }
   VLOG(3) << "After IRElementwiseSchedule, new ir is : " << ir_sch.GetModule().GetExprs().at(0);
 }
@@ -73,7 +75,9 @@ void IRInjectiveSchedule(ir::IRSchedule &ir_sch, const std::vector<int> &output_
       ir_sch.Bind(splited[1], "threadIdx.x");
     }
   } else {
-    IRScheduleInjectiveCPU(ir_sch, output_shape, target, false);
+    // IRScheduleInjectiveCPU(ir_sch, output_shape, target, false);
+    auto blocks = ir_sch.GetAllBlocks();
+    ir_sch.FlattenLoops(ir_sch.GetLoops(blocks[0]), true);
   }
   VLOG(3) << "After IRInjectiveSchedule, new ir is : " << ir_sch.GetModule().GetExprs().at(0);
 }
@@ -82,7 +86,7 @@ void IRScheduleInjectiveCPU(ir::IRSchedule &ir_sch,
                             const std::vector<int> &output_shape,
                             const common::Target &target,
                             bool vectorizable) {
-  VLOG(3) << "Begin IRScheduleInjectiveCPU";
+  VLOG(3) << "Begin IRScheduleInjectiveCPU" << ir_sch.GetModule().GetExprs().at(0);
   auto all_blocks = ir_sch.GetAllBlocks();
   auto loops      = ir_sch.GetLoops(all_blocks[0]);
   int dims        = output_shape.size();
