@@ -71,7 +71,6 @@ CINN_REGISTER_HELPER(cuda_intrinsics) {
 
   REGISTER_EXTERN_FUNC_2_IN_1_FLOAT(pow)
   REGISTER_EXTERN_FUNC_2_IN_1_FLOAT(remainder)
-  REGISTER_EXTERN_FUNC_2_IN_1_FLOAT(mod)
 
 #undef REGISTER_EXTERN_FUNC_2_IN_1_FLOAT
 
@@ -81,7 +80,6 @@ CINN_REGISTER_HELPER(cuda_intrinsics) {
   REGISTER_EXTERN_SOURCE_FUNC_2_IN_1_OUT(cinn_nvgpu_##func__##_fp64, target, double, double, double);
 
   REGISTER_EXTERN_FUNC_2_IN_1_FP64(pow)
-  REGISTER_EXTERN_FUNC_2_IN_1_FP64(mod)
 
 #undef REGISTER_EXTERN_FUNC_2_IN_1_FP64
 
@@ -122,16 +120,8 @@ CINN_REGISTER_HELPER(cuda_intrinsics) {
   REGISTER_EXTERN_FUNC_2_IN_1_INT32(bitwise_xor)
   REGISTER_EXTERN_FUNC_2_IN_1_INT32(floor_divide)
   REGISTER_EXTERN_FUNC_2_IN_1_INT32(logical_right_shift)
-  REGISTER_EXTERN_FUNC_2_IN_1_INT32(mod)
 
 #undef REGISTER_EXTERN_FUNC_2_IN_1_INT32
-
-#define REGISTER_EXTERN_FUNC_2_IN_1_INT64(func__) \
-  REGISTER_EXTERN_SOURCE_FUNC_2_IN_1_OUT(cinn_nvgpu_##func__##_int64, target, int64_t, int64_t, int64_t);
-
-  REGISTER_EXTERN_FUNC_2_IN_1_INT64(mod)
-
-#undef REGISTER_EXTERN_FUNC_2_IN_1_INT64
 
   FunctionProto::shape_inference_t inference_shape_globalpool = [](const std::vector<cinn::ir::Expr> &args,
                                                                    int offset) {

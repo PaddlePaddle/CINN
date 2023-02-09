@@ -32,8 +32,8 @@ class TestModOp(OpTest):
 
     def init_case(self):
         self.inputs = {
-            "x": self.random([32, 64], "float32", 20, 100),
-            "y": self.random([32, 64], "float32", 1, 20),
+            "x": np.array([7]).astype('float32'),
+            "y": np.array([-3]).astype('float32')
         }
 
     def build_paddle_program(self, target):
@@ -109,22 +109,6 @@ class TestModCase6(TestModOp):
         self.inputs = {
             "x": self.random([32, 64], "float32", -100, -20),
             "y": self.random([32, 64], "float32", -20, -1),
-        }
-
-
-class TestModCase7(TestModOp):
-    def init_case(self):
-        self.inputs = {
-            "x": self.random([32, 64], "int32", -100, -20),
-            "y": self.random([32, 64], "int32", 1, 20),
-        }
-
-
-class TestModCase8(TestModOp):
-    def init_case(self):
-        self.inputs = {
-            "x": self.random([32, 64], "int32", -100, -20),
-            "y": self.random([32, 64], "int32", -20, -1),
         }
 
 

@@ -190,8 +190,7 @@ class TestRemainderOp(TestBinaryOp):
         return paddle.remainder(x, y)
 
     def cinn_func(self, builder, x, y, axis):
-        # paddle.remainder actual invoke mod function
-        return builder.mod(x, y, axis)
+        return builder.remainder(x, y, axis)
 
 
 class TestMaxOp(TestBinaryOp):

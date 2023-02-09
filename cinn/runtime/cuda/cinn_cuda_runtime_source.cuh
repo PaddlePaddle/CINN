@@ -42,11 +42,6 @@ __device__ inline bool FN_FP32(isnan)(float x) { return isnan(x); }
 __device__ inline float FN_FP32(pow)(float a, float b) { return powf(a, b); }
 
 __device__ inline float FN_FP32(remainder)(float a, float b) { return remainderf(a, b); }
-__device__ inline float FN_FP32(mod)(float a, float b) {
-  float res = fmodf(a, b);
-  if ((res != 0) && ((res < 0) != (b < 0))) res += b;
-  return res;
-}
 
 // *************************************************************** //
 // float64 unary and binary operator
@@ -54,12 +49,6 @@ __device__ inline float FN_FP32(mod)(float a, float b) {
 
 __device__ inline double FN_FP64(pow)(double a, double b) { return pow(a, b); }
 __device__ inline double FN_FP64(cbrt)(double x) { return cbrt(x); }
-__device__ inline double FN_FP64(remainder)(double a, double b) { return remainder(a, b); }
-__device__ inline double FN_FP64(mod)(double a, double b) {
-  double res = fmod(a, b);
-  if ((res != 0) && ((res < 0) != (b < 0))) res += b;
-  return res;
-}
 
 // *************************************************************** //
 // int32 unary and binary operator
@@ -83,13 +72,6 @@ __device__ inline int FN_INT32(clz)(int a) { return __clz(a); }
 __device__ inline int FN_INT32(popc)(int a) { return __popc(a); }
 __device__ inline int FN_INT32(logical_right_shift)(int a, int b) { return ((unsigned int)a >> b); }
 
-
-__device__ inline int FN_INT32(mod)(int a, int b) {
-  int res = a % b;
-  if ((res != 0) && ((b ^ res) < 0)) res += b;
-  return res;
-}
-
 // *************************************************************** //
 
 // int64 unary and binary operator
@@ -97,11 +79,6 @@ __device__ inline int FN_INT32(mod)(int a, int b) {
 
 __device__ inline long long int FN_INT64(clz)(long long int a) { return __clzll(a); }
 __device__ inline long long int FN_INT64(popc)(long long int a) { return __popcll(a); }
-__device__ inline long long int FN_INT64(mod)(long long int a, long long int b) {
-  long long int res = a % b;
-  if ((res != 0) && ((b ^ res) < 0)) res += b;
-  return res;
-}
 
 // *************************************************************** //
 // float16 unary and binary operator
@@ -149,9 +126,6 @@ __device__ inline float16 FN_FP16(sigmoid)(float16 x) { return float16(FN_FP32(s
 
 __device__ inline float16 FN_FP16(remainder)(float16 a, float16 b) {
   return float16(FN_FP32(remainder)(static_cast<float>(a), static_cast<float>(b)));
-}
-__device__ inline float16 FN_FP16(mod)(float16 a, float16 b) {
-  return float16(FN_FP32(mod)(static_cast<float>(a), static_cast<float>(b)));
 }
 __device__ inline float16 FN_FP16(pow)(float16 a, float16 b) {
   return float16(FN_FP32(pow)(static_cast<float>(a), static_cast<float>(b)));
