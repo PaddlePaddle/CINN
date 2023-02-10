@@ -51,24 +51,25 @@ class TestReluOp(OpTest):
     # the forward result will be incorrect.
     def build_cinn_program(self, target):
         builder = NetBuilder("relu")
-        x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
+        x = builder.create_input(
+            self.nptype2cinntype(self.inputs["x"].dtype),
+            self.inputs["x"].shape, "x")
         out = builder.relu(x)
-        prog = builder.build()
-        forward_res = self.get_cinn_output(prog, target, [x],
-                                           [self.inputs["x"]], [out])
 
-        builder = NetBuilder("relu_grad")
-        shape = self.inputs["dout"].shape
-        dout = builder.create_input(Float(32), shape, "dout")
-        out = builder.create_input(Float(32), shape, "out")
+        dout = builder.create_input(
+            self.nptype2cinntype(self.inputs["dout"].dtype),
+            self.inputs["dout"].shape, "dout")
         x_grad = builder.relu_grad(dout, out)
         prog = builder.build()
-        backward_res = self.get_cinn_output(
-            prog, target, [dout, out], [self.inputs["dout"], forward_res[0]],
-            [x_grad])
 
-        self.cinn_outputs = forward_res
-        self.cinn_grads = backward_res
+        res = self.get_cinn_output(
+            prog,
+            target, [x, dout], [self.inputs["x"], self.inputs["dout"]],
+            [out, x_grad],
+            passes=[])
+
+        self.cinn_outputs = [res[0]]
+        self.cinn_grads = [res[1]]
 
     def test_check_results(self):
         self.check_outputs_and_grads()
