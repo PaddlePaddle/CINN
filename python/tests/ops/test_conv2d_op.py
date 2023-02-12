@@ -35,51 +35,61 @@ class TestConv2dOp(OpTest):
 
     def init_case(self):
         self.inputs = {
-            "x": np.random.random([3, 16, 32, 32]).astype("float32"),
-            "weight": np.random.random([16, 16, 3, 3]).astype("float32"),
-            "dy": np.random.random([3, 16, 30, 30]).astype("float32")
+            "x": self.random([3, 16, 32, 32], "float32"),
+            "weight": self.random([16, 16, 3, 3], "float32"),
+            "dy": self.random([3, 16, 30, 30], "float32")
         }
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.inputs["x"], stop_gradient=False)
         weight = paddle.to_tensor(self.inputs["weight"], stop_gradient=False)
-        dy = paddle.to_tensor(self.inputs["dy"])
+
         y = paddle.nn.functional.conv2d(x, weight)
 
-        if is_compiled_with_cudnn():
-            paddle.autograd.backward([y], [dy], True)
-            self.paddle_outputs = [
-                y.numpy(), x.grad.numpy(),
-                weight.grad.numpy()
-            ]
-        else:
-            self.paddle_outputs = [y.numpy()]
+        self.paddle_outputs = [y.numpy()]
+        self.paddle_grads = self.get_paddle_grads([y], [x, weight],
+                                                  [self.inputs["dy"]])
 
     def build_cinn_program(self, target):
         builder = NetBuilder("conv2d")
-        x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
+        x = builder.create_input(
+            self.nptype2cinntype(self.inputs["x"].dtype),
+            self.inputs["x"].shape, "x")
         weight = builder.create_input(
-            Float(32), self.inputs["weight"].shape, "weight")
-        dy = builder.create_input(Float(32), self.inputs["dy"].shape, "dy")
-        y = builder.conv2d(x, weight)
+            self.nptype2cinntype(self.inputs["weight"].dtype),
+            self.inputs["weight"].shape, "weight")
+        dy = builder.create_input(
+            self.nptype2cinntype(self.inputs["dy"].dtype),
+            self.inputs["dy"].shape, "dy")
 
-        if is_compiled_with_cudnn():
-            x_grad, weight_grad = builder.conv2d_grad(dy, x, weight)
-            prog = builder.build()
-            res = self.get_cinn_output(
-                prog, target, [x, weight, dy],
-                [self.inputs["x"], self.inputs["weight"], self.inputs["dy"]],
-                [y, x_grad, weight_grad])
-            self.cinn_outputs = res
-        else:
-            prog = builder.build()
-            res = self.get_cinn_output(
-                prog, target, [x, weight],
-                [self.inputs["x"], self.inputs["weight"]], [y])
-            self.cinn_outputs = [res[0]]
+        y = builder.conv2d(x, weight)
+        x_grad, weight_grad = builder.conv2d_grad(dy, x, weight)
+        prog = builder.build()
+
+        res = self.get_cinn_output(
+            prog,
+            target, [x, weight, dy],
+            [self.inputs["x"], self.inputs["weight"], self.inputs["dy"]],
+            [y, x_grad, weight_grad],
+            passes=[])
+
+        self.cinn_outputs = [res[0]]
+        self.cinn_grads = [res[1], res[2]]
 
     def test_check_results(self):
-        self.check_outputs_and_grads(1e-4)
+        self.check_outputs_and_grads()
+
+
+class TestConv2dOpFP16(TestConv2dOp):
+    def init_case(self):
+        self.inputs = {
+            "x": self.random([3, 16, 32, 32], "float16"),
+            "weight": self.random([16, 16, 3, 3], "float16"),
+            "dy": self.random([3, 16, 30, 30], "float16")
+        }
+
+    def test_check_results(self):
+        self.check_outputs_and_grads(1e-3)
 
 
 if __name__ == "__main__":

@@ -470,6 +470,16 @@ cudnnDataType_t convert_to_cudnn_dtype(void *v_args, int num_args) {
   return data_type;
 }
 
+cudnnDataType_t get_cudnn_compute_dtype(cudnnDataType_t data_type) {
+  switch (data_type) {
+    case CUDNN_DATA_FLOAT:
+    case CUDNN_DATA_HALF:
+      return CUDNN_DATA_FLOAT;
+    default:
+      LOG(FATAL) << "unsupported cudnn data type, only support float16 and float32 now!";
+  }
+}
+
 void cinn_call_cudnn_conv2d_forward(void *v_args,
                                     int num_args,
                                     int format,
@@ -516,8 +526,15 @@ void cinn_call_cudnn_conv2d_forward(void *v_args,
 
   cudnnConvolutionDescriptor_t conv_desc;
   CUDNN_CALL(cudnnCreateConvolutionDescriptor(&conv_desc));
-  CUDNN_CALL(cudnnSetConvolution2dDescriptor(
-      conv_desc, pad_h, pad_w, stride_h, stride_w, dilation_h, dilation_w, CUDNN_CROSS_CORRELATION, data_type));
+  CUDNN_CALL(cudnnSetConvolution2dDescriptor(conv_desc,
+                                             pad_h,
+                                             pad_w,
+                                             stride_h,
+                                             stride_w,
+                                             dilation_h,
+                                             dilation_w,
+                                             CUDNN_CROSS_CORRELATION,
+                                             get_cudnn_compute_dtype(data_type)));
   CUDNN_CALL(cudnnSetConvolutionGroupCount(conv_desc, groups));
   CUDNN_CALL(cudnnSetConvolutionMathType(conv_desc, CUDNN_DEFAULT_MATH));
 
@@ -607,8 +624,15 @@ void cinn_call_cudnn_conv2d_backward_data(void *v_args,
 
   cudnnConvolutionDescriptor_t conv_desc;
   CUDNN_CALL(cudnnCreateConvolutionDescriptor(&conv_desc));
-  CUDNN_CALL(cudnnSetConvolution2dDescriptor(
-      conv_desc, pad_h, pad_w, stride_h, stride_w, dilation_h, dilation_w, CUDNN_CROSS_CORRELATION, data_type));
+  CUDNN_CALL(cudnnSetConvolution2dDescriptor(conv_desc,
+                                             pad_h,
+                                             pad_w,
+                                             stride_h,
+                                             stride_w,
+                                             dilation_h,
+                                             dilation_w,
+                                             CUDNN_CROSS_CORRELATION,
+                                             get_cudnn_compute_dtype(data_type)));
   CUDNN_CALL(cudnnSetConvolutionGroupCount(conv_desc, groups));
   CUDNN_CALL(cudnnSetConvolutionMathType(conv_desc, CUDNN_DEFAULT_MATH));
 
@@ -703,8 +727,15 @@ void cinn_call_cudnn_conv2d_backward_filter(void *v_args,
 
   cudnnConvolutionDescriptor_t conv_desc;
   CUDNN_CALL(cudnnCreateConvolutionDescriptor(&conv_desc));
-  CUDNN_CALL(cudnnSetConvolution2dDescriptor(
-      conv_desc, pad_h, pad_w, stride_h, stride_w, dilation_h, dilation_w, CUDNN_CROSS_CORRELATION, data_type));
+  CUDNN_CALL(cudnnSetConvolution2dDescriptor(conv_desc,
+                                             pad_h,
+                                             pad_w,
+                                             stride_h,
+                                             stride_w,
+                                             dilation_h,
+                                             dilation_w,
+                                             CUDNN_CROSS_CORRELATION,
+                                             get_cudnn_compute_dtype(data_type)));
   CUDNN_CALL(cudnnSetConvolutionGroupCount(conv_desc, groups));
   CUDNN_CALL(cudnnSetConvolutionMathType(conv_desc, CUDNN_DEFAULT_MATH));
 
@@ -1349,8 +1380,15 @@ void cinn_gpu_cudnn_conv2d(const absl::flat_hash_map<std::string, int> &attr,
 
   cudnnConvolutionDescriptor_t conv_desc;
   CUDNN_CALL(cudnnCreateConvolutionDescriptor(&conv_desc));
-  CUDNN_CALL(cudnnSetConvolution2dDescriptor(
-      conv_desc, pad_h, pad_w, stride_h, stride_w, dilation_h, dilation_w, CUDNN_CROSS_CORRELATION, data_type));
+  CUDNN_CALL(cudnnSetConvolution2dDescriptor(conv_desc,
+                                             pad_h,
+                                             pad_w,
+                                             stride_h,
+                                             stride_w,
+                                             dilation_h,
+                                             dilation_w,
+                                             CUDNN_CROSS_CORRELATION,
+                                             get_cudnn_compute_dtype(data_type)));
   CUDNN_CALL(cudnnSetConvolutionGroupCount(conv_desc, groups));
   CUDNN_CALL(cudnnSetConvolutionMathType(conv_desc, CUDNN_DEFAULT_MATH));
 
@@ -1442,8 +1480,15 @@ void cinn_gpu_cudnn_conv2d_backward_data(const absl::flat_hash_map<std::string, 
 
   cudnnConvolutionDescriptor_t conv_desc;
   CUDNN_CALL(cudnnCreateConvolutionDescriptor(&conv_desc));
-  CUDNN_CALL(cudnnSetConvolution2dDescriptor(
-      conv_desc, pad_h, pad_w, stride_h, stride_w, dilation_h, dilation_w, CUDNN_CROSS_CORRELATION, data_type));
+  CUDNN_CALL(cudnnSetConvolution2dDescriptor(conv_desc,
+                                             pad_h,
+                                             pad_w,
+                                             stride_h,
+                                             stride_w,
+                                             dilation_h,
+                                             dilation_w,
+                                             CUDNN_CROSS_CORRELATION,
+                                             get_cudnn_compute_dtype(data_type)));
   CUDNN_CALL(cudnnSetConvolutionGroupCount(conv_desc, groups));
   CUDNN_CALL(cudnnSetConvolutionMathType(conv_desc, CUDNN_DEFAULT_MATH));
 
@@ -1537,8 +1582,15 @@ void cinn_gpu_cudnn_conv2d_backward_filter(const absl::flat_hash_map<std::string
 
   cudnnConvolutionDescriptor_t conv_desc;
   CUDNN_CALL(cudnnCreateConvolutionDescriptor(&conv_desc));
-  CUDNN_CALL(cudnnSetConvolution2dDescriptor(
-      conv_desc, pad_h, pad_w, stride_h, stride_w, dilation_h, dilation_w, CUDNN_CROSS_CORRELATION, data_type));
+  CUDNN_CALL(cudnnSetConvolution2dDescriptor(conv_desc,
+                                             pad_h,
+                                             pad_w,
+                                             stride_h,
+                                             stride_w,
+                                             dilation_h,
+                                             dilation_w,
+                                             CUDNN_CROSS_CORRELATION,
+                                             get_cudnn_compute_dtype(data_type)));
   CUDNN_CALL(cudnnSetConvolutionGroupCount(conv_desc, groups));
   CUDNN_CALL(cudnnSetConvolutionMathType(conv_desc, CUDNN_DEFAULT_MATH));
 
