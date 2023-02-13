@@ -22,18 +22,15 @@ namespace paddle_mappers {
 void NormOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
   auto x_name = op_desc.Input("W").front();
-  //   CHECK_EQ(op_desc.Input("Ids").size(), 1UL);
-  //   auto ids_name = op_desc.Input("Ids").front();
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
   auto out_name = op_desc.Output("Out").front();
   auto x        = ctx.GetVar(x_name);
-  //   auto ids      = ctx.GetVar(ids_name);
+
   CHECK(op_desc.HasAttr("axis"));
   CHECK(op_desc.HasAttr("epsilon"));
   auto axis    = op_desc.GetAttr<int64_t>("axis");
   auto epsilon = op_desc.GetAttr<int64_t>("epsilon");
-  //   auto int32_ids   = ctx.Builder()->Cast(ids, "int32");
-  auto out = ctx.Builder()->Norm(x, axis, epsilon);
+  auto out     = ctx.Builder()->Norm(x, axis, epsilon);
 
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);

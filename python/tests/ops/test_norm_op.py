@@ -42,19 +42,13 @@ class TestNormOp(OpTest):
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.inputs["x"], stop_gradient=False)
-        # ids = paddle.to_tensor(self.inputs["ids"], stop_gradient=False)
-        # out = F.embedding(ids, table, 1)
         out = paddle.fluid.layers.l2_normalize(x, self.axis, self.epsilon)
 
         self.paddle_outputs = [out]
 
-    # Note: If the forward and backward operators are run in the same program,
-    # the forward result will be incorrect.
     def build_cinn_program(self, target):
         builder = NetBuilder("norm")
         x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
-        # ids = builder.create_input(
-        #     Int(64), self.inputs["ids"].shape + (1, ), "ids")
         out = builder.norm(x, self.axis, self.epsilon)
         prog = builder.build()
         forward_res = self.get_cinn_output(prog, target, [x],
