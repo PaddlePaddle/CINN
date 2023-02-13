@@ -232,7 +232,6 @@ TEST(net_build, program_execute_reverse) {
   runtime_program->Execute();
 }
 
-/*
 TEST(net_build, program_execute_clip) {
   const int M = 4;
   const int N = 3;
@@ -243,18 +242,18 @@ TEST(net_build, program_execute_clip) {
 
   NetBuilder builder("net_builder");
   Placeholder input = builder.CreateInput(Float(32), {M, N, K}, "In");
-  //Variable output   = builder.Clip({input}, max_val, min_val);
+  // Variable output   = builder.Clip({input}, max_val, min_val);
   auto max_val_ = builder.FillConstant({M, N, K}, max_val, common::UniqName("constant"));
   auto min_val_ = builder.FillConstant({M, N, K}, min_val, common::UniqName("constant"));
   auto output_0 = builder.Min(input, max_val_);
-  auto output = builder.Max(output_0, min_val_);
-  auto program      = builder.Build();
+  auto output   = builder.Max(output_0, min_val_);
+  auto program  = builder.Build();
 
   Target target = common::DefaultNVGPUTarget();
   std::unordered_set<std::string> fetch_ids;
   auto graph = Optimize(&program, fetch_ids, target);
 
-  LOG(INFO) <<graph->Visualize();
+  LOG(INFO) << graph->Visualize();
   auto scope = BuildScope(target, graph);
   hlir::framework::GraphCompiler gc(target, scope, graph);
   auto runtime_program = gc.Build();
@@ -494,7 +493,6 @@ TEST(net_build, program_execute_scatter) {
     }
   }
 }
-
 
 TEST(net_build, program_execute_scatter_nd) {
   const float default_value = 3.14;
@@ -1641,7 +1639,6 @@ TEST(net_build, program_execute_one_hot) {
     }
   }
 }
-*/
 
 }  // namespace frontend
 }  // namespace cinn
