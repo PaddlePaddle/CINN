@@ -242,12 +242,8 @@ TEST(net_build, program_execute_clip) {
 
   NetBuilder builder("net_builder");
   Placeholder input = builder.CreateInput(Float(32), {M, N, K}, "In");
-  // Variable output   = builder.Clip({input}, max_val, min_val);
-  auto max_val_ = builder.FillConstant({M, N, K}, max_val, common::UniqName("constant"));
-  auto min_val_ = builder.FillConstant({M, N, K}, min_val, common::UniqName("constant"));
-  auto output_0 = builder.Min(input, max_val_);
-  auto output   = builder.Max(output_0, min_val_);
-  auto program  = builder.Build();
+  Variable output   = builder.Clip({input}, max_val, min_val);
+  auto program      = builder.Build();
 
   Target target = common::DefaultNVGPUTarget();
   std::unordered_set<std::string> fetch_ids;
