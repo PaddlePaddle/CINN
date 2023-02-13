@@ -20,19 +20,13 @@ namespace frontend {
 namespace decomposer {
 
 struct NormHelper {
-  NormHelper(NetBuilder* net_builder, const std::vector<int>& arg_x_shape, int32_t axis, std::string bn_op_type) {
-    CHECK_GT(arg_x_shape.size(), 0UL) << "The input's shape of norm needs to be greater than 0";
-
+  NormHelper(NetBuilder* net_builder, int32_t axis) {
     builder          = net_builder;
-    x_shape          = arg_x_shape;
     reduce_dim       = {axis};
     num_instructions = builder->size();
-    op_type          = bn_op_type;
   }
 
-  ~NormHelper() {
-    VLOG(4) << op_type << " is decomposed to " << builder->size() - num_instructions << " instructions.";
-  }
+  ~NormHelper() { VLOG(4) << "norm is decomposed to " << builder->size() - num_instructions << " instructions."; }
 
   // square_sum = reduce_sum(x * x)
   Variable SquareSum(Variable x) {
@@ -53,9 +47,7 @@ struct NormHelper {
   Variable Reduce(Variable x) { return builder->ReduceSum(x, reduce_dim, true); }
 
   NetBuilder* builder{nullptr};
-  std::vector<int> x_shape;
   std::vector<int> reduce_dim;
-  std::string op_type;
   int num_instructions{0};
 };
 
@@ -70,7 +62,7 @@ void norm(const Instruction& instr, const DecomposerContext& context) {
   float epsilon = instr.GetAttrs<float>("epsilon");
 
   NetBuilder* builder = context.builder();
-  NormHelper helper(builder, x_orig->shape, axis, "norm");
+  NormHelper helper(builder, axis);
 
   auto square_sum         = helper.SquareSum(x_orig);
   auto std_square_sum_inv = helper.StdSquareSumInv1d(square_sum, epsilon);
