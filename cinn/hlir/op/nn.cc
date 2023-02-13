@@ -2113,6 +2113,19 @@ std::vector<Type> InferDtypeForSelect(const std::vector<Type> &inputs_type, cons
   return res;
 }
 
+std::vector<Type> InferDtypeForNorm(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
+  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
+  std::vector<Type> res{inputs_type[0]};
+  return res;
+}
+
+std::vector<framework::shape_t> InferShapeForNorm(const std::vector<framework::shape_t> &inputs_shape,
+                                                  const framework::AttrMapType &attrs) {
+  CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
+  std::vector<framework::shape_t> res{inputs_shape[0]};
+  return res;
+}
+
 std::vector<std::vector<std::string>> InferLayoutForUnary(const std::vector<framework::shape_t> &input_shapes,
                                                           const std::vector<std::string> &input_layouts,
                                                           const framework::NodeAttr &attrs,
@@ -2394,6 +2407,15 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForUnary))
 #endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElementWise)
+      .set_support_level(4);
+
+  CINN_REGISTER_OP(norm)
+      .describe("Norm.")
+      .set_num_inputs(1)
+      .set_num_outputs(1)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForNorm))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForNorm))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kNonFusible)
       .set_support_level(4);
 
   return true;
