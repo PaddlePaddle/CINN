@@ -186,6 +186,18 @@ __device__ inline float16 cinn_max_fp16(const float16 left, const float16 right)
 __device__ inline float16 cinn_min_fp16(const float16 left, const float16 right) { return min(left, right); }
 #endif
 
+#define EXPAND_REDUCE_FP64_MACRO(MACRO, ...)          \
+  MACRO(sum_fp64, 0.0, double, ##__VA_ARGS__)         \
+  MACRO(prod_fp64, 1.0, double, ##__VA_ARGS__)        \
+  MACRO(max_fp64, -1.17549e-038, double, ##__VA_ARGS__) \
+  MACRO(min_fp64, 1.79769e+308, double, ##__VA_ARGS__)
+
+__device__ inline double cinn_sum_fp64(const double left, const double right) { return left + right; }
+__device__ inline double cinn_prod_fp64(const double left, const double right) { return left * right; }
+__device__ inline double cinn_max_fp64(const double left, const double right) { return max(left, right); }
+__device__ inline double cinn_min_fp64(const double left, const double right) { return min(left, right); }
+
+
 #define EXPAND_REDUCE_BOOL_MACRO(MACRO, ...) \
   MACRO(all, true, bool, ##__VA_ARGS__)      \
   MACRO(any, false, bool, ##__VA_ARGS__)
@@ -222,6 +234,7 @@ __device__ inline bool cinn_any(const bool left, const bool right) { return left
 
 EXPAND_REDUCE_FP32_MACRO(CINN_WARP_SHUFFLE_INTERNAL_IMPL)
 EXPAND_REDUCE_BOOL_MACRO(CINN_WARP_SHUFFLE_INTERNAL_IMPL)
+EXPAND_REDUCE_FP64_MACRO(CINN_WARP_SHUFFLE_INTERNAL_IMPL)
 
 #ifdef CINN_CUDA_FP16
 EXPAND_REDUCE_FP16_MACRO(CINN_WARP_SHUFFLE_INTERNAL_IMPL)
@@ -240,6 +253,7 @@ EXPAND_REDUCE_FP16_MACRO(CINN_WARP_SHUFFLE_INTERNAL_IMPL)
 
 EXPAND_REDUCE_FP32_MACRO(CINN_WARP_REDUCE_IMPL)
 EXPAND_REDUCE_BOOL_MACRO(CINN_WARP_REDUCE_IMPL)
+EXPAND_REDUCE_FP64_MACRO(CINN_WARP_REDUCE_IMPL)
 
 #ifdef CINN_CUDA_FP16
 EXPAND_REDUCE_FP16_MACRO(CINN_WARP_REDUCE_IMPL)
@@ -283,6 +297,7 @@ __device__ inline float cinn_warp_reduce_avg_fp32(const float *buf, int offset, 
 
 EXPAND_REDUCE_FP32_MACRO(CINN_BLOCK_REDUCE_INTERNAL_MACRO)
 EXPAND_REDUCE_BOOL_MACRO(CINN_BLOCK_REDUCE_INTERNAL_MACRO)
+EXPAND_REDUCE_FP64_MACRO(CINN_BLOCK_REDUCE_INTERNAL_MACRO)
 
 #ifdef CINN_CUDA_FP16
 EXPAND_REDUCE_FP16_MACRO(CINN_BLOCK_REDUCE_INTERNAL_MACRO)
@@ -302,6 +317,7 @@ EXPAND_REDUCE_FP16_MACRO(CINN_BLOCK_REDUCE_INTERNAL_MACRO)
 
 EXPAND_REDUCE_FP32_MACRO(CINN_BLOCK_REDUCE_IMPL)
 EXPAND_REDUCE_BOOL_MACRO(CINN_BLOCK_REDUCE_IMPL)
+EXPAND_REDUCE_FP64_MACRO(CINN_BLOCK_REDUCE_IMPL)
 
 #ifdef CINN_CUDA_FP16
 EXPAND_REDUCE_FP16_MACRO(CINN_BLOCK_REDUCE_IMPL)
@@ -320,6 +336,7 @@ EXPAND_REDUCE_FP16_MACRO(CINN_BLOCK_REDUCE_IMPL)
 
 EXPAND_REDUCE_FP32_MACRO(BLOCK_SHUFFLE_IMPL)
 EXPAND_REDUCE_BOOL_MACRO(BLOCK_SHUFFLE_IMPL)
+EXPAND_REDUCE_FP64_MACRO(BLOCK_SHUFFLE_IMPL)
 
 #ifdef CINN_CUDA_FP16
 EXPAND_REDUCE_FP16_MACRO(BLOCK_SHUFFLE_IMPL)
@@ -329,6 +346,7 @@ EXPAND_REDUCE_FP16_MACRO(BLOCK_SHUFFLE_IMPL)
 
 #undef EXPAND_REDUCE_FP32_MACRO
 #undef EXPAND_REDUCE_BOOL_MACRO
+#undef EXPAND_REDUCE_FP64_MACRO
 
 #ifdef CINN_CUDA_FP16
 #undef EXPAND_REDUCE_FP16_MACRO
