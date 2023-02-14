@@ -66,7 +66,7 @@ class OpTest(unittest.TestCase):
                         inputs,
                         feed_data,
                         outputs,
-                        passes=["Decomposer"],
+                        passes=[],
                         scope=None):
         fetch_ids = {str(out) for out in outputs}
         result = prog.build_and_get_output(
