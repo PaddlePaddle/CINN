@@ -627,17 +627,6 @@ void BindFrontend(pybind11::module *m) {
            py::arg("dropout_prob")           = 0.5f,
            py::arg("dropout_implementation") = "downgrade_in_infer")
       .def("relu_grad", &NetBuilder::ReluGrad, py::arg("dout"), py::arg("x"))
-      .def("conv2d_grad",
-           &NetBuilder::Conv2dGrad,
-           py::arg("dy"),
-           py::arg("x"),
-           py::arg("w"),
-           py::arg("strides")           = std::vector<int>{1, 1},
-           py::arg("paddings")          = std::vector<int>{0, 0},
-           py::arg("dilations")         = std::vector<int>{1, 1},
-           py::arg("groups")            = 1,
-           py::arg("data_format")       = "NCHW",
-           py::arg("padding_algorithm") = "EXPLICIT")
       .def("sum", &NetBuilder::Sum, py::arg("inputs"))
       .def("matmul",
            &NetBuilder::Matmul,

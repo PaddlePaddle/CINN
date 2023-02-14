@@ -510,15 +510,15 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
       out_shape_w =
           (inputs_shape[0][3] - ((inputs_shape[1][3] - 1) * dilation[1] + 1) + 2 * padding[1]) / stride[1] + 1;
     } else if (conv_type == "backward_data") {
-      CHECK(attrs.find("output_shape") != attrs.end()) << "The shape of filter is not found! Please check.";
+      CHECK(attrs.find("output_shape") != attrs.end()) << "The shape of backward_data is not found! Please check.";
       auto data_shape = absl::get<std::vector<int>>(attrs.at("output_shape"));
-      CHECK_EQ(data_shape.size(), 4) << "The size of filter shape is not 4(oc, ic, fh, fw)!Please check";
+      CHECK_EQ(data_shape.size(), 4) << "The rank of x shape is not 4! Please check";
       out_shape_h = data_shape[2];
       out_shape_w = data_shape[3];
     } else if (conv_type == "backward_filter") {
-      CHECK(attrs.find("output_shape") != attrs.end()) << "The shape of filter is not found! Please check.";
+      CHECK(attrs.find("output_shape") != attrs.end()) << "The shape of backward_filter is not found! Please check.";
       auto filter_shape = absl::get<std::vector<int>>(attrs.at("output_shape"));
-      CHECK_EQ(filter_shape.size(), 4) << "The size of filter shape is not 4(oc, ic, fh, fw)!Please check";
+      CHECK_EQ(filter_shape.size(), 4) << "The rank of weight shape is not 4! Please check";
       out_shape_h = filter_shape[2];
       out_shape_w = filter_shape[3];
     }
@@ -568,12 +568,34 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
     }
     return {res_shape, packed_out_shape, weights_dilation_shape, input_pad_shape};
   } else if (data_format == "NHWC") {
-    // A is input: [N, H, W, C], B is filter: [C_out, C_in/group, filter_h, filter_w]
-    int out_shape_h =
-        (inputs_shape[0][1] - ((inputs_shape[1][2] - 1) * dilation[0] + 1) + 2 * padding[0]) / stride[0] + 1;
-    int out_shape_w =
-        (inputs_shape[0][2] - ((inputs_shape[1][3] - 1) * dilation[1] + 1) + 2 * padding[1]) / stride[1] + 1;
-    res = {{inputs_shape[0][0], out_shape_h, out_shape_w, inputs_shape[1][0]}};
+    std::vector<int> res_shape;
+    int out_shape_h = 0, out_shape_w = 0;
+    if (conv_type == "forward") {
+      // A is input: [N, H, W, C], B is filter: [C_out, C_in/group, filter_h, filter_w]
+      out_shape_h =
+          (inputs_shape[0][1] - ((inputs_shape[1][2] - 1) * dilation[0] + 1) + 2 * padding[0]) / stride[0] + 1;
+      out_shape_w =
+          (inputs_shape[0][2] - ((inputs_shape[1][3] - 1) * dilation[1] + 1) + 2 * padding[1]) / stride[1] + 1;
+      res_shape = {inputs_shape[0][0], out_shape_h, out_shape_w, inputs_shape[1][0]};
+    } else if (conv_type == "backward_data") {
+      CHECK(attrs.find("output_shape") != attrs.end()) << "The shape of backward_data is not found! Please check.";
+      auto data_shape = absl::get<std::vector<int>>(attrs.at("output_shape"));
+      CHECK_EQ(data_shape.size(), 4) << "The rank of x shape is not 4! Please check";
+      out_shape_h = data_shape[1];
+      out_shape_w = data_shape[2];
+
+      // w(C_out, C_in/group, h, w,) dy(Batch, h, w, C_out) dx(batch, h, w, C_in)
+      res_shape = {inputs_shape[1][0], out_shape_h, out_shape_w, inputs_shape[0][1] * groups};
+    } else if (conv_type == "backward_filter") {
+      CHECK(attrs.find("output_shape") != attrs.end()) << "The shape of backward_filter is not found! Please check.";
+      auto filter_shape = absl::get<std::vector<int>>(attrs.at("output_shape"));
+      CHECK_EQ(filter_shape.size(), 4) << "The rank of weight shape is not 4! Please check";
+      out_shape_h = filter_shape[2];
+      out_shape_w = filter_shape[3];
+      // x(batch, h, w, C_in) dy(batch, h, w, C_out) dw (C_out, C_in/group, h, w)
+      res_shape = {inputs_shape[1][3], inputs_shape[0][3] / groups, out_shape_h, out_shape_w};
+    }
+    return {res_shape};
   } else {
     LOG(FATAL) << "Only support NCHW and NHWC data layout\n";
   }
@@ -2216,21 +2238,6 @@ std::vector<Type> InferDtypeForBatchNormGrad(const std::vector<Type> &inputs_typ
   return {inputs_type[0], inputs_type[2], inputs_type[2]};
 }
 
-// conv2d grad
-std::vector<framework::shape_t> InferShapeForConv2dGrad(const std::vector<framework::shape_t> &inputs_shape,
-                                                        const framework::AttrMapType &attrs) {
-  CHECK_EQ(inputs_shape.size(), 3U) << "The input's layout size is not 3! Please check again.";
-  CHECK_EQ(inputs_shape[0].size(), 4U) << "Dy shape is not 4, Please check again.";
-  CHECK_EQ(inputs_shape[1].size(), 4U) << "Dy shape is not 4, Please check again.";
-  CHECK_EQ(inputs_shape[2].size(), 4U) << "Dy shape is not 4, Please check again.";
-  return {inputs_shape[1], inputs_shape[2]};
-}
-
-std::vector<Type> InferDtypeForConv2dGrad(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
-  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
-  return {inputs_type[0], inputs_type[0]};
-}
-
 }  // namespace op
 }  // namespace hlir
 }  // namespace cinn
@@ -2423,14 +2430,6 @@ CINN_REGISTER_HELPER(nn_grad_ops) {
       .set_num_outputs(3)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForBatchNormGrad))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForBatchNormGrad))
-      .set_support_level(4);
-
-  CINN_REGISTER_OP(conv2d_grad)
-      .describe("This operator implements the convolution backward.")
-      .set_num_inputs(3)
-      .set_num_outputs(2)
-      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForConv2dGrad))
-      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForConv2dGrad))
       .set_support_level(4);
 
   return true;

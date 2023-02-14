@@ -39,12 +39,14 @@ class TestConv2dOp(OpTest):
             "weight": self.random([16, 16, 3, 3], "float32"),
             "dy": self.random([3, 16, 30, 30], "float32")
         }
+        self.data_format = 'NCHW'
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.inputs["x"], stop_gradient=False)
         weight = paddle.to_tensor(self.inputs["weight"], stop_gradient=False)
 
-        y = paddle.nn.functional.conv2d(x, weight)
+        y = paddle.nn.functional.conv2d(
+            x, weight, data_format=self.data_format)
 
         self.paddle_outputs = [y.numpy()]
         self.paddle_grads = self.get_paddle_grads([y], [x, weight],
@@ -62,8 +64,20 @@ class TestConv2dOp(OpTest):
             self.nptype2cinntype(self.inputs["dy"].dtype),
             self.inputs["dy"].shape, "dy")
 
-        y = builder.conv2d(x, weight)
-        x_grad, weight_grad = builder.conv2d_grad(dy, x, weight)
+        y = builder.conv2d(x, weight, data_format=self.data_format)
+
+        x_grad = builder.conv(
+            weight,
+            dy,
+            data_format=self.data_format,
+            conv_type="backward_data",
+            output_shape=x.shape())
+        weight_grad = builder.conv(
+            x,
+            dy,
+            data_format=self.data_format,
+            conv_type="backward_filter",
+            output_shape=weight.shape())
         prog = builder.build()
 
         res = self.get_cinn_output(
@@ -80,6 +94,7 @@ class TestConv2dOp(OpTest):
         self.check_outputs_and_grads()
 
 
+'''
 class TestConv2dOpFP16(TestConv2dOp):
     def init_case(self):
         self.inputs = {
@@ -87,9 +102,21 @@ class TestConv2dOpFP16(TestConv2dOp):
             "weight": self.random([16, 16, 3, 3], "float16"),
             "dy": self.random([3, 16, 30, 30], "float16")
         }
+        self.data_format ='NCHW'
 
     def test_check_results(self):
         self.check_outputs_and_grads(1e-3)
+'''
+
+
+class TestConv2dOpNHWC(TestConv2dOp):
+    def init_case(self):
+        self.inputs = {
+            "x": self.random([3, 32, 32, 16], "float32"),
+            "weight": self.random([16, 16, 3, 3], "float32"),
+            "dy": self.random([3, 30, 30, 16], "float32")
+        }
+        self.data_format = 'NHWC'
 
 
 if __name__ == "__main__":

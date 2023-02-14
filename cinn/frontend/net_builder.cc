@@ -628,26 +628,6 @@ Variable NetBuilder::Flip(const Variable& operand, const std::vector<int>& axes)
   return instr.GetOutput(0);
 }
 
-// conv2d grad, output(grad_x, grad_w)
-std::vector<Variable> NetBuilder::Conv2dGrad(const Variable& dy,
-                                             const Variable& x,
-                                             const Variable& w,
-                                             const std::vector<int>& strides,
-                                             const std::vector<int>& paddings,
-                                             const std::vector<int>& dilations,
-                                             const int groups,
-                                             const std::string& data_format,
-                                             const std::string& padding_algorithm) {
-  return CustomInstr("conv2d_grad",
-                     {dy, x, w},
-                     {{"strides", strides},
-                      {"paddings", paddings},
-                      {"dilations", dilations},
-                      {"groups", groups},
-                      {"data_format", data_format},
-                      {"padding_algorithm", padding_algorithm}});
-}
-
 Variable NetBuilder::Matmul(const Variable& x, const Variable& y, bool trans_x, bool trans_y, float alpha) {
   return CustomInstr("matmul", {x, y}, {{"trans_a", trans_x}, {"trans_b", trans_y}, {"alpha", alpha}}).front();
   ;

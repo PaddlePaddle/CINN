@@ -543,11 +543,13 @@ void cinn_call_cudnn_conv2d_forward(void *v_args,
   CUDNN_CALL(cudnnSetTensor4dDescriptor(y_desc, tensor_format, data_type, output_n, output_c, output_h, output_w));
 
   auto &conv_algo_map  = ConvAlgoMap::GetInstance();
-  std::string hash_key = "conv2d forward," + std::to_string(input_n) + "," + std::to_string(input_c) + "," +
-                         std::to_string(input_h) + "," + std::to_string(input_w) + "," + std::to_string(filter_n) +
-                         "," + std::to_string(filter_c) + "," + std::to_string(filter_h) + "," +
-                         std::to_string(filter_w) + "," + std::to_string(output_n) + "," + std::to_string(output_c) +
-                         "," + std::to_string(output_h) + "," + std::to_string(output_w);
+  std::string hash_key = "conv2d forward, input_shape={" + std::to_string(input_n) + "," + std::to_string(input_c) +
+                         "," + std::to_string(input_h) + "," + std::to_string(input_w) + "}, filter_shape={" +
+                         std::to_string(filter_n) + "," + std::to_string(filter_c) + "," + std::to_string(filter_h) +
+                         "," + std::to_string(filter_w) + "}, output_shape={" + std::to_string(output_n) + "," +
+                         std::to_string(output_c) + "," + std::to_string(output_h) + "," + std::to_string(output_w) +
+                         "}";
+  VLOG(4) << hash_key;
   cudnnConvolutionFwdAlgo_t algo;
   int algo_int = conv_algo_map.GetAlgo(hash_key);
   if (algo_int >= 0) {
@@ -641,11 +643,14 @@ void cinn_call_cudnn_conv2d_backward_data(void *v_args,
   CUDNN_CALL(cudnnSetTensor4dDescriptor(y_desc, tensor_format, data_type, output_n, output_c, output_h, output_w));
 
   auto &conv_algo_map  = ConvAlgoMap::GetInstance();
-  std::string hash_key = "conv2d backward data," + std::to_string(input_n) + "," + std::to_string(input_c) + "," +
-                         std::to_string(input_h) + "," + std::to_string(input_w) + "," + std::to_string(filter_n) +
-                         "," + std::to_string(filter_c) + "," + std::to_string(filter_h) + "," +
-                         std::to_string(filter_w) + "," + std::to_string(output_n) + "," + std::to_string(output_c) +
-                         "," + std::to_string(output_h) + "," + std::to_string(output_w);
+  std::string hash_key = "conv2d backward data, input_shape={" + std::to_string(input_n) + "," +
+                         std::to_string(input_c) + "," + std::to_string(input_h) + "," + std::to_string(input_w) +
+                         "}, filter_shape={" + std::to_string(filter_n) + "," + std::to_string(filter_c) + "," +
+                         std::to_string(filter_h) + "," + std::to_string(filter_w) + "}, output_shape={" +
+                         std::to_string(output_n) + "," + std::to_string(output_c) + "," + std::to_string(output_h) +
+                         "," + std::to_string(output_w) + "}";
+
+  VLOG(4) << hash_key;
 
   int algo_int = conv_algo_map.GetAlgo(hash_key);
   cudnnConvolutionBwdDataAlgo_t algo;
@@ -744,11 +749,14 @@ void cinn_call_cudnn_conv2d_backward_filter(void *v_args,
   CUDNN_CALL(cudnnSetTensor4dDescriptor(y_desc, tensor_format, data_type, output_n, output_c, output_h, output_w));
 
   auto &algo_map       = ConvAlgoMap::GetInstance();
-  std::string hash_key = "conv2d backward filter," + std::to_string(input_n) + "," + std::to_string(input_c) + "," +
-                         std::to_string(input_h) + "," + std::to_string(input_w) + "," + std::to_string(filter_n) +
-                         "," + std::to_string(filter_c) + "," + std::to_string(filter_h) + "," +
-                         std::to_string(filter_w) + "," + std::to_string(output_n) + "," + std::to_string(output_c) +
-                         "," + std::to_string(output_h) + "," + std::to_string(output_w);
+  std::string hash_key = "conv2d backward filter, input_shape={" + std::to_string(input_n) + "," +
+                         std::to_string(input_c) + "," + std::to_string(input_h) + "," + std::to_string(input_w) +
+                         "}, filter_shape={" + std::to_string(filter_n) + "," + std::to_string(filter_c) + "," +
+                         std::to_string(filter_h) + "," + std::to_string(filter_w) + "}, output_shape={" +
+                         std::to_string(output_n) + "," + std::to_string(output_c) + "," + std::to_string(output_h) +
+                         "," + std::to_string(output_w) + "}";
+
+  VLOG(4) << hash_key;
 
   int algo_int = algo_map.GetAlgo(hash_key);
   cudnnConvolutionBwdFilterAlgo_t algo;

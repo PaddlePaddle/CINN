@@ -120,18 +120,21 @@ void Conv2dGradOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContex
   auto x      = ctx.GetVar(x_name);
   auto weight = ctx.GetVar(w_name);
 
-  auto out =
-      ctx.Builder()->Conv2dGrad(dy, x, weight, strides, paddings, dilations, groups, data_format, padding_algorithm);
-
   if (has_dx) {
-    ctx.AddVar(dx_name, out[0]);
-    ctx.AddVarModelToProgram(dx_name, out[0]->id);
-  } else {
-    out[0].set_const(true);
+    // create backward data
+    auto dx = ctx.Builder()->Conv(
+        weight, dy, strides, paddings, dilations, groups, "backward_data", data_format, padding_algorithm, x->shape);
+
+    ctx.AddVar(dx_name, dx);
+    ctx.AddVarModelToProgram(dx_name, dx->id);
   }
 
-  ctx.AddVar(dw_name, out[1]);
-  ctx.AddVarModelToProgram(dw_name, out[1]->id);
+  // create backward filter
+  auto dw = ctx.Builder()->Conv(
+      x, dy, strides, paddings, dilations, groups, "backward_filter", data_format, padding_algorithm, weight->shape);
+
+  ctx.AddVar(dw_name, dw);
+  ctx.AddVarModelToProgram(dw_name, dw->id);
 }
 
 }  // namespace paddle_mappers
