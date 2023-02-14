@@ -1584,6 +1584,15 @@ std::vector<std::vector<int>> InferShapeForPool2d(const std::vector<std::vector<
   CHECK_EQ(kernel_size.size(), 2U) << "kernel size for pool2d should be 2.\n";
   CHECK_EQ(stride_size.size(), 2U) << "stride_size size for pool2d should be 2.\n";
 
+  if (padding_size.size() == 2) {
+    padding_size.insert(padding_size.end(), padding_size.begin(), padding_size.end());
+  }
+
+  // if (padding_size.size() == 2) {
+  //   padding_size.insert(padding_size.begin(), padding_size.front());
+  //   padding_size.push_back(padding_size.back());
+  // }
+
   std::vector<int> output_shape1 = inputs_shape[0];
   int height_axis                = -1;
   int width_axis                 = -1;
@@ -1598,7 +1607,7 @@ std::vector<std::vector<int>> InferShapeForPool2d(const std::vector<std::vector<
     width_axis  = 3;
     data_format = "NCHW";
   } else {
-    LOG(ERROR) << "unsupported data_format: " << data_format << std::endl;
+    LOG(FATAL) << "unsupported data_format: " << data_format << std::endl;
   }
 
   if (global_pooling) {

@@ -496,18 +496,26 @@ std::vector<ir::Expr> CustomCallArgsForCudnnPoolForward(const framework::NodeAtt
   cudnnPoolingMode_t mode    = pool_type == "MAX" ? CUDNN_POOLING_MAX : CUDNN_POOLING_AVERAGE_COUNT_INCLUDE_PADDING;
   cudnnTensorFormat_t format = data_format == "NCHW" ? CUDNN_TENSOR_NCHW : CUDNN_TENSOR_NHWC;
 
+  std::vector<Expr> input = inputs[0]->shape;
+  std::vector<Expr> output;
+  std::transform(output_shapes[0].begin(), output_shapes[0].end(), std::back_inserter(output), [](const int dim) {
+    return ir::Expr(dim);
+  });
+  if (format == CUDNN_TENSOR_NHWC) {
+    input  = {input[0], input[3], input[1], input[2]};
+    output = {output[0], output[3], output[1], output[2]};
+  }
+
   std::vector<ir::Expr> args = {
       ir::Expr(static_cast<int>(mode)), ir::Expr(static_cast<int>(format)), ir::Expr(alpha), ir::Expr(beta)};
-  args.insert(args.end(), inputs[0]->shape.begin(), inputs[0]->shape.end());
+  args.insert(args.end(), input.begin(), input.end());
   args.push_back(ir::Expr(kernel[0]));
   args.push_back(ir::Expr(kernel[1]));
   args.push_back(ir::Expr(padding[0]));
   args.push_back(ir::Expr(padding[1]));
   args.push_back(ir::Expr(stride[0]));
   args.push_back(ir::Expr(stride[1]));
-  std::transform(output_shapes[0].begin(), output_shapes[0].end(), std::back_inserter(args), [](const int dim) {
-    return ir::Expr(dim);
-  });
+  args.insert(args.end(), output.begin(), output.end());
   return args;
 }
 
@@ -533,18 +541,27 @@ std::vector<ir::Expr> CustomCallArgsForCudnnPoolBackward(const framework::NodeAt
 
   cudnnPoolingMode_t mode    = pool_type == "MAX" ? CUDNN_POOLING_MAX : CUDNN_POOLING_AVERAGE_COUNT_INCLUDE_PADDING;
   cudnnTensorFormat_t format = data_format == "NCHW" ? CUDNN_TENSOR_NCHW : CUDNN_TENSOR_NHWC;
-  std::vector<ir::Expr> args = {
-      ir::Expr(static_cast<int>(mode)), ir::Expr(static_cast<int>(format)), ir::Expr(alpha), ir::Expr(beta)};
-  std::transform(output_shapes[0].begin(), output_shapes[0].end(), std::back_inserter(args), [](const int dim) {
+
+  std::vector<Expr> input = inputs[0]->shape;
+  std::transform(output_shapes[0].begin(), output_shapes[0].end(), std::back_inserter(input), [](const int dim) {
     return ir::Expr(dim);
   });
+  std::vector<Expr> output = inputs[0]->shape;
+  if (format == CUDNN_TENSOR_NHWC) {
+    input  = {input[0], input[3], input[1], input[2]};
+    output = {output[0], output[3], output[1], output[2]};
+  }
+
+  std::vector<ir::Expr> args = {
+      ir::Expr(static_cast<int>(mode)), ir::Expr(static_cast<int>(format)), ir::Expr(alpha), ir::Expr(beta)};
+  args.insert(args.end(), input.begin(), input.end());
   args.push_back(ir::Expr(kernel[0]));
   args.push_back(ir::Expr(kernel[1]));
   args.push_back(ir::Expr(padding[0]));
   args.push_back(ir::Expr(padding[1]));
   args.push_back(ir::Expr(stride[0]));
   args.push_back(ir::Expr(stride[1]));
-  args.insert(args.end(), inputs[0]->shape.begin(), inputs[0]->shape.end());
+  args.insert(args.end(), output.begin(), output.end());
 
   return args;
 }

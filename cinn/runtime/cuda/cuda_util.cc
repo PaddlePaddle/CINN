@@ -852,6 +852,17 @@ void cinn_call_cudnn_pool2d_forward(void *v_args,
   cudnnTensorFormat_t tensor_format = static_cast<cudnnTensorFormat_t>(format);
   cudnnDataType_t data_type         = convert_to_cudnn_dtype(v_args, num_args);
 
+  std::string hash_key = "pool2d forward, layout=" + debug_cudnn_tensor_format(tensor_format) +
+                         ", dtype=" + debug_cudnn_tensor_dtype(data_type) + ", input_nchw={" + std::to_string(input_n) +
+                         "," + std::to_string(input_c) + "," + std::to_string(input_h) + "," + std::to_string(input_w) +
+                         "}, kernel_hw={" + std::to_string(kernel_h) + "," + std::to_string(kernel_w) + "}, pad_hw={" +
+                         std::to_string(pad_h) + "," + std::to_string(pad_w) + "}, stride_hw={" +
+                         std::to_string(stride_h) + "," + std::to_string(stride_w) + "}, output_nchw={" +
+                         std::to_string(output_n) + "," + std::to_string(output_c) + "," + std::to_string(output_h) +
+                         "," + std::to_string(output_w) + "}";
+
+  VLOG(4) << hash_key;
+
   cudnnPoolingDescriptor_t pool_desc;
   CUDNN_CALL(cudnnCreatePoolingDescriptor(&pool_desc));
   CUDNN_CALL(cudnnSetPooling2dDescriptor(
@@ -906,6 +917,17 @@ void cinn_call_cudnn_pool2d_backward(void *v_args,
   cudnnPoolingMode_t pool_mode      = static_cast<cudnnPoolingMode_t>(mode);
   cudnnTensorFormat_t tensor_format = static_cast<cudnnTensorFormat_t>(format);
   cudnnDataType_t data_type         = convert_to_cudnn_dtype(v_args, num_args);
+
+  std::string hash_key = "pool2d backward, layout=" + debug_cudnn_tensor_format(tensor_format) +
+                         ", dtype=" + debug_cudnn_tensor_dtype(data_type) + ", input_nchw={" + std::to_string(input_n) +
+                         "," + std::to_string(input_c) + "," + std::to_string(input_h) + "," + std::to_string(input_w) +
+                         "}, kernel_hw={" + std::to_string(kernel_h) + "," + std::to_string(kernel_w) + "}, pad_hw={" +
+                         std::to_string(pad_h) + "," + std::to_string(pad_w) + "}, stride_hw={" +
+                         std::to_string(stride_h) + "," + std::to_string(stride_w) + ", output_nchw={" +
+                         std::to_string(output_n) + "," + std::to_string(output_c) + "," + std::to_string(output_h) +
+                         "," + std::to_string(output_w) + "}";
+
+  VLOG(4) << hash_key;
 
   cudnnPoolingDescriptor_t pool_desc;
   CUDNN_CALL(cudnnCreatePoolingDescriptor(&pool_desc));
