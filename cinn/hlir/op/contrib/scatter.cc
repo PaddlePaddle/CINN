@@ -339,6 +339,7 @@ std::vector<std::vector<int>> InferShapeForScatter(const std::vector<std::vector
 std::vector<Type> InferDtypeForScatter(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_type.size(), 3U) << "The input's type size should be 3! Please check again.";
   CHECK_EQ(inputs_type[1], Int(32)) << "The index's type should be int! Please check again.";
+  VLOG(0) << cinn::utils::Join(inputs_type, ",");
   std::vector<Type> res{inputs_type[2]};
   return res;
 }

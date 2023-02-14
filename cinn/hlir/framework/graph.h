@@ -81,7 +81,7 @@ class Graph : public cinn::common::Graph {
 
     struct SharedGroupHasher {
       size_t operator()(const std::shared_ptr<Group>& group) const noexcept {
-        return std::hash<uint64_t>()(reinterpret_cast<uint64_t>(group.get()));
+        return std::hash<uint64_t>()(reinterpret_cast<uint64_t>(group.get()));  // lyk: sound?
       }
     };
     struct SharedGroupComparator {
