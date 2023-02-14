@@ -25,38 +25,53 @@ namespace cinn::frontend::paddle::cpp {
 /*
  * Compatible interfaces for all the different kinds of XXXDesc. All the XXXDesc
  * classes should implement this.
+ * ref to: https://github.com/PaddlePaddle/Paddle/blob/v2.4.1/paddle/fluid/framework/framework.proto#L118
  */
 class VarDescAPI {
  public:
   enum class Type {
     // Pod Types
-    BOOL = 0,
-    INT16,
-    INT32,
-    INT64,
-    FP16,
-    FP32,
-    FP64,
+    BOOL  = 0,
+    INT16 = 1,
+    INT32 = 2,
+    INT64 = 3,
+    FP16  = 4,
+    FP32  = 5,
+    FP64  = 6,
     // Tensor<size_t> is used in C++.
-    SIZE_T,
-    UINT8,
-    INT8,
+    SIZE_T     = 19,
+    UINT8      = 20,
+    INT8       = 21,
+    BF16       = 22,
+    COMPLEX64  = 23,
+    COMPLEX128 = 24,
 
     // Other types that may need additional descriptions
-    LOD_TENSOR,
-    SELECTED_ROWS,
-    FEED_MINIBATCH,
-    FETCH_LIST,
-    STEP_SCOPES,
-    LOD_RANK_TABLE,
-    LOD_TENSOR_ARRAY,
-    PLACE_LIST,
-    READER,
+    LOD_TENSOR       = 7,
+    SELECTED_ROWS    = 8,
+    FEED_MINIBATCH   = 9,
+    FETCH_LIST       = 10,
+    STEP_SCOPES      = 11,
+    LOD_RANK_TABLE   = 12,
+    LOD_TENSOR_ARRAY = 13,
+    PLACE_LIST       = 14,
+    READER           = 15,
     // Any runtime decided variable type is raw
     // raw variables should manage their own allocations
     // in operators like nccl_op
-    RAW,
-    TUPLE
+    RAW   = 17,
+    TUPLE = 18,
+
+    STRING    = 25,
+    STRINGS   = 26,
+    VOCAB     = 27,
+    FEED_LIST = 28,
+    // The data type of phi::StringTensor
+    PSTRING = 29,
+    // the data type of phi::SparseCooTensor
+    SPARSE_COO = 30,
+    // the data type of phi::SparseCsrTensor
+    SPARSE_CSR = 31,
   };
 
   using VarDataType = Type;
@@ -88,6 +103,7 @@ class VarDescAPI {
 class OpDescAPI {
  public:
   // The AttrType is used to make the proto::AttrType portable.
+  // ref to https://github.com/PaddlePaddle/Paddle/blob/v2.4.1/paddle/fluid/framework/framework.proto#L25
   enum class AttrType {
     INT      = 0,
     FLOAT    = 1,
@@ -101,7 +117,10 @@ class OpDescAPI {
     LONG     = 9,
     BLOCKS   = 10,
     LONGS    = 11,
-    UNK,
+    FLOAT64S = 12,
+    VAR      = 13,
+    VARS     = 14,
+    FLOAT64  = 15
   };
 
   virtual ~OpDescAPI() = default;

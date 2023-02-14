@@ -30,6 +30,40 @@ inline common::Type CppVarType2CommonType(paddle::cpp::VarDescAPI::Type type) {
     return common::c_type();                  \
     break;
 
+  static std::vector<std::string> var_type_names_ = {"BOOL",
+                                                     "INT16",
+                                                     "INT32",
+                                                     "INT64",
+                                                     "FP16",
+                                                     "FP32",
+                                                     "FP64",
+                                                     "LOD_TENSOR",
+                                                     "SELECTED_ROWS",
+                                                     "FEED_MINIBATCH",
+                                                     "FETCH_LIST",
+                                                     "STEP_SCOPES",
+                                                     "LOD_RANK_TABLE",
+                                                     "LOD_TENSOR_ARRAY",
+                                                     "PLACE_LIST",
+                                                     "READER",
+                                                     "",
+                                                     "RAW",
+                                                     "TUPLE",
+                                                     "SIZE_T",
+                                                     "UINT8",
+                                                     "INT8",
+                                                     "BF16",
+                                                     "COMPLEX64",
+                                                     "COMPLEX128",
+                                                     "STRING",
+                                                     "STRINGS",
+                                                     "VOCAB",
+                                                     "FEED_LIST",
+                                                     "PSTRING",
+                                                     "SPARSE_COO",
+                                                     "SPARSE_CSR"};
+  CHECK_LT(static_cast<int>(type), var_type_names_.size()) << "Unknown VarDesc type: " << static_cast<int>(type);
+
   switch (type) {
     SET_TYPE_CASE_ITEM(BOOL, Bool)
     SET_TYPE_CASE_ITEM(INT16, I16)
@@ -41,8 +75,9 @@ inline common::Type CppVarType2CommonType(paddle::cpp::VarDescAPI::Type type) {
     SET_TYPE_CASE_ITEM(SIZE_T, UI64)
     SET_TYPE_CASE_ITEM(UINT8, UI8)
     SET_TYPE_CASE_ITEM(INT8, I8)
+    SET_TYPE_CASE_ITEM(STRING, String)
     default:
-      LOG(FATAL) << "Unknown VarDesc type: " << static_cast<int>(type);
+      LOG(FATAL) << "Unknown VarDesc type: " << var_type_names_[static_cast<int>(type)];
   }
 #undef SET_DATA_TYPE_CASE_ITEM
   return common::Void();
