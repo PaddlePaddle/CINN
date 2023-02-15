@@ -1161,6 +1161,7 @@ std::shared_ptr<OpStrategy> StrategyForPool1d(const framework::NodeAttr &attrs,
     CHECK(!kernel_size.empty()) << "kernel_size for pool1d is empty. Please check.\n";
     CHECK(!stride_size.empty()) << "stride_size for pool1d is empty. Please check.\n";
     CHECK(!padding_size.empty()) << "padding_size for pool1d is empty. Please check.\n";
+    CHECK(pool_type == "max" || pool_type == "avg") << "pool_type for pool1d should be max or avg.\n";
 
     std::string tensor_name = UniqName("Pool1d_out");
     if (FLAGS_cinn_ir_schedule) {
@@ -1284,6 +1285,7 @@ std::vector<std::vector<int>> InferShapeForPool1d(const std::vector<std::vector<
   CHECK_EQ(kernel_size.size(), 1U) << "kernel size for pool1d should be 1.\n";
   CHECK_EQ(stride_size.size(), 1U) << "stride_size size for pool1d should be 1.\n";
   CHECK_EQ(padding_size.size(), 2U) << "padding_size size for pool1d should be 2.\n";
+  CHECK(pool_type == "max" || pool_type == "avg") << "pool_type for pool1d should be max or avg.\n";
 
   std::vector<int> output_shape1 = inputs_shape[0];
   CHECK_EQ(output_shape1.size(), 3U);
@@ -1349,6 +1351,7 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
   CHECK(!kernel_size.empty()) << "kernel_size for pool2d is empty. Please check.\n";
   CHECK(!stride_size.empty()) << "stride_size for pool2d is empty. Please check.\n";
   CHECK(!padding_size.empty()) << "padding_size for pool2d is empty. Please check.\n";
+  CHECK(pool_type == "max" || pool_type == "avg") << "pool_type for pool2d should be max or avg.\n";
 
   CHECK(!inputs.empty()) << "The input tensor of pool2d compute is empty! Please check.\n";
   const ir::Tensor &A_tensor = inputs[0];
@@ -1581,8 +1584,11 @@ std::vector<std::vector<int>> InferShapeForPool2d(const std::vector<std::vector<
       adaptive = absl::get<bool>(iter.second);
     }
   }
-  CHECK_EQ(kernel_size.size(), 2U) << "kernel size for pool2d should be 2.\n";
+  CHECK_EQ(kernel_size.size(), 2U) << "kernel size rank for pool2d should be 2.\n";
+  CHECK(kernel_size[0] > 0 && kernel_size[1] > 0) << "the value of kernel size for pool2d should greater than 0.\n";
   CHECK_EQ(stride_size.size(), 2U) << "stride_size size for pool2d should be 2.\n";
+  CHECK(stride_size[0] > 0 && stride_size[1] > 0) << "the value of kernel size for pool2d should greater than 0.\n";
+  CHECK(pool_type == "max" || pool_type == "avg") << "pool_type for pool2d should be max or avg.\n";
 
   if (padding_size.size() == 2) {
     padding_size.insert(padding_size.end(), padding_size.begin(), padding_size.end());
@@ -1684,6 +1690,7 @@ std::shared_ptr<OpStrategy> StrategyForPool3d(const framework::NodeAttr &attrs,
     CHECK(!kernel_size.empty()) << "kernel_size for pool3d is empty. Please check.\n";
     CHECK(!stride_size.empty()) << "stride_size for pool3d is empty. Please check.\n";
     CHECK(!padding_size.empty()) << "padding_size for pool3d is empty. Please check.\n";
+    CHECK(pool_type == "max" || pool_type == "avg") << "pool_type for pool3d should be max or avg.\n";
 
     std::string tensor_name = UniqName("Pool3d_out");
     if (FLAGS_cinn_ir_schedule) {
@@ -1809,6 +1816,7 @@ std::vector<std::vector<int>> InferShapeForPool3d(const std::vector<std::vector<
 
   CHECK_EQ(kernel_size.size(), 3U) << "kernel_size for pool3d should be 3.\n";
   CHECK_EQ(stride_size.size(), 3U) << "stride_size for pool3d should be 3.\n";
+  CHECK(pool_type == "max" || pool_type == "avg") << "pool_type for pool3d should be max or avg.\n";
 
   std::vector<int> output_shape1 = inputs_shape[0];
   CHECK_EQ(inputs_shape[0].size(), 5U) << "input_shape size for pool3d should be 5.\n";

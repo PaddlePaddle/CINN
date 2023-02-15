@@ -493,7 +493,7 @@ std::vector<ir::Expr> CustomCallArgsForCudnnPoolForward(const framework::NodeAtt
   std::string data_format =
       attr_store.count("data_format") ? absl::get<std::string>(attrs.attr_store.at("data_format")) : "NCHW";
 
-  cudnnPoolingMode_t mode    = pool_type == "MAX" ? CUDNN_POOLING_MAX : CUDNN_POOLING_AVERAGE_COUNT_INCLUDE_PADDING;
+  cudnnPoolingMode_t mode    = pool_type == "max" ? CUDNN_POOLING_MAX : CUDNN_POOLING_AVERAGE_COUNT_INCLUDE_PADDING;
   cudnnTensorFormat_t format = data_format == "NCHW" ? CUDNN_TENSOR_NCHW : CUDNN_TENSOR_NHWC;
 
   std::vector<Expr> input = inputs[0]->shape;
@@ -501,10 +501,6 @@ std::vector<ir::Expr> CustomCallArgsForCudnnPoolForward(const framework::NodeAtt
   std::transform(output_shapes[0].begin(), output_shapes[0].end(), std::back_inserter(output), [](const int dim) {
     return ir::Expr(dim);
   });
-  if (format == CUDNN_TENSOR_NHWC) {
-    input  = {input[0], input[3], input[1], input[2]};
-    output = {output[0], output[3], output[1], output[2]};
-  }
 
   std::vector<ir::Expr> args = {
       ir::Expr(static_cast<int>(mode)), ir::Expr(static_cast<int>(format)), ir::Expr(alpha), ir::Expr(beta)};
@@ -539,18 +535,14 @@ std::vector<ir::Expr> CustomCallArgsForCudnnPoolBackward(const framework::NodeAt
   std::string data_format =
       attr_store.count("data_format") ? absl::get<std::string>(attrs.attr_store.at("data_format")) : "NCHW";
 
-  cudnnPoolingMode_t mode    = pool_type == "MAX" ? CUDNN_POOLING_MAX : CUDNN_POOLING_AVERAGE_COUNT_INCLUDE_PADDING;
+  cudnnPoolingMode_t mode    = pool_type == "max" ? CUDNN_POOLING_MAX : CUDNN_POOLING_AVERAGE_COUNT_INCLUDE_PADDING;
   cudnnTensorFormat_t format = data_format == "NCHW" ? CUDNN_TENSOR_NCHW : CUDNN_TENSOR_NHWC;
 
-  std::vector<Expr> input = inputs[0]->shape;
+  std::vector<Expr> input;
   std::transform(output_shapes[0].begin(), output_shapes[0].end(), std::back_inserter(input), [](const int dim) {
     return ir::Expr(dim);
   });
   std::vector<Expr> output = inputs[0]->shape;
-  if (format == CUDNN_TENSOR_NHWC) {
-    input  = {input[0], input[3], input[1], input[2]};
-    output = {output[0], output[3], output[1], output[2]};
-  }
 
   std::vector<ir::Expr> args = {
       ir::Expr(static_cast<int>(mode)), ir::Expr(static_cast<int>(format)), ir::Expr(alpha), ir::Expr(beta)};

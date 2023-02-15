@@ -545,7 +545,7 @@ Variable NetBuilder::Pool2d(const Variable& a,
                             const std::string& padding_algorithm) {
   std::string pool_type;
   std::transform(pooling_type.begin(), pooling_type.end(), std::back_inserter(pool_type), [](unsigned char c) {
-    return std::toupper(c);
+    return std::tolower(c);
   });
   return CustomInstr("pool2d",
                      {a},
