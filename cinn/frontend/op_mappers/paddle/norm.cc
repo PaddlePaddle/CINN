@@ -28,8 +28,8 @@ void NormOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
 
   CHECK(op_desc.HasAttr("axis"));
   CHECK(op_desc.HasAttr("epsilon"));
-  auto axis    = op_desc.GetAttr<int64_t>("axis");
-  auto epsilon = op_desc.GetAttr<int64_t>("epsilon");
+  auto axis    = op_desc.GetAttr<int32_t>("axis");
+  auto epsilon = op_desc.GetAttr<float>("epsilon");
   auto out     = ctx.Builder()->Norm(x, axis, epsilon);
 
   ctx.AddVar(out_name, out);
