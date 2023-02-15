@@ -75,9 +75,33 @@ void TileOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
   for (auto i : output_shape) {
     VLOG(1) << "output_shape's element: " << i;
   }
-  x        = ctx.Builder()->Reshape(x, {1, 1, 1, 3});
-  auto tmp = ctx.Builder()->BroadcastTo(x, {1, 2, 2, 3});
-  // auto output = ctx.Builder()->BroadcastTo(x, output_shape, repeat_times);
+
+  // make a copy of vec_x_dims
+  std::vector<int> vec_x_dims_copy = vec_x_dims;
+  // recontruct vec_x_dims_copy by inserting 1 before every element
+  for (size_t i = 0; i < vec_x_dims_copy.size(); ++i) {
+    vec_x_dims_copy.insert(vec_x_dims_copy.begin() + i, 1);
+    i++;
+  }
+  // VLOG for loop check vec_x_dims_copy's element
+  for (auto i : vec_x_dims_copy) {
+    VLOG(1) << "vec_x_dims_copy's element: " << i;
+  }
+
+  x = ctx.Builder()->Reshape(x, vec_x_dims_copy);
+
+  // recontruct vec_x_dims_copy, the current even digit is equal to output_shape divided by an odd number
+  for (size_t i = 0; i < vec_x_dims_copy.size(); ++i) {
+    if (i % 2 == 0) {
+      vec_x_dims_copy[i] = output_shape[i / 2] / vec_x_dims_copy[i + 1];
+    }
+  }
+  // VLOG for loop check vec_x_dims_copy's element
+  for (auto i : vec_x_dims_copy) {
+    VLOG(1) << "vec_x_dims_copy's element: " << i;
+  }
+
+  auto tmp    = ctx.Builder()->BroadcastTo(x, vec_x_dims_copy);
   auto output = ctx.Builder()->Reshape(tmp, output_shape);
 
   ctx.AddVar(out_name, output);

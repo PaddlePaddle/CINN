@@ -57,13 +57,13 @@ class TestGatherNdOp(OpMapperTest):
         self.check_outputs_and_grads(all_equal=True)
 
 
-# class TestGatherNdCase1(TestGatherNdOp):
-#     def init_input_data(self):
-#         self.feed_data = {
-#             'x': np.array([1, 2, 3], dtype='float32'),
-#         }
-#         self.repeat_times = [2, 2]
-# OUT -> [2, 6]
+class TestGatherNdCase1(TestGatherNdOp):
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([2, 3, 4], 'float32'),
+        }
+        self.repeat_times = [1, 2, 3]
+
 
 if __name__ == "__main__":
     unittest.main()
