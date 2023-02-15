@@ -83,6 +83,14 @@ llvm::Value* CodeGenCUDA_Host::LowerGPUKernelLauncher(const ir::_LoweredFunc_* f
     } else {
       if (r_arg.type().is_bool()) {
         args_type.push_back(CinnTypeToLLVMType(type_of<bool>(), m_));
+      } else if (r_arg.type().is_uint(8)) {
+        args_type.push_back(CinnTypeToLLVMType(type_of<uint8_t>(), m_));
+      } else if (r_arg.type().is_uint(32)) {
+        args_type.push_back(CinnTypeToLLVMType(type_of<uint32_t>(), m_));
+      } else if (r_arg.type().is_uint(64)) {
+        args_type.push_back(CinnTypeToLLVMType(type_of<uint64_t>(), m_));
+      } else if (r_arg.type().is_int(8)) {
+        args_type.push_back(CinnTypeToLLVMType(type_of<int8_t>(), m_));
       } else if (r_arg.type().is_int(32)) {
         args_type.push_back(CinnTypeToLLVMType(type_of<int32_t>(), m_));
       } else if (r_arg.type().is_int(64)) {
@@ -116,10 +124,22 @@ llvm::Value* CodeGenCUDA_Host::LowerGPUKernelLauncher(const ir::_LoweredFunc_* f
     } else {
       if (r_arg.type().is_bool()) {
         call_args.push_back(b_->getInt1(r_arg.as_bool()));
+      } else if (r_arg.type().is_int(8)) {
+        call_args.push_back(b_->getInt8(r_arg.as_int8()));
+      } else if (r_arg.type().is_int(16)) {
+        call_args.push_back(b_->getInt16(r_arg.as_int16()));
       } else if (r_arg.type().is_int(32)) {
         call_args.push_back(b_->getInt32(r_arg.as_int32()));
       } else if (r_arg.type().is_int(64)) {
         call_args.push_back(b_->getInt64(r_arg.as_int64()));
+      } else if (r_arg.type().is_uint(8)) {
+        call_args.push_back(b_->getInt8(r_arg.as_uint8()));
+      } else if (r_arg.type().is_uint(16)) {
+        call_args.push_back(b_->getInt16(r_arg.as_uint16()));
+      } else if (r_arg.type().is_uint(32)) {
+        call_args.push_back(b_->getInt32(r_arg.as_uint32()));
+      } else if (r_arg.type().is_uint(64)) {
+        call_args.push_back(b_->getInt64(r_arg.as_uint64()));
       } else if (r_arg.type().is_float(32)) {
         call_args.push_back(llvm::ConstantFP::get(b_->getFloatTy(), llvm::APFloat(r_arg.as_float())));
       } else if (r_arg.type().is_float(64)) {

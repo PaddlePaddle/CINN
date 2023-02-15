@@ -31,13 +31,20 @@ llvm::Type *CinnTypeToLLVMType(common::Type type, llvm::Module *m, bool is_vec) 
     // TODO(fc500110) support it latter.
   }
 
-  llvm::Type *v   = llvm::Type::getVoidTy(m->getContext());
-  llvm::Type *i1  = llvm::Type::getInt1Ty(m->getContext());
+  llvm::Type *v = llvm::Type::getVoidTy(m->getContext());
+
+  llvm::Type *i1 = llvm::Type::getInt1Ty(m->getContext());
+
   llvm::Type *i8  = llvm::Type::getInt8Ty(m->getContext());
-  llvm::Type *u8  = llvm::Type::getInt8Ty(m->getContext());
+  llvm::Type *i16 = llvm::Type::getInt16Ty(m->getContext());
   llvm::Type *i32 = llvm::Type::getInt32Ty(m->getContext());
   llvm::Type *i64 = llvm::Type::getInt64Ty(m->getContext());
+
+  llvm::Type *u8  = llvm::Type::getInt8Ty(m->getContext());
+  llvm::Type *u16 = llvm::Type::getInt16Ty(m->getContext());
   llvm::Type *u32 = llvm::Type::getInt32Ty(m->getContext());
+  llvm::Type *u64 = llvm::Type::getInt64Ty(m->getContext());
+
   llvm::Type *f16 = llvm::Type::getHalfTy(m->getContext());
   llvm::Type *f32 = llvm::Type::getFloatTy(m->getContext());
   llvm::Type *f64 = llvm::Type::getDoubleTy(m->getContext());
@@ -49,14 +56,24 @@ llvm::Type *CinnTypeToLLVMType(common::Type type, llvm::Module *m, bool is_vec) 
     return llvm::PointerType::getUnqual(llvm::PointerType::getUnqual(i8));
   }
 
-  if (type.is_int(8)) {
+  if (type.is_bool()) {
+    ir_type = i1;
+  } else if (type.is_int(8)) {
     ir_type = i8;
+  } else if (type.is_int(16)) {
+    ir_type = i16;
   } else if (type.is_int(32)) {
     ir_type = i32;
   } else if (type.is_int(64)) {
     ir_type = i64;
-  } else if (type.is_bool()) {
-    ir_type = i1;
+  } else if (type.is_uint(8)) {
+    ir_type = u8;
+  } else if (type.is_uint(16)) {
+    ir_type = u16;
+  } else if (type.is_uint(32)) {
+    ir_type = u32;
+  } else if (type.is_uint(64)) {
+    ir_type = u64;
   } else if (type.is_float(32)) {
     ir_type = f32;
   } else if (type.is_float(64)) {
@@ -101,8 +118,13 @@ llvm::Type *CinnTypeToLLVMType(common::Type type, llvm::Module *m, bool is_vec) 
   }
 
 __(int8_t)
+__(int16_t)
 __(int32_t)
 __(int64_t)
+__(uint8_t)
+__(uint16_t)
+__(uint32_t)
+__(uint64_t)
 __(float16)
 __(float)
 __(double)

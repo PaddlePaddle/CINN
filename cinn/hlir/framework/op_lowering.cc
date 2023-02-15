@@ -382,10 +382,22 @@ std::vector<ir::Tensor> OpLowerer::CollectInputTensor(std::vector<ir::Tensor>& f
         tensor = lang::Placeholder<float16>(source_data->id(), this->shape_dict_.at(source_data->id()));
       } else if (dtype.is_bool()) {
         tensor = lang::Placeholder<bool>(source_data->id(), this->shape_dict_.at(source_data->id()));
+      } else if (dtype.is_int(8)) {
+        tensor = lang::Placeholder<int8_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
+      } else if (dtype.is_int(16)) {
+        tensor = lang::Placeholder<int16_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
       } else if (dtype.is_int(32)) {
         tensor = lang::Placeholder<int32_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
       } else if (dtype.is_int(64)) {
         tensor = lang::Placeholder<int64_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
+      } else if (dtype.is_uint(8)) {
+        tensor = lang::Placeholder<uint8_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
+      } else if (dtype.is_uint(16)) {
+        tensor = lang::Placeholder<uint16_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
+      } else if (dtype.is_uint(32)) {
+        tensor = lang::Placeholder<uint32_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
+      } else if (dtype.is_uint(64)) {
+        tensor = lang::Placeholder<uint64_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
       }
       if (!tensor_map.count(source_data->id())) {
         tensor_map[source_data->id()] = tensor;
@@ -408,10 +420,22 @@ std::vector<ir::Tensor> OpLowerer::CollectInputTensor(std::vector<ir::Tensor>& f
           tensor = lang::Placeholder<float16>(source_data->id(), this->shape_dict_.at(source_data->id()));
         } else if (dtype.is_bool()) {
           tensor = lang::Placeholder<bool>(source_data->id(), this->shape_dict_.at(source_data->id()));
+        } else if (dtype.is_int(8)) {
+          tensor = lang::Placeholder<int8_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
+        } else if (dtype.is_int(16)) {
+          tensor = lang::Placeholder<int16_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
         } else if (dtype.is_int(32)) {
           tensor = lang::Placeholder<int32_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
         } else if (dtype.is_int(64)) {
           tensor = lang::Placeholder<int64_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
+        } else if (dtype.is_uint(8)) {
+          tensor = lang::Placeholder<uint8_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
+        } else if (dtype.is_uint(16)) {
+          tensor = lang::Placeholder<uint16_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
+        } else if (dtype.is_uint(32)) {
+          tensor = lang::Placeholder<uint32_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
+        } else if (dtype.is_uint(64)) {
+          tensor = lang::Placeholder<uint64_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
         }
         tensor_map[source_data->id()] = tensor;
         tensor_inputs.push_back(tensor);
@@ -1270,10 +1294,22 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerNonFusibleOp(GroupPtr& group, boo
         tensor = lang::Placeholder<float16>(id, shape);
       } else if (dtype.is_bool()) {
         tensor = lang::Placeholder<bool>(id, shape);
+      } else if (dtype.is_int(8)) {
+        tensor = lang::Placeholder<int8_t>(id, shape);
+      } else if (dtype.is_int(16)) {
+        tensor = lang::Placeholder<int16_t>(id, shape);
       } else if (dtype.is_int(32)) {
         tensor = lang::Placeholder<int32_t>(id, shape);
       } else if (dtype.is_int(64)) {
         tensor = lang::Placeholder<int64_t>(id, shape);
+      } else if (dtype.is_uint(8)) {
+        tensor = lang::Placeholder<uint8_t>(id, shape);
+      } else if (dtype.is_uint(16)) {
+        tensor = lang::Placeholder<uint16_t>(id, shape);
+      } else if (dtype.is_uint(32)) {
+        tensor = lang::Placeholder<uint32_t>(id, shape);
+      } else if (dtype.is_uint(64)) {
+        tensor = lang::Placeholder<uint64_t>(id, shape);
       }
       tensor_map[id] = tensor;
       // input name
@@ -2178,10 +2214,22 @@ std::vector<ir::LoweredFunc> OpLowerer::LowerNonFusibleOp(GroupPtr& group) {
         tensor = lang::Placeholder<float16>(id, shape);
       } else if (dtype.is_bool()) {
         tensor = lang::Placeholder<bool>(id, shape);
+      } else if (dtype.is_int(8)) {
+        tensor = lang::Placeholder<int8_t>(id, shape);
+      } else if (dtype.is_int(16)) {
+        tensor = lang::Placeholder<int16_t>(id, shape);
       } else if (dtype.is_int(32)) {
         tensor = lang::Placeholder<int32_t>(id, shape);
       } else if (dtype.is_int(64)) {
         tensor = lang::Placeholder<int64_t>(id, shape);
+      } else if (dtype.is_uint(8)) {
+        tensor = lang::Placeholder<uint8_t>(id, shape);
+      } else if (dtype.is_uint(16)) {
+        tensor = lang::Placeholder<uint16_t>(id, shape);
+      } else if (dtype.is_uint(32)) {
+        tensor = lang::Placeholder<uint32_t>(id, shape);
+      } else if (dtype.is_uint(64)) {
+        tensor = lang::Placeholder<uint64_t>(id, shape);
       }
       tensor_map[id] = tensor;
       // recored func input args

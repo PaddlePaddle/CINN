@@ -216,11 +216,17 @@ class OpTest(unittest.TestCase):
             "float16": Float(16),
             "float32": Float(32),
             "float64": Float(64),
+            "int8": Int(8),
+            "int16": Int(16),
             "int32": Int(32),
             "int64": Int(64),
+            "uint8": UInt(8),
+            "uint16": UInt(16),
+            "uint32": UInt(32),
+            "uint64": UInt(64),
             "bool": Bool()
         }
-        assert str(dtype) in switch_map, dtype + " not support in CINN"
+        assert str(dtype) in switch_map, str(dtype) + " not support in CINN"
         return switch_map[str(dtype)]
 
     @staticmethod
@@ -231,7 +237,7 @@ class OpTest(unittest.TestCase):
             return np.random.uniform(low, high, shape).astype(dtype)
         elif dtype == "bool":
             return np.random.choice(a=[False, True], size=shape).astype(dtype)
-        elif dtype in ["int32", "int64"]:
+        elif dtype in ["int8", "uint8", "int32", "int64"]:
             return np.random.randint(low, high, shape).astype(dtype)
         else:
             raise Exception("Not supported yet.")
