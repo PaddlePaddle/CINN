@@ -141,7 +141,7 @@ inline void fold_expand_dims_fill_constant(const FusionHelperBase* helper, Graph
   // check axes can't repeat.
   std::sort(axes.begin(), axes.end(), std::less<int>());
   int axes_size = axes.size();
-  for (auto idx = 0; axes_size > 1 && idx < axes_size - 2; ++idx) {
+  for (int idx = 0; idx < axes_size - 2; ++idx) {
     CHECK_NE(axes[idx], axes[idx + 1]);
   }
   // insert 1 to new shape.
