@@ -501,6 +501,11 @@ std::vector<ir::Expr> CustomCallArgsForCudnnPoolForward(const framework::NodeAtt
   std::transform(output_shapes[0].begin(), output_shapes[0].end(), std::back_inserter(output), [](const int dim) {
     return ir::Expr(dim);
   });
+  // if format is nhwc
+  if (format == CUDNN_TENSOR_NHWC) {
+    input  = {input[0], input[3], input[1], input[2]};
+    output = {output[0], output[3], output[1], output[2]};
+  }
 
   std::vector<ir::Expr> args = {
       ir::Expr(static_cast<int>(mode)), ir::Expr(static_cast<int>(format)), ir::Expr(alpha), ir::Expr(beta)};
@@ -543,6 +548,11 @@ std::vector<ir::Expr> CustomCallArgsForCudnnPoolBackward(const framework::NodeAt
     return ir::Expr(dim);
   });
   std::vector<Expr> output = inputs[0]->shape;
+  // if format is nhwc
+  if (format == CUDNN_TENSOR_NHWC) {
+    input  = {input[0], input[3], input[1], input[2]};
+    output = {output[0], output[3], output[1], output[2]};
+  }
 
   std::vector<ir::Expr> args = {
       ir::Expr(static_cast<int>(mode)), ir::Expr(static_cast<int>(format)), ir::Expr(alpha), ir::Expr(beta)};
