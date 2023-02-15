@@ -140,7 +140,8 @@ inline void fold_expand_dims_fill_constant(const FusionHelperBase* helper, Graph
   Node* node_tmp = new Node(Operator::Get("fill_constant"), "fill_constant", common::UniqName("fill_constant"));
   // check axes can't repeat.
   std::sort(axes.begin(), axes.end(), std::less<int>());
-  for (int idx = 0; idx < axes.size() - 2; ++idx) {
+  size_t axes_size = axes.size();
+  for (size_t idx = 0; axes_size > 1UL && idx < axes_size - 2; ++idx) {
     CHECK_NE(axes[idx], axes[idx + 1]);
   }
   // insert 1 to new shape.
