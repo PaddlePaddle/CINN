@@ -40,11 +40,11 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
   OptimizeOptions options;
   options.program_passes.emplace_back("AutoCast");
   options.program_passes.emplace_back("Decomposer");
-  options.program_passes.emplace_back("RemoveIdentity");
+  // options.program_passes.emplace_back("RemoveIdentity");
 
   options.program_passes.emplace_back("CastCollapsing");
   options.program_passes.emplace_back("TransposeCollapsing");
-  options.program_passes.emplace_back("RemoveIdentity");
+  // options.program_passes.emplace_back("RemoveIdentity");
 
 #ifdef CINN_WITH_CUDA
   if (FLAGS_cinn_use_cublas_gemm) {
@@ -59,7 +59,7 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
   if (FLAGS_cinn_use_fill_constant_folding) {
     options.program_passes.emplace_back("FillConstantFolding");
   }
-  options.program_passes.emplace_back("RemoveIdentity");
+  // options.program_passes.emplace_back("RemoveIdentity");
   options.program_passes.emplace_back("DeadCodeEliminate");
 
   options.graph_passes = {"ConstantFolding"};
