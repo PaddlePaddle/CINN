@@ -216,11 +216,11 @@ class RemoveIdentityPass : public ProgramPass {
       bool can_output_var_removed = !fetch_ids.count(output_var->id);
       if (can_input_var_removed || can_output_var_removed) {
         bool updated = false;
-        if (can_input_var_removed) {
-          updated = UpdateOrigin2New(input_var, output_var);
-        }
-        if (!updated && can_output_var_removed) {
+        if (can_output_var_removed) {
           updated = UpdateOrigin2New(output_var, input_var);
+        }
+        if (!updated && can_input_var_removed) {
+          updated = UpdateOrigin2New(input_var, output_var);
         }
         if (updated) {
           VLOG(3) << "Remove the " << i << "-th instruction: " << instr;
