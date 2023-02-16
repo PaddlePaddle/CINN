@@ -161,17 +161,18 @@ void BindFrontend(pybind11::module *m) {
 
             const auto &default_program_pass = DefaultTrainingOptimizeOptions().program_passes;
             const auto &default_graph_pass   = DefaultTrainingOptimizeOptions().graph_passes;
-            for (const auto &pass : passes) {
-              if (std::find(default_program_pass.begin(), default_program_pass.end(), pass) !=
-                  default_program_pass.end()) {
+            for (const auto &pass : default_program_pass) {
+              if (std::find(passes.begin(), passes.end(), pass) != passes.end()) {
                 program_passes.emplace_back(pass);
-              } else if (std::find(default_graph_pass.begin(), default_graph_pass.end(), pass) !=
-                         default_graph_pass.end()) {
-                graph_passes.emplace_back(pass);
-              } else {
-                LOG(WARNING) << "Cannot find pass: " << pass << " in CINN! Please check.";
               }
             }
+            for (const auto &pass : default_graph_pass) {
+              if (std::find(passes.begin(), passes.end(), pass) != passes.end()) {
+                graph_passes.emplace_back(pass);
+              }
+            }
+            CHECK_EQ(passes.size(), program_passes.size() + graph_passes.size())
+                << "Cannot found some test pass in CINN! Please check.";
             if (program_passes.empty()) {
               program_passes = default_program_pass;
             }
@@ -229,11 +230,37 @@ void BindFrontend(pybind11::module *m) {
               const std::unordered_set<std::string> &fetch_ids,
               const common::Target &target,
               const std::vector<std::string> &passes = {}) {
-             auto real_passes = passes;
-             if (real_passes.empty()) {
-               real_passes = DefaultTrainingOptimizeOptions().program_passes;
+             std::vector<std::string> program_passes, graph_passes;
+
+             const auto &default_program_pass = DefaultTrainingOptimizeOptions().program_passes;
+             const auto &default_graph_pass   = DefaultTrainingOptimizeOptions().graph_passes;
+             for (const auto &pass : default_program_pass) {
+               if (std::find(passes.begin(), passes.end(), pass) != passes.end()) {
+                 program_passes.emplace_back(pass);
+               }
              }
-             frontend::ProgramPass::Apply(&self, fetch_ids, target, real_passes);
+             for (const auto &pass : default_graph_pass) {
+               if (std::find(passes.begin(), passes.end(), pass) != passes.end()) {
+                 graph_passes.emplace_back(pass);
+               }
+             }
+             CHECK_EQ(passes.size(), program_passes.size() + graph_passes.size())
+                 << "Cannot found some test pass in CINN! Please check.";
+
+             if (program_passes.empty()) {
+               program_passes = default_program_pass;
+             }
+             frontend::ProgramPass::Apply(&self, fetch_ids, target, program_passes);
+
+             if (graph_passes.empty()) {
+               // no need run graph pass, return program size
+               return self.size();
+             }
+
+             auto graph = std::make_shared<hlir::framework::Graph>(self, fetch_ids, target);
+             hlir::framework::ApplyPasses(graph.get(), graph_passes);
+
+             return graph->nodes().size();
            })
 
       /**
@@ -467,8 +494,9 @@ void BindFrontend(pybind11::module *m) {
            py::arg("axes"),
            py::arg("starts"),
            py::arg("ends"),
-           py::arg("infer_flags") = std::vector<int>{},
-           py::arg("strides")     = std::vector<int>{})
+           py::arg("infer_flags")   = std::vector<int>{},
+           py::arg("strides")       = std::vector<int>{},
+           py::arg("decrease_axis") = std::vector<int>{})
       .def("reverse", &NetBuilder::Reverse, py::arg("x"), py::arg("axis"))
       .def("select", &NetBuilder::Select, py::arg("condition"), py::arg("true_value"), py::arg("false_value"))
       .def("split", &NetBuilder::Split, py::arg("x"), py::arg("num_or_sections"), py::arg("axis") = 0)
@@ -520,6 +548,14 @@ void BindFrontend(pybind11::module *m) {
       .def("argmax", &NetBuilder::Argmax, py::arg("x"), py::arg("axis"), py::arg("keep_dim") = false)
       .def("argmin", &NetBuilder::Argmin, py::arg("x"), py::arg("axis"), py::arg("keep_dim") = false)
       .def("lookup_table", &NetBuilder::LookupTable, py::arg("table"), py::arg("ids"), py::arg("padding_idx"))
+      .def("one_hot",
+           &NetBuilder::OneHot,
+           py::arg("indices"),
+           py::arg("on_value"),
+           py::arg("off_value"),
+           py::arg("depth"),
+           py::arg("axis")  = -1,
+           py::arg("dtype") = "float32")
       .def("conv2d",
            &NetBuilder::Conv2d,
            py::arg("x"),
@@ -644,6 +680,7 @@ void BindFrontend(pybind11::module *m) {
            py::arg("max")   = 1.0f,
            py::arg("seed")  = 0,
            py::arg("dtype") = "float32")
+      .def("norm", &NetBuilder::Norm, py::arg("x"), py::arg("axis") = -1, py::arg("epsilon") = 1e-12f)
       .def("cholesky", &NetBuilder::Cholesky, py::arg("x"), py::arg("upper") = false);
 
   auto computation = py::class_<CinnComputation, std::shared_ptr<CinnComputation>>(*m, "Computation");

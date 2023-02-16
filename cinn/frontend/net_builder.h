@@ -623,10 +623,11 @@ class NetBuilder {
    */
   Variable Slice(const Variable& x,
                  const cinn::utils::ShapeType& axes,
-                 const std::vector<int>& starts      = {},
-                 const std::vector<int>& ends        = {},
-                 const std::vector<int>& infer_flags = {},
-                 const std::vector<int>& strides     = {});
+                 const std::vector<int>& starts        = {},
+                 const std::vector<int>& ends          = {},
+                 const std::vector<int>& infer_flags   = {},
+                 const std::vector<int>& strides       = {},
+                 const std::vector<int>& decrease_axis = {});
 
   /**
    * @brief Returns a new variable which indexes the input variable along dimension axis using the entries in index
@@ -997,6 +998,14 @@ class NetBuilder {
    * @return Triangular matrix, shape is same as input.
    */
   Variable Cholesky(const Variable& x, bool upper = false);
+
+  /**
+   * @brief l2-Norm
+   * @param x The input operand to be normed.
+   * @param axis The axis on which to apply normalization.
+   * @param epsilon The epsilon value is used to avoid division by zero.
+   */
+  Variable Norm(const Variable& x, int axis = -1, float epsilon = 1e-12f);
 
  private:
   CINN_DISALLOW_COPY_AND_ASSIGN(NetBuilder);

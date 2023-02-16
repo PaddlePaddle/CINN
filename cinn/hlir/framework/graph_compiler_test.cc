@@ -167,7 +167,7 @@ void RunCublas(int M, int N, int K, bool trans_a = false, bool trans_b = false) 
   auto target  = common::DefaultTarget();
   auto graph   = std::make_shared<hlir::framework::Graph>(program, target);
 
-  hlir::framework::ApplyPass(graph.get(), "MatmulToCublasCustomCallPass");
+  hlir::framework::ApplyPass(graph.get(), "TransToCustomCallPass");
   hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
 
   auto scope = BuildScope(target, graph);

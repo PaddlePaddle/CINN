@@ -14,6 +14,7 @@
 
 #include "cinn/hlir/framework/op_lowering.h"
 
+#include "cinn/hlir/op/external_api_registry.h"
 #include "cinn/optim/transform_gpu_forloop.h"
 
 DECLARE_bool(cinn_ir_schedule);
@@ -38,6 +39,7 @@ using namespace lang;
 
 using Comparator = Graph::Group::SharedGroupComparator;
 using Hasher     = Graph::Group::SharedGroupHasher;
+using cinn::hlir::op::ExternalApiRegistry;
 
 NodeData* GetNodeData(const Node* node) {
   auto node_data = (*node->outlinks().begin())->sink()->safe_as<NodeData>();
@@ -380,10 +382,22 @@ std::vector<ir::Tensor> OpLowerer::CollectInputTensor(std::vector<ir::Tensor>& f
         tensor = lang::Placeholder<float16>(source_data->id(), this->shape_dict_.at(source_data->id()));
       } else if (dtype.is_bool()) {
         tensor = lang::Placeholder<bool>(source_data->id(), this->shape_dict_.at(source_data->id()));
+      } else if (dtype.is_int(8)) {
+        tensor = lang::Placeholder<int8_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
+      } else if (dtype.is_int(16)) {
+        tensor = lang::Placeholder<int16_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
       } else if (dtype.is_int(32)) {
         tensor = lang::Placeholder<int32_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
       } else if (dtype.is_int(64)) {
         tensor = lang::Placeholder<int64_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
+      } else if (dtype.is_uint(8)) {
+        tensor = lang::Placeholder<uint8_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
+      } else if (dtype.is_uint(16)) {
+        tensor = lang::Placeholder<uint16_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
+      } else if (dtype.is_uint(32)) {
+        tensor = lang::Placeholder<uint32_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
+      } else if (dtype.is_uint(64)) {
+        tensor = lang::Placeholder<uint64_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
       }
       if (!tensor_map.count(source_data->id())) {
         tensor_map[source_data->id()] = tensor;
@@ -406,10 +420,22 @@ std::vector<ir::Tensor> OpLowerer::CollectInputTensor(std::vector<ir::Tensor>& f
           tensor = lang::Placeholder<float16>(source_data->id(), this->shape_dict_.at(source_data->id()));
         } else if (dtype.is_bool()) {
           tensor = lang::Placeholder<bool>(source_data->id(), this->shape_dict_.at(source_data->id()));
+        } else if (dtype.is_int(8)) {
+          tensor = lang::Placeholder<int8_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
+        } else if (dtype.is_int(16)) {
+          tensor = lang::Placeholder<int16_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
         } else if (dtype.is_int(32)) {
           tensor = lang::Placeholder<int32_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
         } else if (dtype.is_int(64)) {
           tensor = lang::Placeholder<int64_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
+        } else if (dtype.is_uint(8)) {
+          tensor = lang::Placeholder<uint8_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
+        } else if (dtype.is_uint(16)) {
+          tensor = lang::Placeholder<uint16_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
+        } else if (dtype.is_uint(32)) {
+          tensor = lang::Placeholder<uint32_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
+        } else if (dtype.is_uint(64)) {
+          tensor = lang::Placeholder<uint64_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
         }
         tensor_map[source_data->id()] = tensor;
         tensor_inputs.push_back(tensor);
@@ -1268,10 +1294,22 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerNonFusibleOp(GroupPtr& group, boo
         tensor = lang::Placeholder<float16>(id, shape);
       } else if (dtype.is_bool()) {
         tensor = lang::Placeholder<bool>(id, shape);
+      } else if (dtype.is_int(8)) {
+        tensor = lang::Placeholder<int8_t>(id, shape);
+      } else if (dtype.is_int(16)) {
+        tensor = lang::Placeholder<int16_t>(id, shape);
       } else if (dtype.is_int(32)) {
         tensor = lang::Placeholder<int32_t>(id, shape);
       } else if (dtype.is_int(64)) {
         tensor = lang::Placeholder<int64_t>(id, shape);
+      } else if (dtype.is_uint(8)) {
+        tensor = lang::Placeholder<uint8_t>(id, shape);
+      } else if (dtype.is_uint(16)) {
+        tensor = lang::Placeholder<uint16_t>(id, shape);
+      } else if (dtype.is_uint(32)) {
+        tensor = lang::Placeholder<uint32_t>(id, shape);
+      } else if (dtype.is_uint(64)) {
+        tensor = lang::Placeholder<uint64_t>(id, shape);
       }
       tensor_map[id] = tensor;
       // input name
@@ -1298,10 +1336,17 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerNonFusibleOp(GroupPtr& group, boo
   }
 
   auto impl = OpStrategy::SelectImpl(cinn_strategy[node->op()](node->attrs, inputs, out_types, out_shapes, target_));
-  // if node op is custom call, return compute.
+  // if node op is custom_call, apply custom_call compute.
   if (node->op()->name == "custom_call") {
-    cinn_inputs.push_back(common::CINNValue(group->GetFuncName()));
-    common::CINNValuePack pack = impl->fcompute(common::CINNValuePack{cinn_inputs});
+    std::string external_api;
+    if (node->attrs.attr_store.count("custom_call")) {
+      external_api = absl::get<std::string>(node->attrs.attr_store.at("custom_call"));
+    } else {
+      external_api = ExternalApiRegistry::Global()->GetExternalApi(node, target_);
+    }
+    std::vector<common::CINNValue> compute_args = {common::CINNValue(group->GetFuncName()),
+                                                   common::CINNValue(external_api)};
+    common::CINNValuePack pack                  = impl->fcompute(common::CINNValuePack{compute_args});
     CHECK_EQ(pack.size(), 1UL);
     // reset input names as extern api input args can't be remove duplicate.
     group->input_names.clear();
@@ -2169,10 +2214,22 @@ std::vector<ir::LoweredFunc> OpLowerer::LowerNonFusibleOp(GroupPtr& group) {
         tensor = lang::Placeholder<float16>(id, shape);
       } else if (dtype.is_bool()) {
         tensor = lang::Placeholder<bool>(id, shape);
+      } else if (dtype.is_int(8)) {
+        tensor = lang::Placeholder<int8_t>(id, shape);
+      } else if (dtype.is_int(16)) {
+        tensor = lang::Placeholder<int16_t>(id, shape);
       } else if (dtype.is_int(32)) {
         tensor = lang::Placeholder<int32_t>(id, shape);
       } else if (dtype.is_int(64)) {
         tensor = lang::Placeholder<int64_t>(id, shape);
+      } else if (dtype.is_uint(8)) {
+        tensor = lang::Placeholder<uint8_t>(id, shape);
+      } else if (dtype.is_uint(16)) {
+        tensor = lang::Placeholder<uint16_t>(id, shape);
+      } else if (dtype.is_uint(32)) {
+        tensor = lang::Placeholder<uint32_t>(id, shape);
+      } else if (dtype.is_uint(64)) {
+        tensor = lang::Placeholder<uint64_t>(id, shape);
       }
       tensor_map[id] = tensor;
       // recored func input args
@@ -2200,10 +2257,18 @@ std::vector<ir::LoweredFunc> OpLowerer::LowerNonFusibleOp(GroupPtr& group) {
 
   auto impl =
       OpStrategy::SelectImpl(cinn_strategy[node->op()](node->attrs, tensor_inputs, out_types, out_shapes, target_));
-  // if node op is custom call, return compute.
+  // if node op is custom_call, apply custom_call compute.
   if (node->op()->name == "custom_call") {
-    cinn_inputs.push_back(common::CINNValue(group->GetFuncName()));
-    common::CINNValuePack pack = impl->fcompute(common::CINNValuePack{cinn_inputs});
+    std::string external_api;
+    if (node->attrs.attr_store.count("custom_call")) {
+      external_api = absl::get<std::string>(node->attrs.attr_store.at("custom_call"));
+    } else {
+      external_api = ExternalApiRegistry::Global()->GetExternalApi(node, target_);
+    }
+    std::vector<common::CINNValue> compute_args = {common::CINNValue(group->GetFuncName()),
+                                                   common::CINNValue(external_api)};
+
+    common::CINNValuePack pack = impl->fcompute(common::CINNValuePack{compute_args});
     CHECK_EQ(pack.size(), 1UL);
     // reset input names as extern api input args can't be remove duplicate.
     group->input_names.clear();
@@ -2212,6 +2277,7 @@ std::vector<ir::LoweredFunc> OpLowerer::LowerNonFusibleOp(GroupPtr& group) {
     }
     return {pack[0].operator ir::Expr().as_lowered_func_ref()};
   }
+
   // do compute
   common::CINNValuePack value_pack = impl->fcompute(common::CINNValuePack{cinn_inputs});
   // do schedule

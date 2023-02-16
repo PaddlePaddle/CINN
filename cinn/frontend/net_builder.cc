@@ -60,7 +60,6 @@ void NetBuilder::InferShape(Instruction instr) const {
       instr->inputs.begin(), instr->inputs.end(), in_shapes.begin(), [](const Variable& var) { return var->shape; });
   std::transform(
       instr->inputs.begin(), instr->inputs.end(), in_types.begin(), [](const Variable& var) { return var->type; });
-
   auto key        = Operator::Get(instr->op_type);
   auto out_shapes = op_infershape[key](in_shapes, instr->attrs);
   auto out_types  = op_inferdtype[key](in_types, instr->attrs);
@@ -312,11 +311,16 @@ Variable NetBuilder::Slice(const Variable& operand,
                            const std::vector<int>& starts,
                            const std::vector<int>& ends,
                            const std::vector<int>& infer_flags,
-                           const std::vector<int>& strides) {
-  return CustomInstr(
-             "slice",
-             {operand},
-             {{"axes", axes}, {"starts", starts}, {"ends", ends}, {"infer_flags", infer_flags}, {"strides", strides}})
+                           const std::vector<int>& strides,
+                           const std::vector<int>& decrease_axis) {
+  return CustomInstr("slice",
+                     {operand},
+                     {{"axes", axes},
+                      {"starts", starts},
+                      {"ends", ends},
+                      {"infer_flags", infer_flags},
+                      {"strides", strides},
+                      {"decrease_axis", decrease_axis}})
       .front();
 }
 
@@ -670,6 +674,15 @@ Variable NetBuilder::UniformRandom(
 
 Variable NetBuilder::Cholesky(const Variable& x, bool upper) {
   return CustomInstr("cholesky", {x}, {{"upper", upper}}).front();
+}
+
+Variable NetBuilder::Norm(const Variable& x, int axis, float epsilon) {
+  Instruction instr("norm", {x});
+  instr.SetAttr<int32_t>("axis", axis);
+  instr.SetAttr<float>("epsilon", epsilon);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
 }
 
 }  // namespace frontend

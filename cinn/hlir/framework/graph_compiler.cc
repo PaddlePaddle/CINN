@@ -312,10 +312,22 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFuncWithIRSchedule(
       input = lang::Placeholder<float16>(id, shape);
     } else if (dtype.is_bool()) {
       input = lang::Placeholder<bool>(id, shape);
+    } else if (dtype.is_int(8)) {
+      input = lang::Placeholder<int8_t>(id, shape);
+    } else if (dtype.is_int(16)) {
+      input = lang::Placeholder<int16_t>(id, shape);
     } else if (dtype.is_int(32)) {
       input = lang::Placeholder<int32_t>(id, shape);
     } else if (dtype.is_int(64)) {
       input = lang::Placeholder<int64_t>(id, shape);
+    } else if (dtype.is_uint(8)) {
+      input = lang::Placeholder<uint8_t>(id, shape);
+    } else if (dtype.is_uint(16)) {
+      input = lang::Placeholder<uint16_t>(id, shape);
+    } else if (dtype.is_uint(32)) {
+      input = lang::Placeholder<uint32_t>(id, shape);
+    } else if (dtype.is_uint(64)) {
+      input = lang::Placeholder<uint64_t>(id, shape);
     }
     tensor_inputs.push_back(input);
     cinn_inputs.push_back(common::CINNValue(input));
@@ -366,10 +378,22 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
       temp = lang::Placeholder<float16>(input_id, in_shape);
     } else if (dtype.is_bool()) {
       temp = lang::Placeholder<bool>(input_id, in_shape);
+    } else if (dtype.is_int(8)) {
+      temp = lang::Placeholder<int8_t>(input_id, in_shape);
+    } else if (dtype.is_int(16)) {
+      temp = lang::Placeholder<int16_t>(input_id, in_shape);
     } else if (dtype.is_int(32)) {
       temp = lang::Placeholder<int32_t>(input_id, in_shape);
     } else if (dtype.is_int(64)) {
       temp = lang::Placeholder<int64_t>(input_id, in_shape);
+    } else if (dtype.is_uint(8)) {
+      temp = lang::Placeholder<uint8_t>(input_id, in_shape);
+    } else if (dtype.is_uint(16)) {
+      temp = lang::Placeholder<uint16_t>(input_id, in_shape);
+    } else if (dtype.is_uint(32)) {
+      temp = lang::Placeholder<uint32_t>(input_id, in_shape);
+    } else if (dtype.is_uint(64)) {
+      temp = lang::Placeholder<uint64_t>(input_id, in_shape);
     }
     inputs.push_back(temp);
     cinn_inputs.push_back(common::CINNValue(temp));
@@ -474,10 +498,22 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
           temp_in = lang::Placeholder<float16>(input_id, in_shape);
         } else if (dtype.is_bool()) {
           temp_in = lang::Placeholder<bool>(input_id, in_shape);
+        } else if (dtype.is_int(8)) {
+          temp_in = lang::Placeholder<int8_t>(input_id, in_shape);
+        } else if (dtype.is_int(16)) {
+          temp_in = lang::Placeholder<int16_t>(input_id, in_shape);
         } else if (dtype.is_int(32)) {
           temp_in = lang::Placeholder<int32_t>(input_id, in_shape);
         } else if (dtype.is_int(64)) {
           temp_in = lang::Placeholder<int64_t>(input_id, in_shape);
+        } else if (dtype.is_uint(8)) {
+          temp_in = lang::Placeholder<uint8_t>(input_id, in_shape);
+        } else if (dtype.is_uint(16)) {
+          temp_in = lang::Placeholder<uint16_t>(input_id, in_shape);
+        } else if (dtype.is_uint(32)) {
+          temp_in = lang::Placeholder<uint32_t>(input_id, in_shape);
+        } else if (dtype.is_uint(64)) {
+          temp_in = lang::Placeholder<uint64_t>(input_id, in_shape);
         }
         inputs.push_back(temp_in);
         temp_inputs.push_back(temp_in);

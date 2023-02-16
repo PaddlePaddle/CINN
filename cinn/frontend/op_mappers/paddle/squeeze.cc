@@ -36,18 +36,20 @@ void Squeeze2OpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext&
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);
 
-  // squeeze2 adds an intermediate output(XShape) based on squeeze,
-  // the XShape is used to carry the shape and lod of X which will be used in
-  // squeeze_grad, in this way, the framework can reuse the memory of X
-  // immediately the squeeze2_op is finished.
-  // Considering compatibility issues, we could not fix squeeze2_op
-  CHECK_EQ(op_desc.Output("XShape").size(), 1UL);
-  auto xshape_name = op_desc.Output("XShape").front();
+  if (op_desc.HasOutput("XShape")) {
+    // squeeze2 adds an intermediate output(XShape) based on squeeze,
+    // the XShape is used to carry the shape and lod of X which will be used in
+    // squeeze_grad, in this way, the framework can reuse the memory of X
+    // immediately the squeeze2_op is finished.
+    // Considering compatibility issues, we could not fix squeeze2_op
+    CHECK_EQ(op_desc.Output("XShape").size(), 1UL);
+    auto xshape_name = op_desc.Output("XShape").front();
 
-  auto xshape = ctx.Builder()->Identity(x);
+    auto xshape = ctx.Builder()->Identity(x);
 
-  ctx.AddVar(xshape_name, xshape);
-  ctx.AddVarModelToProgram(xshape_name, xshape->id);
+    ctx.AddVar(xshape_name, xshape);
+    ctx.AddVarModelToProgram(xshape_name, xshape->id);
+  }
 }
 
 }  // namespace paddle_mappers

@@ -46,7 +46,7 @@ namespace cinn {
 namespace frontend {
 namespace {
 
-bool IsCompiledWithCUDA() {
+inline bool IsCompiledWithCUDA() {
 #if !defined(CINN_WITH_CUDA)
   return false;
 #else
@@ -54,7 +54,7 @@ bool IsCompiledWithCUDA() {
 #endif
 }
 
-void PrintMatrix(const std::vector<float>& mat, int bs, int m, int n) {
+inline void PrintMatrix(const std::vector<float>& mat, int bs, int m, int n) {
   if (!VLOG_IS_ON(5)) {
     return;
   }
@@ -77,11 +77,11 @@ void PrintMatrix(const std::vector<float>& mat, int bs, int m, int n) {
   std::cout << std::string((ele_width + 2) * n - 1, '-') << "\n\n";
 }
 
-void RunGraph(std::shared_ptr<hlir::framework::Graph> graph,
-              const common::Target& target,
-              const std::shared_ptr<hlir::framework::Scope>& scope,
-              const std::vector<std::string>& output_ids,
-              const std::vector<std::string>& graph_passes) {
+inline void RunGraph(std::shared_ptr<hlir::framework::Graph> graph,
+                     const common::Target& target,
+                     const std::shared_ptr<hlir::framework::Scope>& scope,
+                     const std::vector<std::string>& output_ids,
+                     const std::vector<std::string>& graph_passes) {
   hlir::framework::ApplyPasses(graph.get(), graph_passes);
   VLOG(3) << "Graph Viz:\n" << graph->Visualize();
   BuildScope(target, graph, scope);
@@ -94,13 +94,13 @@ void RunGraph(std::shared_ptr<hlir::framework::Graph> graph,
   runtime_program->Execute();
 }
 
-std::vector<float> RunProgram(const Program& program,
-                              const common::Target& target,
-                              const std::vector<std::string>& input_ids,
-                              const std::vector<std::string>& output_ids,
-                              const std::vector<std::string>& graph_passes,
-                              int seed          = -1,
-                              bool print_tensor = false) {
+inline std::vector<float> RunProgram(const Program& program,
+                                     const common::Target& target,
+                                     const std::vector<std::string>& input_ids,
+                                     const std::vector<std::string>& output_ids,
+                                     const std::vector<std::string>& graph_passes,
+                                     int seed          = -1,
+                                     bool print_tensor = false) {
   std::unordered_set<std::string> outputs_set{output_ids.begin(), output_ids.end()};
   auto graph = std::make_shared<hlir::framework::Graph>(program, outputs_set, target);
   auto scope = hlir::framework::BuildScope(target, graph);
@@ -153,8 +153,8 @@ struct OptimizeConfig {
     this->program_passes.exp  = program_passes.second;
 
     if (FLAGS_cinn_use_op_fusion) {
-      graph_passes = {{"MatmulToCublasCustomCallPass", "OpFusionPass", "FusionMergePass"},
-                      {"MatmulToCublasCustomCallPass", "OpFusionPass", "FusionMergePass"}};
+      graph_passes = {{"TransToCustomCallPass", "OpFusionPass", "FusionMergePass"},
+                      {"TransToCustomCallPass", "OpFusionPass", "FusionMergePass"}};
     }
   }
 
@@ -168,14 +168,14 @@ struct OptimizeConfig {
   PassGroup graph_passes;
 };
 
-void CompareResult(Program* program,
-                   const common::Target& target,
-                   const std::vector<std::string>& input_ids,
-                   const std::vector<std::string>& output_ids,
-                   size_t size_diff,
-                   const OptimizeConfig& passes,
-                   int seed          = -1,
-                   bool print_tensor = false) {
+inline void CompareResult(Program* program,
+                          const common::Target& target,
+                          const std::vector<std::string>& input_ids,
+                          const std::vector<std::string>& output_ids,
+                          size_t size_diff,
+                          const OptimizeConfig& passes,
+                          int seed          = -1,
+                          bool print_tensor = false) {
   std::unordered_set<std::string> fetch_ids(output_ids.begin(), output_ids.end());
   // apply common passes
   ProgramPass::Apply(program, fetch_ids, target, passes.program_passes.ctrl);
@@ -197,6 +197,24 @@ void CompareResult(Program* program,
   for (size_t i = 0; i < origin_out.size(); ++i) {
     ASSERT_FLOAT_EQ(origin_out[i], fused_out[i]) << " i is " << i;
   }
+}
+
+inline bool CompareProgramPassResult(Program* program,
+                                     const common::Target& target,
+                                     const std::unordered_set<std::string>& fetch_ids,
+                                     const size_t size_diff,
+                                     const OptimizeConfig& passes) {
+  // apply common passes
+  ProgramPass::Apply(program, fetch_ids, target, passes.program_passes.ctrl);
+  // get original program size
+  auto origin_size = program->size();
+
+  // apply fused passes
+  ProgramPass::Apply(program, fetch_ids, target, passes.program_passes.exp);
+
+  // get fused program size
+  auto fused_size = program->size();
+  return size_diff == (origin_size - fused_size);
 }
 
 }  // namespace

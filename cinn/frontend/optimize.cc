@@ -29,16 +29,17 @@
 
 DECLARE_bool(cinn_use_fill_constant_folding);
 DECLARE_bool(cinn_use_op_fusion);
-DECLARE_bool(cinn_use_cudnn_conv);
 DECLARE_bool(cinn_use_cublas_gemm);
 DECLARE_bool(cinn_use_common_subexpression_elimination);
 DECLARE_bool(cinn_check_fusion_accuracy_pass);
+DECLARE_bool(cinn_use_custom_call);
 
 namespace cinn {
 namespace frontend {
 
 OptimizeOptions DefaultTrainingOptimizeOptions() {
   OptimizeOptions options;
+  options.program_passes.emplace_back("AutoCast");
   options.program_passes.emplace_back("Decomposer");
   options.program_passes.emplace_back("RemoveIdentity");
 
@@ -62,20 +63,12 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
   options.program_passes.emplace_back("RemoveIdentity");
   options.program_passes.emplace_back("DeadCodeEliminate");
 
-  options.graph_passes = {};
-#ifdef CINN_WITH_CUDA
-  if (FLAGS_cinn_use_cublas_gemm) {
-    options.graph_passes.emplace_back("MatmulToCublasCustomCallPass");
+  options.graph_passes = {"ConstantFolding"};
+  // options.graph_passes.push_back("DenseMergePass");
+
+  if (FLAGS_cinn_use_custom_call) {
+    options.graph_passes.emplace_back("TransToCustomCallPass");
   }
-  options.graph_passes.emplace_back("GaussianRandomToCustomCallPass");
-  options.graph_passes.emplace_back("UniformRandomToCustomCallPass");
-  options.graph_passes.emplace_back("CholeskyToCustomCallPass");
-#ifdef CINN_WITH_CUDNN
-  if (FLAGS_cinn_use_cudnn_conv) {
-    options.graph_passes.emplace_back("ConvToCudnnCustomCallPass");
-  }
-#endif
-#endif
 
   if (FLAGS_cinn_use_op_fusion) {
     options.graph_passes.emplace_back("OpFusionPass");
@@ -114,7 +107,7 @@ std::shared_ptr<hlir::framework::Graph> Optimize(frontend::Program* program,
   frontend::ProgramPass::Apply(program, fetch_ids, target, options.program_passes);
   // Apply graph passes
   auto graph = std::make_shared<hlir::framework::Graph>(*program, fetch_ids, target);
-  //
+
   VLOG(3) << "Before hlir::framework::ApplyPasses";
   hlir::framework::ApplyPasses(graph.get(), options.graph_passes);
   return graph;

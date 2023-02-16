@@ -357,12 +357,24 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Cast *op) {
   if (op->v().type().is_customized_type() &&
       op->v().type().customized_type() == common::customized_type::kpod_value_t) {  // pod_value_t operator
     llvm::Function *callee{};
-    if (op->type().is_int(32)) {
+    if (op->type().is_bool()) {
+      callee = m_->getFunction(runtime::intrinsic::pod_value_to_bool);
+    } else if (op->type().is_int(8)) {
+      callee = m_->getFunction(runtime::intrinsic::pod_value_to_int8);
+    } else if (op->type().is_int(16)) {
+      callee = m_->getFunction(runtime::intrinsic::pod_value_to_int16);
+    } else if (op->type().is_int(32)) {
       callee = m_->getFunction(runtime::intrinsic::pod_value_to_int32);
     } else if (op->type().is_int(64)) {
       callee = m_->getFunction(runtime::intrinsic::pod_value_to_int64);
-    } else if (op->type().is_bool()) {
-      callee = m_->getFunction(runtime::intrinsic::pod_value_to_bool);
+    } else if (op->type().is_uint(8)) {
+      callee = m_->getFunction(runtime::intrinsic::pod_value_to_uint8);
+    } else if (op->type().is_uint(16)) {
+      callee = m_->getFunction(runtime::intrinsic::pod_value_to_uint16);
+    } else if (op->type().is_uint(32)) {
+      callee = m_->getFunction(runtime::intrinsic::pod_value_to_uint32);
+    } else if (op->type().is_uint(64)) {
+      callee = m_->getFunction(runtime::intrinsic::pod_value_to_uint64);
     } else if (op->type().is_float(32)) {
       callee = m_->getFunction(runtime::intrinsic::pod_value_to_float);
     } else if (op->type().is_float(64)) {
@@ -1472,10 +1484,22 @@ llvm::Value *CodeGenLLVM::Visit(const ir::intrinsics::PodValueToX *op) {
     callee = m_->getFunction(runtime::intrinsic::pod_value_to_float16);
   } else if (to_type == type_of<bool>()) {
     callee = m_->getFunction(runtime::intrinsic::pod_value_to_bool);
+  } else if (to_type == type_of<int8_t>()) {
+    callee = m_->getFunction(runtime::intrinsic::pod_value_to_int8);
+  } else if (to_type == type_of<int16_t>()) {
+    callee = m_->getFunction(runtime::intrinsic::pod_value_to_int16);
   } else if (to_type == type_of<int32_t>()) {
     callee = m_->getFunction(runtime::intrinsic::pod_value_to_int32);
   } else if (to_type == type_of<int64_t>()) {
     callee = m_->getFunction(runtime::intrinsic::pod_value_to_int64);
+  } else if (to_type == type_of<uint8_t>()) {
+    callee = m_->getFunction(runtime::intrinsic::pod_value_to_uint8);
+  } else if (to_type == type_of<uint16_t>()) {
+    callee = m_->getFunction(runtime::intrinsic::pod_value_to_uint16);
+  } else if (to_type == type_of<uint32_t>()) {
+    callee = m_->getFunction(runtime::intrinsic::pod_value_to_uint32);
+  } else if (to_type == type_of<uint64_t>()) {
+    callee = m_->getFunction(runtime::intrinsic::pod_value_to_uint64);
   } else if (to_type == type_of<void *>()) {
     callee = m_->getFunction(runtime::intrinsic::pod_value_to_void_p);
   } else if (to_type == type_of<cinn_buffer_t *>()) {

@@ -52,7 +52,9 @@ void IRElementwiseSchedule(ir::IRSchedule &ir_sch, const std::vector<int> &outpu
       ir_sch.Bind(splited[1], "threadIdx.x");
     }
   } else {
-    IRScheduleInjectiveCPU(ir_sch, output_shape, target, false);
+    // IRScheduleInjectiveCPU(ir_sch, output_shape, target, false);
+    auto blocks = ir_sch.GetAllBlocks();
+    ir_sch.FlattenLoops(ir_sch.GetLoops(blocks[0]), true);
   }
   VLOG(3) << "After IRElementwiseSchedule, new ir is : " << ir_sch.GetModule().GetExprs().at(0);
 }
@@ -73,7 +75,9 @@ void IRInjectiveSchedule(ir::IRSchedule &ir_sch, const std::vector<int> &output_
       ir_sch.Bind(splited[1], "threadIdx.x");
     }
   } else {
-    IRScheduleInjectiveCPU(ir_sch, output_shape, target, false);
+    // IRScheduleInjectiveCPU(ir_sch, output_shape, target, false);
+    auto blocks = ir_sch.GetAllBlocks();
+    ir_sch.FlattenLoops(ir_sch.GetLoops(blocks[0]), false);
   }
   VLOG(3) << "After IRInjectiveSchedule, new ir is : " << ir_sch.GetModule().GetExprs().at(0);
 }
@@ -82,7 +86,7 @@ void IRScheduleInjectiveCPU(ir::IRSchedule &ir_sch,
                             const std::vector<int> &output_shape,
                             const common::Target &target,
                             bool vectorizable) {
-  VLOG(3) << "Begin IRScheduleInjectiveCPU";
+  VLOG(3) << "Begin IRScheduleInjectiveCPU" << ir_sch.GetModule().GetExprs().at(0);
   auto all_blocks = ir_sch.GetAllBlocks();
   auto loops      = ir_sch.GetLoops(all_blocks[0]);
   int dims        = output_shape.size();
@@ -310,14 +314,14 @@ void IRCudaScheduleReduce(ir::IRSchedule &ir_sch,
   int index = ir_sch.GetLoops(output->name + "__reduce_init").size() - last_dimension_num;
   for (int idx = output_shape.size() - last_dimension_num; idx < static_cast<int>(output_shape.size()) - 1; ++idx) {
     auto loops = ir_sch.GetLoops(output->name);
-    if (loops.size() > index + 2) ir_sch.Fuse({loops[index], loops[index + 1]});
+    ir_sch.Fuse({loops[index], loops[index + 1]});
   }
 
   int max_block_size = target.max_num_threads();
   if (parallel_thread_num > max_block_size) {
     auto loops = ir_sch.GetLoops(output->name);
     CHECK_GE(loops.size(), index + 1);
-    for (int idx = 1024; idx > 0; --idx) {
+    for (int idx = max_block_size; idx > 0; --idx) {
       if (parallel_thread_num % idx == 0) {
         auto nloops = ir_sch.Split(loops[index], {-1, idx});
         ir_sch.Bind(nloops.back(), "threadIdx.x");
@@ -350,7 +354,8 @@ void IRCudaScheduleBlockReduceInternal(ir::IRSchedule &ir_sch,
                                        ir::Tensor out,
                                        const common::Target &target) {
   VLOG(3) << "Before IRCudaScheduleBlockReduceInternal : " << ir_sch.GetModule().GetExprs().at(0);
-  for (int idx = 0; idx < static_cast<int>(tmp_out->shape.size()) - 2; ++idx) {
+  int fuse_times = ir_sch.GetLoops(tmp_out->name).size() - 2;
+  for (int idx = 0; idx < fuse_times; ++idx) {
     for (auto &tensor : {tmp_out, out}) {
       auto loops = ir_sch.GetLoops(tensor->name);
       CHECK_GE(loops.size(), 2U);

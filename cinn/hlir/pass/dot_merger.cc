@@ -161,11 +161,12 @@ class DotBuilder {
       std::vector<int> axes, std::vector<int> starts, std::vector<int> ends, NodeData* input, NodeData* output) {
     const std::string type{"slice"};
     auto instr = common::Shared<Node>(new Node(framework::Operator::Get(type), type, node_name(type)));
-    instr->attrs.attr_store["axes"]        = std::move(axes);
-    instr->attrs.attr_store["starts"]      = std::move(starts);
-    instr->attrs.attr_store["ends"]        = std::move(ends);
-    instr->attrs.attr_store["infer_flags"] = std::vector<int>{};
-    instr->attrs.attr_store["strides"]     = std::vector<int>{};
+    instr->attrs.attr_store["axes"]          = std::move(axes);
+    instr->attrs.attr_store["starts"]        = std::move(starts);
+    instr->attrs.attr_store["ends"]          = std::move(ends);
+    instr->attrs.attr_store["infer_flags"]   = std::vector<int>{};
+    instr->attrs.attr_store["strides"]       = std::vector<int>{};
+    instr->attrs.attr_store["decrease_axis"] = std::vector<int>{};
     input->LinkTo(instr.get());
     instr->LinkTo(output);
     graph_->RegisterNode(instr->id(), instr.get());
@@ -202,7 +203,6 @@ class DotMergerPass {
     std::set<Node*> nodes_to_remove;
     DotBuilder builder(graph, dot_type);
     for (auto& c : clusters) {
-      VLOG(3) << "deal with the shared node: " << c.first->id();
       auto& dots = c.second;
       for (size_t i = 0; i < dots.size(); ++i) {
         auto*& a = dots[i];
@@ -210,6 +210,9 @@ class DotMergerPass {
           VLOG(5) << "The node has been fused and removed, skipped.";
           continue;
         }
+        std::vector<Node*> merge_nodes;
+        merge_nodes.clear();
+        merge_nodes.push_back(a);
         for (size_t j = i + 1; j < dots.size(); ++j) {
           auto* b = dots[j];
           if (!b || nodes_to_remove.count(a) || nodes_to_remove.count(b) || accessible(a, b) || accessible(b, a)) {
@@ -217,17 +220,26 @@ class DotMergerPass {
                     << " have data dependencies or have been deleted, they cannot be merged.";
             continue;
           }
-          auto* merged = MergeDots(&builder, a, b);
-          if (merged) {
-            cnt++;
-            nodes_to_remove.insert(a);
-            nodes_to_remove.insert(b);
-            dots[i] = merged;
+          if (!is_merge(&builder, a, b)) {
+            continue;
+          }
+          merge_nodes.push_back(dots[j]);
+        }
+        if (merge_nodes.size() < 2) {
+          continue;
+        }
+        auto* merged = NewMergeDots(&builder, merge_nodes);
+        cnt += 1;
+        for (size_t j = 0; j < merge_nodes.size(); ++j) {
+          nodes_to_remove.insert(dots[j]);
+          if (j != 0) {
             dots[j] = nullptr;
           }
         }
+        dots[i] = merged;
       }
     }
+
     for (auto* n : nodes_to_remove) {
       remove_node(graph, n);
     }
@@ -260,6 +272,88 @@ class DotMergerPass {
     }
     VLOG(3) << "clusters size = " << clusters.size();
     return clusters;
+  }
+
+  static bool is_merge(DotBuilder* builder, Node* a, Node* b) {
+    CHECK(a && b) << "The pointer of node is illegal.";
+    const std::array<bool, 2> trans_a{get_attr<bool>(a, "trans_a", false), get_attr<bool>(b, "trans_a", false)};
+    const std::array<bool, 2> trans_b{get_attr<bool>(a, "trans_b", false), get_attr<bool>(b, "trans_b", false)};
+    const std::array<bool, 2> trans_out{get_attr<bool>(a, "trans_out", false), get_attr<bool>(b, "trans_out", false)};
+    const std::array<float, 2> alpha{get_attr<float>(a, "alpha", 1.f), get_attr<float>(b, "alpha", 1.f)};
+    if (!all_equal(trans_a, trans_b, trans_out, alpha)) {
+      return false;
+    }
+    NodeData *shared_input{}, *input_a{}, *input_b{};
+    if (input_operand(a, 1) == input_operand(b, 1)) {
+      shared_input = input_operand(a, 1);
+      input_a      = input_operand(a, 0);
+      input_b      = input_operand(b, 0);
+    } else if (input_operand(a, 0) == input_operand(b, 0)) {
+      shared_input = input_operand(a, 0);
+      input_a      = input_operand(a, 1);
+      input_b      = input_operand(b, 1);
+    } else {
+      return false;
+    }
+    auto* output_a   = output_operand(a, 0);
+    auto* output_b   = output_operand(b, 0);
+    auto& graph_outs = builder->graph()->outputs;
+    for (auto* n : {shared_input, input_a, input_b}) {
+      if (std::find(graph_outs.begin(), graph_outs.end(), n) != graph_outs.end()) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  static Node* NewMergeDots(DotBuilder* builder, std::vector<Node*> merge_nodes) {
+    const std::array<bool, 2> trans_a{get_attr<bool>(merge_nodes[0], "trans_a", false),
+                                      get_attr<bool>(merge_nodes[1], "trans_a", false)};
+    const std::array<bool, 2> trans_b{get_attr<bool>(merge_nodes[0], "trans_b", false),
+                                      get_attr<bool>(merge_nodes[1], "trans_b", false)};
+    const std::array<float, 2> alpha{get_attr<float>(merge_nodes[0], "alpha", 1.f),
+                                     get_attr<float>(merge_nodes[1], "alpha", 1.f)};
+
+    bool lhs{true};
+    int axis{1};
+    NodeData* shared_input = input_operand(merge_nodes[0], 0);
+
+    if (input_operand(merge_nodes[0], 1) == input_operand(merge_nodes[1], 1)) {
+      shared_input = input_operand(merge_nodes[0], 1);
+      lhs          = false;
+      if (!trans_a[0]) {
+        axis = 0;
+      } else if (trans_b[0]) {
+        axis = 0;
+      }
+    }
+    CHECK(shared_input) << "The input node type must be variable.";
+    std::vector<NodeData*> concat_nodes;
+    concat_nodes.clear();
+    auto shape_shared = builder->shape_dict().at(shared_input->id());
+    concat_nodes.push_back(input_operand(merge_nodes[0], axis));
+    for (size_t i = 1; i < merge_nodes.size(); ++i) {
+      auto shape_a = builder->shape_dict().at(input_operand(merge_nodes[i - 1], axis)->id());
+      auto shape_b = builder->shape_dict().at(input_operand(merge_nodes[i], axis)->id());
+      CHECK_EQ(shape_a[1 - axis], shape_b[1 - axis])
+          << "The shape of matmul is error. " << shape_a.size() << ", " << shape_b.size();
+      concat_nodes.push_back(input_operand(merge_nodes[i], axis));
+    }
+    auto* concat_out = builder->Concat(axis, concat_nodes);
+    NodeData* matmul_out{};
+    if (!lhs) {
+      matmul_out = builder->Matmul(trans_a[0], trans_b[0], false, alpha[0], concat_out, shared_input);
+    } else {
+      matmul_out = builder->Matmul(trans_a[0], trans_b[0], false, alpha[0], shared_input, concat_out);
+    }
+    auto start_shape = 0;
+    for (size_t i = 0; i < concat_nodes.size(); ++i) {
+      auto shape   = builder->shape_dict().at(input_operand(merge_nodes[i], axis)->id());
+      auto* output = output_operand(merge_nodes[i], 0);
+      builder->Slice({axis}, {start_shape}, {start_shape + shape[axis]}, matmul_out, output);
+      start_shape += shape[axis];
+    }
+    return builder->matmul_op();
   }
 
   static Node* MergeDots(DotBuilder* builder, Node* a, Node* b) {
