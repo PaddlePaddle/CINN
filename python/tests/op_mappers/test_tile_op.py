@@ -28,7 +28,7 @@ paddle.enable_static()
 enable_gpu = sys.argv.pop()
 
 
-class TestGatherNdOp(OpMapperTest):
+class TestTileOp(OpMapperTest):
     def setUp(self):
         if enable_gpu == "ON":
             self.target = DefaultNVGPUTarget()
@@ -57,12 +57,44 @@ class TestGatherNdOp(OpMapperTest):
         self.check_outputs_and_grads(all_equal=True)
 
 
-class TestGatherNdCase1(TestGatherNdOp):
+class TestTileCase1(TestTileOp):
     def init_input_data(self):
         self.feed_data = {
             'x': self.random([2, 3, 4], 'float32'),
         }
         self.repeat_times = [1, 2, 3]
+
+
+class TestTileCase2(TestTileOp):
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([2, 10, 5], 'float32'),
+        }
+        self.repeat_times = [2, 2]
+
+
+class TestTileCase3(TestTileOp):
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([2, 4, 15], 'float32'),
+        }
+        self.repeat_times = [2, 1, 4]
+
+
+class TestTileCase4(TestTileOp):
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([12, 14], 'float32'),
+        }
+        self.repeat_times = [2, 3]
+
+
+class TestTileCase5(TestTileOp):
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([120], 'float32'),
+        }
+        self.repeat_times = [2, 2]
 
 
 if __name__ == "__main__":
