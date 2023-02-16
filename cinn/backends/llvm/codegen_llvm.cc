@@ -234,7 +234,9 @@ llvm::Value *CodeGenLLVM::Visit(const ir::UIntImm *op) {
 }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::FloatImm *op) {
-  if (op->type().is_float(32)) {
+  if (op->type().is_float(64)) {
+    return llvm::ConstantFP::get(b_->getDoubleTy(), op->value);
+  } else if (op->type().is_float(32)) {
     return llvm::ConstantFP::get(b_->getFloatTy(), op->value);
   } else if (op->type().is_float(16)) {
     return llvm::ConstantFP::get(b_->getHalfTy(), op->value);
