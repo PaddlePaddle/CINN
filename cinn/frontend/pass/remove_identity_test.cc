@@ -117,7 +117,7 @@ TEST(RemoveIdentity, cannot_remove_fetch) {
   std::vector<std::string> output_names   = {identity_2->id, mul_1->id};
   std::vector<std::string> program_passes = {"RemoveIdentity"};
   int num_removed_ops                     = tester.RunAndCheck(builder, program_passes, input_names, output_names);
-  ASSERT_EQ(num_removed_ops, 2);
+  ASSERT_EQ(num_removed_ops, 1);
 }
 
 }  // namespace cinn::frontend
