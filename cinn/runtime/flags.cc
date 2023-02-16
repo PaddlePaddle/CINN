@@ -41,6 +41,10 @@ DEFINE_bool(cinn_use_op_fusion, BoolFromEnv("FLAGS_cinn_use_op_fusion", true), "
 
 DEFINE_bool(cinn_use_cublas_gemm, BoolFromEnv("FLAGS_cinn_use_cublas_gemm", true), "Whether to use cublas gemm.");
 
+DEFINE_bool(cinn_use_common_subexpression_elimination,
+            BoolFromEnv("FLAGS_cinn_use_common_subexpression_elimination", false),
+            "Whether to use common subexpression elimination pass.");
+
 DEFINE_string(cinn_custom_call_deny_ops,
               StringFromEnv("FLAGS_cinn_custom_call_deny_ops", ""),
               "a blacklist of op are denied by MarkCustomCallOps pass, separated by ;");
