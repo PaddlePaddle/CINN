@@ -22,7 +22,7 @@ from cinn.frontend import *
 from cinn.common import *
 
 
-@OpTestTool.skip_if(not is_compiled_with_cuda(),
+@OpTestTool.skip_if(not is_compiled_with_cudnn(),
                     "x86 test will be skipped due to timeout.")
 class TestPool2dOp(OpTest):
     def setUp(self):
@@ -72,6 +72,14 @@ class TestPool2dNHWC(TestPool2dOp):
         self.inputs = {"x": self.random([1, 32, 32, 3], "float32")}
         self.kernel_size = [2, 2]
         self.data_format = "NHWC"
+        self.strides = [2, 2]
+
+
+class TestPool2dFP16(TestPool2dOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([1, 3, 32, 32], "float16")}
+        self.kernel_size = [2, 2]
+        self.data_format = "NCHW"
         self.strides = [2, 2]
 
 
