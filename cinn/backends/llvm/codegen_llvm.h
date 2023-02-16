@@ -119,11 +119,21 @@ class CodeGenLLVM : public LLVMIRVisitor, public IrBuilderMixin<CodeGenLLVM> {
   // @{
   inline llvm::Type *ll_void_p_ty() const { return llvm_type_of<void *>(m_); }
   inline llvm::Type *ll_void_pp_ty() const { return llvm_type_of<void **>(m_); }
+
   inline llvm::Type *ll_int8_ty() const { return llvm_type_of<int8_t>(m_); }
+  inline llvm::Type *ll_int16_ty() const { return llvm_type_of<int16_t>(m_); }
   inline llvm::Type *ll_int32_ty() const { return llvm_type_of<int32_t>(m_); }
+  inline llvm::Type *ll_int64_ty() const { return llvm_type_of<int64_t>(m_); }
+
+  inline llvm::Type *ll_uint8_ty() const { return llvm_type_of<uint8_t>(m_); }
+  inline llvm::Type *ll_uint16_ty() const { return llvm_type_of<uint16_t>(m_); }
+  inline llvm::Type *ll_uint32_ty() const { return llvm_type_of<uint32_t>(m_); }
+  inline llvm::Type *ll_uint64_ty() const { return llvm_type_of<uint64_t>(m_); }
+
   inline llvm::Type *ll_fp16_ty() const { return llvm_type_of<cinn::common::float16>(m_); }
   inline llvm::Type *ll_fp32_ty() const { return llvm_type_of<float>(m_); }
   inline llvm::Type *ll_fp64_ty() const { return llvm_type_of<double>(m_); }
+
   inline llvm::Type *ll_cinn_buffer_p_ty() const { return llvm_type_of<cinn_buffer_t *>(m_); }
   inline llvm::Type *ll_cinn_pod_ty() const { return llvm_type_of<cinn_pod_value_t>(m_); }
   inline llvm::Type *ll_cinn_pod_p_ty() const { return llvm_type_of<cinn_pod_value_t *>(m_); }

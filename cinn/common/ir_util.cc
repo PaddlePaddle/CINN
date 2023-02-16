@@ -291,10 +291,22 @@ Expr cast(Expr e, Type type) {
   if (e.is_constant()) {
     if (type.is_bool()) {
       return Expr(static_cast<bool>(e.get_constant()));
+    } else if (type.is_int(8)) {
+      return Expr(static_cast<int8_t>(e.get_constant()));
+    } else if (type.is_int(16)) {
+      return Expr(static_cast<int16_t>(e.get_constant()));
     } else if (type.is_int(32)) {
       return Expr(static_cast<int32_t>(e.get_constant()));
     } else if (type.is_int(64)) {
       return Expr(static_cast<int64_t>(e.get_constant()));
+    } else if (type.is_uint(8)) {
+      return Expr(static_cast<uint8_t>(e.get_constant()));
+    } else if (type.is_uint(16)) {
+      return Expr(static_cast<uint16_t>(e.get_constant()));
+    } else if (type.is_uint(32)) {
+      return Expr(static_cast<uint32_t>(e.get_constant()));
+    } else if (type.is_uint(64)) {
+      return Expr(static_cast<uint64_t>(e.get_constant()));
     } else if (type.is_float(32)) {
       return Expr(static_cast<float>(e.get_constant()));
     } else if (type.is_float(64)) {

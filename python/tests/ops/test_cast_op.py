@@ -30,16 +30,12 @@ class TestCastOp(OpTest):
         self.init_case()
 
     def init_case(self):
-        self.inputs = {
-            "x": np.random.random([
-                32,
-                64,
-            ]).astype("float32") * 2 - 1
-        }
+        self.inputs = {"x": self.random([10201, 50], "float32", 1, 10)}
+        self.dtype = "int64"
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.inputs["x"], stop_gradient=True)
-        out = paddle.cast(x, 'int64')
+        out = paddle.cast(x, self.dtype)
 
         self.paddle_outputs = [out]
 
@@ -47,8 +43,10 @@ class TestCastOp(OpTest):
     # the forward result will be incorrect.
     def build_cinn_program(self, target):
         builder = NetBuilder("cast")
-        x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
-        out = builder.cast(x, 'int64')
+        x = builder.create_input(
+            self.nptype2cinntype(self.inputs["x"].dtype),
+            self.inputs["x"].shape, "x")
+        out = builder.cast(x, self.dtype)
 
         prog = builder.build()
         res = self.get_cinn_output(prog, target, [x], [self.inputs["x"]],
@@ -57,14 +55,25 @@ class TestCastOp(OpTest):
         self.cinn_outputs = res
 
     def test_check_results(self):
-        self.check_outputs_and_grads()
+        self.check_outputs_and_grads(all_equal=True)
 
 
 class TestCastCase1(TestCastOp):
     def init_case(self):
-        self.inputs = {
-            "x": np.random.random([10201, 50]).astype("float32") * 3 - 1
-        }
+        self.inputs = {"x": self.random([10201, 50], "float32", 1, 10)}
+        self.dtype = "float32"
+
+
+class TestCastCase2(TestCastOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([32, 64], "int32", 1, 10)}
+        self.dtype = "uint8"
+
+
+class TestCastCase3(TestCastOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([32, 64], "uint8", 1, 10)}
+        self.dtype = "int32"
 
 
 if __name__ == "__main__":

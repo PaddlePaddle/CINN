@@ -22,18 +22,30 @@ namespace framework {
 
 void _Tensor_::set_type(Type type) {
   type_ = type;
-  if (type.is_int(32)) {
+  if (type.is_bool()) {
+    buffer_->data()->type = cinn_bool_t();
+  } else if (type.is_int(8)) {
+    buffer_->data()->type = cinn_int8_t();
+  } else if (type.is_int(16)) {
+    buffer_->data()->type = cinn_int16_t();
+  } else if (type.is_int(32)) {
     buffer_->data()->type = cinn_int32_t();
   } else if (type.is_int(64)) {
     buffer_->data()->type = cinn_int64_t();
+  } else if (type.is_uint(8)) {
+    buffer_->data()->type = cinn_uint8_t();
+  } else if (type.is_uint(16)) {
+    buffer_->data()->type = cinn_uint16_t();
+  } else if (type.is_uint(32)) {
+    buffer_->data()->type = cinn_uint32_t();
+  } else if (type.is_uint(64)) {
+    buffer_->data()->type = cinn_uint64_t();
   } else if (type.is_float(32)) {
     buffer_->data()->type = cinn_float32_t();
   } else if (type.is_float(64)) {
     buffer_->data()->type = cinn_float64_t();
   } else if (type.is_float(16)) {
     buffer_->data()->type = cinn_float16_t();
-  } else if (type.is_bool()) {
-    buffer_->data()->type = cinn_bool_t();
   } else {
     buffer_->data()->type = cinn_unk_t();
   }
