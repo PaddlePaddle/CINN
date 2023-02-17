@@ -150,7 +150,7 @@ std::string Graph::Visualize() const {
 
   // 1. create nodes
   for (auto &node : nodes_) {
-    dot.AddNode(node->id(), {});
+    dot.AddNode(node->id(), {}, "", "", true);
   }
 
   // 2. link each other
