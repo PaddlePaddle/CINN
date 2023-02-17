@@ -466,13 +466,17 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
 
 std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shape,
                                          const framework::AttrMapType &attrs) {
-  CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
+  CHECK_EQ(inputs_shape.size(), 2) << "The conv2d should has and only has 2 inputs";
+  CHECK_EQ(inputs_shape[0].size(), 4) << "The conv2d's first input only support 4-dimension tensor";
+  CHECK_EQ(inputs_shape[1].size(), 4) << "The conv2d's first input only support 4-dimension tensor";
+
   std::vector<int> padding({0, 0});
   std::vector<int> stride({1, 1});
   std::vector<int> dilation({1, 1});
   int groups              = 1;
   std::string data_format = "NCHW";
-  std::string conv_type   = "";
+  std::string conv_type   = "forward";
+
   if (attrs.find("padding") != attrs.end()) {
     padding = absl::get<std::vector<int>>(attrs.at("padding"));
   }
@@ -490,8 +494,6 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
   }
   if (attrs.find("conv_type") != attrs.end()) {
     conv_type = absl::get<std::string>(attrs.at("conv_type"));
-  } else {
-    conv_type = "forward";
   }
 
   CHECK_EQ(padding.size(), 2) << "The size of padding in conv2d op is not 2! Please check.";
@@ -499,32 +501,56 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
   CHECK_GE(inputs_shape[0].size(), 3) << "The first input tensor's shape size of conv2d op is < 3! Please check.";
   CHECK(conv_type == "forward" || conv_type == "backward_data" || conv_type == "backward_filter")
       << "The conv type should be one of {forward, backward_data, backward_filter}.";
+  CHECK(data_format == "NCHW" || data_format == "NHWC")
+      << "The conv2d only support NCHW/NHWC, but here " << data_format;
 
-  std::vector<shape_t> res;
-  if (data_format == "NCHW") {
+  int n = 0, c = 1, h = 2, w = 3;
+  if (data_format == "NHWC") {
+    n = 0;
+    h = 1;
+    w = 2;
+    c = 3;
+  }
+
+  std::vector<int> output_shape(4, 0);
+  int out_shape_h = 0, out_shape_w = 0;
+  if (conv_type == "forward") {
     // A is input: [N, C, H, W], B is filter: [C_out, C_in/group, filter_h, filter_w]
-    int out_shape_h = 0, out_shape_w = 0;
-    if (conv_type == "forward") {
-      out_shape_h =
-          (inputs_shape[0][2] - ((inputs_shape[1][2] - 1) * dilation[0] + 1) + 2 * padding[0]) / stride[0] + 1;
-      out_shape_w =
-          (inputs_shape[0][3] - ((inputs_shape[1][3] - 1) * dilation[1] + 1) + 2 * padding[1]) / stride[1] + 1;
-    } else if (conv_type == "backward_data") {
-      CHECK(attrs.find("output_shape") != attrs.end()) << "The shape of backward_data is not found! Please check.";
-      auto data_shape = absl::get<std::vector<int>>(attrs.at("output_shape"));
-      CHECK_EQ(data_shape.size(), 4) << "The rank of x shape is not 4! Please check";
-      out_shape_h = data_shape[2];
-      out_shape_w = data_shape[3];
-    } else if (conv_type == "backward_filter") {
-      CHECK(attrs.find("output_shape") != attrs.end()) << "The shape of backward_filter is not found! Please check.";
-      auto filter_shape = absl::get<std::vector<int>>(attrs.at("output_shape"));
-      CHECK_EQ(filter_shape.size(), 4) << "The rank of weight shape is not 4! Please check";
-      out_shape_h = filter_shape[2];
-      out_shape_w = filter_shape[3];
-    }
+    out_shape_h = (inputs_shape[0][h] - ((inputs_shape[1][h] - 1) * dilation[0] + 1) + 2 * padding[0]) / stride[0] + 1;
+    out_shape_w = (inputs_shape[0][w] - ((inputs_shape[1][w] - 1) * dilation[1] + 1) + 2 * padding[1]) / stride[1] + 1;
 
-    res = {{inputs_shape[0][0], inputs_shape[1][0], out_shape_h, out_shape_w}};
+    output_shape[n] = inputs_shape[0][n];
+    output_shape[c] = inputs_shape[1][n];
+    output_shape[h] = out_shape_h;
+    output_shape[w] = out_shape_w;
+  } else if (conv_type == "backward_data") {
+    CHECK(attrs.find("output_shape") != attrs.end()) << "The shape of backward_data is not found! Please check.";
+    const auto &x_shape = absl::get<std::vector<int>>(attrs.at("output_shape"));
+    CHECK_EQ(x_shape.size(), 4) << "The rank of x shape is not 4! Please check";
 
+    // input[0] = w(C_out, C_in/group, h, w)
+    // input[1] = dy(batch, C_out, h, w)
+    // output = dx(batch, C_in, h, w)
+    output_shape[n] = inputs_shape[1][n];
+    output_shape[c] = inputs_shape[0][c] * groups;
+    output_shape[h] = x_shape[h];
+    output_shape[w] = x_shape[w];
+  } else if (conv_type == "backward_filter") {
+    CHECK(attrs.find("output_shape") != attrs.end()) << "The shape of backward_filter is not found! Please check.";
+    const auto &weight_shape = absl::get<std::vector<int>>(attrs.at("output_shape"));
+    CHECK_EQ(weight_shape.size(), 4) << "The rank of weight shape is not 4! Please check";
+
+    // input[0] = x(batch, C_in, h, w)
+    // input[1] = dy(batch, C_out, h, w)
+    // output = dw (C_out, C_in/group, h, w)
+    output_shape[n] = inputs_shape[1][c];
+    output_shape[c] = inputs_shape[0][c] / groups;
+    output_shape[h] = weight_shape[h];
+    output_shape[w] = weight_shape[w];
+  }
+
+  std::vector<shape_t> res = {output_shape};
+  if (data_format == "NCHW") {
     absl::flat_hash_map<std::string, int> conv2d_factors;
     int batch       = inputs_shape[0][0];
     int oc          = inputs_shape[1][0];
@@ -554,50 +580,10 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
         oc_chunk, fc_chunk, dilation[0] * (h_f - 1) + 1, dilation[1] * (w_f - 1) + 1, fc_bn, oc_bn};
     std::vector<int> data_shape = {batch, ic_chunk, h_in, w_in, ic_bn};
 
-    // output shape
-    std::vector<int> res_shape = {};
-    if (conv_type == "forward") {
-      // x w y
-      res_shape = {batch, oc, out_shape_h, out_shape_w};
-    } else if (conv_type == "backward_data") {
-      // w(C_out, C_in/group, h, w) dy(Batch, C_out, h, w) dx(batch, C_in, h, w)
-      res_shape = {inputs_shape[1][0], inputs_shape[0][1] * groups, out_shape_h, out_shape_w};
-    } else if (conv_type == "backward_filter") {
-      // x(batch, C_in, h, w) dy(batch, C_out, h, w) dw (C_out, C_in/group, h, w)
-      res_shape = {inputs_shape[1][1], inputs_shape[0][1] / groups, out_shape_h, out_shape_w};
-    }
-    return {res_shape, packed_out_shape, weights_dilation_shape, input_pad_shape};
+    res = {output_shape, packed_out_shape, weights_dilation_shape, input_pad_shape};
   } else if (data_format == "NHWC") {
-    std::vector<int> res_shape;
-    int out_shape_h = 0, out_shape_w = 0;
-    if (conv_type == "forward") {
-      // A is input: [N, H, W, C], B is filter: [C_out, C_in/group, filter_h, filter_w]
-      out_shape_h =
-          (inputs_shape[0][1] - ((inputs_shape[1][2] - 1) * dilation[0] + 1) + 2 * padding[0]) / stride[0] + 1;
-      out_shape_w =
-          (inputs_shape[0][2] - ((inputs_shape[1][3] - 1) * dilation[1] + 1) + 2 * padding[1]) / stride[1] + 1;
-      res_shape = {inputs_shape[0][0], out_shape_h, out_shape_w, inputs_shape[1][0]};
-    } else if (conv_type == "backward_data") {
-      CHECK(attrs.find("output_shape") != attrs.end()) << "The shape of backward_data is not found! Please check.";
-      auto data_shape = absl::get<std::vector<int>>(attrs.at("output_shape"));
-      CHECK_EQ(data_shape.size(), 4) << "The rank of x shape is not 4! Please check";
-      out_shape_h = data_shape[1];
-      out_shape_w = data_shape[2];
-
-      // w(C_out, C_in/group, h, w,) dy(Batch, h, w, C_out) dx(batch, h, w, C_in)
-      res_shape = {inputs_shape[1][0], out_shape_h, out_shape_w, inputs_shape[0][1] * groups};
-    } else if (conv_type == "backward_filter") {
-      CHECK(attrs.find("output_shape") != attrs.end()) << "The shape of backward_filter is not found! Please check.";
-      auto filter_shape = absl::get<std::vector<int>>(attrs.at("output_shape"));
-      CHECK_EQ(filter_shape.size(), 4) << "The rank of weight shape is not 4! Please check";
-      out_shape_h = filter_shape[2];
-      out_shape_w = filter_shape[3];
-      // x(batch, h, w, C_in) dy(batch, h, w, C_out) dw (C_out, C_in/group, h, w)
-      res_shape = {inputs_shape[1][3], inputs_shape[0][3] / groups, out_shape_h, out_shape_w};
-    }
-    return {res_shape};
-  } else {
-    LOG(FATAL) << "Only support NCHW and NHWC data layout\n";
+    // now conv2d codegen version only support NCHW data format
+    res = {output_shape};
   }
   return res;
 }

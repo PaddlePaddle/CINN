@@ -363,6 +363,7 @@ std::vector<ir::Expr> CustomCallArgsForCudnnConvForward(const framework::NodeAtt
   // if format is nhwc
   if (format == CUDNN_TENSOR_NHWC) {
     input  = {input[0], input[3], input[1], input[2]};
+    filter = {filter[0], filter[3], filter[1], filter[2]};
     output = {output[0], output[3], output[1], output[2]};
   }
 
@@ -410,6 +411,7 @@ std::vector<ir::Expr> CustomCallArgsForCudnnConvBackwardData(const framework::No
   // if format is nhwc
   if (format == CUDNN_TENSOR_NHWC) {
     input  = {input[0], input[3], input[1], input[2]};
+    filter = {filter[0], filter[3], filter[1], filter[2]};
     output = {output[0], output[3], output[1], output[2]};
   }
 
@@ -456,6 +458,7 @@ std::vector<ir::Expr> CustomCallArgsForCudnnConvBackwardFilter(const framework::
   // if format is nhwc
   if (format == CUDNN_TENSOR_NHWC) {
     input  = {input[0], input[3], input[1], input[2]};
+    filter = {filter[0], filter[3], filter[1], filter[2]};
     output = {output[0], output[3], output[1], output[2]};
   }
 
