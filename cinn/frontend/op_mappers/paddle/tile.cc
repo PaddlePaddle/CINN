@@ -48,16 +48,6 @@ void TileOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
     vec_x_dims.insert(vec_x_dims.begin(), diff, 1);
   }
 
-  // VLOG for loop check repeat_times's element
-  for (auto i : repeat_times) {
-    VLOG(1) << "repeat_times's element: " << i;
-  }
-
-  // VLOG for loop check vec_x_dims's element
-  for (auto i : vec_x_dims) {
-    VLOG(1) << "vec_x_dims's element: " << i;
-  }
-
   // check vec_x_dims's size and repeat_times's size
   CHECK_EQ(vec_x_dims.size(), repeat_times.size())
       << "vec_x_dims's size must be equal to repeat_times's size after promotion";
@@ -71,10 +61,7 @@ void TileOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
   }
   x = ctx.Builder()->Reshape(x, vec_x_dims);
 
-  // VLOG for loop check output_shape's element
-  for (auto i : output_shape) {
-    VLOG(1) << "output_shape's element: " << i;
-  }
+  VLOG(1) << "output_shape: " << cinn::utils::Join(output_shape, ",");
 
   // make a copy of vec_x_dims
   std::vector<int> vec_x_dims_copy = vec_x_dims;
@@ -82,10 +69,6 @@ void TileOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
   for (size_t i = 0; i < vec_x_dims_copy.size(); ++i) {
     vec_x_dims_copy.insert(vec_x_dims_copy.begin() + i, 1);
     i++;
-  }
-  // VLOG for loop check vec_x_dims_copy's element
-  for (auto i : vec_x_dims_copy) {
-    VLOG(1) << "vec_x_dims_copy's element: " << i;
   }
 
   x = ctx.Builder()->Reshape(x, vec_x_dims_copy);
@@ -95,10 +78,6 @@ void TileOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
     if (i % 2 == 0) {
       vec_x_dims_copy[i] = output_shape[i / 2] / vec_x_dims_copy[i + 1];
     }
-  }
-  // VLOG for loop check vec_x_dims_copy's element
-  for (auto i : vec_x_dims_copy) {
-    VLOG(1) << "vec_x_dims_copy's element: " << i;
   }
 
   auto tmp    = ctx.Builder()->BroadcastTo(x, vec_x_dims_copy);
