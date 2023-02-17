@@ -36,7 +36,11 @@ std::ostream& operator<<(std::ostream& os, const std::vector<T, Alloc>& vec) {
     } else {
       os << ", ";
     }
-    os << e;
+    if (std::is_integral<T>::value) {
+      os << static_cast<int64_t>(e);
+    } else {
+      os << e;
+    }
   }
   os << "}";
   return os;
@@ -50,10 +54,22 @@ std::string GetTypeString() {
     return "double";
   } else if (std::is_same<T, float16>::value) {
     return "float16";
+  } else if (std::is_same<T, int8_t>::value) {
+    return "int8_t";
+  } else if (std::is_same<T, int16_t>::value) {
+    return "int16_t";
   } else if (std::is_same<T, int32_t>::value) {
     return "int32_t";
   } else if (std::is_same<T, int64_t>::value) {
     return "int64_t";
+  } else if (std::is_same<T, uint8_t>::value) {
+    return "uint8_t";
+  } else if (std::is_same<T, uint16_t>::value) {
+    return "uint16_t";
+  } else if (std::is_same<T, uint32_t>::value) {
+    return "uint32_t";
+  } else if (std::is_same<T, uint64_t>::value) {
+    return "uint64_t";
   } else if (std::is_same<T, bool>::value) {
     return "bool";
   } else {
@@ -80,18 +96,30 @@ std::string DebugString(const Tensor& cpu_tensor, const std::string& name, const
       if (i > 0) {
         ss << ", ";
       }
-      ss << data[i];
+      if (std::is_integral<T>::value) {
+        ss << static_cast<int64_t>(data[i]);
+      } else {
+        ss << data[i];
+      }
     }
   } else {
     for (size_t i = 0; i < print_num; ++i) {
       if (i > 0) {
         ss << ", ";
       }
-      ss << data[i];
+      if (std::is_integral<T>::value) {
+        ss << static_cast<int64_t>(data[i]);
+      } else {
+        ss << data[i];
+      }
     }
     ss << " ... ";
     for (size_t i = numel - print_num; i < numel; ++i) {
-      ss << data[i];
+      if (std::is_integral<T>::value) {
+        ss << static_cast<int64_t>(data[i]);
+      } else {
+        ss << data[i];
+      }
       if (i != numel - 1) {
         ss << ", ";
       }
@@ -120,10 +148,22 @@ std::string AccuracyChecker::operator()(const std::string& arg_name) {
     return CheckTensor<double>(tensor, arg_name);
   } else if (tensor->type().is_float(16)) {
     return CheckTensor<float16>(tensor, arg_name);
+  } else if (tensor->type().is_int(8)) {
+    return CheckTensor<int8_t>(tensor, arg_name);
+  } else if (tensor->type().is_int(16)) {
+    return CheckTensor<int16_t>(tensor, arg_name);
   } else if (tensor->type().is_int(32)) {
     return CheckTensor<int32_t>(tensor, arg_name);
   } else if (tensor->type().is_int(64)) {
     return CheckTensor<int64_t>(tensor, arg_name);
+  } else if (tensor->type().is_uint(8)) {
+    return CheckTensor<uint8_t>(tensor, arg_name);
+  } else if (tensor->type().is_uint(16)) {
+    return CheckTensor<uint16_t>(tensor, arg_name);
+  } else if (tensor->type().is_uint(32)) {
+    return CheckTensor<uint32_t>(tensor, arg_name);
+  } else if (tensor->type().is_uint(64)) {
+    return CheckTensor<uint64_t>(tensor, arg_name);
   } else if (tensor->type().is_bool()) {
     return CheckTensor<bool>(tensor, arg_name);
   } else {
@@ -142,10 +182,22 @@ std::string AccuracyChecker::operator()(const std::map<std::string, cinn_pod_val
     return CheckBuffer<double>(buffer, arg_name);
   } else if (buffer->type == cinn_float16_t()) {
     return CheckBuffer<float16>(buffer, arg_name);
+  } else if (buffer->type == cinn_int8_t()) {
+    return CheckBuffer<int8_t>(buffer, arg_name);
+  } else if (buffer->type == cinn_int16_t()) {
+    return CheckBuffer<int16_t>(buffer, arg_name);
   } else if (buffer->type == cinn_int32_t()) {
     return CheckBuffer<int32_t>(buffer, arg_name);
   } else if (buffer->type == cinn_int64_t()) {
     return CheckBuffer<int64_t>(buffer, arg_name);
+  } else if (buffer->type == cinn_uint8_t()) {
+    return CheckBuffer<uint8_t>(buffer, arg_name);
+  } else if (buffer->type == cinn_uint16_t()) {
+    return CheckBuffer<uint16_t>(buffer, arg_name);
+  } else if (buffer->type == cinn_uint32_t()) {
+    return CheckBuffer<uint32_t>(buffer, arg_name);
+  } else if (buffer->type == cinn_uint64_t()) {
+    return CheckBuffer<uint64_t>(buffer, arg_name);
   } else if (buffer->type == cinn_bool_t()) {
     return CheckBuffer<bool>(buffer, arg_name);
   } else {
