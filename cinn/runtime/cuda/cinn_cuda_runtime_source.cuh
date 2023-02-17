@@ -30,7 +30,7 @@ __device__ inline float FN_FP32(log2)(float x) { return log2(x); }
 __device__ inline float FN_FP32(log10)(float x) { return log10(x); }
 __device__ inline float FN_FP32(exp)(float x) { return exp(x); }
 __device__ inline float FN_FP32(erf)(float x) { return erf(x); }
-__device__ inline float FN_FP32(sigmoid)(float x) { return 1. / (1 + exp(-x)); }
+__device__ inline float FN_FP32(sigmoid)(float x) { return 1.0f / (1.0f + exp(-x)); }
 __device__ inline float FN_FP32(sqrt)(float x) { return sqrt(x); }
 __device__ inline float FN_FP32(rsqrt)(float x) { return rsqrt(x); }
 __device__ inline float FN_FP32(cbrt)(float x) { return cbrt(x); }
@@ -44,7 +44,7 @@ __device__ inline float FN_FP32(pow)(float a, float b) { return powf(a, b); }
 __device__ inline float FN_FP32(remainder)(float a, float b) { return remainderf(a, b); }
 __device__ inline float FN_FP32(mod)(float a, float b) {
   float res = fmodf(a, b);
-  if ((res != 0) && ((res < 0) != (b < 0))) res += b;
+  if ((res != 0.0f) && ((res < 0.0f) != (b < 0.0f))) res += b;
   return res;
 }
 
@@ -52,12 +52,44 @@ __device__ inline float FN_FP32(mod)(float a, float b) {
 // float64 unary and binary operator
 #define FN_FP64(func) cinn_nvgpu_##func##_fp64
 
-__device__ inline double FN_FP64(pow)(double a, double b) { return pow(a, b); }
+__device__ inline double FN_FP64(sin)(double x) { return sin(x); }
+__device__ inline double FN_FP64(cos)(double x) { return cos(x); }
+__device__ inline double FN_FP64(tan)(double x) { return tan(x); }
+__device__ inline double FN_FP64(sinh)(double x) { return sinh(x); }
+__device__ inline double FN_FP64(cosh)(double x) { return cosh(x); }
+__device__ inline double FN_FP64(tanh)(double x) { return tanh(x); }
+
+__device__ inline double FN_FP64(asin)(double x) { return asin(x); }
+__device__ inline double FN_FP64(acos)(double x) { return acos(x); }
+__device__ inline double FN_FP64(atan)(double x) { return atan(x); }
+__device__ inline double FN_FP64(asinh)(double x) { return asinh(x); }
+__device__ inline double FN_FP64(acosh)(double x) { return acosh(x); }
+__device__ inline double FN_FP64(atanh)(double x) { return atanh(x); }
+
+__device__ inline double FN_FP64(ceil)(double x) { return ceil(x); }
+__device__ inline double FN_FP64(round)(double x) { return round(x); }
+__device__ inline double FN_FP64(trunc)(double x) { return trunc(x); }
+__device__ inline double FN_FP64(abs)(double x) { return abs(x); }
+__device__ inline double FN_FP64(floor)(double x) { return floor(x); }
+__device__ inline double FN_FP64(log)(double x) { return log(x); }
+__device__ inline double FN_FP64(log2)(double x) { return log2(x); }
+__device__ inline double FN_FP64(log10)(double x) { return log10(x); }
+__device__ inline double FN_FP64(exp)(double x) { return exp(x); }
+__device__ inline double FN_FP64(erf)(double x) { return erf(x); }
+__device__ inline double FN_FP64(sigmoid)(double x) { return 1.0 / (1.0 + exp(-x)); }
+__device__ inline double FN_FP64(sqrt)(double x) { return sqrt(x); }
+__device__ inline double FN_FP64(rsqrt)(double x) { return rsqrt(x); }
 __device__ inline double FN_FP64(cbrt)(double x) { return cbrt(x); }
+
+__device__ inline bool FN_FP64(isfinite)(double x) { return isfinite(x); }
+__device__ inline bool FN_FP64(isinf)(double x) { return isinf(x); }
+__device__ inline bool FN_FP64(isnan)(double x) { return isnan(x); }
+
+__device__ inline double FN_FP64(pow)(double a, double b) { return pow(a, b); }
 __device__ inline double FN_FP64(remainder)(double a, double b) { return remainder(a, b); }
 __device__ inline double FN_FP64(mod)(double a, double b) {
   double res = fmod(a, b);
-  if ((res != 0) && ((res < 0) != (b < 0))) res += b;
+  if ((res != 0.0) && ((res < 0.0) != (b < 0.0))) res += b;
   return res;
 }
 
@@ -100,6 +132,14 @@ __device__ inline long long int FN_INT64(popc)(long long int a) { return __popcl
 __device__ inline long long int FN_INT64(mod)(long long int a, long long int b) {
   long long int res = a % b;
   if ((res != 0) && ((b ^ res) < 0)) res += b;
+  return res;
+}
+
+__device__ inline long long int FN_INT64(pow)(long long int a, long long int b) {
+  long long int res = 1;
+  for (int i = 0; i < b; ++i) {
+    res *= a;
+  }
   return res;
 }
 
