@@ -6,7 +6,7 @@ ENDIF()
 include(ExternalProject)
 
 set(JITIFY_SOURCE_PATH ${THIRD_PARTY_PATH}/install/jitify)
-set(JITIFY_STL_HEADERS ${THIRD_PARTY_PATH}/install/jitify/stl_headers)
+set(JITIFY_STL_HEADERS $ENV{runtime_include_dir}/jitify/stl_headers)
 
 ExternalProject_Add(
   external_jitify
