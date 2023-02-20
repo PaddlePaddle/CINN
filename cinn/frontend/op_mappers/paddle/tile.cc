@@ -31,7 +31,6 @@ void TileOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
   // attr repeat_times
   std::vector<int> repeat_times = op_desc.GetAttr<std::vector<int>>("repeat_times");
 
-  // for loop check repeat_times's element
   for (auto i : repeat_times) {
     CHECK_GT(i, 0) << "repeat_times's element must be greater than 0";
   }
@@ -48,7 +47,6 @@ void TileOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
     vec_x_dims.insert(vec_x_dims.begin(), diff, 1);
   }
 
-  // check vec_x_dims's size and repeat_times's size
   CHECK_EQ(vec_x_dims.size(), repeat_times.size())
       << "vec_x_dims's size must be equal to repeat_times's size after promotion";
 
@@ -59,9 +57,8 @@ void TileOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
   for (size_t i = 0; i < repeat_times.size(); ++i) {
     output_shape[i] *= repeat_times[i];
   }
-  x = ctx.Builder()->Reshape(x, vec_x_dims);
 
-  VLOG(1) << "output_shape: " << cinn::utils::Join(output_shape, ",");
+  VLOG(4) << "output_shape: " << cinn::utils::Join(output_shape, ",");
 
   // make a copy of vec_x_dims
   std::vector<int> vec_x_dims_copy = vec_x_dims;
@@ -73,7 +70,7 @@ void TileOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
 
   x = ctx.Builder()->Reshape(x, vec_x_dims_copy);
 
-  // recontruct vec_x_dims_copy, the current even digit is equal to output_shape divided by an odd number
+  // recontruct vec_x_dims_copy for BroadaCast
   for (size_t i = 0; i < vec_x_dims_copy.size(); ++i) {
     if (i % 2 == 0) {
       vec_x_dims_copy[i] = output_shape[i / 2] / vec_x_dims_copy[i + 1];
