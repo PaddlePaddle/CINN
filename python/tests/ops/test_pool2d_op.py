@@ -30,32 +30,51 @@ class TestPool2dOp(OpTest):
 
     def init_case(self):
         self.inputs = {"x": self.random([1, 3, 32, 32], "float32")}
-        self.kernel_size = [2, 2]
+        self.polling_type = "max"
         self.data_format = "NCHW"
-        self.strides = [2, 2]
+        self.kernel_size = [2, 2]
+        self.stride = [2, 2]
+        self.paddings = [0, 0]
+        self.ceil_mode = False
+        self.exclusive = True
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.inputs["x"], stop_gradient=False)
 
-        out = paddle.nn.functional.max_pool2d(
-            x,
-            kernel_size=self.kernel_size,
-            data_format=self.data_format,
-            stride=self.strides)
+        if self.polling_type == "max":
+            out = paddle.nn.functional.max_pool2d(
+                x,
+                kernel_size=self.kernel_size,
+                stride=self.stride,
+                padding=self.paddings,
+                ceil_mode=self.ceil_mode,
+                data_format=self.data_format)
+        elif self.polling_type == "avg":
+            out = paddle.nn.functional.avg_pool2d(
+                x,
+                kernel_size=self.kernel_size,
+                stride=self.stride,
+                padding=self.paddings,
+                ceil_mode=self.ceil_mode,
+                exclusive=self.exclusive,
+                data_format=self.data_format)
 
         self.paddle_outputs = [out]
 
     def build_cinn_program(self, target):
-        builder = NetBuilder("pow")
+        builder = NetBuilder("pool2d")
         x = builder.create_input(
             self.nptype2cinntype(self.inputs["x"].dtype),
             self.inputs["x"].shape, "x")
         out = builder.pool2d(
             x,
-            polling_type="max",
+            polling_type=self.polling_type,
             kernel_size=self.kernel_size,
-            data_format=self.data_format,
-            strides=self.strides)
+            stride=self.stride,
+            padding=self.paddings,
+            ceil_mode=self.ceil_mode,
+            exclusive=self.exclusive,
+            data_format=self.data_format)
 
         prog = builder.build()
         res = self.get_cinn_output(
@@ -67,20 +86,76 @@ class TestPool2dOp(OpTest):
         self.check_outputs_and_grads(all_equal=True)
 
 
-class TestPool2dNHWC(TestPool2dOp):
+class TestMaxPool2dNHWC(TestPool2dOp):
     def init_case(self):
         self.inputs = {"x": self.random([1, 32, 32, 3], "float32")}
-        self.kernel_size = [2, 2]
+        self.polling_type = "max"
         self.data_format = "NHWC"
-        self.strides = [2, 2]
+        self.kernel_size = [2, 2]
+        self.stride = [2, 2]
+        self.paddings = [0, 0]
+        self.ceil_mode = False
+        self.exclusive = True
 
 
-class TestPool2dFP16(TestPool2dOp):
+class TestMaxPool2dFP16(TestPool2dOp):
     def init_case(self):
         self.inputs = {"x": self.random([1, 3, 32, 32], "float16")}
-        self.kernel_size = [2, 2]
+        self.polling_type = "max"
         self.data_format = "NCHW"
-        self.strides = [2, 2]
+        self.kernel_size = [2, 2]
+        self.stride = [2, 2]
+        self.paddings = [0, 0]
+        self.ceil_mode = False
+        self.exclusive = True
+
+
+class TestAvgPool2d(TestPool2dOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([1, 3, 32, 32], "float32")}
+        self.polling_type = "avg"
+        self.data_format = "NCHW"
+        self.kernel_size = [2, 2]
+        self.stride = [2, 2]
+        self.paddings = [0, 0]
+        self.ceil_mode = False
+        self.exclusive = True
+
+
+class TestAvgPool2dNHWC(TestPool2dOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([1, 32, 32, 3], "float32")}
+        self.polling_type = "avg"
+        self.data_format = "NHWC"
+        self.kernel_size = [2, 2]
+        self.stride = [2, 2]
+        self.paddings = [0, 0]
+        self.ceil_mode = False
+        self.exclusive = True
+
+
+class TestAvgPool2dFP16(TestPool2dOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([1, 3, 32, 32], "float16")}
+        self.polling_type = "avg"
+        self.data_format = "NCHW"
+        self.kernel_size = [2, 2]
+        self.stride = [2, 2]
+        self.paddings = [0, 0]
+        self.ceil_mode = False
+        self.exclusive = True
+
+
+class TestAvgPool2dPadding(TestPool2dOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([1, 2048, 7, 7], "float32")}
+        self.polling_type = "avg"
+        self.data_format = "NCHW"
+        self.kernel_size = [1, 1]
+        self.stride = [1, 1]
+        self.paddings = [0, 0]
+        self.ceil_mode = False
+        self.exclusive = True
 
 
 if __name__ == "__main__":

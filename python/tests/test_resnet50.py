@@ -70,8 +70,7 @@ class TestLoadResnet50Model(unittest.TestCase):
         prog = self.executor.get_program()
         # print program
         print("resnet50 program is:\n")
-        for i in range(prog.size()):
-            print(prog[i])
+        print(prog)
         end1 = time.time()
         print("load_paddle_model time is: %.3f sec" % (end1 - start))
         a_t = self.executor.get_tensor(self.input_tensor)

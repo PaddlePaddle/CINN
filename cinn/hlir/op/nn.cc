@@ -491,6 +491,9 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
   }
   if (attrs.find("data_format") != attrs.end()) {
     data_format = absl::get<std::string>(attrs.at("data_format"));
+    if (data_format == "AnyLayout") {
+      data_format = "NCHW";
+    }
   }
   if (attrs.find("conv_type") != attrs.end()) {
     conv_type = absl::get<std::string>(attrs.at("conv_type"));
@@ -1568,38 +1571,25 @@ std::vector<std::vector<int>> InferShapeForPool2d(const std::vector<std::vector<
       data_format = absl::get<std::string>(iter.second);
     } else if (iter.first == "adaptive") {
       adaptive = absl::get<bool>(iter.second);
+    } else if (iter.first == "pool_type") {
+      pool_type = absl::get<std::string>(iter.second);
     }
   }
-  CHECK_EQ(kernel_size.size(), 2U) << "kernel size rank for pool2d should be 2.\n";
-  CHECK(kernel_size[0] > 0 && kernel_size[1] > 0) << "the value of kernel size for pool2d should greater than 0.\n";
-  CHECK_EQ(stride_size.size(), 2U) << "stride_size size for pool2d should be 2.\n";
-  CHECK(stride_size[0] > 0 && stride_size[1] > 0) << "the value of kernel size for pool2d should greater than 0.\n";
+
   CHECK(pool_type == "max" || pool_type == "avg") << "pool_type for pool2d should be max or avg.\n";
-
-  if (padding_size.size() == 2) {
-    padding_size.insert(padding_size.end(), padding_size.begin(), padding_size.end());
+  if (data_format == "AnyLayout") {
+    data_format = "NCHW";
   }
+  CHECK(data_format == "NCHW" || data_format == "NHWC") << "data_format of pool2d only support NCHW and NHWC.\n";
 
-  // if (padding_size.size() == 2) {
-  //   padding_size.insert(padding_size.begin(), padding_size.front());
-  //   padding_size.push_back(padding_size.back());
-  // }
-
-  std::vector<int> output_shape1 = inputs_shape[0];
-  int height_axis                = -1;
-  int width_axis                 = -1;
+  int height_axis = -1;
+  int width_axis  = -1;
   if (data_format == "NCHW") {
     height_axis = 2;
     width_axis  = 3;
-  } else if (data_format == "NHWC") {
+  } else {
     height_axis = 1;
     width_axis  = 2;
-  } else if (data_format == "AnyLayout") {
-    height_axis = 2;
-    width_axis  = 3;
-    data_format = "NCHW";
-  } else {
-    LOG(FATAL) << "unsupported data_format: " << data_format << std::endl;
   }
 
   if (global_pooling) {
@@ -1607,6 +1597,16 @@ std::vector<std::vector<int>> InferShapeForPool2d(const std::vector<std::vector<
     padding_size = {0, 0, 0, 0};
   }
 
+  CHECK_EQ(kernel_size.size(), 2U) << "kernel size rank for pool2d should be 2.\n";
+  CHECK(kernel_size[0] > 0 && kernel_size[1] > 0) << "the value of kernel size for pool2d should greater than 0.\n";
+  CHECK_EQ(stride_size.size(), 2U) << "stride_size size for pool2d should be 2.\n";
+  CHECK(stride_size[0] > 0 && stride_size[1] > 0) << "the value of kernel size for pool2d should greater than 0.\n";
+
+  if (padding_size.size() == 2) {
+    padding_size.insert(padding_size.end(), padding_size.begin(), padding_size.end());
+  }
+
+  std::vector<int> output_shape1 = inputs_shape[0];
   if (ceil_mode) {
     output_shape1[height_axis] =
         (inputs_shape[0][height_axis] - kernel_size[0] + padding_size[0] + padding_size[2] + stride_size[0] - 1) /
@@ -1630,6 +1630,13 @@ std::vector<std::vector<int>> InferShapeForPool2d(const std::vector<std::vector<
     output_shape1[height_axis] = kernel_size[0];
     output_shape1[width_axis]  = kernel_size[1];
   }
+
+  VLOG(4) << std::boolalpha << "y[" << cinn::utils::Join(output_shape1, ", ") << "] = pool2d(x["
+          << cinn::utils::Join(inputs_shape[0], ", ") << "], kernel_size=[" << cinn::utils::Join(kernel_size, ", ")
+          << "], stride_size=[" << cinn::utils::Join(stride_size, ", ") << "], padding_size=["
+          << cinn::utils::Join(padding_size, ", ") << "], pool_type=" << pool_type << ", ceil_mode=" << ceil_mode
+          << ", exclusive=" << exclusive << ", data_format=" << data_format << ", global_pooling=" << global_pooling
+          << ", adaptive=" << adaptive;
   std::vector<std::vector<int>> res{output_shape1};
   return res;
 }

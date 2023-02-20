@@ -253,7 +253,11 @@ const Instruction& Program::operator[](size_t i) const {
 }
 
 std::ostream& operator<<(std::ostream& os, const Variable& x) {
-  os << "Var(id: " << x->id << ", shape: [" << utils::Join(x->shape, ", ") << "], type: " << x->type << ")";
+  os << "Var(" << x->id << ": shape=[" << utils::Join(x->shape, ", ") << "], dtype=" << x->type;
+  if (x->is_const) {
+    os << ", CONST"
+  }
+  << ")";
   return os;
 }
 
@@ -522,8 +526,30 @@ std::string _Instruction_::debug_string() const {
   return ss.str();
 }
 
+struct HashVariable {
+  bool operator()(const Variable& lhs, const Variable& rhs) const {
+    return lhs->id == rhs->id && lhs->shape == rhs->shape && lhs->type == rhs->type;
+  }
+
+  std::size_t operator()(const Variable& var) const {
+    return std::hash<std::string>()(var->id + cinn::utils::Join(var->shape, ", ") + cinn::common::Type2Str(var->type));
+  }
+};
+
 std::ostream& operator<<(std::ostream& os, const Program& program) {
   os << "Program {\n";
+
+  std::unordered_set<Variable, HashVariable, HashVariable> var_set;
+  for (int i = 0; i < program.size(); i++) {
+    var_set.insert(program[i]->inputs.cbegin(), program[i]->inputs.cend());
+    var_set.insert(program[i]->outputs.cbegin(), program[i]->outputs.cend());
+  }
+
+  for (const auto& var : var_set) {
+    os << var << "\n";
+  }
+  os << "\n";
+
   for (int i = 0; i < program.size(); i++) {
     os << program[i] << "\n";
   }

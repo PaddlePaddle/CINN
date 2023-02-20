@@ -505,6 +505,18 @@ std::string debug_cudnn_tensor_dtype(cudnnDataType_t tensor_dtype) {
   return "";
 }
 
+std::string debug_cudnn_pool_mode(cudnnPoolingMode_t pool_mode) {
+  switch (pool_mode) {
+    case CUDNN_POOLING_MAX:
+      return "max";
+    case CUDNN_POOLING_AVERAGE_COUNT_INCLUDE_PADDING:
+      return "avg";
+    default:
+      LOG(FATAL) << "Pool only support max and avg now!";
+  };
+  return "";
+}
+
 void cinn_call_cudnn_conv2d_forward(void *v_args,
                                     int num_args,
                                     int format,
@@ -852,14 +864,14 @@ void cinn_call_cudnn_pool2d_forward(void *v_args,
   cudnnTensorFormat_t tensor_format = static_cast<cudnnTensorFormat_t>(format);
   cudnnDataType_t data_type         = convert_to_cudnn_dtype(v_args, num_args);
 
-  std::string hash_key = "pool2d forward, layout=" + debug_cudnn_tensor_format(tensor_format) +
-                         ", dtype=" + debug_cudnn_tensor_dtype(data_type) + ", input_nchw={" + std::to_string(input_n) +
-                         "," + std::to_string(input_c) + "," + std::to_string(input_h) + "," + std::to_string(input_w) +
-                         "}, kernel_hw={" + std::to_string(kernel_h) + "," + std::to_string(kernel_w) + "}, pad_hw={" +
-                         std::to_string(pad_h) + "," + std::to_string(pad_w) + "}, stride_hw={" +
-                         std::to_string(stride_h) + "," + std::to_string(stride_w) + "}, output_nchw={" +
-                         std::to_string(output_n) + "," + std::to_string(output_c) + "," + std::to_string(output_h) +
-                         "," + std::to_string(output_w) + "}";
+  std::string hash_key =
+      "pool2d forward, layout=" + debug_cudnn_tensor_format(tensor_format) +
+      ", pool_type=" + debug_cudnn_pool_mode(pool_mode) + ", dtype=" + debug_cudnn_tensor_dtype(data_type) +
+      ", input_nchw={" + std::to_string(input_n) + "," + std::to_string(input_c) + "," + std::to_string(input_h) + "," +
+      std::to_string(input_w) + "}, kernel_hw={" + std::to_string(kernel_h) + "," + std::to_string(kernel_w) +
+      "}, pad_hw={" + std::to_string(pad_h) + "," + std::to_string(pad_w) + "}, stride_hw={" +
+      std::to_string(stride_h) + "," + std::to_string(stride_w) + "}, output_nchw={" + std::to_string(output_n) + "," +
+      std::to_string(output_c) + "," + std::to_string(output_h) + "," + std::to_string(output_w) + "}";
 
   VLOG(4) << hash_key;
 
@@ -918,14 +930,14 @@ void cinn_call_cudnn_pool2d_backward(void *v_args,
   cudnnTensorFormat_t tensor_format = static_cast<cudnnTensorFormat_t>(format);
   cudnnDataType_t data_type         = convert_to_cudnn_dtype(v_args, num_args);
 
-  std::string hash_key = "pool2d backward, layout=" + debug_cudnn_tensor_format(tensor_format) +
-                         ", dtype=" + debug_cudnn_tensor_dtype(data_type) + ", input_nchw={" + std::to_string(input_n) +
-                         "," + std::to_string(input_c) + "," + std::to_string(input_h) + "," + std::to_string(input_w) +
-                         "}, kernel_hw={" + std::to_string(kernel_h) + "," + std::to_string(kernel_w) + "}, pad_hw={" +
-                         std::to_string(pad_h) + "," + std::to_string(pad_w) + "}, stride_hw={" +
-                         std::to_string(stride_h) + "," + std::to_string(stride_w) + ", output_nchw={" +
-                         std::to_string(output_n) + "," + std::to_string(output_c) + "," + std::to_string(output_h) +
-                         "," + std::to_string(output_w) + "}";
+  std::string hash_key =
+      "pool2d backward, layout=" + debug_cudnn_tensor_format(tensor_format) +
+      ", pool_type=" + debug_cudnn_pool_mode(pool_mode) + ", dtype=" + debug_cudnn_tensor_dtype(data_type) +
+      ", input_nchw={" + std::to_string(input_n) + "," + std::to_string(input_c) + "," + std::to_string(input_h) + "," +
+      std::to_string(input_w) + "}, kernel_hw={" + std::to_string(kernel_h) + "," + std::to_string(kernel_w) +
+      "}, pad_hw={" + std::to_string(pad_h) + "," + std::to_string(pad_w) + "}, stride_hw={" +
+      std::to_string(stride_h) + "," + std::to_string(stride_w) + ", output_nchw={" + std::to_string(output_n) + "," +
+      std::to_string(output_c) + "," + std::to_string(output_h) + "," + std::to_string(output_w) + "}";
 
   VLOG(4) << hash_key;
 
