@@ -53,10 +53,10 @@ ir::Tensor ScatterNdAdd(const ir::Tensor& x, const ir::Tensor& index, const ir::
   auto updates_expect_shape =
       std::vector<ir::Expr>(index->shape.begin(), index->shape.begin() + index->shape.size() - 1);
   updates_expect_shape.insert(
-      updates_expect_shape.end(), x->shape.begin(), x->shape.begin() + index->shape.back().as_int32());
+      updates_expect_shape.end(), x->shape.begin() + index->shape.back().as_int32(), x->shape.end());
   CHECK_EQ(updates_expect_shape.size(), updates->shape.size());
   for (size_t i = 0; i < updates->shape.size(); i++) {
-    CHECK_EQ(updates_expect_shape[i], updates->shape[i].as_int32());
+    CHECK_EQ(updates_expect_shape[i], updates->shape[i]);
   }
 
   auto output_shape = x->shape;
