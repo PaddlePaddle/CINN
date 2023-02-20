@@ -84,7 +84,8 @@ std::shared_ptr<framework::OpStrategy> StrategyForScatterNdAdd(const framework::
     auto tensor_index   = index.as_tensor_ref();
     auto tensor_updates = updates.as_tensor_ref();
 
-    auto stages = CreateStages({tensor_x, tensor_index, tensor_updates});
+    auto stages    = CreateStages({tensor_x, tensor_index, tensor_updates});
+    ir::Tensor out = ScatterNdAdd(tensor_x, tensor_index, tensor_updates);
     stages->InsertLazily(out);
 
     std::vector<CINNValue> res;
