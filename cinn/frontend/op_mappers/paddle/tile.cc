@@ -62,7 +62,7 @@ void TileOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
 
   // NOTE(wuweilong): Paddle's tile is implemented by Eigen's broadcast directly, but CINN's tile can not be implemented
   // by BroadcastTo directly, because it is different from Eigen's broadcast. The semantics of Eigen's broadcast is same
-  // to tile, but CINN can not use Eigen's broadcast. So we need to Combine Reshape and BroadcastTo to implement tile.
+  // as tile, but CINN can not use Eigen's broadcast. So we need to Combine Reshape and BroadcastTo to implement tile.
 
   // make a copy of vec_x_dims
   std::vector<int> vec_x_dims_copy = vec_x_dims;
