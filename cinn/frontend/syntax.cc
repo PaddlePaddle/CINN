@@ -257,7 +257,7 @@ std::ostream& operator<<(std::ostream& os, const Variable& x) {
   if (x->is_const) {
     os << ", CONST";
   }
-  << ")";
+  os << ")";
   return os;
 }
 
