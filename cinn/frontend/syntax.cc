@@ -255,7 +255,7 @@ const Instruction& Program::operator[](size_t i) const {
 std::ostream& operator<<(std::ostream& os, const Variable& x) {
   os << "Var(" << x->id << ": shape=[" << utils::Join(x->shape, ", ") << "], dtype=" << x->type;
   if (x->is_const) {
-    os << ", CONST"
+    os << ", CONST";
   }
   << ")";
   return os;
