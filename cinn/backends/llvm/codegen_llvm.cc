@@ -239,7 +239,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::FloatImm *op) {
   } else if (op->type().is_float(16)) {
     return llvm::ConstantFP::get(b_->getHalfTy(), op->value);
   } else {
-    LOG(FATAL) << "illegal float type.";
+    LOG(FATAL) << "illegal float type %s." << common::Type2Str(op->type());
   }
   return nullptr;
 }

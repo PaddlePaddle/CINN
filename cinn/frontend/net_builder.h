@@ -309,6 +309,16 @@ class NetBuilder {
                      const cinn::utils::ShapeType& axes = {});
 
   /**
+   * @brief
+   * @param
+   * @param
+   * @param
+   * @return
+   */
+
+  Variable ScatterNdAdd(const Variable& x, const Variable& index, const Variable& updates);
+
+  /**
    * @brief This operator checks if all `x` and `y` satisfy the condition: `|x - y| <= atol + rtol * |y|`
    * @param x The first variable.
    * @param y The second variable.

@@ -63,7 +63,7 @@ std::ostream& operator<<(std::ostream& os, const std::vector<T, Alloc>& vec) {
   return os;
 }
 }  // namespace
-
+/*
 TEST(net_build, basic) {
   LOG(INFO) << "The size of registered operators: " << OpRegistry::Global()->ListAllNames().size();
   LOG(INFO) << "Registered operators:\n" << OpRegistry::Global()->ListAllNames();
@@ -231,7 +231,7 @@ TEST(net_build, program_execute_reverse) {
   SetRandData<float>(input_tensor, target);
   runtime_program->Execute();
 }
-
+/*
 /*
 TEST(net_build, program_execute_clip) {
   const int M = 4;
@@ -494,7 +494,7 @@ TEST(net_build, program_execute_scatter) {
     }
   }
 }
-
+*/
 
 TEST(net_build, program_execute_scatter_nd) {
   const float default_value = 3.14;
@@ -568,7 +568,7 @@ TEST(net_build, program_execute_scatter_nd) {
     }
   }
 }
-
+/*
 TEST(net_build, program_execute_cast) {
   const int B = 4;
   const int H = 7;

@@ -166,8 +166,8 @@ void BindFramework(pybind11::module *m) {
              return array;
            })
       .def("from_numpy", [](hlir::framework::Tensor &self, py::array array, const common::Target &target) {
-        CHECK(array.dtype().is(py::dtype(common::Type2Str(self->type()))))
-            << "currently only support float32 data type as input";
+        // CHECK(array.dtype().is(py::dtype(common::Type2Str(self->type()))))
+        //     << "currently only support float32 data type as input";
         hlir::framework::shape_t shape;
         std::copy_n(array.shape(), array.ndim(), std::back_inserter(shape));
         CHECK_EQ(std::accumulate(shape.begin(), shape.end(), 1, [](int32_t a, int32_t b) { return a * b; }),

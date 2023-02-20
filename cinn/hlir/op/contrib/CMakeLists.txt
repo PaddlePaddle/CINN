@@ -14,6 +14,7 @@ gather_srcs(cinnapi_src SRCS
         gaussian_random.cc
         uniform_random.cc
         cholesky.cc
+        scatter_nd_add.cc
         )
 
 cc_test(test_gather_nd SRCS gather_nd_test.cc DEPS cinncore)

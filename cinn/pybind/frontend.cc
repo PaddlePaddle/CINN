@@ -680,7 +680,8 @@ void BindFrontend(pybind11::module *m) {
            py::arg("max")   = 1.0f,
            py::arg("seed")  = 0,
            py::arg("dtype") = "float32")
-      .def("cholesky", &NetBuilder::Cholesky, py::arg("x"), py::arg("upper") = false);
+      .def("cholesky", &NetBuilder::Cholesky, py::arg("x"), py::arg("upper") = false)
+      .def("scatter_nd_add", &NetBuilder::ScatterNdAdd, py::arg("x"), py::arg("index"), py::arg("updates"));
 
   auto computation = py::class_<CinnComputation, std::shared_ptr<CinnComputation>>(*m, "Computation");
   py::class_<CinnComputation::CompileOptions>(computation, "CompileOptions")

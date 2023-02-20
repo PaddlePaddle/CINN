@@ -413,6 +413,11 @@ Variable NetBuilder::ScatterNd(const Variable& src,
   return ScatterNd(src, index, out, axes);
 }
 
+Variable NetBuilder::ScatterNdAdd(const Variable& x, const Variable& index, const Variable& updates) {
+  // TODO @lyk
+  return CustomInstr("scatter_nd_add", {x, index, updates}, {}).front();
+}
+
 Variable NetBuilder::Cast(const Variable& operand, const std::string& dtype) {
   return CustomInstr("cast", {operand}, {{"dtype", dtype}}).front();
 }
