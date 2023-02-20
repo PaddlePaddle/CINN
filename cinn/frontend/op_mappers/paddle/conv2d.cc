@@ -41,7 +41,16 @@ void Conv2dOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
 
   auto padding_algorithm = utils::GetAttrOrDefault<std::string>(op_desc, "padding_algorithm", "EXPLICIT");
   auto x                 = ctx.GetVar(x_name);
-  Variable y             = ctx.GetVar(y_name);
+  auto y                 = ctx.GetVar(y_name);
+
+  CHECK_EQ(x->shape.size(), 4) << "CINN conv2d operator only support 4-D tensor now, but Input's shape is ["
+                               << cinn::utils::Join(x->shape, ", ") << "]";
+  CHECK_EQ(y->shape.size(), 4) << "CINN conv2d operator only support 4-D tensor now, but Filter's shape is ["
+                               << cinn::utils::Join(y->shape, ", ") << "]";
+  if (data_format == "NHWC") {
+    // the weight in paddle always be NCHW, but cudnn need the same as input, transpose before
+    y = ctx.Builder()->Transpose(y, {0, 2, 3, 1});
+  }
   auto out = ctx.Builder()->Conv2d(x, y, strides, paddings, dilations, groups, data_format, padding_algorithm);
 
   ctx.AddVar(out_name, out);
@@ -120,18 +129,38 @@ void Conv2dGradOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContex
   auto x      = ctx.GetVar(x_name);
   auto weight = ctx.GetVar(w_name);
 
-  auto out =
-      ctx.Builder()->Conv2dGrad(dy, x, weight, strides, paddings, dilations, groups, data_format, padding_algorithm);
-
-  if (has_dx) {
-    ctx.AddVar(dx_name, out[0]);
-    ctx.AddVarModelToProgram(dx_name, out[0]->id);
-  } else {
-    out[0].set_const(true);
+  CHECK_EQ(x->shape.size(), 4) << "CINN conv2d_grad operator only support 4-D tensor now, but Input's shape is ["
+                               << cinn::utils::Join(x->shape, ", ") << "]";
+  CHECK_EQ(dy->shape.size(), 4) << "CINN conv2d_grad operator only support 4-D tensor now, but "
+                                << paddle::GradVarName("Output") << "'s shape is ["
+                                << cinn::utils::Join(dy->shape, ", ") << "]";
+  CHECK_EQ(weight->shape.size(), 4) << "CINN conv2d_grad operator only support 4-D tensor now, but Filter's shape is ["
+                                    << cinn::utils::Join(weight->shape, ", ") << "]";
+  if (data_format == "NHWC") {
+    // the weight in paddle always be NCHW, but cudnn need the same as input, transpose before
+    weight = ctx.Builder()->Transpose(weight, {0, 2, 3, 1});
   }
 
-  ctx.AddVar(dw_name, out[1]);
-  ctx.AddVarModelToProgram(dw_name, out[1]->id);
+  if (has_dx) {
+    // create backward data
+    auto dx = ctx.Builder()->Conv(
+        weight, dy, strides, paddings, dilations, groups, "backward_data", data_format, padding_algorithm, x->shape);
+
+    ctx.AddVar(dx_name, dx);
+    ctx.AddVarModelToProgram(dx_name, dx->id);
+  }
+
+  // create backward filter
+  auto dw = ctx.Builder()->Conv(
+      x, dy, strides, paddings, dilations, groups, "backward_filter", data_format, padding_algorithm, weight->shape);
+
+  if (data_format == "NHWC") {
+    // the weight in paddle always be NCHW, but cudnn need the same as input, transpose back
+    dw = ctx.Builder()->Transpose(dw, {0, 3, 1, 2});
+  }
+
+  ctx.AddVar(dw_name, dw);
+  ctx.AddVarModelToProgram(dw_name, dw->id);
 }
 
 }  // namespace paddle_mappers

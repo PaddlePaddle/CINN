@@ -351,6 +351,10 @@ std::vector<ir::Expr> CustomCallArgsForCudnnConvForward(const framework::NodeAtt
       attr_store.count("dilation") ? absl::get<std::vector<int>>(attr_store.at("dilation")) : std::vector<int>({1, 1});
   std::string data_format =
       attr_store.count("data_format") ? absl::get<std::string>(attr_store.at("data_format")) : "NCHW";
+  if (data_format == "AnyLayout") {
+    data_format = "NCHW";
+  }
+
   int groups                 = attr_store.count("groups") ? absl::get<int>(attr_store.at("groups")) : 1;
   cudnnTensorFormat_t format = data_format == "NCHW" ? CUDNN_TENSOR_NCHW : CUDNN_TENSOR_NHWC;
 
@@ -399,6 +403,10 @@ std::vector<ir::Expr> CustomCallArgsForCudnnConvBackwardData(const framework::No
       attr_store.count("dilation") ? absl::get<std::vector<int>>(attr_store.at("dilation")) : std::vector<int>({1, 1});
   std::string data_format =
       attr_store.count("data_format") ? absl::get<std::string>(attr_store.at("data_format")) : "NCHW";
+  if (data_format == "AnyLayout") {
+    data_format = "NCHW";
+  }
+
   int groups                 = attr_store.count("groups") ? absl::get<int>(attr_store.at("groups")) : 1;
   cudnnTensorFormat_t format = data_format == "NCHW" ? CUDNN_TENSOR_NCHW : CUDNN_TENSOR_NHWC;
 
@@ -446,7 +454,12 @@ std::vector<ir::Expr> CustomCallArgsForCudnnConvBackwardFilter(const framework::
       attr_store.count("dilation") ? absl::get<std::vector<int>>(attr_store.at("dilation")) : std::vector<int>({1, 1});
   std::string data_format =
       attr_store.count("data_format") ? absl::get<std::string>(attr_store.at("data_format")) : "NCHW";
-  int groups                 = attr_store.count("groups") ? absl::get<int>(attr_store.at("groups")) : 1;
+  if (data_format == "AnyLayout") {
+    data_format = "NCHW";
+  }
+
+  int groups = attr_store.count("groups") ? absl::get<int>(attr_store.at("groups")) : 1;
+
   cudnnTensorFormat_t format = data_format == "NCHW" ? CUDNN_TENSOR_NCHW : CUDNN_TENSOR_NHWC;
 
   std::vector<Expr> input  = inputs[0]->shape;
@@ -493,24 +506,67 @@ std::vector<ir::Expr> CustomCallArgsForCudnnPoolForward(const framework::NodeAtt
   auto stride = absl::get<std::vector<int>>(attr_store.at("stride_size"));
   CHECK(attr_store.count("pool_type"));
   auto pool_type = absl::get<std::string>(attrs.attr_store.at("pool_type"));
+
   std::string data_format =
       attr_store.count("data_format") ? absl::get<std::string>(attrs.attr_store.at("data_format")) : "NCHW";
+  if (data_format == "AnyLayout") {
+    data_format = "NCHW";
+  }
 
-  cudnnPoolingMode_t mode    = pool_type == "MAX" ? CUDNN_POOLING_MAX : CUDNN_POOLING_AVERAGE_COUNT_INCLUDE_PADDING;
+  bool global_pooling =
+      attr_store.count("global_pooling") ? absl::get<bool>(attrs.attr_store.at("global_pooling")) : false;
+  if (global_pooling) {
+    if (data_format == "NCHW") {
+      kernel = {inputs[0]->shape[2].as_int32(), inputs[0]->shape[3].as_int32()};
+    } else if (data_format == "NHWC") {
+      kernel = {inputs[0]->shape[1].as_int32(), inputs[0]->shape[2].as_int32()};
+    }
+    padding = {0, 0};
+  }
+
+  bool adaptive = attr_store.count("adaptive") ? absl::get<bool>(attrs.attr_store.at("adaptive")) : false;
+  if (adaptive) {
+    CHECK(kernel[0] == 1 && kernel[1] == 1)
+        << "cudnn pool2d in cinn only support kernel_size=[1, 1] now, you can set "
+           "FLAGS_cinn_custom_call_deny_ops=\"pool2d\" to disallow pool2d using cudnn";
+    CHECK(stride[0] == 1 && stride[1] == 1)
+        << "cudnn pool2d in cinn only support stride_size=[1, 1] now, you can set "
+           "FLAGS_cinn_custom_call_deny_ops=\"pool2d\" to disallow pool2d using cudnn";
+    CHECK(padding[0] == 0 && padding[1] == 0)
+        << "cudnn pool2d in cinn only support padding_size=[0, 0] now, you can set "
+           "FLAGS_cinn_custom_call_deny_ops=\"pool2d\" to disallow pool2d using cudnn";
+
+    if (data_format == "NCHW") {
+      kernel = {inputs[0]->shape[2].as_int32(), inputs[0]->shape[3].as_int32()};
+    } else if (data_format == "NHWC") {
+      kernel = {inputs[0]->shape[1].as_int32(), inputs[0]->shape[2].as_int32()};
+    }
+  }
+
+  cudnnPoolingMode_t mode    = pool_type == "max" ? CUDNN_POOLING_MAX : CUDNN_POOLING_AVERAGE_COUNT_INCLUDE_PADDING;
   cudnnTensorFormat_t format = data_format == "NCHW" ? CUDNN_TENSOR_NCHW : CUDNN_TENSOR_NHWC;
+
+  std::vector<Expr> input = inputs[0]->shape;
+  std::vector<Expr> output;
+  std::transform(output_shapes[0].begin(), output_shapes[0].end(), std::back_inserter(output), [](const int dim) {
+    return ir::Expr(dim);
+  });
+  // if format is nhwc
+  if (format == CUDNN_TENSOR_NHWC) {
+    input  = {input[0], input[3], input[1], input[2]};
+    output = {output[0], output[3], output[1], output[2]};
+  }
 
   std::vector<ir::Expr> args = {
       ir::Expr(static_cast<int>(mode)), ir::Expr(static_cast<int>(format)), ir::Expr(alpha), ir::Expr(beta)};
-  args.insert(args.end(), inputs[0]->shape.begin(), inputs[0]->shape.end());
+  args.insert(args.end(), input.begin(), input.end());
   args.push_back(ir::Expr(kernel[0]));
   args.push_back(ir::Expr(kernel[1]));
   args.push_back(ir::Expr(padding[0]));
   args.push_back(ir::Expr(padding[1]));
   args.push_back(ir::Expr(stride[0]));
   args.push_back(ir::Expr(stride[1]));
-  std::transform(output_shapes[0].begin(), output_shapes[0].end(), std::back_inserter(args), [](const int dim) {
-    return ir::Expr(dim);
-  });
+  args.insert(args.end(), output.begin(), output.end());
   return args;
 }
 
@@ -533,21 +589,64 @@ std::vector<ir::Expr> CustomCallArgsForCudnnPoolBackward(const framework::NodeAt
   auto pool_type = absl::get<std::string>(attrs.attr_store.at("pool_type"));
   std::string data_format =
       attr_store.count("data_format") ? absl::get<std::string>(attrs.attr_store.at("data_format")) : "NCHW";
+  if (data_format == "AnyLayout") {
+    data_format = "NCHW";
+  }
 
-  cudnnPoolingMode_t mode    = pool_type == "MAX" ? CUDNN_POOLING_MAX : CUDNN_POOLING_AVERAGE_COUNT_INCLUDE_PADDING;
+  bool global_pooling =
+      attr_store.count("global_pooling") ? absl::get<bool>(attrs.attr_store.at("global_pooling")) : false;
+  if (global_pooling) {
+    if (data_format == "NCHW") {
+      kernel = {inputs[0]->shape[2].as_int32(), inputs[0]->shape[3].as_int32()};
+    } else if (data_format == "NHWC") {
+      kernel = {inputs[0]->shape[1].as_int32(), inputs[0]->shape[2].as_int32()};
+    }
+    padding = {0, 0};
+  }
+
+  bool adaptive = attr_store.count("adaptive") ? absl::get<bool>(attrs.attr_store.at("adaptive")) : false;
+  if (adaptive) {
+    CHECK(kernel[0] == 1 && kernel[1] == 1)
+        << "cudnn pool2d in cinn only support kernel_size=[1, 1] now, you can set "
+           "FLAGS_cinn_custom_call_deny_ops=\"pool2d\" to disallow pool2d using cudnn";
+    CHECK(stride[0] == 1 && stride[1] == 1)
+        << "cudnn pool2d in cinn only support stride_size=[1, 1] now, you can set "
+           "FLAGS_cinn_custom_call_deny_ops=\"pool2d\" to disallow pool2d using cudnn";
+    CHECK(padding[0] == 0 && padding[1] == 0)
+        << "cudnn pool2d in cinn only support padding_size=[0, 0] now, you can set "
+           "FLAGS_cinn_custom_call_deny_ops=\"pool2d\" to disallow pool2d using cudnn";
+
+    if (data_format == "NCHW") {
+      kernel = {inputs[0]->shape[2].as_int32(), inputs[0]->shape[3].as_int32()};
+    } else if (data_format == "NHWC") {
+      kernel = {inputs[0]->shape[1].as_int32(), inputs[0]->shape[2].as_int32()};
+    }
+  }
+
+  cudnnPoolingMode_t mode    = pool_type == "max" ? CUDNN_POOLING_MAX : CUDNN_POOLING_AVERAGE_COUNT_INCLUDE_PADDING;
   cudnnTensorFormat_t format = data_format == "NCHW" ? CUDNN_TENSOR_NCHW : CUDNN_TENSOR_NHWC;
-  std::vector<ir::Expr> args = {
-      ir::Expr(static_cast<int>(mode)), ir::Expr(static_cast<int>(format)), ir::Expr(alpha), ir::Expr(beta)};
-  std::transform(output_shapes[0].begin(), output_shapes[0].end(), std::back_inserter(args), [](const int dim) {
+
+  std::vector<Expr> input;
+  std::transform(output_shapes[0].begin(), output_shapes[0].end(), std::back_inserter(input), [](const int dim) {
     return ir::Expr(dim);
   });
+  std::vector<Expr> output = inputs[0]->shape;
+  // if format is nhwc
+  if (format == CUDNN_TENSOR_NHWC) {
+    input  = {input[0], input[3], input[1], input[2]};
+    output = {output[0], output[3], output[1], output[2]};
+  }
+
+  std::vector<ir::Expr> args = {
+      ir::Expr(static_cast<int>(mode)), ir::Expr(static_cast<int>(format)), ir::Expr(alpha), ir::Expr(beta)};
+  args.insert(args.end(), input.begin(), input.end());
   args.push_back(ir::Expr(kernel[0]));
   args.push_back(ir::Expr(kernel[1]));
   args.push_back(ir::Expr(padding[0]));
   args.push_back(ir::Expr(padding[1]));
   args.push_back(ir::Expr(stride[0]));
   args.push_back(ir::Expr(stride[1]));
-  args.insert(args.end(), inputs[0]->shape.begin(), inputs[0]->shape.end());
+  args.insert(args.end(), output.begin(), output.end());
 
   return args;
 }

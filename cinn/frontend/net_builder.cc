@@ -543,9 +543,13 @@ Variable NetBuilder::Pool2d(const Variable& a,
                             const std::string& data_format,
                             bool adaptive,
                             const std::string& padding_algorithm) {
+  std::string pool_type;
+  std::transform(pooling_type.begin(), pooling_type.end(), std::back_inserter(pool_type), [](unsigned char c) {
+    return std::tolower(c);
+  });
   return CustomInstr("pool2d",
                      {a},
-                     {{"pool_type", pooling_type},
+                     {{"pool_type", pool_type},
                       {"kernel_size", ksize},
                       {"stride_size", strides},
                       {"padding_size", paddings},
@@ -626,26 +630,6 @@ Variable NetBuilder::Flip(const Variable& operand, const std::vector<int>& axes)
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);
-}
-
-// conv2d grad, output(grad_x, grad_w)
-std::vector<Variable> NetBuilder::Conv2dGrad(const Variable& dy,
-                                             const Variable& x,
-                                             const Variable& w,
-                                             const std::vector<int>& strides,
-                                             const std::vector<int>& paddings,
-                                             const std::vector<int>& dilations,
-                                             const int groups,
-                                             const std::string& data_format,
-                                             const std::string& padding_algorithm) {
-  return CustomInstr("conv2d_grad",
-                     {dy, x, w},
-                     {{"strides", strides},
-                      {"paddings", paddings},
-                      {"dilations", dilations},
-                      {"groups", groups},
-                      {"data_format", data_format},
-                      {"padding_algorithm", padding_algorithm}});
 }
 
 Variable NetBuilder::Matmul(const Variable& x, const Variable& y, bool trans_x, bool trans_y, float alpha) {

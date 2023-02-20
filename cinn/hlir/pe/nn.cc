@@ -955,7 +955,7 @@ std::vector<Tensor> PoolImpl(const Tensor &tensor,
                              const std::vector<int> &kernel_size,
                              const std::vector<int> &stride_size,
                              const std::vector<int> &padding_size,
-                             const std::string &pool_type,
+                             const std::string &pooling_type,
                              const std::vector<int> &axis,
                              bool ceil_mode,
                              bool exclusive,
@@ -967,6 +967,12 @@ std::vector<Tensor> PoolImpl(const Tensor &tensor,
   CHECK_EQ(stride_size.size(), k_size) << "Pooling stride_size must have same elements as kernel\n";
   CHECK_EQ(padding_size.size(), k_size * 2) << "Pooling padding_size must have double elements as kernel\n";
   CHECK_EQ(axis.size(), k_size) << "Axis must have same elements as kernel\n";
+
+  std::string pool_type;
+  std::transform(pooling_type.begin(), pooling_type.end(), std::back_inserter(pool_type), [](unsigned char c) {
+    return std::tolower(c);
+  });
+  CHECK(pool_type == "max" || pool_type == "avg") << "pool_type for pool2d should be max or avg.\n";
 
   std::vector<Var> daxis;
   std::vector<Expr> kernel(k_size);
