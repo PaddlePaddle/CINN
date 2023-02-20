@@ -78,6 +78,35 @@ static std::unordered_map<std::string, std::function<bool(const Instruction&)>> 
 
 #undef SHAPE_SAME_REMOVE
 
+namespace {
+bool check_reduce_to_reshape(const Instruction& instr) {
+  const auto& input_shape = instr->inputs[0]->shape;
+
+  auto dims = instr->attrs.count("dim") ? instr.GetAttrs<std::vector<int>>("dim") : std::vector<int>();
+
+  if (dims.empty()) {
+    for (int i = 0; i < input_shape.size(); ++i) {
+      dims.emplace_back(i);
+    }
+  }
+
+  for (auto aixs : dims) {
+    if (input_shape[aixs] != 1) {
+      return false;
+    }
+  }
+  return true;
+}
+}  // namespace
+
+static std::unordered_map<std::string, std::function<bool(const Instruction&)>> reshape_ops = {
+    {"reduce_sum", check_reduce_to_reshape},
+    {"reduce_prod", check_reduce_to_reshape},
+    {"reduce_max", check_reduce_to_reshape},
+    {"reduce_min", check_reduce_to_reshape},
+    {"reduce_all", check_reduce_to_reshape},
+    {"reduce_any", check_reduce_to_reshape}};
+
 // RemoveIdentityPass will remove the identity instructions in following patterns:
 //
 // 1. When varB is not in fetch_ids, the identity and varB will be removed.
@@ -107,9 +136,6 @@ class RemoveIdentityPass : public ProgramPass {
 
     VLOG(3) << "Before RemoveIdentityPass: " << *program;
     VLOG(3) << "Total remove " << remove_idxs_.size() << " instructions.";
-    if (remove_idxs_.size() == 0) {
-      return;
-    }
 
     NetBuilder builder("remove_identity_builder");
     for (auto& var : program->GetInputs()) {
@@ -122,8 +148,20 @@ class RemoveIdentityPass : public ProgramPass {
 
       auto& instr = (*program)[i];
       if (replace_identity_idxs_.count(i)) {
+        VLOG(4) << "Replace op " << instr->outputs[0]->id << "[" << cinn::utils::Join(instr->outputs[0]->shape, ", ")
+                << "]=" << instr->op_type << "{" << instr->inputs[0]->id << "["
+                << cinn::utils::Join(instr->inputs[0]->shape, ", ") << "]} to identity";
+
         instr->op_type = "identity";
         instr->attrs.clear();
+      } else if (reshape_ops.count(instr->op_type) && reshape_ops.at(instr->op_type)(instr)) {
+        VLOG(4) << "Replace op " << instr->outputs[0]->id << "[" << cinn::utils::Join(instr->outputs[0]->shape, ", ")
+                << "]=" << instr->op_type << "{" << instr->inputs[0]->id << "["
+                << cinn::utils::Join(instr->inputs[0]->shape, ", ") << "]} to reshape";
+
+        instr->op_type = "reshape";
+        instr->attrs.clear();
+        instr->attrs["shape"] = instr->outputs[0]->shape;
       }
 
       auto& inputs = instr->inputs;
@@ -178,11 +216,11 @@ class RemoveIdentityPass : public ProgramPass {
       bool can_output_var_removed = !fetch_ids.count(output_var->id);
       if (can_input_var_removed || can_output_var_removed) {
         bool updated = false;
-        if (can_input_var_removed) {
-          updated = UpdateOrigin2New(input_var, output_var);
-        }
-        if (!updated && can_output_var_removed) {
+        if (can_output_var_removed) {
           updated = UpdateOrigin2New(output_var, input_var);
+        }
+        if (!updated && can_input_var_removed) {
+          updated = UpdateOrigin2New(input_var, output_var);
         }
         if (updated) {
           VLOG(3) << "Remove the " << i << "-th instruction: " << instr;

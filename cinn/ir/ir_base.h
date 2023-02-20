@@ -292,13 +292,21 @@ struct Expr : public IrNodeRef {
   //! Helper function to construct numeric constants of various types.
   // @{
   explicit Expr(bool x) : IrNodeRef(new UIntImm(UInt(1), x)) {}
+
+  explicit Expr(int8_t x) : IrNodeRef(new IntImm(Int(8), x)) {}
+  explicit Expr(int16_t x) : IrNodeRef(new IntImm(Int(16), x)) {}
   explicit Expr(int32_t x) : IrNodeRef(new IntImm(Int(32), x)) {}
-  explicit Expr(uint32_t x) : IrNodeRef(new UIntImm(UInt(32), x)) {}
   explicit Expr(int64_t x) : IrNodeRef(new IntImm(Int(64), x)) {}
+
+  explicit Expr(uint8_t x) : IrNodeRef(new UIntImm(UInt(8), x)) {}
+  explicit Expr(uint16_t x) : IrNodeRef(new UIntImm(UInt(16), x)) {}
+  explicit Expr(uint32_t x) : IrNodeRef(new UIntImm(UInt(32), x)) {}
   explicit Expr(uint64_t x) : IrNodeRef(new UIntImm(UInt(64), x)) {}
+
   explicit Expr(cinn::common::float16 x) : IrNodeRef(new FloatImm(Float(16), x)) {}
   explicit Expr(float x) : IrNodeRef(new FloatImm(Float(32), x)) {}
   explicit Expr(double x) : IrNodeRef(new FloatImm(Float(64), x)) {}
+
   explicit Expr(const std::string& x) : IrNodeRef(new StringImm(x)) {}
   // @}
 
@@ -307,8 +315,17 @@ struct Expr : public IrNodeRef {
   // primitive types
   // @{
   bool as_bool() const;
+
+  int8_t as_int8() const;
+  int16_t as_int16() const;
   int32_t as_int32() const;
   int64_t as_int64() const;
+
+  uint8_t as_uint8() const;
+  uint16_t as_uint16() const;
+  uint32_t as_uint32() const;
+  uint64_t as_uint64() const;
+
   cinn::common::float16 as_float16() const;
   float as_float() const;
   double as_double() const;

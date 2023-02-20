@@ -99,6 +99,14 @@ class TestAddOp(TestBinaryOp):
         return builder.add(x, y, axis)
 
 
+class TestAddOpFP64(TestAddOp):
+    def get_x_data(self):
+        return self.random([32, 64], 'float64', -10.0, 10.0)
+
+    def get_y_data(self):
+        return self.random([32, 64], 'float64', -10.0, 10.0)
+
+
 class TestSubtractOp(TestBinaryOp):
     def paddle_func(self, x, y):
         return paddle.subtract(x, y)

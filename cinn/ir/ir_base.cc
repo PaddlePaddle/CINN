@@ -59,9 +59,16 @@ Expr Zero(const Type &type) {
   if (type.is_float(16)) return Expr(float16(0.f));
   if (type.is_float(32)) return Expr(0.f);
   if (type.is_float(64)) return Expr(double(0.));  // NOLINT
+
   if (type.is_bool()) return Expr(false);
+
+  if (type.is_int(8)) return Expr(int8_t(0));
+  if (type.is_int(16)) return Expr(int16_t(0));
   if (type.is_int(32)) return Expr(int32_t(0));
   if (type.is_int(64)) return Expr(int64_t(0));
+
+  if (type.is_uint(8)) return Expr(uint8_t(0));
+  if (type.is_uint(16)) return Expr(uint16_t(0));
   if (type.is_uint(32)) return Expr(uint32_t(0));
   if (type.is_uint(64)) return Expr(uint64_t(0));
   CINN_NOT_IMPLEMENTED
@@ -72,9 +79,16 @@ Expr One(const Type &type) {
   if (type.is_float(16)) return Expr(float16(1.f));
   if (type.is_float(32)) return Expr(1.f);
   if (type.is_float(64)) return Expr(double(1.));  // NOLINT
+
   if (type.is_bool()) return Expr(true);
+
+  if (type.is_int(8)) return Expr(int8_t(1));
+  if (type.is_int(16)) return Expr(int16_t(1));
   if (type.is_int(32)) return Expr(int32_t(1));
   if (type.is_int(64)) return Expr(int64_t(1));
+
+  if (type.is_uint(8)) return Expr(uint8_t(1));
+  if (type.is_uint(16)) return Expr(uint16_t(1));
   if (type.is_uint(32)) return Expr(uint32_t(1));
   if (type.is_uint(64)) return Expr(uint64_t(1));
   CINN_NOT_IMPLEMENTED
@@ -86,6 +100,15 @@ bool Expr::as_bool() const {
   CHECK(type().is_uint(1));
   return As<UIntImm>()->value;
 }
+
+int8_t Expr::as_int8() const {
+  CHECK(type().is_int(8));
+  return As<IntImm>()->value;
+}
+int16_t Expr::as_int16() const {
+  CHECK(type().is_int(16));
+  return As<IntImm>()->value;
+}
 int32_t Expr::as_int32() const {
   CHECK(type().is_int(32));
   return As<IntImm>()->value;
@@ -94,6 +117,24 @@ int64_t Expr::as_int64() const {
   CHECK(type().is_int(64));
   return As<IntImm>()->value;
 }
+
+uint8_t Expr::as_uint8() const {
+  CHECK(type().is_uint(8));
+  return As<UIntImm>()->value;
+}
+uint16_t Expr::as_uint16() const {
+  CHECK(type().is_uint(16));
+  return As<UIntImm>()->value;
+}
+uint32_t Expr::as_uint32() const {
+  CHECK(type().is_uint(32));
+  return As<UIntImm>()->value;
+}
+uint64_t Expr::as_uint64() const {
+  CHECK(type().is_uint(64));
+  return As<UIntImm>()->value;
+}
+
 float16 Expr::as_float16() const {
   CHECK(type().is_float(16));
   return float16(As<FloatImm>()->value);

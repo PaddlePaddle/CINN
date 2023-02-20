@@ -30,6 +30,7 @@
 DECLARE_bool(cinn_use_fill_constant_folding);
 DECLARE_bool(cinn_use_op_fusion);
 DECLARE_bool(cinn_use_cublas_gemm);
+DECLARE_bool(cinn_use_common_subexpression_elimination);
 DECLARE_bool(cinn_check_fusion_accuracy_pass);
 DECLARE_bool(cinn_use_custom_call);
 
@@ -62,23 +63,23 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
   options.program_passes.emplace_back("RemoveIdentity");
   options.program_passes.emplace_back("DeadCodeEliminate");
 
-  options.graph_passes = {};
-#ifdef CINN_WITH_CUDA
-  if (FLAGS_cinn_use_cublas_gemm) {
-    options.graph_passes.push_back("DenseMergePass");
-  }
-#endif
+  options.graph_passes = {"ConstantFolding"};
+  // options.graph_passes.push_back("DenseMergePass");
 
   if (FLAGS_cinn_use_custom_call) {
     options.graph_passes.emplace_back("TransToCustomCallPass");
   }
 
+  if (FLAGS_cinn_use_common_subexpression_elimination) {
+    options.graph_passes.emplace_back("CommonSubexpressionEliminationPass");
+  }
+
   if (FLAGS_cinn_use_op_fusion) {
     options.graph_passes.emplace_back("SimpleRecomputePass");
-    options.graph_passes.push_back("OpFusionPass");
-    options.graph_passes.push_back("FusionMergePass");
+    options.graph_passes.emplace_back("OpFusionPass");
+    options.graph_passes.emplace_back("FusionMergePass");
   } else {
-    options.graph_passes.push_back("BuildNonFusedGroupsPass");
+    options.graph_passes.emplace_back("BuildNonFusedGroupsPass");
   }
 
   // WARNING: the pass must be the last pass !!!
@@ -87,7 +88,6 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
     // error and exited.
     options.graph_passes.emplace_back("CheckFusionAccuracyPass");
   }
-
   return options;
 }
 

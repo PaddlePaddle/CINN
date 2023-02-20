@@ -144,8 +144,9 @@ Type Type::ConstOf() const {
 }
 
 bool Type::is_supported() const {
-  return this->is_float(32) || this->is_bool() || this->is_int(32) || this->is_int(64) || this->is_float(16) ||
-         this->is_float(64);
+  return this->is_float(32) || this->is_float(16) || this->is_float(64) || this->is_bool() || this->is_int(8) ||
+         this->is_int(16) || this->is_int(32) || this->is_int(64) || this->is_uint(8) || this->is_uint(16) ||
+         this->is_uint(32) || this->is_uint(64);
 }
 
 Type Type::IgnoreConst() const {
@@ -348,17 +349,22 @@ int Type::bytes() const {
       GET_TYPE_SIZE_PAIR(float16),
       GET_TYPE_SIZE_PAIR(float),
       GET_TYPE_SIZE_PAIR(double),
+
+      GET_TYPE_SIZE_PAIR(char),
+      GET_TYPE_SIZE_PAIR(signed char),
       GET_TYPE_SIZE_PAIR(unsigned char),
+
+      GET_TYPE_SIZE_PAIR(int8_t),
       GET_TYPE_SIZE_PAIR(int16_t),
       GET_TYPE_SIZE_PAIR(int32_t),
-      GET_TYPE_SIZE_PAIR(uint32_t),
-      GET_TYPE_SIZE_PAIR(bool),
-      GET_TYPE_SIZE_PAIR(char),
       GET_TYPE_SIZE_PAIR(int64_t),
-      GET_TYPE_SIZE_PAIR(uint64_t),
-      GET_TYPE_SIZE_PAIR(signed char),
-      GET_TYPE_SIZE_PAIR(int8_t),
+
       GET_TYPE_SIZE_PAIR(uint8_t),
+      GET_TYPE_SIZE_PAIR(uint16_t),
+      GET_TYPE_SIZE_PAIR(uint32_t),
+      GET_TYPE_SIZE_PAIR(uint64_t),
+
+      GET_TYPE_SIZE_PAIR(bool),
   };
 #undef GET_TYPE_SIZE_PAIR
 
@@ -435,6 +441,10 @@ Type Str2Type(const std::string &type) {
       {"int8*", type_of<int8_t *>()},
       {"int8_p", type_of<int8_t *>()},
       {"int8_t*", type_of<int8_t *>()},
+
+      {"uint8*", type_of<uint8_t *>()},
+      {"uint8_p", type_of<uint8_t *>()},
+      {"uint8_t*", type_of<uint8_t *>()},
 
       {"float16*", type_of<float16 *>()},
       {"half*", type_of<float16 *>()},
