@@ -72,6 +72,11 @@ class TestSqrtOp(TestUnaryOp):
         return builder.sqrt(x)
 
 
+class TestSqrtOpFP64(TestSqrtOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([32, 64], 'float64', 1.0, 1000.0)}
+
+
 class TestReluOp(TestUnaryOp):
     def paddle_func(self, x):
         return paddle.nn.functional.relu(x)
@@ -102,6 +107,11 @@ class TestExpOp(TestUnaryOp):
 
     def cinn_func(self, builder, x):
         return builder.exp(x)
+
+
+class TestExpOpFP64(TestExpOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([32, 64], 'float64', -10.0, 10.0)}
 
 
 class TestErfOp(TestUnaryOp):
