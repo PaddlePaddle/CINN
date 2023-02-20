@@ -45,7 +45,9 @@ using ir::Tensor;
 
 std::string Type2StrForNN(common::Type type) {
   std::string suffix;
-  if (type.is_float(32)) {
+  if (type.is_float(64)) {
+    return "fp64";
+  } else if (type.is_float(32)) {
     return "fp32";
   } else if (type.is_float(16)) {
     return "fp16";
