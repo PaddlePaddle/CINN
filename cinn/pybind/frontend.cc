@@ -260,7 +260,17 @@ void BindFrontend(pybind11::module *m) {
              auto graph = std::make_shared<hlir::framework::Graph>(self, fetch_ids, target);
              hlir::framework::ApplyPasses(graph.get(), graph_passes);
 
-             return graph->nodes().size();
+             size_t node_num = 0;
+             for (auto *graph_node : graph->nodes()) {
+               auto node = graph_node->safe_as<hlir::framework::Node>();
+               // if node is NodeData or not op, continue.
+               if (!node || node->op() == nullptr) {
+                 continue;
+               }
+
+               node_num++;
+             }
+             return node_num;
            })
 
       /**
@@ -579,6 +589,21 @@ void BindFrontend(pybind11::module *m) {
       .def("pool2d",
            &NetBuilder::Pool2d,
            py::arg("x"),
+           py::arg("polling_type"),
+           py::arg("kernel_size"),
+           py::arg("stride")            = std::vector<int>{1, 1},
+           py::arg("padding")           = std::vector<int>{0, 0},
+           py::arg("ceil_mode")         = false,
+           py::arg("exclusive")         = true,
+           py::arg("global_pooling")    = false,
+           py::arg("data_format")       = "NCHW",
+           py::arg("adaptive")          = false,
+           py::arg("padding_algorithm") = "EXPLICIT")
+      .def("pool2d_grad",
+           &NetBuilder::Pool2dGrad,
+           py::arg("x"),
+           py::arg("y"),
+           py::arg("dy"),
            py::arg("polling_type"),
            py::arg("kernel_size"),
            py::arg("stride")            = std::vector<int>{1, 1},

@@ -2261,6 +2261,18 @@ std::vector<Type> InferDtypeForBatchNormGrad(const std::vector<Type> &inputs_typ
   return {inputs_type[0], inputs_type[2], inputs_type[2]};
 }
 
+// pool2d grad
+std::vector<framework::shape_t> InferShapeForPool2dGrad(const std::vector<framework::shape_t> &inputs_shape,
+                                                        const framework::AttrMapType &attrs) {
+  CHECK_EQ(inputs_shape.size(), 3U) << "The operator pool2d_grad should has 3 inputs! Please check again.";
+  return {inputs_shape[0]};
+}
+
+std::vector<Type> InferDtypeForPool2dGrad(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
+  CHECK_EQ(inputs_type.size(), 3U) << "The operator pool2d_grad should has 3 inputs! Please check again.";
+  return {inputs_type[0]};
+}
+
 }  // namespace op
 }  // namespace hlir
 }  // namespace cinn
@@ -2462,6 +2474,14 @@ CINN_REGISTER_HELPER(nn_grad_ops) {
       .set_num_outputs(3)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForBatchNormGrad))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForBatchNormGrad))
+      .set_support_level(4);
+
+  CINN_REGISTER_OP(pool2d_grad)
+      .describe("This operator implements the batch normalization backward.")
+      .set_num_inputs(3)
+      .set_num_outputs(1)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForPool2dGrad))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForPool2dGrad))
       .set_support_level(4);
 
   return true;

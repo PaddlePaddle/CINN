@@ -88,7 +88,23 @@ std::vector<std::vector<Node*>> Graph::FusionGroupsToGroups() {
 }
 
 std::string Graph::DebugGroupedGraph(const std::unordered_set<std::string>& fetch_var_ids) {
-  return DebugGroupedGraph(FusionGroupsToGroups(), fetch_var_ids);
+  if (!fusion_groups.empty()) {
+    return DebugGroupedGraph(FusionGroupsToGroups(), fetch_var_ids);
+  }
+
+  std::vector<std::vector<Node*>> graph_ops(1);
+  auto nodes_inorder = std::get<0>(topological_order());
+  for (auto* graph_node : nodes_inorder) {
+    auto node = graph_node->safe_as<Node>();
+    // if node is NodeData or not op, continue.
+    if (!node || node->op() == nullptr) {
+      continue;
+    }
+
+    graph_ops[0].emplace_back(node);
+  }
+
+  return DebugGroupedGraph(graph_ops, fetch_var_ids);
 }
 
 std::string Graph::DebugGroupedGraph(const std::vector<std::vector<Node*>>& groups,
