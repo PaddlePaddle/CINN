@@ -510,6 +510,48 @@ class NetBuilder {
                   const std::string& padding_algorithm = "EXPLICIT");
 
   /**
+   * @brief This operation calculates the pooling output based on the input, pooling_type and pool_size, pool_stride,
+   * pool_padding parameters.
+   * @param x The input variable of pooling operator which is a 4-D variable with shape [N, C, H, W]. The format of
+   * input variable is “NCHW” or “NHWC”, where N is batch size, C is the number of channels, H is the height of the
+   * feature, and W is the width of the feature.
+   * @param y The output variable of pooling operator.
+   * @param dy The gradient variable of pooling operator's otuput.
+   * @param pooling_type pooling type, can be “max” for max-pooling and “avg” for average-pooling
+   * @param ksize The pool kernel size. If pool kernel size is a tuple or list, it must contain two integers,
+   * (pool_size_Height, pool_size_Width). Otherwise, the pool kernel size will be a square of an int.
+   * @param strides  The pool stride size. If pool stride size is a tuple or list, it must contain two integers,
+   * (pool_stride_Height, pool_stride_Width). Otherwise, the pool stride size will be a square of an int. Default is {1,
+   * 1}.
+   * @param paddings he padding size. If padding is a list/tuple, it must contain two integers, (padding_H, padding_W).
+   * Otherwise, the padding_H = padding_W = padding. Default: padding = {0, 0}.
+   * @param ceil_mode Whether to use the ceil function to calculate output height and width. False is the default. If it
+   * is set to False, the floor function will be used. Default False
+   * @param exclusive Whether to exclude padding points in average pooling mode, default is true.
+   * @param global_pooling Whether to use the global pooling. If global_pooling = true, kernel size and paddings will be
+   * ignored. Default False
+   * @param data_format Data format that specifies the layout of input. It can be "NCHW" or "NHWC". Default: "NCHW".
+   * @param adaptive When true, will perform adaptive pooling instead, output shape in H and W dimensions will be same
+   * as ksize, input data will be divided into grids specify by ksize averagely and perform pooling in each grid area to
+   * get output pooling value. Default: False.
+   * @param padding_algorithm CINN not support! It can be "EXPLICIT"/"SAME"/"VALID". Default: "EXPLICIT".
+   * @return The gradient variable of pooling input "X". The data type is same as input variable.
+   */
+  Variable Pool2dGrad(const Variable& x,
+                      const Variable& y,
+                      const Variable& dy,
+                      const std::string& pooling_type,
+                      const std::vector<int>& ksize,
+                      const std::vector<int>& strides      = {1, 1},
+                      const std::vector<int>& paddings     = {0, 0},
+                      bool ceil_mode                       = false,
+                      bool exclusive                       = true,
+                      bool global_pooling                  = false,
+                      const std::string& data_format       = "NCHW",
+                      bool adaptive                        = false,
+                      const std::string& padding_algorithm = "EXPLICIT");
+
+  /**
    * @brief Repeat elements of an array `repeats` times along axis `axis`
    * @param x An input N-D variable.
    * @param repeats The times of repeat operation.

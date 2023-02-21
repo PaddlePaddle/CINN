@@ -562,6 +562,38 @@ Variable NetBuilder::Pool2d(const Variable& a,
       .front();
 }
 
+Variable NetBuilder::Pool2dGrad(const Variable& x,
+                                const Variable& y,
+                                const Variable& dy,
+                                const std::string& pooling_type,
+                                const std::vector<int>& ksize,
+                                const std::vector<int>& strides,
+                                const std::vector<int>& paddings,
+                                bool ceil_mode,
+                                bool exclusive,
+                                bool global_pooling,
+                                const std::string& data_format,
+                                bool adaptive,
+                                const std::string& padding_algorithm) {
+  std::string pool_type;
+  std::transform(pooling_type.begin(), pooling_type.end(), std::back_inserter(pool_type), [](unsigned char c) {
+    return std::tolower(c);
+  });
+  return CustomInstr("pool2d_grad",
+                     {x, y, dy},
+                     {{"pool_type", pool_type},
+                      {"kernel_size", ksize},
+                      {"stride_size", strides},
+                      {"padding_size", paddings},
+                      {"ceil_mode", ceil_mode},
+                      {"exclusive", exclusive},
+                      {"global_pooling", global_pooling},
+                      {"data_format", data_format},
+                      {"adaptive", adaptive},
+                      {"padding_algorithm", padding_algorithm}})
+      .front();
+}
+
 Variable NetBuilder::Repeat(const Variable& x, int repeats, int axis) {
   return CustomInstr("repeat", {x}, {{"repeats", repeats}, {"axis", axis}}).front();
 }
