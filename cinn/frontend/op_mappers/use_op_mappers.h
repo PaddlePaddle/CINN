@@ -53,6 +53,7 @@ CINN_USE_REGISTER(paddle_uniform_random)
 CINN_USE_REGISTER(paddle_one_hot)
 CINN_USE_REGISTER(paddle_cumsum)
 CINN_USE_REGISTER(paddle_norm)
+CINN_USE_REGISTER(paddle_tile)
 
 CINN_USE_REGISTER(science_broadcast)
 CINN_USE_REGISTER(science_transform)
