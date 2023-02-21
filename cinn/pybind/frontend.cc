@@ -260,7 +260,17 @@ void BindFrontend(pybind11::module *m) {
              auto graph = std::make_shared<hlir::framework::Graph>(self, fetch_ids, target);
              hlir::framework::ApplyPasses(graph.get(), graph_passes);
 
-             return graph->nodes().size();
+             size_t node_num = 0;
+             for (auto *graph_node : graph->nodes()) {
+               auto node = graph_node->safe_as<hlir::framework::Node>();
+               // if node is NodeData or not op, continue.
+               if (!node || node->op() == nullptr) {
+                 continue;
+               }
+
+               node_num++;
+             }
+             return node_num;
            })
 
       /**
