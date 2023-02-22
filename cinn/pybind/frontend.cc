@@ -498,6 +498,8 @@ void BindFrontend(pybind11::module *m) {
       .def("concat", &NetBuilder::Concat, py::arg("xs"), py::arg("axis") = 0)
       .def("reshape", &NetBuilder::Reshape, py::arg("x"), py::arg("shape"))
       .def("transpose", &NetBuilder::Transpose, py::arg("x"), py::arg("axis"))
+      .def("top_k", &NetBuilder::TopK, py::arg("x"), py::arg("k"), py::arg("axis"), py::arg("largest"))
+      .def("sort", &NetBuilder::Sort, py::arg("operand"), py::arg("axis"), py::arg("is_ascend"))
       .def("slice",
            &NetBuilder::Slice,
            py::arg("x"),
