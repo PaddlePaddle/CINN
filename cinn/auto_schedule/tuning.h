@@ -24,6 +24,11 @@
 namespace cinn {
 namespace auto_schedule {
 
+// alias a LoweredFunc array as FunctionGroup
+using FunctionGroup = std::vector<ir::LoweredFunc>;
+// alias a Graph::Group array as SubGraph
+using SubGraphPtr = std::shared_ptr<hlir::framework::Graph::Group>;
+
 // Options for tuning process
 struct TuningOptions {
   // The number of tuning rounds, each round will tune several tasks,
@@ -77,17 +82,9 @@ struct TuningOptions {
 // Result of the tuning process
 struct TuningResult {
   // Result of graph tuning
-  struct TunedSubGraph {
-    std::vector<std::shared_ptr<hlir::framework::Graph::Group>> groups;
-  };
-
-  // Result of schedule tuning in CINN IR
-  struct OptimizedComputeExpr {
-    std::vector<std::vector<ir::LoweredFunc>> lowered_funcs;
-  };
-
-  std::vector<TunedSubGraph> tuned_graph;
-  std::vector<OptimizedComputeExpr> optimized_exprs;
+  std::vector<SubGraphPtr> subgraphs;
+  // Result of schedule tuning
+  std::vector<FunctionGroup> function_groups;
 };
 
 }  // namespace auto_schedule

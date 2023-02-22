@@ -60,18 +60,9 @@ void AutoTuner::Initialize(const Config& config, hlir::framework::GraphCompiler*
   InitialTaskRegistry* task_registry = InitialTaskRegistry::Global();
   for (auto i = 0; i < tasks_.size(); ++i) {
     auto&& task = tasks_[i];
-    task.SetOpLowerer(op_lowerer_.get());
-    task.TaskGraphToUnoptLoweredFunc();
-    task.SerializeToString(shape_dict, dtype_dict);
-
+    task.Initialize(shape_dict, dtype_dict, op_lowerer_.get());
     // Register the initial ModuleExpr corresponding to the task
-    std::vector<ir::Expr> exprs(task.lowered_funcs.size());
-    std::transform(
-        task.lowered_funcs.begin(), task.lowered_funcs.end(), exprs.begin(), [](const ir::LoweredFunc& func) {
-          return func->body;
-        });
-    task_registry->Regist(task.serialized_key, ir::ModuleExpr(exprs));
-
+    task_registry->Regist(task.serialized_key, ir::ModuleExpr(task.GetLoweredFuncBodyExprs()));
     VLOG(3) << "Add a task, id:" << i << ", serialized_key:\n" << task.serialized_key;
   }
 
@@ -85,36 +76,29 @@ void AutoTuner::Initialize(const Config& config, hlir::framework::GraphCompiler*
   task_scheduler_ = TaskScheduler::Make(tasks_, config.task_schedule_config, config.task_schedule_strategy);
 }
 
-void PrintResult(const TuningResult::TunedSubGraph& sub_graph) {
+void PrintResult(std::shared_ptr<hlir::framework::Graph::Group> group) {
   if (!VLOG_IS_ON(3)) {
     return;
   }
 
-  VLOG(3) << "Group size of sub graph:" << sub_graph.groups.size();
-  for (auto i = 0; i < sub_graph.groups.size(); ++i) {
-    const auto& group = sub_graph.groups.at(i)->CollectNodes();
-    VLOG(3) << "Group-" << i << " node size:" << group.size();
-    VLOG(3) << "Group " << i << " {";
-    for (auto* node : group) {
-      VLOG(3) << "  " << hlir::framework::DebugString(node);
-    }
-    VLOG(3) << "}";
+  auto nodes = group->CollectNodes();
+  VLOG(3) << "Node size:" << nodes.size();
+  VLOG(3) << "Group  {";
+  for (auto* node : nodes) {
+    VLOG(3) << "  " << hlir::framework::DebugString(node);
   }
+  VLOG(3) << "}";
 }
 
-void PrintResult(const TuningResult::OptimizedComputeExpr& optimized_expr) {
+void PrintResult(const FunctionGroup& functions) {
   if (!VLOG_IS_ON(3)) {
     return;
   }
 
-  VLOG(3) << "Group size of lowered function:" << optimized_expr.lowered_funcs.size();
-  for (auto i = 0; i < optimized_expr.lowered_funcs.size(); ++i) {
-    const auto& lowered_group = optimized_expr.lowered_funcs.at(i);
-    VLOG(3) << "Lowered Group-" << i << " function size:" << lowered_group.size();
-    for (auto j = 0; j < lowered_group.size(); ++j) {
-      const ir::LoweredFunc& func = lowered_group.at(i);
-      VLOG(3) << "LoweredFunc-" << j << " detail:\n" << func;
-    }
+  VLOG(3) << "Function size:" << functions.size();
+  for (auto i = 0; i < functions.size(); ++i) {
+    const ir::LoweredFunc& func = functions.at(i);
+    VLOG(3) << "LoweredFunc-" << i << " detail:\n" << func;
   }
 }
 
@@ -123,18 +107,18 @@ void PrintResult(const TuningResult& result) {
     return;
   }
   VLOG(3) << "###### Debug TuningResult ######\n";
-  VLOG(3) << "Tuned SubGraph num:" << result.tuned_graph.size();
-  for (auto i = 0; i < result.tuned_graph.size(); ++i) {
+  VLOG(3) << "Tuned SubGraph num:" << result.subgraphs.size();
+  for (auto i = 0; i < result.subgraphs.size(); ++i) {
     VLOG(3) << "****** SubGraph-" << i << " Detail ******\n";
-    PrintResult(result.tuned_graph.at(i));
+    PrintResult(result.subgraphs.at(i));
     VLOG(3) << "****** SubGraph End ******";
   }
 
-  VLOG(3) << "OptimizedComputeExpr num:" << result.optimized_exprs.size();
-  for (auto i = 0; i < result.optimized_exprs.size(); ++i) {
-    VLOG(3) << "****** OptimizedComputeExpr-" << i << " Detail ******\n";
-    PrintResult(result.optimized_exprs.at(i));
-    VLOG(3) << "****** OptimizedComputeExpr End ******";
+  VLOG(3) << "Tuned FunctionGroup num:" << result.function_groups.size();
+  for (auto i = 0; i < result.function_groups.size(); ++i) {
+    VLOG(3) << "****** FunctionGroup-" << i << " Detail ******\n";
+    PrintResult(result.function_groups.at(i));
+    VLOG(3) << "****** FunctionGroup End ******";
   }
   VLOG(3) << "###### TuningResult End ######";
 }
@@ -144,14 +128,14 @@ TuningResult AutoTuner::Tune(const TuningOptions& options) {
   VLOG(3) << "Begin tuning with round num=" << options.num_tuning_rounds << ", tasks size=" << tasks_.size();
 
   TuningResult result;
-  result.tuned_graph.resize(tasks_.size());
-  result.optimized_exprs.resize(tasks_.size());
+  result.subgraphs.resize(tasks_.size());
+  result.function_groups.resize(tasks_.size());
   // A task only tunes schedule now, so we populate its sub_graph
   // as default result of graph tuning, and that should be updated
   // once we support graph tuning.
   for (auto i = 0; i < tasks_.size(); ++i) {
-    auto&& task                  = tasks_.at(i);
-    result.tuned_graph[i].groups = task.task_graph;
+    auto&& task         = tasks_.at(i);
+    result.subgraphs[i] = task.subgraph;
   }
 
   for (int r = 0; r < options.num_tuning_rounds; ++r) {
@@ -159,13 +143,13 @@ TuningResult AutoTuner::Tune(const TuningOptions& options) {
     int run_id = -1;
     task_scheduler_->Reset();
     while ((run_id = task_scheduler_->NextTaskId()) != -1) {
-      VLOG(3) << "Start tuning task id:" << run_id;
+      VLOG(3) << "Start tuning Task-" << run_id;
       auto* opt           = task_optimizers_.at(run_id).get();
-      auto optimized_expr = opt->Optimize(options);
-      VLOG(3) << "Task finished, print optimized Expr:\n";
-      PrintResult(optimized_expr);
+      auto function_group = opt->Optimize(options);
+      VLOG(3) << "Task-" << run_id << " finished, print optimized functions:\n";
+      PrintResult(function_group);
       // update the best schedules searched so far.
-      result.optimized_exprs.at(run_id) = std::move(optimized_expr);
+      result.function_groups.at(run_id) = std::move(function_group);
     }
   }
 

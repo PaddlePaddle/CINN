@@ -105,17 +105,15 @@ static void InitTensorData(Tensor tensor, const common::Target& target, bool ini
 // that need to be initialized to 0 when measuring.
 static std::unordered_set<std::string> ParamsNeedInitWithZero(const MeasureInput& input) {
   std::unordered_set<std::string> res;
-  for (const auto& task_graph : input.task->task_graph) {
-    std::vector<hlir::framework::Node*> nodes = task_graph->CollectNodes();
-    for (auto* node : nodes) {
-      if (kInitWithZeroParams.count(node->op()->name) != 0) {
-        std::vector<int> param_idxs = kInitWithZeroParams.at(node->op()->name);
-        for (int param_idx : param_idxs) {
-          auto& edge             = node->inlinks_in_order().at(param_idx);
-          std::string param_name = edge->source()->as<hlir::framework::NodeData>()->id();
-          VLOG(6) << "param needs to be init with 0: " << param_name;
-          res.insert(param_name);
-        }
+  std::vector<hlir::framework::Node*> nodes = input.task->subgraph->CollectNodes();
+  for (auto* node : nodes) {
+    if (kInitWithZeroParams.count(node->op()->name) != 0) {
+      std::vector<int> param_idxs = kInitWithZeroParams.at(node->op()->name);
+      for (int param_idx : param_idxs) {
+        auto& edge             = node->inlinks_in_order().at(param_idx);
+        std::string param_name = edge->source()->as<hlir::framework::NodeData>()->id();
+        VLOG(6) << "param needs to be init with 0: " << param_name;
+        res.insert(param_name);
       }
     }
   }

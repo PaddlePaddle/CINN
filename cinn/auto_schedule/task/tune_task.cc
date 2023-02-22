@@ -30,7 +30,17 @@
 namespace cinn {
 namespace auto_schedule {
 
-void TuneTask::SetOpLowerer(hlir::framework::OpLowerer* op_lowerer) { op_lowerer_ = op_lowerer; }
+void TuneTask::Initialize(const absl::flat_hash_map<std::string, hlir::framework::shape_t>& shape_dict,
+                          const absl::flat_hash_map<std::string, cinn::common::Type>& dtype_dict,
+                          hlir::framework::OpLowerer* lower_handler) {
+  CHECK(lower_handler != nullptr) << "op_lowerer can't be nullptr";
+  op_lowerer = lower_handler;
+
+  // Set lowered_funcs and analyze output names.
+  this->lowered_funcs  = op_lowerer->LowerWithoutSchedule(subgraph);
+  this->output_names   = GetOutputNamesFromLoweredFunc(this->lowered_funcs);
+  this->serialized_key = SerializeToString(shape_dict, dtype_dict);
+}
 
 std::vector<ir::Expr> TuneTask::GetLoweredFuncBodyExprs() const {
   std::vector<ir::Expr> result;
@@ -40,33 +50,8 @@ std::vector<ir::Expr> TuneTask::GetLoweredFuncBodyExprs() const {
   return result;
 }
 
-void TuneTask::SetLoweredFuncBodyExprs(const std::vector<ir::Expr>& exprs) {
-  size_t exprs_size = exprs.size();
-  CHECK_EQ(exprs_size, lowered_funcs.size())
-      << "SetLoweredFuncBodyExprs must have same number of Expr(s) and LoweredFunc(s)";
-  for (size_t i = 0; i < exprs_size; ++i) {
-    lowered_funcs[i]->body = exprs[i];
-  }
-}
-
-void TuneTask::SetLoweredFuncsAndAnalyzeOutput(const std::vector<ir::LoweredFunc>& lowered_funcs) {
-  this->lowered_funcs = lowered_funcs;
-  this->output_names  = GetOutputNamesFromLoweredFunc(this->lowered_funcs);
-}
-
-void TuneTask::TaskGraphToUnoptLoweredFunc() {
-  CHECK(op_lowerer_ != nullptr) << "op_lowerer_ must be set before processing graph";
-
-  // TODO(zhhsplendid): current a task only contains one Op or one Fused Op,
-  // so we can take only first group to lower to std::vector<ir::LoweredFunc>.
-  // Support the lowered_funcs to be std::vector<std::vector<ir::LoweredFunc>>
-  // in the future.
-  SetLoweredFuncsAndAnalyzeOutput(op_lowerer_->LowerWithoutSchedule(task_graph[0]));
-}
-
-const std::string& TuneTask::SerializeToString(
-    const absl::flat_hash_map<std::string, hlir::framework::shape_t>& shape_dict,
-    const absl::flat_hash_map<std::string, cinn::common::Type>& dtype_dict) {
+std::string TuneTask::SerializeToString(const absl::flat_hash_map<std::string, hlir::framework::shape_t>& shape_dict,
+                                        const absl::flat_hash_map<std::string, cinn::common::Type>& dtype_dict) {
   std::stringstream ss;
   ss << target << "\n\n";  // print target
 
@@ -94,23 +79,18 @@ const std::string& TuneTask::SerializeToString(
     }
   };
 
-  // print each group of the task_graph
-  for (auto p = 0; p < task_graph.size(); ++p) {
-    const std::vector<hlir::framework::Node*>& group = task_graph.at(p)->CollectNodes();
-    ss << "Group " << p << " {\n";
-    for (auto i = 0; i < group.size(); ++i) {
-      const hlir::framework::Node* node = group.at(i);
-      ss << "  (";
-      print_node_links_fn(node->outlinks_in_order(), false);
-      ss << ") = " << node->op()->name << "(";
-      print_node_links_fn(node->inlinks_in_order(), true);
-      ss << ")\n";
-    }
-    ss << "}\n";
+  // print each node of the subgraph
+  ss << "Group {\n";
+  for (auto&& node : subgraph->CollectNodes()) {
+    ss << "  (";
+    print_node_links_fn(node->outlinks_in_order(), false);
+    ss << ") = " << node->op()->name << "(";
+    print_node_links_fn(node->inlinks_in_order(), true);
+    ss << ")\n";
   }
+  ss << "}\n";
 
-  serialized_key = ss.str();
-  return serialized_key;
+  return ss.str();
 }
 
 }  // namespace auto_schedule
