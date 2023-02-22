@@ -111,12 +111,16 @@ Expr FloorDivide(Expr a, Expr b) {
 
 Expr min_value(const Type& type) {
   CHECK_EQ(type.lanes(), 1);
-#define FOR_CASE(type__)                                \
-  if (type == type_of<type__>()) {                      \
-    return Expr(std::numeric_limits<type__>::lowest()); \
+#define FOR_CASE(type__)                                                     \
+  if (type == type_of<type__>()) {                                           \
+    return Expr(static_cast<type__>(std::numeric_limits<type__>::lowest())); \
   }
+  FOR_CASE(int8_t)
+  FOR_CASE(int16_t)
   FOR_CASE(int32_t)
   FOR_CASE(int64_t)
+  FOR_CASE(uint8_t)
+  FOR_CASE(uint16_t)
   FOR_CASE(uint32_t)
   FOR_CASE(uint64_t)
   FOR_CASE(float16)
@@ -129,12 +133,16 @@ Expr min_value(const Type& type) {
 Expr max_value(const Type& type) {
   CHECK_EQ(type.lanes(), 1);
 
-#define FOR_CASE(type__)                             \
-  if (type == type_of<type__>()) {                   \
-    return Expr(std::numeric_limits<type__>::max()); \
+#define FOR_CASE(type__)                                                  \
+  if (type == type_of<type__>()) {                                        \
+    return Expr(static_cast<type__>(std::numeric_limits<type__>::max())); \
   }
+  FOR_CASE(int8_t)
+  FOR_CASE(int16_t)
   FOR_CASE(int32_t)
   FOR_CASE(int64_t)
+  FOR_CASE(uint8_t)
+  FOR_CASE(uint16_t)
   FOR_CASE(uint32_t)
   FOR_CASE(uint64_t)
   FOR_CASE(float16)
@@ -149,12 +157,16 @@ Expr max_value(const Type& type) {
 Expr Epsilon(const Type& type) {
   CHECK_EQ(type.lanes(), 1);
 
-#define FOR_CASE(type__)                                 \
-  if (type == type_of<type__>()) {                       \
-    return Expr(std::numeric_limits<type__>::epsilon()); \
+#define FOR_CASE(type__)                                                      \
+  if (type == type_of<type__>()) {                                            \
+    return Expr(static_cast<type__>(std::numeric_limits<type__>::epsilon())); \
   }
+  FOR_CASE(int8_t)
+  FOR_CASE(int16_t)
   FOR_CASE(int32_t)
   FOR_CASE(int64_t)
+  FOR_CASE(uint8_t)
+  FOR_CASE(uint16_t)
   FOR_CASE(uint32_t)
   FOR_CASE(uint64_t)
   FOR_CASE(float16)

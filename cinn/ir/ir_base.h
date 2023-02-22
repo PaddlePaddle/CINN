@@ -241,9 +241,9 @@ struct IntImm : public ExprNode<IntImm> {
 };
 
 struct UIntImm : public ExprNode<UIntImm> {
-  int64_t value;
+  uint64_t value;
 
-  UIntImm(Type t, int64_t v) : ExprNode<UIntImm>(t), value(v) { Verify(); }
+  UIntImm(Type t, uint64_t v) : ExprNode<UIntImm>(t), value(v) { Verify(); }
 
   void Verify() const override {
     CHECK(type().is_uint());
@@ -258,7 +258,7 @@ struct UIntImm : public ExprNode<UIntImm> {
 struct FloatImm : public ExprNode<FloatImm> {
   double value;
 
-  FloatImm(Type t, float v) : ExprNode<FloatImm>(t), value(v) { Verify(); }
+  FloatImm(Type t, double v) : ExprNode<FloatImm>(t), value(v) { Verify(); }
 
   void Verify() const override {
     CHECK(type().is_float());
