@@ -114,6 +114,9 @@ class OpLowerer {
   std::vector<ir::Tensor> CollectInputTensor(std::vector<ir::Tensor>& func_args,
                                              std::unordered_map<std::string, ir::Tensor>& tensor_map,
                                              const Node* node);
+  void IRSchedule(ir::IRSchedule& ir_sch,
+                  const GroupPtr& group,
+                  const std::unordered_map<std::string, ir::Tensor>& tensor_map);
 
   Target target_;
   const absl::flat_hash_map<std::string, Type>& type_dict_;
