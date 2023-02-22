@@ -70,7 +70,8 @@ class TestSimpleRunner : public ::testing::Test {
 #else
     task->target = common::DefaultHostTarget();
 #endif
-    input.task = task.get();
+    task->subgraph = graph->fusion_groups.front();
+    input.task     = task.get();
   }
 };
 
