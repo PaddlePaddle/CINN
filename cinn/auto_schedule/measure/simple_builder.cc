@@ -24,8 +24,8 @@ SimpleBuilder::SimpleBuilder(hlir::framework::GraphCompiler* graph_compiler) : g
 BuildResult SimpleBuilder::Build(const MeasureInput& input) {
   CHECK_NE(graph_compiler_, static_cast<GraphCompiler*>(nullptr)) << "empty hanlde to GraphCompiler";
   GraphCompiler::CompileOptions compile_options;
-  compile_options.groups                  = input.task->task_graph;
-  compile_options.lowered_funcs           = input.lowered_funcs;
+  compile_options.groups.emplace_back(input.task->subgraph);
+  compile_options.lowered_funcs.emplace_back(input.lowered_funcs);
   compile_options.remove_unused_variables = false;
   VLOG(5) << "call GraphCompiler to Build with Graph::Group size=" << compile_options.groups.size()
           << ", lowered_funcs group size=" << compile_options.lowered_funcs.size();

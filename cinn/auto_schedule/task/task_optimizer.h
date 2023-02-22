@@ -34,10 +34,10 @@ class TaskOptimizer {
  public:
   TaskOptimizer(const TuneTask& task, ScheduleMeasurer* schedule_measurer, Database* database);
 
-  TuningResult::OptimizedComputeExpr Optimize(const TuningOptions& options);
+  FunctionGroup Optimize(const TuningOptions& options);
 
  private:
-  TuningResult::OptimizedComputeExpr OptimizeByEvolution(const TuningOptions& options);
+  FunctionGroup OptimizeByEvolution(const TuningOptions& options);
 
   // call search candidates once by EvolutionarySearch and prune invalid ones
   std::vector<SearchState> SearchOneRound(const TuningOptions& options, std::vector<MeasureInput>* measure_candidates);

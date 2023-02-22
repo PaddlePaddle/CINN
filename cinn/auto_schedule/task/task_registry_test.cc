@@ -45,9 +45,7 @@ std::vector<TuneTask> CreateTasks(hlir::framework::Graph* graph, const common::T
   std::unique_ptr<hlir::framework::OpLowerer> op_lowerer =
       std::make_unique<hlir::framework::OpLowerer>(dtype_dict, shape_dict, target);
   for (TuneTask& task : tasks) {
-    task.SetOpLowerer(op_lowerer.get());
-    task.TaskGraphToUnoptLoweredFunc();
-    task.SerializeToString(shape_dict, dtype_dict);
+    task.Initialize(shape_dict, dtype_dict, op_lowerer.get());
     VLOG(3) << "Add a task with serialized_key:\n" << task.serialized_key;
   }
 

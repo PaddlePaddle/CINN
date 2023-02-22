@@ -44,7 +44,7 @@ using ::cinn::hlir::framework::Instruction;
 using ::cinn::hlir::framework::Node;
 using ::cinn::hlir::framework::Scope;
 
-class TestAutoTunerWithoutFusion : public ::testing::Test {
+class TestAutoTuner : public ::testing::Test {
  public:
 #ifdef CINN_WITH_CUDA
   Target target = common::DefaultNVGPUTarget();
@@ -86,17 +86,16 @@ class TestAutoTunerWithoutFusion : public ::testing::Test {
   }
 
   virtual void BasicCheckResult(const TuningResult& result) {
-    ASSERT_EQ(1, result.tuned_graph.size());
-    const auto& sub_graph1 = result.tuned_graph.front();
-    ASSERT_EQ(1, sub_graph1.groups.size());
-    ASSERT_EQ(sub_graph1.groups[0]->CollectNodes()[0]->op()->name, "broadcast_to");
-    const auto& sub_graph2 = result.tuned_graph.back();
-    ASSERT_EQ(1, sub_graph2.groups.size());
-    ASSERT_EQ(sub_graph2.groups[0]->CollectNodes()[0]->op()->name, "broadcast_to");
+    ASSERT_EQ(1, result.subgraphs.size());
+    auto nodes = result.subgraphs.front()->CollectNodes();
+    ASSERT_EQ(nodes.size(), 4UL);
+    ASSERT_EQ(nodes[0]->op()->name, "broadcast_to");
+    ASSERT_EQ(nodes[1]->op()->name, "fill_constant");
+    ASSERT_EQ(nodes[2]->op()->name, "elementwise_add");
+    ASSERT_EQ(nodes[3]->op()->name, "max");
 
-    ASSERT_EQ(result.optimized_exprs.size(), 1UL);
-    ASSERT_EQ(result.optimized_exprs[0].lowered_funcs.size(), 1UL);
-    ASSERT_EQ(result.optimized_exprs[0].lowered_funcs[0].size(), 1UL);
+    ASSERT_EQ(result.function_groups.size(), 1UL);
+    ASSERT_EQ(result.function_groups[0].size(), 1UL);
   }
 
   virtual void ApplyTunedAndRun(const TuningResult& result) {
@@ -141,85 +140,22 @@ class TestAutoTunerWithoutFusion : public ::testing::Test {
   }
 };
 
-TEST_F(TestAutoTunerWithoutFusion, ZeroMeasure_DisableCostModel) {
+TEST_F(TestAutoTuner, ZeroMeasure_DisableCostModel) {
   FLAGS_auto_schedule_use_cost_model = false;
   ZeroMeasure();
 }
 
-TEST_F(TestAutoTunerWithoutFusion, ZeroMeasure_EnableCostModel) {
+TEST_F(TestAutoTuner, ZeroMeasure_EnableCostModel) {
   FLAGS_auto_schedule_use_cost_model = true;
   ZeroMeasure();
 }
 
-TEST_F(TestAutoTunerWithoutFusion, NonZeroMeasure_DisableCostModel) {
+TEST_F(TestAutoTuner, NonZeroMeasure_DisableCostModel) {
   FLAGS_auto_schedule_use_cost_model = false;
   NonZeroMeasure();
 }
 
-TEST_F(TestAutoTunerWithoutFusion, NonZeroMeasure_EnableCostModel) {
-  FLAGS_auto_schedule_use_cost_model = true;
-  NonZeroMeasure();
-}
-
-class TestAutoTunerWithFusion : public TestAutoTunerWithoutFusion {
- public:
-  void SetUp() override {
-    srand(0);
-    // AutoTuner is combined with new IR Schedule
-    FLAGS_cinn_ir_schedule = true;
-    std::unordered_set<std::string> fetch_ids;
-    auto program   = CreateAddReluProgram();
-    auto graph     = cinn::frontend::Optimize(&program, fetch_ids, target);
-    compiled_scope = BuildScope(target, graph);
-    graph_compiler = std::make_unique<GraphCompiler>(target, compiled_scope, graph);
-    tuner          = std::make_unique<AutoTuner>(target, graph.get());
-  }
-
-  void BasicCheckResult(const TuningResult& result) override {
-    ASSERT_EQ(result.tuned_graph.size(), 1UL);
-    const std::vector<Node*>& nodes = result.tuned_graph[0].groups[0]->CollectNodes();
-    ASSERT_EQ(nodes.size(), 4UL);
-    ASSERT_EQ(nodes[0]->op()->name, "broadcast_to");
-    ASSERT_EQ(nodes[1]->op()->name, "fill_constant");
-    ASSERT_EQ(nodes[2]->op()->name, "elementwise_add");
-
-    ASSERT_EQ(result.optimized_exprs.size(), 1UL);
-    ASSERT_EQ(result.optimized_exprs[0].lowered_funcs.size(), 1UL);
-    ASSERT_EQ(result.optimized_exprs[0].lowered_funcs[0].size(), 1UL);
-  }
-
-  void ApplyTunedAndRun(const TuningResult& result) override {
-    // build runtime program with tuning result
-    GraphCompiler::CompileOptions compile_options;
-    compile_options.with_instantiate_variables = true;
-    compile_options.Apply(result);
-    ASSERT_EQ(1, compile_options.groups.size());
-    ASSERT_EQ(1, compile_options.lowered_funcs.size());
-    ASSERT_EQ(1, compile_options.lowered_funcs[0].size());
-    VLOG(6) << "Print lowered_funcs before building";
-    VLOG(6) << compile_options.lowered_funcs[0][0];
-    auto runtime_program = graph_compiler->Build(compile_options).runtime_program;
-    ASSERT_EQ(1, runtime_program->size());
-    runtime_program->Execute();
-  }
-};
-
-TEST_F(TestAutoTunerWithFusion, ZeroMeasure_DisableCostModel) {
-  FLAGS_auto_schedule_use_cost_model = false;
-  ZeroMeasure();
-}
-
-TEST_F(TestAutoTunerWithFusion, ZeroMeasure_EnableCostModel) {
-  FLAGS_auto_schedule_use_cost_model = true;
-  ZeroMeasure();
-}
-
-TEST_F(TestAutoTunerWithFusion, NonZeroMeasure_DisableCostModel) {
-  FLAGS_auto_schedule_use_cost_model = false;
-  NonZeroMeasure();
-}
-
-TEST_F(TestAutoTunerWithFusion, NonZeroMeasure_EnableCostModel) {
+TEST_F(TestAutoTuner, NonZeroMeasure_EnableCostModel) {
   FLAGS_auto_schedule_use_cost_model = true;
   NonZeroMeasure();
 }

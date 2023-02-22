@@ -728,15 +728,9 @@ std::unique_ptr<Program> GraphCompiler::Build(const std::string& code) {
 }
 
 void GraphCompiler::CompileOptions::Apply(const auto_schedule::TuningResult& tuning_result) {
-  // joint all sub_graph into a whole graph
-  for (auto&& sub_graph : tuning_result.tuned_graph) {
-    groups.insert(groups.end(), sub_graph.groups.begin(), sub_graph.groups.end());
-  }
-
-  // joint all lowered_funcs together
-  for (auto&& expr : tuning_result.optimized_exprs) {
-    lowered_funcs.insert(lowered_funcs.end(), expr.lowered_funcs.begin(), expr.lowered_funcs.end());
-  }
+  // assign options with TuningResult directly
+  groups.assign(tuning_result.subgraphs.begin(), tuning_result.subgraphs.end());
+  lowered_funcs.assign(tuning_result.function_groups.begin(), tuning_result.function_groups.end());
 }
 
 GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::CompileOptions& options,
