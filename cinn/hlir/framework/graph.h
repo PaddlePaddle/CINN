@@ -117,7 +117,7 @@ class Graph : public cinn::common::Graph {
     std::unordered_set<Node*> NodeSet() {
       std::unordered_set<Node*> node_set;
       for (auto node : CollectNodes()) {
-        node_set.insert(node));
+        node_set.insert(node);
       }
       return node_set;
     }

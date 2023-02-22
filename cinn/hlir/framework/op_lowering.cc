@@ -1042,7 +1042,7 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
     bool dont_compute_inline =
         group->output_nodes.count(node) || group->internal_nodes.count(node) || sub_group->internal_nodes.count(node);
     if (!dont_compute_inline) {
-      auto consumers = GetConsumer(node);
+      auto consumers = GetConsumers(node);
       for (auto& consumer : consumers) {
         if (op_pattern_dict[consumer->op()] == framework::kReduction) {
           dont_compute_inline = true;
@@ -1381,7 +1381,7 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
   // do schedule
   for (auto node : nodes_in_order) {
     // consumers.
-    auto consumers = GetConsumer(node, nodes_set);
+    auto consumers = GetConsumers(node, nodes_set);
 
     // node can be inline.
     if (CanbeInline(node, consumers, reducer, nodes_in_order.front(), group, this->shape_dict_)) {
@@ -1395,7 +1395,7 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
     auto master = GetMasterToComputeAt(node, nodes_set, nodes_inline);
     // assign to reducer's loop.
     if (reducer) {
-      LoopAssignReduce(ir_sch, node, master, reducer, tensor_map, this->shape_dict_);
+      LoopAssignReduce(ir_sch, node, master, reducer, this->target_, tensor_map, this->shape_dict_);
     }
 
     // do loop fuse.
