@@ -75,7 +75,6 @@ class TestTopKCase1(TestTopKOp):
 
 class TestTopKCase2(TestTopKOp):
     def init_case(self):
-        print("TestTopKCase2 ---------")
         self.inputs = {
             "x1": np.random.random([
                 2,
