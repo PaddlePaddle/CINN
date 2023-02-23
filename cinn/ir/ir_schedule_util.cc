@@ -962,13 +962,6 @@ bool ContainVar(const std::vector<Expr>& exprs, const std::string& var_name) {
   return false;
 }
 
-int SampleInt(int min, int max, uint32_t seed) {
-  // TODO(PuQing): If the seed always be a constant, the random number will be the same.
-  std::default_random_engine rng(seed);
-  std::uniform_int_distribution<int> dist(min, max);
-  return dist(rng);
-}
-
 std::unordered_map<int, int> PrimeFactorize(int n) {
   std::unordered_map<int, int> factors;
   while (n % 2 == 0) {
@@ -987,14 +980,14 @@ std::unordered_map<int, int> PrimeFactorize(int n) {
   return factors;
 }
 
-std::vector<int> SampleTile(uint32_t seed, int n, int extent) {
+std::vector<int> SampleTile(utils::LinearRandomEngine::StateType* rand_seed, int n, int extent) {
   std::vector<int> tile;
   while (n > 1) {
     std::unordered_map<int, int> factors = PrimeFactorize(extent);
     int product                          = 1;
     for (auto& factor : factors) {
       if (factor.second >= 1) {
-        int num = ir::SampleInt(1, factor.second, seed);
+        int num = utils::SampleUniformInt(1, factor.second, rand_seed);
         product *= std::pow(factor.first, num);
       }
     }

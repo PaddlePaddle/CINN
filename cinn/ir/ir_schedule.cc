@@ -72,7 +72,10 @@ class ScheduleImpl {
   Expr GetBlock(const std::string& block_name) const;
   std::vector<Expr> Split(const Expr& loop, const std::vector<int>& factors);
   std::vector<Expr> Split(const std::string& block_name, int loop_index, const std::vector<int>& factors);
-  std::vector<Expr> SamplePerfectTile(const uint32_t seed, const Expr& loop, int n, int max_innermost_factor);
+  std::vector<Expr> SamplePerfectTile(utils::LinearRandomEngine::StateType* rand_seed,
+                                      const Expr& loop,
+                                      int n,
+                                      int max_innermost_factor);
   Expr Fuse(const std::vector<Expr>& loops);
   Expr Fuse(const std::string& block_name, const std::vector<int>& loops_index);
   Expr Fuse(const Expr& block, const std::vector<int>& loops_index);
@@ -1793,7 +1796,7 @@ void ScheduleImpl::CopyTransformAndLoopInfo(const Expr& block, const Expr& block
   this->Replace(all_loops[0], res);
 }
 
-std::vector<Expr> ScheduleImpl::SamplePerfectTile(const uint32_t seed,
+std::vector<Expr> ScheduleImpl::SamplePerfectTile(utils::LinearRandomEngine::StateType* rand_seed,
                                                   const Expr& loop,
                                                   int n,
                                                   int max_innermost_factor) {
@@ -1809,8 +1812,8 @@ std::vector<Expr> ScheduleImpl::SamplePerfectTile(const uint32_t seed,
     }
   }
   CHECK(!innermost_factors.empty()) << "No innermost factor found";
-  int innermost_factor = innermost_factors[ir::SampleInt(0, innermost_factors.size() - 1, seed)];
-  auto result          = SampleTile(seed, n - 1, loop_extent / innermost_factor);
+  int innermost_factor = innermost_factors[utils::SampleUniformInt(0, innermost_factors.size() - 1, rand_seed)];
+  auto result          = SampleTile(rand_seed, n - 1, loop_extent / innermost_factor);
   std::vector<Expr> result_expr;
   for (auto& factor : result) {
     result_expr.push_back(Expr(factor));
@@ -2087,7 +2090,7 @@ void IRSchedule::CopyTransformAndLoopInfo(const std::string& block_name, const s
 }
 
 std::vector<Expr> IRSchedule::SamplePerfectTile(const Expr& loop, int n, int max_innermost_factor) {
-  auto result = impl_->SamplePerfectTile(ir::RandomSeedController::seed, loop, n, max_innermost_factor);
+  auto result = impl_->SamplePerfectTile(&rand_seed_, loop, n, max_innermost_factor);
   trace_.Append(ScheduleDesc::Step("SamplePerfectTile",
                                    {{"loop", std::vector<Expr>({loop})}},
                                    {{"n", n}, {"max_innermost_factor", max_innermost_factor}},

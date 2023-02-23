@@ -98,7 +98,7 @@ SearchState SearchSpace::RandomScheduleMutate(const SearchState& state) {
   }
 
   // 3. Sample a schedule on the distribution
-  int sample_weighted_index = rand() % cur_weight;
+  int sample_weighted_index = utils::SampleUniformInt(0, cur_weight, &rand_seed_);
 
   auto iter = weight_to_rule_index.upper_bound(sample_weighted_index);
   --iter;
@@ -161,13 +161,10 @@ std::vector<SearchState> SearchSpace::InitSketchWithRandomPrunedStrategy() {
   std::vector<SearchState> states_buf1{init_state}, states_buf2;
   std::vector<SearchState>* p_states_cur  = &states_buf1;
   std::vector<SearchState>* p_states_next = &states_buf2;
-  std::mt19937 rng;
-  rng.seed(std::random_device()());
-  std::uniform_int_distribution<> distribution(0, init_rules.size());
-  int total_steps = 0, steps;
+  int total_steps                         = 0, steps;
   std::string block_name;
   while ("" != (block_name = block_sampler->NextBlock()) && total_steps < init_sketch_random_depth_) {
-    steps = distribution(rng);
+    steps = utils::SampleUniformInt(0, init_rules.size(), &rand_seed_);
     if (total_steps + steps > init_sketch_random_depth_) {
       steps = init_sketch_random_depth_ - total_steps;
     }
@@ -289,10 +286,7 @@ std::vector<SearchState> SearchSpace::ApplySketchRule(const SearchState& state,
       if (prune_by_rule) {
         need_prune = (type == RuleApplyType::kApplyAndPruneOtherRules);
       } else {
-        std::mt19937 rng;
-        rng.seed(std::random_device()());
-        std::uniform_real_distribution<double> distribution(0, 1);
-        need_prune = (distribution(rng) < prune_probability);
+        need_prune = (utils::SampleUniformDouble(0, 1, &rand_seed_) < prune_probability);
       }
       if (need_prune) {
         iter = layer.erase(iter);

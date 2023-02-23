@@ -24,6 +24,7 @@
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_mutator.h"
 #include "cinn/ir/tensor.h"
+#include "cinn/utils/random_engine.h"
 #include "cinn/utils/string.h"
 
 namespace cinn {
@@ -416,23 +417,6 @@ std::vector<IterRange> CalculateRequiredRegions(const Expr& block,
 Expr CheckComputeInlineValidationAndGetStore(const Expr& schedule_block, const Expr& root);
 
 /*!
- * \brief RandomSeedController is used to control the random seed in the whole program.
- */
-class RandomSeedController {
-  // TODO(PuQing): This is a temporary solution, maybe change it to a better one.
- public:
-  static constexpr uint32_t seed = 1;
-};
-
-/*!
- * \brief sample a int in [min, max].
- * \param min The min value of the range.
- * \param max The max value of the range.
- * \param seed The random number generator to use.
- */
-int SampleInt(int min, int max, uint32_t seed);
-
-/*!
  * \brief Get the prime factors of a number.
  * For example, 12 = 2^2 * 3^1, then the return value is {2: 2, 3: 1}.
  * \param n The number to be factorized.
@@ -448,6 +432,6 @@ std::unordered_map<int, int> PrimeFactorize(int n);
  * \param n The number to be factorized.
  * \param dividend The dividend of the number.
  */
-std::vector<int> SampleTile(uint32_t seed, int n, int dividend);
+std::vector<int> SampleTile(utils::LinearRandomEngine::StateType* rand_seed, int n, int dividend);
 }  // namespace ir
 }  // namespace cinn
