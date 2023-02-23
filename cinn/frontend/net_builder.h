@@ -1049,6 +1049,22 @@ class NetBuilder {
    */
   Variable Norm(const Variable& x, int axis = -1, float epsilon = 1e-12f);
 
+  /**
+   * @brief Return values and indices of the k largest or smallest at the optional axis.
+   * If the input is a 1-D Tensor, finds the k largest or smallest values and indices.
+   * If the input is a Tensor with higher rank, this operator computes the top k values
+   * and indices along the axis.
+   * @param x Input tensor.
+   * @param k The number of top elements to look for along the axis.
+   * @param axis Axis to compute indices along. The effective range is [-R, R), where R is
+   * x.ndim. when axis < 0, it works the same way as axis + R. Default is -1.
+   * @param largest largest is a flag, if set to true, algorithm will sort by descending
+   * order, otherwise sort by ascending order. Default is True.
+   * @return The values and indices. The value data type is the same as the input x. The
+   * indices data type is int64.
+   */
+  std::vector<Variable> TopK(const Variable& x, int k, int axis, bool largest);
+
  private:
   CINN_DISALLOW_COPY_AND_ASSIGN(NetBuilder);
 };
