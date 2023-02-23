@@ -68,8 +68,8 @@ void AutoTuner::Initialize(const Config& config, hlir::framework::GraphCompiler*
 
   // create task optimizers
   task_optimizers_.resize(tasks_.size());
-  std::transform(tasks_.begin(), tasks_.end(), task_optimizers_.begin(), [&](const TuneTask& task) {
-    return std::make_unique<TaskOptimizer>(task, schedule_measurer_.get(), database_.get());
+  std::transform(tasks_.begin(), tasks_.end(), task_optimizers_.begin(), [this](TuneTask& task) {
+    return std::make_unique<TaskOptimizer>(&task, schedule_measurer_.get(), database_.get());
   });
 
   // create task scheduler
