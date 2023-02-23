@@ -204,8 +204,8 @@ __device__ inline float16 FN_FP16(pow)(float16 a, float16 b) {
 #define EXPAND_REDUCE_FP32_MACRO(MACRO, ...)          \
   MACRO(sum_fp32, 0.0f, float, ##__VA_ARGS__)         \
   MACRO(prod_fp32, 1.0f, float, ##__VA_ARGS__)        \
-  MACRO(max_fp32, -3.40282e+38, float, ##__VA_ARGS__) \
-  MACRO(min_fp32, 3.40282e+38, float, ##__VA_ARGS__)
+  MACRO(max_fp32, -3.40282e+38f, float, ##__VA_ARGS__) \
+  MACRO(min_fp32, 3.40282e+38f, float, ##__VA_ARGS__)
 
 __device__ inline float cinn_sum_fp32(const float left, const float right) { return left + right; }
 __device__ inline float cinn_prod_fp32(const float left, const float right) { return left * right; }
@@ -229,7 +229,7 @@ __device__ inline float16 cinn_min_fp16(const float16 left, const float16 right)
 #define EXPAND_REDUCE_FP64_MACRO(MACRO, ...)          \
   MACRO(sum_fp64, 0.0, double, ##__VA_ARGS__)         \
   MACRO(prod_fp64, 1.0, double, ##__VA_ARGS__)        \
-  MACRO(max_fp64, -1.17549e-038, double, ##__VA_ARGS__) \
+  MACRO(max_fp64, -1.79769e+308, double, ##__VA_ARGS__) \
   MACRO(min_fp64, 1.79769e+308, double, ##__VA_ARGS__)
 
 __device__ inline double cinn_sum_fp64(const double left, const double right) { return left + right; }
