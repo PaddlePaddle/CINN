@@ -199,6 +199,7 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOp(IRComputeFunction compute,
   Node* second = nullptr;
   // do schedule.
   VLOG(3) << "Before IRLowerOp schedule, ir is: \n" << ir_sch.GetModule().GetExprs().at(0);
+  /*
   if (group->fused_sub_groups.size() == 0) {
     (this->*schedule)(ir_sch, tensor_map, group, group, first, second);
   } else {
@@ -207,6 +208,8 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOp(IRComputeFunction compute,
       (this->*schedule)(ir_sch, tensor_map, group, group->fused_sub_groups[idx], first, second);
     }
   }
+  */
+  IRSchedule(ir_sch, group, tensor_map);
   VLOG(3) << "After IRLowerOp schedule, ir is: \n" << ir_sch.GetModule().GetExprs().at(0);
   // function args
   group->input_names.clear();
@@ -1371,12 +1374,14 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerNonFusibleOp(GroupPtr& group, boo
 void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
                            const GroupPtr& group,
                            const std::unordered_map<std::string, ir::Tensor>& tensor_map) {
+  LOG(INFO) << "Before -> " << ir_sch.GetModule().GetExprs().at(0);
   // topological order.
   std::unordered_set<Node*> nodes_set = group->NodeSet();
   std::vector<Node*> nodes_in_order   = TopologicalOrder(group);
   // find reducer.
   std::unordered_set<Node*> nodes_inline;
-  Node* reducer = FindReducer(nodes_in_order);
+  Node* reducer         = FindReducer(nodes_in_order);
+  auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
 
   // do schedule
   for (auto node : nodes_in_order) {
@@ -1385,6 +1390,15 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
 
     // node can be inline.
     if (CanbeInline(node, consumers, reducer, nodes_in_order.front(), group, this->shape_dict_)) {
+      if (reducer) {
+        auto loops = ir_sch.GetLoops(GetNodeData(node)->id());
+        if (op_pattern_dict[node->op()] == framework::kElementWise) {
+          ir_sch.FlattenLoops(loops, true);
+        } else {
+          ir_sch.FlattenLoops(loops, false);
+        }
+      }
+
       auto block = ir_sch.GetBlock(GetNodeData(node)->id());
       ir_sch.ComputeInline(block);
       nodes_inline.insert(node);
@@ -1392,15 +1406,15 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
     }
 
     // find master to computeat.
-    auto master = GetMasterToComputeAt(node, nodes_set, nodes_inline);
+    auto master = GetMasterToComputeAt(node, nodes_inline, nodes_set);
     // assign to reducer's loop.
     if (reducer) {
-      LoopAssignReduce(ir_sch, node, master, reducer, this->target_, tensor_map, this->shape_dict_);
+      LoopAssignReduce(ir_sch, node, reducer, this->target_, tensor_map, this->shape_dict_);
     }
-
     // do loop fuse.
     LoopComputeAt(ir_sch, node, master, group, tensor_map);
   }
+  LOG(INFO) << "After -> " << ir_sch.GetModule().GetExprs().at(0);
 }
 
 }  // namespace framework

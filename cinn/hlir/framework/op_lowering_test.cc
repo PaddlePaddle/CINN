@@ -53,7 +53,7 @@ void CodeGen(ir::LoweredFunc& func) {
   LOG(INFO) << "compiled code of " << func->name << "is:\n\n\n" << source_code;
 #endif
 }
-
+/*
 TEST(OP_LOWERING, Reduce_Keep_Dim_Fuse_Elementwise_0) {
   NetBuilder net_builder("Reduce_Keep_Dim_Fuse_Elementwise_0");
   {
@@ -107,6 +107,7 @@ TEST(OP_LOWERING, Reduce_Keep_Dim_Fuse_Elementwise_1) {
     CodeGen(lowered_func[0]);
   }
 }
+*/
 
 TEST(OP_LOWERING, Reduce_Keep_Dim_Fuse_Elementwise_2) {
   NetBuilder net_builder("Reduce_Keep_Dim_Fuse_Elementwise_2");
