@@ -23,6 +23,7 @@
 #include <thrust/device_vector.h>
 
 #include <algorithm>
+#include <cstdint>
 #ifdef CINN_WITH_CUDNN
 #include <cudnn.h>
 #endif
@@ -1212,6 +1213,61 @@ void cinn_call_cholesky_nvgpu(void *v_args, int num_args, int batch_size, int m,
 
   // Clean
   CUSOLVER_CALL(cusolverDnDestroy(handler));
+}
+
+void cinn_call_triangular_solve_nvgpu(void* v_args, int num_args, int batch_size, int m, int k, bool left_side, bool upper,
+                                      bool transpose_a, bool unit_diagonal, void* stream) {
+  cublasHandle_t &handle = CublasHandle::GetInstance().GetCublasHandle();
+  cudaStream_t custream = static_cast<cudaStream_t>(stream);
+  CUBLAS_CALL(cublasSetStream(handle, custream));
+
+  cublasSideMode_t side = left_side ? CUBLAS_SIDE_LEFT : CUBLAS_SIDE_RIGHT;
+  cublasFillMode_t uplo = upper ? CUBLAS_FILL_MODE_UPPER : CUBLAS_FILL_MODE_LOWER;
+  cublasOperation_t transa = transpose_a ? CUBLAS_OP_N : CUBLAS_OP_T;
+  cublasDiagType_t diag = unit_diagonal ? CUBLAS_DIAG_UNIT: CUBLAS_DIAG_NON_UNIT;
+  
+  cinn_pod_value_t *args = static_cast<cinn_pod_value_t *>(v_args);
+  cinn_buffer_t *input1       = args[0].operator cinn_buffer_t *();
+  cinn_buffer_t *input2       = args[1].operator cinn_buffer_t *();
+  cinn_buffer_t *output       = args[2].operator cinn_buffer_t *();
+
+  CHECK_EQ(input1->type.code, cinn_type_code_t::cinn_type_float);
+  CHECK_EQ(input2->type.code, cinn_type_code_t::cinn_type_float);
+  CHECK_EQ(input1->type.bits, input2->type.bits);
+  uint8_t bits = input1->type.bits;
+  uint8_t bytes = bits / 8;
+  if (bits != 32 && bits != 64) {
+    LOG(FATAL) << "unsupported bits = " << bits << " for float data type";
+  }
+
+  void *a_ptr   = reinterpret_cast<void *>(input1->memory);
+  void *b_ptr = reinterpret_cast<void *>(input2->memory);
+  void *x_ptr = reinterpret_cast<void *>(output->memory);
+
+  // The API cublasStrsmBatched overwrites the right-hand sides, so the right-hand sides should be copied to the output. 
+  // The output can then be used directly for the calculation.
+  size_t numel          = input2->num_elements();
+  CUDA_CALL(cudaMemcpyAsync(x_ptr, b_ptr, numel * bytes, cudaMemcpyDeviceToDevice, custream));
+
+  std::vector<void *> a_array(batch_size, nullptr);
+  std::vector<void *> x_array(batch_size, nullptr);
+  for (int i = 0; i < batch_size; ++i) {
+    a_array[i] = reinterpret_cast<char *>(a_ptr) + i * m * m * bytes;
+    x_array[i] = reinterpret_cast<char *>(x_ptr) + i * m * k * bytes;
+  }
+  thrust::device_vector<void *> dev_a_array(a_array.begin(), a_array.end());
+  thrust::device_vector<void *> dev_x_array(x_array.begin(), x_array.end());
+
+  if (bits == 32) {     
+    std::vector<float> alpha(batch_size, 1.0f); 
+    CUBLAS_CALL(cublasStrsmBatched(handle, side, uplo, transa, diag, m, k, alpha.data(), reinterpret_cast<float **>(dev_a_array.data().get()), 
+                                  m, reinterpret_cast<float **>(dev_x_array.data().get()), m, batch_size));
+  }
+  else if (bits == 64) {
+    std::vector<double> alpha(batch_size, 1.0);
+    CUBLAS_CALL(cublasDtrsmBatched(handle, side, uplo, transa, diag, m, k, alpha.data(), reinterpret_cast<double **>(dev_a_array.data().get()), 
+                                  m, reinterpret_cast<double **>(dev_x_array.data().get()), m, batch_size));
+  }
 }
 
 void cinn_gpu_cublas_mul(const std::vector<int> &attrs,

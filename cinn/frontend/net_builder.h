@@ -1000,6 +1000,20 @@ class NetBuilder {
   Variable Cholesky(const Variable& x, bool upper = false);
 
   /**
+   * @brief Solve triangular linear systems with multiple right-hand-sides.
+   * @param input1 triangular matrix stored in lower or upper mode.
+   * @param input2 matrix on the right hand side.
+   * @param left_side When left_side is true, compute A*X = B.
+                      When left_side is false, compute X*A = B.
+   * @param upper When upper is true, use the upper part of the triangular matrix.
+                  When upper is false, use the lower part of the triangular matrix.
+   * @param transpose_a When transpose_a is true, use the transpose of matrix A
+   * @param unit_diagonal When unit_diagonal is true, assume the elements on the main diagonal of matrix A are unity
+   * @return The solution for the triangular linear systems.
+   */
+  Variable TriangularSolve(const Variable& input1, const Variable& input2, bool left_side, bool upper, bool transpose_a, bool unit_diagonal);
+
+  /**
    * @brief l2-Norm
    * @param x The input operand to be normed.
    * @param axis The axis on which to apply normalization.

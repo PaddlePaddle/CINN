@@ -660,6 +660,10 @@ Variable NetBuilder::Cholesky(const Variable& x, bool upper) {
   return CustomInstr("cholesky", {x}, {{"upper", upper}}).front();
 }
 
+Variable NetBuilder::TriangularSolve(const Variable& input1, const Variable& input2, bool left_side, bool upper, bool transpose_a, bool unit_diagonal) {
+  return CustomInstr("triangular_solve", {input1, input2}, {{"left_side", left_side}, {"upper", upper}, {"transpose_a", transpose_a}, {"unit_diagonal", unit_diagonal}}).front();
+}
+
 Variable NetBuilder::Norm(const Variable& x, int axis, float epsilon) {
   Instruction instr("norm", {x});
   instr.SetAttr<int32_t>("axis", axis);

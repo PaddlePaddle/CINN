@@ -724,6 +724,37 @@ std::vector<ir::Expr> CustomCallArgsForCholesky(const framework::NodeAttr &attrs
   return args;
 }
 
+std::vector<ir::Expr> CustomCallArgsForTriangularSolve(const framework::NodeAttr &attrs,
+                                                const std::vector<ir::Tensor> &inputs,
+                                                const std::vector<std::vector<int>> &output_shapes) {
+  CHECK_EQ(inputs.size(), 2UL);
+  auto attr_store = attrs.attr_store;
+  CHECK(attr_store.count("left_side"));
+  CHECK(attr_store.count("upper"));
+  CHECK(attr_store.count("transpose_a"));
+  CHECK(attr_store.count("unit_diagonal"));
+
+  ir::Tensor a   = inputs[0];
+  ir::Tensor b   = inputs[1];
+  int ndim       = static_cast<int>(a->shape.size());
+  int batch_size = 1;
+  for (int i = 0; i < ndim - 2; i++) {
+    batch_size *= a->shape[i].as_int32();
+  }
+  int m = a->shape[ndim - 1].as_int32();
+  int k = b->shape[ndim - 1].as_int32();
+
+  auto left_side = absl::get<bool>(attrs.attr_store.at("left_side"));
+  auto upper = absl::get<bool>(attrs.attr_store.at("upper"));
+  auto transpose_a = absl::get<bool>(attrs.attr_store.at("transpose_a"));
+  auto unit_diagonal = absl::get<bool>(attrs.attr_store.at("unit_diagonal"));
+
+  std::vector<ir::Expr> args = {ir::Expr(batch_size), ir::Expr(m), ir::Expr(k), 
+                                ir::Expr(left_side), ir::Expr(upper), ir::Expr(transpose_a), ir::Expr(unit_diagonal)};
+
+  return args;
+}
+
 bool RegisteryCustomCallArgsFunc() {
 #ifdef CINN_WITH_CUDA
   CustomCallArgsFuncRegistry::Global().Register(
@@ -736,6 +767,8 @@ bool RegisteryCustomCallArgsFunc() {
       "cinn_call_cholesky_nvgpu", common::DefaultNVGPUTarget(), CustomCallArgsForCholesky);
   CustomCallArgsFuncRegistry::Global().Register(
       "cinn_call_batched_cublas", common::DefaultNVGPUTarget(), CustomCallArgsForBatchedCublas);
+  CustomCallArgsFuncRegistry::Global().Register(
+      "cinn_call_triangular_solve_nvgpu", common::DefaultNVGPUTarget(), CustomCallArgsForTriangularSolve);
 #endif
 
 #ifdef CINN_WITH_CUDNN

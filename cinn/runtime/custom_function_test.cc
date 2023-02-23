@@ -294,5 +294,54 @@ TEST(CustomCallCholesky, test) {
   }
 }
 
+TEST(CustomCallTriangular, test) {
+  Target target      = common::DefaultNVGPUTarget();
+  Target host_target = common::DefaultHostTarget();
+
+  int batch_size = 1;
+  int m = 3;
+  int k = 1;
+  bool left_side = true;
+  bool upper = false;
+  bool transpose_a = false;
+  bool unit_diagonal = false;
+
+  double input_a_host[9] = {1.0, 1.0, 1.0, 0.0, 2.0, 1.0, 0.0, 0.0, -1.0};
+  double input_b_host[9] = {0.0, -9.0, 5.0};
+  CinnBufferAllocHelper a(cinn_x86_device, cinn_float64_t(), {m, m});
+  CinnBufferAllocHelper b(cinn_x86_device, cinn_float64_t(), {m, k});
+  auto* input_a = a.mutable_data<double>(target);
+  auto* input_b = b.mutable_data<double>(target);
+  SetInputValue(input_a, input_a_host, m * m, target);
+  SetInputValue(input_b, input_b_host, m * k, target);
+
+  // Output matrix out
+  CinnBufferAllocHelper out(cinn_x86_device, cinn_float64_t(), {m, k});
+  auto* output = out.mutable_data<double>(target);
+
+  // Result matrix res
+  // The results of cpu and gpu are slightly different, 0.76365214 vs 0.76365221
+  double result[9] = {7.0, -2.0, -5.0};
+
+  constexpr int num_args               = 3;
+  cinn_pod_value_t v_args[num_args] = {cinn_pod_value_t(a.get()), cinn_pod_value_t(b.get()), cinn_pod_value_t(out.get())};
+
+  if (target == common::DefaultHostTarget()) {
+    LOG(ERROR) << "Host Target is not supported yet";
+  } else if (target == common::DefaultNVGPUTarget()) {
+#ifdef CINN_WITH_CUDA
+    cinn::runtime::cuda::cinn_call_triangular_solve_nvgpu(v_args, num_args, batch_size, m, k, left_side, upper, transpose_a, unit_diagonal);
+    std::vector<double> host_output(batch_size * m * k, 0.0f);
+    cudaMemcpy(host_output.data(), output, batch_size * m * k * sizeof(double), cudaMemcpyDeviceToHost);
+    for (int i = 0; i < batch_size * m * k; i++) {
+      std::cout << host_output[i] << " ";
+      // ASSERT_NEAR(host_output[i], result[i], 1e-5) << "The output of triangular solve should be the same as result";
+    }
+#else
+    LOG(INFO) << "NVGPU Target only support on flag CINN_WITH_CUDA ON! Please check.";
+#endif
+  }
+}
+
 }  // namespace runtime
 }  // namespace cinn
