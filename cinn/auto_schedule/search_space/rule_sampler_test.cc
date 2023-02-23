@@ -58,14 +58,14 @@ TEST(TraversalRuleSampler, NextRule) {
 
 TEST(ProbabilisticRuleSampler, NextRule) {
   std::vector<AutoGenRule*> rules = GenerateTestRules();
-  auto probabilistic_rule_sampler = RuleSampler::Make(rules, false, "probabilistic", {4, 1});
+  auto probabilistic_rule_sampler = RuleSampler::Make(rules, false, "probabilistic", 0, {4, 1});
   AutoGenRule* rule;
   for (int i = 0; i < 20; ++i) {
     rule = probabilistic_rule_sampler->NextRule();
     VLOG(6) << "next rule name: " << rule->GetRuleName();
   }
 
-  probabilistic_rule_sampler = RuleSampler::Make(rules, true, "probabilistic", {4, 1});
+  probabilistic_rule_sampler = RuleSampler::Make(rules, true, "probabilistic", 0, {4, 1});
   probabilistic_rule_sampler->NextRule();
   probabilistic_rule_sampler->NextRule();
   ASSERT_EQ(nullptr, probabilistic_rule_sampler->NextRule());

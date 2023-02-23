@@ -149,7 +149,7 @@ std::vector<SearchState> SearchSpace::InitSketchWithRandomPrunedStrategy() {
   ir::IRSchedule init_schedule(ir::ModuleExpr(tune_task_.GetLoweredFuncBodyExprs()),
                                utils::ForkRandomState(&rand_seed_));
   auto all_blocks    = init_schedule.GetAllBlocks();
-  auto block_sampler = BlockSampler::Make(all_blocks, true, "probabilistic");
+  auto block_sampler = BlockSampler::Make(all_blocks, true, "probabilistic", utils::ForkRandomState(&rand_seed_));
 
   std::vector<AutoGenRule*> init_rules;
   std::transform(sketch_rules_.begin(), sketch_rules_.end() - 1, std::back_inserter(init_rules), [](const auto& rule) {
@@ -174,7 +174,7 @@ std::vector<SearchState> SearchSpace::InitSketchWithRandomPrunedStrategy() {
     total_steps += steps;
     p_states_next->clear();
     for (const auto& state : *p_states_cur) {
-      auto rule_sampler = RuleSampler::Make(init_rules, true, "probabilistic");
+      auto rule_sampler = RuleSampler::Make(init_rules, true, "probabilistic", utils::ForkRandomState(&rand_seed_));
       auto new_states   = ApplySketchRule(state, block_name, rule_sampler.get(), steps, false, 1);
       p_states_next->insert(p_states_next->end(), new_states.begin(), new_states.end());
     }
@@ -185,8 +185,8 @@ std::vector<SearchState> SearchSpace::InitSketchWithRandomPrunedStrategy() {
   return *p_states_cur;
 }
 
-std::vector<SearchState> SearchSpace::InitiSketchWithRulePrunedStrategy() {
-  VLOG(5) << "SearchSpace::InitiSketchWithRulePrunedStrategy";
+std::vector<SearchState> SearchSpace::InitSketchWithRulePrunedStrategy() {
+  VLOG(5) << "SearchSpace::InitSketchWithRulePrunedStrategy";
   ir::IRSchedule init_schedule(ir::ModuleExpr(tune_task_.GetLoweredFuncBodyExprs()),
                                utils::ForkRandomState(&rand_seed_));
   auto all_blocks = init_schedule.GetAllBlocks();
@@ -229,7 +229,7 @@ std::vector<SearchState> SearchSpace::GenerateSketches(int num, const std::strin
   while (result.size() < num) {
     std::vector<SearchState> sketchs;
     if (strategy == "rule_prune") {
-      sketchs = InitiSketchWithRulePrunedStrategy();
+      sketchs = InitSketchWithRulePrunedStrategy();
     } else if (strategy == "random_prune") {
       sketchs = InitSketchWithRandomPrunedStrategy();
     } else {

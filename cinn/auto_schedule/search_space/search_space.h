@@ -73,7 +73,7 @@ class SearchSpace {
   std::vector<SearchState> InitSketchWithRandomPrunedStrategy();
 
   // Generate sketch pruned by rules as initial population of evolutionary search
-  std::vector<SearchState> InitiSketchWithRulePrunedStrategy();
+  std::vector<SearchState> InitSketchWithRulePrunedStrategy();
 
   /**
    * @brief Collect the new states that may be transferred to after applying several rules on a block from a certain
