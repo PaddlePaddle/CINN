@@ -115,7 +115,7 @@ SearchState EvolutionarySearch::CrossOver(const SearchState& state1, const Searc
       << "CrossOver ModuleExpr in EvolutionarySearch must have same number of AST";
 
   for (size_t i = 0; i < father_exprs.size(); ++i) {
-    if (rand() % 2 == 0) {
+    if (utils::SampleUniformInt(0, 2, &rand_seed_) == 0) {
       cross_over_exprs.push_back(optim::IRCopy(father_exprs[i]));
     } else {
       cross_over_exprs.push_back(optim::IRCopy(mother_exprs[i]));
@@ -138,10 +138,10 @@ std::vector<SearchState> EvolutionarySearch::Evolve(const std::vector<SearchStat
   std::vector<SearchState> evolution(population);
 
   for (int i = 0; i < cross_over_num; ++i) {
-    int first_rand_idx  = rand() % generation_num;
-    int second_rand_idx = rand() % generation_num;
+    int first_rand_idx  = utils::SampleUniformInt(0, generation_num, &rand_seed_);
+    int second_rand_idx = utils::SampleUniformInt(0, generation_num, &rand_seed_);
     while (first_rand_idx == second_rand_idx) {
-      second_rand_idx = rand() % generation_num;
+      second_rand_idx = utils::SampleUniformInt(0, generation_num, &rand_seed_);
     }
     evolution.push_back(CrossOver(population[first_rand_idx], population[second_rand_idx]));
   }
