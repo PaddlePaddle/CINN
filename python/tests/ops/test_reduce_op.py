@@ -133,6 +133,20 @@ class TestReduceSumCase8(TestReduceSumOp):
         self.keep_dim = False
 
 
+class TestReduceSumCase9(TestReduceSumOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([1, 1, 10], "float32", -1.0, 1.0)}
+        self.dim = [0, 2]
+        self.keep_dim = False
+
+
+class TestReduceSumCase10(TestReduceSumOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([1, 1, 10], "float32", -1.0, 1.0)}
+        self.dim = [0, 2]
+        self.keep_dim = True
+
+
 class TestReduceSumFP64(TestReduceSumOp):
     def init_case(self):
         self.inputs = {"x": self.random([10, 10, 10], "float64", -1.0, 1.0)}
