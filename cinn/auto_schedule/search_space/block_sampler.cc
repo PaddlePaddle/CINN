@@ -24,6 +24,7 @@ namespace auto_schedule {
 std::unique_ptr<BlockSampler> BlockSampler::Make(const std::vector<ir::Expr>& all_blocks,
                                                  bool default_remove_policy,
                                                  const std::string& strategy,
+                                                 utils::LinearRandomEngine::StateType rand_seed,
                                                  const std::vector<int>& weights) {
   CHECK_GT(all_blocks.size(), 0) << "Empty block list";
   if (strategy == "traversal") {
@@ -31,7 +32,7 @@ std::unique_ptr<BlockSampler> BlockSampler::Make(const std::vector<ir::Expr>& al
     return std::make_unique<TraversalBlockSampler>(all_blocks, default_remove_policy);
   } else if (strategy == "probabilistic") {
     VLOG(6) << "Init ProbabilisticBlockSampler with block num = " << all_blocks.size();
-    return std::make_unique<ProbabilisticBlockSampler>(all_blocks, default_remove_policy, weights);
+    return std::make_unique<ProbabilisticBlockSampler>(all_blocks, default_remove_policy, rand_seed, weights);
   }
 
   LOG(FATAL) << "Unimplementd strategy:" << strategy;
@@ -63,25 +64,24 @@ std::string TraversalBlockSampler::NextBlock(bool remove) {
 
 ProbabilisticBlockSampler::ProbabilisticBlockSampler(const std::vector<ir::Expr>& all_blocks,
                                                      bool default_remove_policy,
+                                                     utils::LinearRandomEngine::StateType rand_seed,
                                                      const std::vector<int>& weights)
-    : BlockSampler(all_blocks, default_remove_policy), weights_(weights), gen_(rd_()) {
+    : BlockSampler(all_blocks, default_remove_policy), weights_(weights), rand_seed_(rand_seed) {
   if (weights.empty()) {
     weights_.resize(all_blocks.size(), 1);
   } else {
     CHECK_EQ(all_blocks.size(), weights_.size());
   }
-  remains_      = all_blocks.size();
-  distribution_ = std::discrete_distribution<>(weights_.begin(), weights_.end());
+  remains_ = all_blocks.size();
 }
 
 std::string ProbabilisticBlockSampler::NextBlock(bool remove) {
   if (remains_ == 0) {
     return "";
   }
-  int block_idx = distribution_(gen_);
+  int block_idx = utils::SampleDiscreteFromDistribution<int>(weights_, &rand_seed_);
   if (remove) {
     weights_[block_idx] = 0;
-    distribution_       = std::discrete_distribution<>(weights_.begin(), weights_.end());
     --remains_;
   }
   VLOG(6) << "[ProbabilisticBlockSampler] next block: " << all_blocks_.at(block_idx);

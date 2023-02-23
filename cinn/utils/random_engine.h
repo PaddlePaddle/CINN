@@ -91,5 +91,14 @@ int SampleUniformInt(int min, int max, LinearRandomEngine::StateType* state);
 // Sample Real Numbers from uniform distribution [min, max)
 double SampleUniformDouble(double min, double max, LinearRandomEngine::StateType* state);
 
+// Sample Integers from distribution of input weights
+template <typename T>
+int SampleDiscreteFromDistribution(const std::vector<T>& weights, LinearRandomEngine::StateType* state) {
+  CHECK(weights.size() > 0);
+  LinearRandomEngine engine(state);
+  std::discrete_distribution<int> dist(weights.begin(), weights.end());
+  return dist(engine);
+}
+
 }  // namespace utils
 }  // namespace cinn

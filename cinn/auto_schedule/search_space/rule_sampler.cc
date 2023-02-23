@@ -23,12 +23,13 @@ namespace auto_schedule {
 std::unique_ptr<RuleSampler> RuleSampler::Make(const std::vector<AutoGenRule*>& potential_rules,
                                                bool default_remove_policy,
                                                const std::string& strategy,
+                                               utils::LinearRandomEngine::StateType rand_seed,
                                                const std::vector<int>& weights) {
   CHECK_GT(potential_rules.size(), 0) << "Empty rule list";
   if (strategy == "traversal") {
     return std::make_unique<TraversalRuleSampler>(potential_rules, default_remove_policy);
   } else if (strategy == "probabilistic") {
-    return std::make_unique<ProbabilisticRuleSampler>(potential_rules, default_remove_policy, weights);
+    return std::make_unique<ProbabilisticRuleSampler>(potential_rules, default_remove_policy, rand_seed, weights);
   }
 
   LOG(FATAL) << "Unimplementd strategy:" << strategy;
@@ -49,25 +50,26 @@ AutoGenRule* TraversalRuleSampler::NextRule(bool remove) {
 
 ProbabilisticRuleSampler::ProbabilisticRuleSampler(const std::vector<AutoGenRule*>& potential_rules,
                                                    bool default_remove_policy,
+                                                   utils::LinearRandomEngine::StateType rand_seed,
                                                    const std::vector<int>& weights)
-    : RuleSampler(potential_rules, default_remove_policy), weights_(weights), gen_(rd_()) {
+    : RuleSampler(potential_rules, default_remove_policy),
+      weights_(weights),
+      rand_seed_(utils::LinearRandomEngine::NormalizeState(rand_seed)) {
   if (weights.empty()) {
     weights_.resize(potential_rules.size(), 1);
   } else {
     CHECK_EQ(potential_rules.size(), weights_.size());
   }
-  remains_      = potential_rules.size();
-  distribution_ = std::discrete_distribution<>(weights_.begin(), weights_.end());
+  remains_ = potential_rules.size();
 }
 
 AutoGenRule* ProbabilisticRuleSampler::NextRule(bool remove) {
   if (remains_ == 0) {
     return nullptr;
   }
-  int rule_idx = distribution_(gen_);
+  int rule_idx = utils::SampleDiscreteFromDistribution<int>(weights_, &rand_seed_);
   if (remove) {
     weights_[rule_idx] = 0;
-    distribution_      = std::discrete_distribution<>(weights_.begin(), weights_.end());
     --remains_;
   }
 
