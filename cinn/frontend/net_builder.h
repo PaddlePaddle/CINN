@@ -1011,7 +1011,8 @@ class NetBuilder {
    * @param unit_diagonal When unit_diagonal is true, assume the elements on the main diagonal of matrix A are unity
    * @return The solution for the triangular linear systems.
    */
-  Variable TriangularSolve(const Variable& input1, const Variable& input2, bool left_side, bool upper, bool transpose_a, bool unit_diagonal);
+  Variable TriangularSolve(
+      const Variable& input1, const Variable& input2, bool left_side, bool upper, bool transpose_a, bool unit_diagonal);
 
   /**
    * @brief l2-Norm

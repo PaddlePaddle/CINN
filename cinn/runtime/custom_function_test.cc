@@ -298,16 +298,16 @@ TEST(CustomCallTriangular, test) {
   Target target      = common::DefaultNVGPUTarget();
   Target host_target = common::DefaultHostTarget();
 
-  int batch_size = 1;
-  int m = 3;
-  int k = 1;
-  bool left_side = true;
-  bool upper = true;
-  bool transpose_a = false;
+  int batch_size     = 1;
+  int m              = 3;
+  int k              = 1;
+  bool left_side     = true;
+  bool upper         = true;
+  bool transpose_a   = false;
   bool unit_diagonal = false;
 
   double input_a_host[9] = {1.0, 1.0, 1.0, 0.0, 2.0, 1.0, 0.0, 0.0, -1.0};
-  double input_b_host[6] = {0.0,-9.0, 5.0};
+  double input_b_host[3] = {0.0, -9.0, 5.0};
   CinnBufferAllocHelper a(cinn_x86_device, cinn_float64_t(), {m, m});
   CinnBufferAllocHelper b(cinn_x86_device, cinn_float64_t(), {m, k});
   auto* input_a = a.mutable_data<double>(target);
@@ -320,16 +320,18 @@ TEST(CustomCallTriangular, test) {
   auto* output = out.mutable_data<double>(target);
 
   // Result matrix res
-  double result[6] = {7.0, -2.0, -5.0};
+  double result[3] = {7.0, -2.0, -5.0};
 
-  constexpr int num_args               = 3;
-  cinn_pod_value_t v_args[num_args] = {cinn_pod_value_t(a.get()), cinn_pod_value_t(b.get()), cinn_pod_value_t(out.get())};
+  constexpr int num_args            = 3;
+  cinn_pod_value_t v_args[num_args] = {
+      cinn_pod_value_t(a.get()), cinn_pod_value_t(b.get()), cinn_pod_value_t(out.get())};
 
   if (target == common::DefaultHostTarget()) {
     LOG(ERROR) << "Host Target is not supported yet";
   } else if (target == common::DefaultNVGPUTarget()) {
 #ifdef CINN_WITH_CUDA
-    cinn::runtime::cuda::cinn_call_triangular_solve_nvgpu(v_args, num_args, batch_size, m, k, left_side, upper, transpose_a, unit_diagonal);
+    cinn::runtime::cuda::cinn_call_triangular_solve_nvgpu(
+        v_args, num_args, batch_size, m, k, left_side, upper, transpose_a, unit_diagonal);
     std::vector<double> device_output(batch_size * m * k, 0.0f);
     cudaMemcpy(device_output.data(), output, batch_size * m * k * sizeof(double), cudaMemcpyDeviceToHost);
     for (int i = 0; i < batch_size * m * k; i++) {

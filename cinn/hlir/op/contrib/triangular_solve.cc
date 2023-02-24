@@ -53,10 +53,10 @@ using common::CINNValue;
 using common::CINNValuePack;
 
 std::shared_ptr<framework::OpStrategy> StrategyForTriangularSolve(const framework::NodeAttr &attrs,
-                                                           const std::vector<ir::Tensor> &inputs,
-                                                           const std::vector<Type> &out_type,
-                                                           const std::vector<std::vector<int>> &output_shapes,
-                                                           const Target &target) {
+                                                                  const std::vector<ir::Tensor> &inputs,
+                                                                  const std::vector<Type> &out_type,
+                                                                  const std::vector<std::vector<int>> &output_shapes,
+                                                                  const Target &target) {
   framework::CINNCompute triangular_solve_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of triangular_solve is empty! Please check.";
     CINNValuePack pack_args = args[0];
@@ -72,12 +72,13 @@ std::shared_ptr<framework::OpStrategy> StrategyForTriangularSolve(const framewor
     *ret = CINNValuePack{res};
   });
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(triangular_solve_compute, GetInjectiveScheduleFunc(output_shapes, target), "strategy.triangular_solve.x86", 1);
+  strategy->AddImpl(
+      triangular_solve_compute, GetInjectiveScheduleFunc(output_shapes, target), "strategy.triangular_solve.x86", 1);
   return strategy;
 }
 
 std::vector<framework::shape_t> InferShapeForTriangularSolve(const std::vector<framework::shape_t> &inputs_shape,
-                                                      const framework::AttrMapType &attrs) {
+                                                             const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 2U) << "The input's shape size should be 2! Please check again.";
   framework::shape_t a_shape = inputs_shape[0];
   framework::shape_t b_shape = inputs_shape[1];
@@ -94,21 +95,26 @@ std::vector<framework::shape_t> InferShapeForTriangularSolve(const std::vector<f
     }
   }
 
-  CHECK_EQ(a_shape[a_shape_size - 2], a_shape[a_shape_size - 1]) << "The last two dimensions of the input a must be the same!";
+  CHECK_EQ(a_shape[a_shape_size - 2], a_shape[a_shape_size - 1])
+      << "The last two dimensions of the input a must be the same!";
   if (left_side) {
-    CHECK_EQ(a_shape[a_shape_size - 2], b_shape[b_shape_size - 2]) << "The last-but-one dimension of the two vectors must be consistent.";
+    CHECK_EQ(a_shape[a_shape_size - 2], b_shape[b_shape_size - 2])
+        << "The last-but-one dimension of the two vectors must be consistent.";
+  } else {
+    CHECK_EQ(a_shape[a_shape_size - 1], b_shape[b_shape_size - 1])
+        << "The last dimension of the two vectors must be consistent.";
   }
-  else {
-    CHECK_EQ(a_shape[a_shape_size - 1], b_shape[b_shape_size - 1]) << "The last dimension of the two vectors must be consistent.";
-  }
-  
+
   return {b_shape};
 }
 
-std::vector<Type> InferDtypeForTriangularSolve(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
+std::vector<Type> InferDtypeForTriangularSolve(const std::vector<Type> &inputs_type,
+                                               const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_type.size(), 2U) << "The input's shape size should be 2! Please check again.";
-  CHECK(inputs_type[0].is_float(32) || inputs_type[0].is_float(64)) << "The input's dtype should be float32 or float64! Please check again.";
-  CHECK(inputs_type[1].is_float(32) || inputs_type[1].is_float(64)) << "The input's dtype should be float32 or float64! Please check again.";
+  CHECK(inputs_type[0].is_float(32) || inputs_type[0].is_float(64))
+      << "The input's dtype should be float32 or float64! Please check again.";
+  CHECK(inputs_type[1].is_float(32) || inputs_type[1].is_float(64))
+      << "The input's dtype should be float32 or float64! Please check again.";
   return std::vector<Type>{inputs_type[1]};
 }
 

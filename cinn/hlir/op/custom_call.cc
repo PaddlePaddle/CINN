@@ -725,8 +725,8 @@ std::vector<ir::Expr> CustomCallArgsForCholesky(const framework::NodeAttr &attrs
 }
 
 std::vector<ir::Expr> CustomCallArgsForTriangularSolve(const framework::NodeAttr &attrs,
-                                                const std::vector<ir::Tensor> &inputs,
-                                                const std::vector<std::vector<int>> &output_shapes) {
+                                                       const std::vector<ir::Tensor> &inputs,
+                                                       const std::vector<std::vector<int>> &output_shapes) {
   CHECK_EQ(inputs.size(), 2UL);
   auto attr_store = attrs.attr_store;
   CHECK(attr_store.count("left_side"));
@@ -736,22 +736,28 @@ std::vector<ir::Expr> CustomCallArgsForTriangularSolve(const framework::NodeAttr
 
   ir::Tensor a   = inputs[0];
   ir::Tensor b   = inputs[1];
-  int ndim       = static_cast<int>(a->shape.size());
+  int a_ndim     = static_cast<int>(a->shape.size());
+  int b_ndim     = static_cast<int>(b->shape.size());
   int batch_size = 1;
-  for (int i = 0; i < ndim - 2; i++) {
+  for (int i = 0; i < a_ndim - 2; i++) {
     batch_size *= a->shape[i].as_int32();
   }
-  
-  auto left_side = absl::get<bool>(attrs.attr_store.at("left_side"));
-  auto upper = absl::get<bool>(attrs.attr_store.at("upper"));
-  auto transpose_a = absl::get<bool>(attrs.attr_store.at("transpose_a"));
+
+  auto left_side     = absl::get<bool>(attrs.attr_store.at("left_side"));
+  auto upper         = absl::get<bool>(attrs.attr_store.at("upper"));
+  auto transpose_a   = absl::get<bool>(attrs.attr_store.at("transpose_a"));
   auto unit_diagonal = absl::get<bool>(attrs.attr_store.at("unit_diagonal"));
 
-  int m = a->shape[ndim - 1].as_int32();
-  int k = left_side ? b->shape[ndim - 1].as_int32() : b->shape[ndim - 2].as_int32();
+  int m = a->shape[a_ndim - 1].as_int32();
+  int k = left_side ? b->shape[b_ndim - 1].as_int32() : b->shape[b_ndim - 2].as_int32();
 
-  std::vector<ir::Expr> args = {ir::Expr(batch_size), ir::Expr(m), ir::Expr(k), 
-                                ir::Expr(left_side), ir::Expr(upper), ir::Expr(transpose_a), ir::Expr(unit_diagonal)};
+  std::vector<ir::Expr> args = {ir::Expr(batch_size),
+                                ir::Expr(m),
+                                ir::Expr(k),
+                                ir::Expr(left_side),
+                                ir::Expr(upper),
+                                ir::Expr(transpose_a),
+                                ir::Expr(unit_diagonal)};
 
   return args;
 }
