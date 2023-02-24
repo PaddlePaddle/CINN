@@ -75,10 +75,19 @@ class DceHelper : public FusionHelperBase {
     auto nodes_inorder = std::get<0>(graph_->topological_order());
     std::vector<Node*> all_nodes_list;
     for (auto node : nodes_inorder) {
+      CHECK(node);
       if (!node->safe_as<Node>()) {
         continue;
       }
       all_nodes_list.push_back(node->safe_as<Node>());
+    }
+
+    for (auto node : all_nodes_list) {
+      if (nodes_set_.count(node)) {
+        LOG(INFO) << "[node in set] " << node->id();
+      } else {
+        LOG(INFO) << "[node not in set] " << node->id();
+      }
     }
 
     for (auto node : all_nodes_list) {
@@ -90,24 +99,29 @@ class DceHelper : public FusionHelperBase {
 
       // remove others link to node.
       for (auto link : inlinks) {
+        CHECK(link.operator->());
         auto src = link->source();
+        CHECK(src);
         src->UnLinkAllTo(node);
       }
 
       // remove node data link to others.
       for (auto link : outlinks) {
         // node data
-        auto ndata  = link->sink();
+        CHECK(link.operator->());
+        auto ndata = link->sink();
+        CHECK(ndata);
         auto& links = ndata->outlinks();
         for (auto link_ : links) {
           auto dest = link_->sink();
+          CHECK(dest);
           ndata->UnLinkAllTo(dest);
         }
-        VLOG(1) << "Drop : " << ndata->id();
+        LOG(INFO) << "Drop node data: " << ndata->id();
         graph_->DropNode(ndata);
       }
 
-      VLOG(1) << "Drop : " << node->id();
+      LOG(INFO) << "Drop node: " << node->id();
       graph_->DropNode(node);
     }
   }
