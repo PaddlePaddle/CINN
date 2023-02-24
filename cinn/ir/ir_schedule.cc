@@ -2104,7 +2104,11 @@ void IRSchedule::CopyTransformAndLoopInfo(const std::string& block_name, const s
 }
 
 std::vector<Expr> IRSchedule::SamplePerfectTile(const Expr& loop, int n, int max_innermost_factor) {
-  auto result = impl_->SamplePerfectTile(&rand_seed_, loop, n, max_innermost_factor);
+  // TODO(BiynXu): After we add the decision mechanism, change the random seed
+  // to the member(rand_seed_) of the IRSchedule object.
+  // Temporarily use a constant as the random seed to ensure the consistency when replaying the trace.
+  cinn::utils::LinearRandomEngine::StateType tmp_seed = 1;
+  auto result = impl_->SamplePerfectTile(&tmp_seed, loop, n, max_innermost_factor);
   trace_.Append(ScheduleDesc::Step("SamplePerfectTile",
                                    {{"loop", std::vector<Expr>({loop})}},
                                    {{"n", n}, {"max_innermost_factor", max_innermost_factor}},
