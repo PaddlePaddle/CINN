@@ -83,7 +83,7 @@ void PrintResult(std::shared_ptr<hlir::framework::Graph::Group> group) {
 
   auto nodes = group->CollectNodes();
   VLOG(3) << "Node size:" << nodes.size();
-  VLOG(3) << "Group  {";
+  VLOG(3) << "Group {";
   for (auto* node : nodes) {
     VLOG(3) << "  " << hlir::framework::DebugString(node);
   }

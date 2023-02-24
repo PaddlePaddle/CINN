@@ -63,8 +63,9 @@ TaskOptimizer::TaskOptimizer(TuneTask* task, ScheduleMeasurer* schedule_measurer
 
 FunctionGroup TaskOptimizer::Optimize(const TuningOptions& options) {
   CHECK(task_->subgraph != nullptr) << "subgraph can't be empty";
+  // task with forbidden or custom_call ops can't be tuned
   if (IsForbiddenToTune(task_) || IsWrappedByCustomCall(task_)) {
-    return OptimizeByManual(false).functions;
+    return task_->op_lowerer->Lower(task_->subgraph);
   }
 
   std::vector<TaskOptimizer::Result> candidates;
@@ -75,27 +76,74 @@ FunctionGroup TaskOptimizer::Optimize(const TuningOptions& options) {
   }
   sort(candidates.begin(), candidates.end(), [](const auto& lhs, const auto& rhs) { return lhs.cost < rhs.cost; });
   auto&& best = candidates.front();
-  VLOG(4) << "The best candidate from=" << best.from;
+  VLOG(4) << "Total candidates=" << candidates.size() << ", the best from=" << best.from << ", cost=" << best.cost;
   return best.functions;
 }
 
 TaskOptimizer::Result TaskOptimizer::OptimizeByManual(bool need_measured) {
   static constexpr char* kManualMeasuredKeyPrefix = "@ManualMeasured:\n";
   TaskOptimizer::Result result("Manual");
-  result.functions                = task_->op_lowerer->Lower(task_->subgraph);
-  std::string manual_measured_key = kManualMeasuredKeyPrefix + task_->serialized_key;
-  if (need_measured && database_->Count(manual_measured_key) == 0) {
-    std::vector<MeasureInput> inputs(1);
-    inputs.back().task                         = task_;
-    inputs.back().lowered_funcs                = result.functions;
-    std::vector<MeasureResult> measure_outputs = schedule_measurer_->Measure(inputs);
+  result.functions = task_->op_lowerer->Lower(task_->subgraph);
+
+  // pack functions body
+  std::vector<ir::Expr> func_bodys;
+  for (const ir::LoweredFunc& func : result.functions) {
+    func_bodys.push_back(func->body);
   }
-  std::vector<TuningRecord> measured_records = database_->LookUp(manual_measured_key);
+
+  SearchState state(ir::IRSchedule(ir::ModuleExpr(std::move(func_bodys))));
+  if (FLAGS_auto_schedule_use_cost_model) {
+    state->predicted_cost = cost_model_.Predict(state->ir_schedule.GetModule(), task_->target);
+  }
+  result.cost = state->predicted_cost;  // use predicted_cost as default result.cost
+
+  // add the specific prefix in front of serialized_key to be store/load measured record for manual schedule
+  std::string measured_key = kManualMeasuredKeyPrefix + task_->serialized_key;
+  if (need_measured && database_->Count(measured_key) == 0) {
+    std::vector<MeasureInput> inputs(1);
+    inputs.back().task          = task_;
+    inputs.back().lowered_funcs = result.functions;
+    VLOG(4) << "Measure manual schedule";
+    std::vector<MeasureResult> measure_outputs = schedule_measurer_->Measure(inputs);
+    database_->AddRecord(TuningRecord(measured_key, state, measure_outputs[0].execution_cost));
+  }
+
+  auto measured_records = database_->LookUp(measured_key);
+  if (!measured_records.empty()) {  // update result.cost by measured if exists
+    result.cost = measured_records[0].execution_cost;
+  }
   return result;
 }
 
 TaskOptimizer::Result TaskOptimizer::OptimizeByExternal(bool need_measured) {
-  TaskOptimizer::Result result("Externel");
+  static constexpr char* kExternalMeasuredKeyPrefix = "@ExternalMeasured:\n";
+  TaskOptimizer::Result result("External");
+  auto nodes       = task_->subgraph->CollectNodes();
+  auto* first_node = nodes.front();
+
+  // set the necessary field for lowering with external api
+  std::string original_op                     = first_node->op()->name;
+  first_node->attrs.attr_store["original_op"] = original_op;
+  first_node->attrs.op                        = hlir::framework::Operator::Get("custom_call");
+  result.functions                            = task_->op_lowerer->Lower(task_->subgraph);
+
+  // add the specific prefix in front of serialized_key to be store/load measured record for external api
+  result.cost              = 0;  // the external is regarded as the best in default, so we set its cost 0
+  std::string measured_key = kExternalMeasuredKeyPrefix + task_->serialized_key;
+  if (need_measured && database_->Count(measured_key) == 0) {
+    std::vector<MeasureInput> inputs(1);
+    inputs.back().task          = task_;
+    inputs.back().lowered_funcs = result.functions;
+    VLOG(4) << "Measure external api";
+    std::vector<MeasureResult> measure_outputs = schedule_measurer_->Measure(inputs);
+    // the SearchState of external is invalid and will not be used, so we just put a temporary one
+    database_->AddRecord(TuningRecord(measured_key, SearchState(ir::IRSchedule()), measure_outputs[0].execution_cost));
+  }
+
+  auto measured_records = database_->LookUp(measured_key);
+  if (!measured_records.empty()) {  // update result.cost by measured if exists
+    result.cost = measured_records[0].execution_cost;
+  }
   return result;
 }
 
