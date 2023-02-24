@@ -67,6 +67,11 @@ FunctionGroup TaskOptimizer::Optimize(const TuningOptions& options) {
   if (IsForbiddenToTune(task_) || IsWrappedByCustomCall(task_)) {
     return task_->op_lowerer->Lower(task_->subgraph);
   }
+  // TODO(CtfGo): the input/output names of a Graph::Group will be changed in Lowering by OpLowerer currently,
+  // so we should revert them after following different lower methods, remove this hard code by fixing the
+  // decoupling between lowering and BuildInstrutions
+  auto initial_input_names  = task_->subgraph->input_names;
+  auto initial_output_names = task_->subgraph->output_names;
 
   std::vector<TaskOptimizer::Result> candidates;
   candidates.emplace_back(OptimizeByEvolution(options));
@@ -77,6 +82,10 @@ FunctionGroup TaskOptimizer::Optimize(const TuningOptions& options) {
   sort(candidates.begin(), candidates.end(), [](const auto& lhs, const auto& rhs) { return lhs.cost < rhs.cost; });
   auto&& best = candidates.front();
   VLOG(4) << "Total candidates=" << candidates.size() << ", the best from=" << best.from << ", cost=" << best.cost;
+
+  // revert input/output names
+  task_->subgraph->input_names  = initial_input_names;
+  task_->subgraph->output_names = initial_output_names;
   return best.functions;
 }
 
@@ -92,10 +101,8 @@ TaskOptimizer::Result TaskOptimizer::OptimizeByManual(bool need_measured) {
   }
 
   SearchState state(ir::IRSchedule(ir::ModuleExpr(std::move(func_bodys))));
-  if (FLAGS_auto_schedule_use_cost_model) {
-    state->predicted_cost = cost_model_.Predict(state->ir_schedule.GetModule(), task_->target);
-  }
-  result.cost = state->predicted_cost;  // use predicted_cost as default result.cost
+  // the manual is regarded as the second best in default, so we set its cost 1.0
+  result.cost = state->predicted_cost;
 
   // add the specific prefix in front of serialized_key to be store/load measured record for manual schedule
   std::string measured_key = kManualMeasuredKeyPrefix + task_->serialized_key;
