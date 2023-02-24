@@ -238,6 +238,13 @@ class TestReduceMaxFP64(TestReduceMaxOp):
         return builder.create_input(Float(64), shape, name)
 
 
+class TestReduceMaxFP64Case1(TestReduceMaxFP64):
+    def init_case(self):
+        self.inputs = {"x": self.random([2, 3, 4, 5], "float64", -1.0, 1.0)}
+        self.dim = [0, 1]
+        self.keep_dim = False
+
+
 class TestReduceMinOp(TestReduceBaseOp):
     def paddle_func(self, x):
         return paddle.min(x, axis=self.dim, keepdim=self.keep_dim)
@@ -285,6 +292,13 @@ class TestReduceMinFP64(TestReduceMinOp):
 
     def cinn_create_input(self, builder, shape, name):
         return builder.create_input(Float(64), shape, name)
+
+
+class TestReduceMinFP64Case1(TestReduceMinFP64):
+    def init_case(self):
+        self.inputs = {"x": self.random([2, 3, 4, 5], "float64", -1.0, 1.0)}
+        self.dim = [0, 1]
+        self.keep_dim = False
 
 
 class TestAllOp(TestReduceBaseOp):

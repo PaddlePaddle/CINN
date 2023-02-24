@@ -129,12 +129,12 @@ void BindNode(py::module *m) {
   // struct UIntImm : ExprNode<UIntImm>
   DefineExprNode<ir::UIntImm>(m, "UIntImm");
   py::class_<ir::UIntImm, ir::ExprNode<ir::UIntImm>> uint_imm(*m, "UIntImm");
-  uint_imm.def_readwrite("value", &ir::UIntImm::value).def(py::init<Type, int64_t>());
+  uint_imm.def_readwrite("value", &ir::UIntImm::value).def(py::init<Type, uint64_t>());
 
   // struct FloatImm : ExprNode<FloatImm>
   DefineExprNode<ir::FloatImm>(m, "FloatImm");
   py::class_<ir::FloatImm, ir::ExprNode<ir::FloatImm>> float_imm(*m, "FloatImm");
-  float_imm.def_readwrite("value", &ir::FloatImm::value).def(py::init<Type, float>());
+  float_imm.def_readwrite("value", &ir::FloatImm::value).def(py::init<Type, double>());
 
   // struct StringImm : ExprNode<StringImm>
   DefineExprNode<ir::StringImm>(m, "StringImm");
