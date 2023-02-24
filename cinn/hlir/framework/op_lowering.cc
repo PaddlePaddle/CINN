@@ -1380,13 +1380,15 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
   std::vector<Node*> nodes_in_order   = TopologicalOrder(group);
   // find reducer.
   std::unordered_set<Node*> nodes_inline;
-  Node* reducer         = FindReducer(nodes_in_order);
+  auto greducer         = FindGlobalReducer(nodes_in_order);
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
 
   // do schedule
   for (auto node : nodes_in_order) {
+    LOG(INFO) << GetNodeData(node)->id();
     // consumers.
-    auto consumers = GetConsumers(node, nodes_set);
+    auto consumers      = GetConsumers(node, nodes_set);
+    const Node* reducer = greducer ? FindNearestReducer(node, nodes_set) : greducer;
 
     // node can be inline.
     if (CanbeInline(node, consumers, reducer, nodes_in_order.front(), group, this->shape_dict_)) {

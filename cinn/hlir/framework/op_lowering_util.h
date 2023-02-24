@@ -75,9 +75,30 @@ inline std::vector<Node*> GetProducers(const Node* node) {
   return producers;
 }
 
+inline std::vector<Node*> GetProducers(const Node* node, const std::unordered_set<Node*>& node_set) {
+  std::vector<Node*> producers;
+  for (auto& link : node->inlinks_in_order(true)) {
+    auto data = link->source()->safe_as<NodeData>();
+    CHECK(data);
+    if (data->source_node.get() && node_set.count(data->source_node.get())) {
+      producers.push_back(data->source_node.get());
+    }
+  }
+  return producers;
+}
+
 inline bool IsConstOp(const framework::Node* node) {
   static std::unordered_set<std::string> const_op_type = {"const_scalar", "fill_constant", "arange"};
   if (const_op_type.count(node->op()->name)) {
+    return true;
+  } else {
+    return false;
+  }
+}
+
+inline bool IsReshapeOp(const framework::Node* node) {
+  static std::unordered_set<std::string> t_op_type = {"reshape"};
+  if (t_op_type.count(node->op()->name)) {
     return true;
   } else {
     return false;
@@ -122,11 +143,50 @@ inline std::vector<Node*> TopologicalOrder(const GroupPtr& group) {
   return nodes_in_order;
 }
 
-inline Node* FindReducer(std::vector<Node*> node_in_order) {
+inline Node* FindGlobalReducer(const std::vector<Node*>& nodes_in_order) {
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
-  for (auto iter = node_in_order.rbegin(); iter != node_in_order.rend(); ++iter) {
+  for (auto iter = nodes_in_order.rbegin(); iter != nodes_in_order.rend(); ++iter) {
     if (op_pattern_dict[(*iter)->op()] == framework::kReduction) {
       return *iter;
+    }
+  }
+
+  return nullptr;
+}
+
+inline Node* FindNearestReducer(const Node* node, const std::unordered_set<Node*>& nodes_set) {
+  LOG(INFO) << "FindNearestReducer";
+  auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
+  // from consumers find reducer.
+  {
+    std::queue<const Node*> candidates;
+    candidates.push(node);
+    while (!candidates.empty()) {
+      auto candidate = candidates.front();
+      candidates.pop();
+
+      for (auto consumer : GetConsumers(candidate, nodes_set)) {
+        if (op_pattern_dict[consumer->op()] == framework::kReduction) {
+          return consumer;
+        }
+        candidates.push(consumer);
+      }
+    }
+  }
+  // from producers find reducer.
+  {
+    std::queue<const Node*> candidates;
+    candidates.push(node);
+    while (!candidates.empty()) {
+      auto candidate = candidates.front();
+      candidates.pop();
+
+      for (auto consumer : GetProducers(candidate, nodes_set)) {
+        if (op_pattern_dict[consumer->op()] == framework::kReduction) {
+          return consumer;
+        }
+        candidates.push(consumer);
+      }
     }
   }
 
@@ -203,6 +263,7 @@ inline void LoopAssignReduceWithoutLast(ir::IRSchedule& ir_sch,
                                         const std::vector<int>& inshape,
                                         const std::vector<int>& axes,
                                         const common::Target& target) {
+  LOG(INFO) << "LoopAssignReduceWithoutLast!";
   CHECK(axes.size());
   int lane            = 1;
   int max_num_threads = target.max_num_threads();
@@ -329,14 +390,22 @@ inline bool CanbeInline(Node* node,
                         const Node* laster,
                         const GroupPtr& group,
                         const absl::flat_hash_map<std::string, shape_t>& shape_dict) {
+  LOG(INFO) << "CanbeInline";
   if (group->output_nodes.count(node)) {
     return false;
   }
   if (IsConstOp(node)) {
     return true;
   }
+
+  auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
+  for (auto consumer : consumers) {
+    if (op_pattern_dict[consumer->op()] == framework::kReduction) {
+      return false;
+    }
+  }
+
   if (reducer) {
-    auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
     if (op_pattern_dict[node->op()] == framework::kReduction) {
       return false;
     }
@@ -373,31 +442,22 @@ inline bool CanbeInline(Node* node,
 inline Node* GetMasterToComputeAt(Node* node,
                                   const std::unordered_set<Node*>& nodes_inline,
                                   const std::unordered_set<Node*>& node_set) {
-  std::queue<Node*> candidates;
-  auto consumers = GetConsumers(node, node_set);
-  for (auto consumer : consumers) {
-    if (nodes_inline.count(consumer)) {
-      candidates.push(consumer);
-      continue;
-    } else {
-      return consumer;
-    }
-  }
-
   std::unordered_set<Node*> visited;
+  std::queue<Node*> candidates;
+  candidates.push(node);
+
   while (!candidates.empty()) {
     auto candidate = candidates.front();
     candidates.pop();
 
     for (auto consumer : GetConsumers(candidate, node_set)) {
-      if (visited.count(consumer)) {
-        continue;
-      }
       if (nodes_inline.count(consumer)) {
-        candidates.push(consumer);
-        visited.insert(consumer);
+        if (!visited.count(consumer)) {
+          candidates.push(consumer);
+          visited.insert(consumer);
+        }
       } else {
-        return candidate;
+        return consumer;
       }
     }
   }
@@ -411,6 +471,7 @@ inline void LoopAssignReduce(ir::IRSchedule& ir_sch,
                              const Target& target,
                              const std::unordered_map<std::string, ir::Tensor>& tensor_map,
                              const absl::flat_hash_map<std::string, shape_t>& shape_dict) {
+  LOG(INFO) << "Doing LoopAssignReduce!";
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
   // if node is reducer, return.
   if (op_pattern_dict[node->op()] == framework::kReduction) {
@@ -471,25 +532,86 @@ inline void LoopAssignReduce(ir::IRSchedule& ir_sch,
 
   // node output is same shape with reduce input.
   if (WithoutLastDimInReduce(shape, axes)) {
+    auto nloops = ir_sch.GetLoops(node_data->id());
+    ir_sch.Split(nloops.back(), shape);
     // if using block shuffle
     if (tensor_map.count(reducer_data->id() + "_1")) {
       LoopAssignReduceWithoutLast(ir_sch, node_data->id(), shape, axes, target);
+      auto nloops = ir_sch.GetLoops(node_data->id());
+      auto rloops = ir_sch.GetLoops(tensor_map.find(reducer_data->id() + "_0")->second->name);
+      if (nloops.size() < rloops.size()) {
+        ir_sch.Split(nloops[0], {-1, ir::GetLoopExtent(nloops[0])});
+      }
     } else {
+      LOG(INFO) << "LoopOrderAssignReduce!";
       LoopOrderAssignReduce(ir_sch, node_data->id(), axes, target);
+      auto nloops = ir_sch.GetLoops(node_data->id());
+      auto rloops = ir_sch.GetLoops(tensor_map.find(reducer_data->id())->second->name);
+      if (nloops.size() < rloops.size()) {
+        ir_sch.Split(nloops[0], {-1, ir::GetLoopExtent(nloops[0])});
+      }
     }
   } else {
     if (tensor_map.count(reducer_data->id() + "_1")) {
+      auto nloops = ir_sch.GetLoops(node_data->id());
+      ir_sch.Split(nloops.back(), shape);
       LoopAssignReduceWithLast(ir_sch, node_data->id(), shape, axes, target);
+      nloops      = ir_sch.GetLoops(node_data->id());
+      auto rloops = ir_sch.GetLoops(tensor_map.find(reducer_data->id() + "_1")->second->name);
+
+      if (nloops.size() < rloops.size()) {
+        ir_sch.Split(nloops[0], {-1, ir::GetLoopExtent(nloops[0])});
+      }
     } else if (tensor_map.count(reducer_data->id() + "_0")) {
+      auto tensor = tensor_map.find(reducer_data->id() + "_0")->second;
+      auto rloops = ir_sch.GetLoops(tensor->name);
+      std::vector<int> factors;
+      for (auto& loop : rloops) {
+        factors.push_back(loop.As<ir::For>()->extent.as_int32());
+      }
+      auto nloops = ir_sch.GetLoops(node_data->id());
+      ir_sch.Split(nloops.back(), factors);
     } else {
       LOG(FATAL) << "Error! Unkown Reduce Type!";
     }
   }
 }
 
+// The struct used to remove the original block in ComputeAt.
+class RemoveExpr : public ir::IRMutator<> {
+ public:
+  RemoveExpr(const Expr& target) : target_(target) {}
+
+  void operator()(Expr* expr) { IRMutator::Visit(expr, expr); }
+
+ private:
+  void Visit(const ir::ScheduleBlockRealize* expr, Expr* op) override { IRMutator::Visit(expr, op); }
+
+  void Visit(const ir::For* expr, Expr* op) override { IRMutator::Visit(expr, op); }
+
+  void Visit(const ir::Block* expr, Expr* op) override {
+    auto* node = op->As<ir::Block>();
+    auto iter  = std::find(node->stmts.begin(), node->stmts.end(), target_);
+    if (iter != node->stmts.end()) {
+      node->stmts.erase(iter);
+    } else {
+      for (auto stmt : node->stmts) {
+        IRMutator::Visit(&stmt, &stmt);
+      }
+    }
+  }
+
+ private:
+  const Expr& target_;
+};
+
 inline void MergeLoops(ir::Expr root, std::vector<ir::Expr>& src, std::vector<ir::Expr>& dst, int index) {
   CHECK_GT(src.size(), index);
   CHECK_GT(dst.size(), index);
+
+  if (src[0] == dst[0]) {
+    return;
+  }
 
   std::vector<ir::Var> src_vars;
   std::vector<ir::Expr> dst_vars;
@@ -498,30 +620,59 @@ inline void MergeLoops(ir::Expr root, std::vector<ir::Expr>& src, std::vector<ir
     dst_vars.push_back(ir::Expr(dst[idx].As<ir::For>()->loop_var));
   }
 
-  auto src_body                  = src[index].As<ir::For>()->body;
-  src[index].As<ir::For>()->body = ir::Expr();
+  auto src_body = src[index].As<ir::For>()->body;
   ReplaceExpr(&src_body, src_vars, dst_vars);
   dst[index].As<ir::For>()->body = ir::Block::Make({src_body, dst[index].As<ir::For>()->body});
 
-  CHECK(root.As<ir::Block>());
-  CHECK(root.As<ir::Block>()->stmts[0].As<ir::ScheduleBlockRealize>());
-  CHECK(root.As<ir::Block>()->stmts[0].As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>());
-
-  auto body =
-      root.As<ir::Block>()->stmts[0].As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->body;
-  CHECK(body.As<ir::Block>());
-  auto block = body.As<ir::Block>();
-
-  auto iter = std::find(block->stmts.begin(), block->stmts.end(), src[0]);
-  CHECK(iter != block->stmts.end());
-  block->stmts.erase(iter);
+  RemoveExpr remove_expr(src[0]);
+  remove_expr(&root);
 }
+
+inline void MergeReduceLoop(ir::IRSchedule& ir_sch,
+                            Node* node,
+                            const std::unordered_map<std::string, ir::Tensor>& tensor_map) {
+  auto node_data    = GetNodeData(node);
+  std::string post_ = "", post__ = "_0";
+  for (int idx = 0;; ++idx) {
+    if (!tensor_map.count(node_data->id() + post__)) {
+      break;
+    }
+    auto tensor_  = tensor_map.find(node_data->id() + post_)->second;
+    auto tensor__ = tensor_map.find(node_data->id() + post__)->second;
+    if (!ir_sch.HasBlock(tensor__->name)) {
+      break;
+    }
+
+    auto dst_loops = ir_sch.GetLoops(tensor_->name);
+    auto src_loops = ir_sch.GetLoops(tensor__->name);
+    int index      = -1;
+    while (src_loops[index + 1].As<ir::For>()->extent.as_int32() ==
+           dst_loops[index + 1].As<ir::For>()->extent.as_int32()) {
+      ++index;
+      if (src_loops.size() == index + 1 || dst_loops.size() == index + 1) {
+        break;
+      }
+    }
+
+    MergeLoops(ir_sch.GetModule().GetExprs().at(0), src_loops, dst_loops, index);
+
+    post_  = "_" + std::to_string(idx);
+    post__ = "_" + std::to_string(idx + 1);
+  }
+}
+
+inline void InsertSyncThread(ir::IRSchedule& ir_sch, Node* node) {}
 
 inline void LoopComputeAt(ir::IRSchedule& ir_sch,
                           Node* node,
                           const Node* master,
                           const GroupPtr& group,
                           const std::unordered_map<std::string, ir::Tensor>& tensor_map) {
+  auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
+  if (op_pattern_dict[node->op()] == framework::kReduction) {
+    MergeReduceLoop(ir_sch, node, tensor_map);
+    InsertSyncThread(ir_sch, node);
+  }
   if (!master) return;
 
   auto node_data   = GetNodeData(node);
@@ -529,37 +680,38 @@ inline void LoopComputeAt(ir::IRSchedule& ir_sch,
 
   auto node_loops   = ir_sch.GetLoops(node_data->id());
   auto master_loops = ir_sch.GetLoops(master_data->id());
+  if (op_pattern_dict[master->op()] == framework::kReduction) {
+    std::string prev = "", post = "";
+    for (int idx = 0;; ++idx) {
+      if (!tensor_map.count(master_data->id() + post)) {
+        break;
+      }
+      auto tensor = tensor_map.find(master_data->id() + post)->second;
+      if (!ir_sch.HasBlock(tensor->name)) {
+        break;
+      }
+
+      prev = post;
+      post = "_" + std::to_string(idx);
+    }
+
+    auto tensor  = tensor_map.find(master_data->id() + prev)->second;
+    master_loops = ir_sch.GetLoops(tensor->name);
+  }
 
   if (!group->output_nodes.count(node)) {
     auto block = ir_sch.GetBlock(node_data->id());
     ir_sch.SetBuffer(block, "local", true);
   }
 
-  int index             = std::min(node_loops.size(), master_loops.size()) - 1;
-  auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
+  int index = std::min(node_loops.size(), master_loops.size()) - 1;
   do {
     // if loop range is not equal.
     if (node_loops[index].As<ir::For>()->extent.as_int32() != master_loops[index].As<ir::For>()->extent.as_int32()) {
       continue;
     }
 
-    std::string post = "";
-    for (int idx = 0;; ++idx) {
-      if (!tensor_map.count(node_data->id() + post)) {
-        break;
-      }
-
-      auto tensor = tensor_map.find(node_data->id() + post)->second;
-      if (!ir_sch.HasBlock(tensor->name)) {
-        break;
-      }
-      auto src_loops = ir_sch.GetLoops(tensor->name);
-      auto dst_loops = ir_sch.GetLoops(master_data->id());
-      // ir_sch.SimpleComputeAt(src_loops[index], dst_loops[index]);
-      MergeLoops(ir_sch.GetModule().GetExprs().at(0), src_loops, dst_loops, index);
-      post = "_" + std::to_string(idx);
-    }
-
+    MergeLoops(ir_sch.GetModule().GetExprs().at(0), node_loops, master_loops, index);
     break;
   } while (--index);
 }
