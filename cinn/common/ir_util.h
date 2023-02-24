@@ -102,8 +102,10 @@ Expr make_const(Type t, T v) {
   if (t.is_vector()) {
     if (t.is_int()) {
       return ir::Broadcast::Make(make_shared<ir::IntImm>(t.ElementOf(), static_cast<int64_t>(v)), t.lanes());
+    } else if (t.is_uint()) {
+      return ir::Broadcast::Make(make_shared<ir::UIntImm>(t.ElementOf(), static_cast<uint64_t>(v)), t.lanes());
     } else if (t.is_float()) {
-      return ir::Broadcast::Make(make_shared<ir::FloatImm>(t.ElementOf(), static_cast<float>(v)), t.lanes());
+      return ir::Broadcast::Make(make_shared<ir::FloatImm>(t.ElementOf(), static_cast<double>(v)), t.lanes());
     } else if (t.is_bool()) {
       return ir::Broadcast::Make(make_shared<ir::UIntImm>(t.ElementOf(), static_cast<bool>(v)), t.lanes());
     } else {
@@ -112,6 +114,8 @@ Expr make_const(Type t, T v) {
   } else {
     if (t.is_int()) {
       return make_shared<ir::IntImm>(t, static_cast<int64_t>(v));
+    } else if (t.is_uint()) {
+      return make_shared<ir::UIntImm>(t, static_cast<uint64_t>(v));
     } else if (t.is_float()) {
       return make_shared<ir::FloatImm>(t, static_cast<double>(v));
     } else if (t.is_bool()) {

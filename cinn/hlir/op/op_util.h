@@ -52,7 +52,19 @@ std::vector<T> ToPodVector(const std::vector<Expr> &args) {
   CHECK_EQ(type, common::type_of<T>()) << "Cannot get " << common::type_of<T>() << " value from " << type << " vector!";
 
   std::vector<T> shape_v;
-  if (type.is_int(32)) {
+  if (type.is_bool()) {
+    for (auto &e : args) {
+      shape_v.push_back(static_cast<T>(e.as_bool()));
+    }
+  } else if (type.is_int(8)) {
+    for (auto &e : args) {
+      shape_v.push_back(static_cast<T>(e.as_int8()));
+    }
+  } else if (type.is_int(16)) {
+    for (auto &e : args) {
+      shape_v.push_back(static_cast<T>(e.as_int16()));
+    }
+  } else if (type.is_int(32)) {
     for (auto &e : args) {
       shape_v.push_back(static_cast<T>(e.as_int32()));
     }
@@ -60,9 +72,21 @@ std::vector<T> ToPodVector(const std::vector<Expr> &args) {
     for (auto &e : args) {
       shape_v.push_back(static_cast<T>(e.as_int64()));
     }
-  } else if (type.is_bool()) {
+  } else if (type.is_uint(8)) {
     for (auto &e : args) {
-      shape_v.push_back(static_cast<T>(e.as_bool()));
+      shape_v.push_back(static_cast<T>(e.as_uint8()));
+    }
+  } else if (type.is_uint(16)) {
+    for (auto &e : args) {
+      shape_v.push_back(static_cast<T>(e.as_uint16()));
+    }
+  } else if (type.is_uint(32)) {
+    for (auto &e : args) {
+      shape_v.push_back(static_cast<T>(e.as_uint32()));
+    }
+  } else if (type.is_uint(64)) {
+    for (auto &e : args) {
+      shape_v.push_back(static_cast<T>(e.as_uint64()));
     }
   } else if (type.is_float(16)) {
     for (auto &e : args) {

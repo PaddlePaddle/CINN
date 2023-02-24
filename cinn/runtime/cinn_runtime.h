@@ -91,11 +91,17 @@ typedef struct cinn_type_t {
 // @{
 extern cinn_type_t cinn_unk_t();
 extern cinn_type_t cinn_bool_t(int num_asterisks = 0);
+
 extern cinn_type_t cinn_int8_t(int num_asterisks = 0);
+extern cinn_type_t cinn_int16_t(int num_asterisks = 0);
 extern cinn_type_t cinn_int32_t(int num_asterisks = 0);
 extern cinn_type_t cinn_int64_t(int num_asterisks = 0);
+
+extern cinn_type_t cinn_uint8_t(int num_asterisks = 0);
+extern cinn_type_t cinn_uint16_t(int num_asterisks = 0);
 extern cinn_type_t cinn_uint32_t(int num_asterisks = 0);
 extern cinn_type_t cinn_uint64_t(int num_asterisks = 0);
+
 extern cinn_type_t cinn_float16_t(int num_asterisks = 0);
 extern cinn_type_t cinn_float32_t(int num_asterisks = 0);
 extern cinn_type_t cinn_float64_t(int num_asterisks = 0);
@@ -388,12 +394,21 @@ struct cinn_pod_value_t {
   cinn_pod_value_t(cinn_value_t value, int type_code);
   explicit cinn_pod_value_t(cinn_buffer_t* value);
   explicit cinn_pod_value_t(bool value);
+
   explicit cinn_pod_value_t(int8_t value);
+  explicit cinn_pod_value_t(int16_t value);
   explicit cinn_pod_value_t(int32_t value);
   explicit cinn_pod_value_t(int64_t value);
+
+  explicit cinn_pod_value_t(uint8_t value);
+  explicit cinn_pod_value_t(uint16_t value);
+  explicit cinn_pod_value_t(uint32_t value);
+  explicit cinn_pod_value_t(uint64_t value);
+
   explicit cinn_pod_value_t(float value);
   explicit cinn_pod_value_t(double value);
   explicit cinn_pod_value_t(cinn::common::float16 value);
+
   explicit cinn_pod_value_t(void* value);
   explicit cinn_pod_value_t(const char* value);
 
@@ -402,10 +417,19 @@ struct cinn_pod_value_t {
   operator double() const;
   operator float() const;
   operator cinn::common::float16() const;
+
   operator bool() const;
+
   operator int8_t() const;
+  operator int16_t() const;
   operator int32_t() const;
   operator int64_t() const;
+
+  operator uint8_t() const;
+  operator uint16_t() const;
+  operator uint32_t() const;
+  operator uint64_t() const;
+
   operator void*() const;
   operator cinn_buffer_t*() const;
   operator char*() const;
@@ -447,6 +471,11 @@ __m(cinn_buffer_t*, 7);
 __m(int8_t, 8);
 __m(bool, 9);
 __m(cinn::common::float16, 10);
+__m(int16_t, 11);
+__m(uint8_t, 12);
+__m(uint16_t, 13);
+__m(uint32_t, 14);
+__m(uint64_t, 15);
 #undef __m
 //@}
 #endif  // __cplusplus
@@ -465,10 +494,19 @@ extern "C" {
 float cinn_pod_value_to_float(cinn_pod_value_t* value);
 double cinn_pod_value_to_double(cinn_pod_value_t* value);
 cinn::common::float16 cinn_pod_value_to_float16(cinn_pod_value_t* value);
+
 int64_t cinn_pod_value_to_int64(cinn_pod_value_t* value);
 int32_t cinn_pod_value_to_int32(cinn_pod_value_t* value);
+int16_t cinn_pod_value_to_int16(cinn_pod_value_t* value);
 int8_t cinn_pod_value_to_int8(cinn_pod_value_t* value);
+
+uint64_t cinn_pod_value_to_uint64(cinn_pod_value_t* value);
+uint32_t cinn_pod_value_to_uint32(cinn_pod_value_t* value);
+uint16_t cinn_pod_value_to_uint16(cinn_pod_value_t* value);
+uint8_t cinn_pod_value_to_uint8(cinn_pod_value_t* value);
+
 bool cinn_pod_value_to_bool(cinn_pod_value_t* value);
+
 void* cinn_pod_value_to_void_p(cinn_pod_value_t* value);
 cinn_buffer_t* cinn_pod_value_to_buffer_p(cinn_pod_value_t* value);
 // @}
@@ -478,10 +516,18 @@ cinn_buffer_t* cinn_pod_value_to_buffer_p(cinn_pod_value_t* value);
 void float_to_cinn_pod_value(float v, cinn_pod_value_t* out);
 void float16_to_cinn_pod_value(cinn::common::float16 v, cinn_pod_value_t* out);
 void double_to_cinn_pod_value(double v, cinn_pod_value_t* out);
+
 void bool_to_cinn_pod_value(bool v, cinn_pod_value_t* out);
+
 void int8_to_cinn_pod_value(int8_t v, cinn_pod_value_t* out);
+void int16_to_cinn_pod_value(int16_t v, cinn_pod_value_t* out);
 void int32_to_cinn_pod_value(int32_t v, cinn_pod_value_t* out);
 void int64_to_cinn_pod_value(int64_t v, cinn_pod_value_t* out);
+
+void uint8_to_cinn_pod_value(uint8_t v, cinn_pod_value_t* out);
+void uint16_to_cinn_pod_value(uint16_t v, cinn_pod_value_t* out);
+void uint32_to_cinn_pod_value(uint32_t v, cinn_pod_value_t* out);
+void uint64_to_cinn_pod_value(uint64_t v, cinn_pod_value_t* out);
 
 void handle_to_cinn_pod_value(void* v, cinn_pod_value_t* out);
 void buffer_p_to_cinn_pod_value(const struct cinn_buffer_t* v, cinn_pod_value_t* out);

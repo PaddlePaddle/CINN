@@ -614,7 +614,7 @@ TEST(OP_LOWERING, NonFusibleOp_TEST_4) {
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "MatmulToCublasCustomCallPass");
+  hlir::framework::ApplyPass(graph.get(), "TransToCustomCallPass");
   hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
 
   auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");

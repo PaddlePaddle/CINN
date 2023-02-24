@@ -74,6 +74,20 @@ class TestFillConstantCase3(TestFillConstantOp):
         self.dtype = "bool"
 
 
+class TestFillConstantCase4(TestFillConstantOp):
+    def init_case(self):
+        self.shape = [32]
+        self.value = int(1)
+        self.dtype = "uint8"
+
+
+class TestFillConstantCase5(TestFillConstantOp):
+    def init_case(self):
+        self.shape = [32]
+        self.value = int(1)
+        self.dtype = "int16"
+
+
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
                     "x86 test will be skipped due to timeout.")
 class TestFillConstantByValueOp(OpTest):

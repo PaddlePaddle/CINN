@@ -69,6 +69,8 @@ std::string Type2StrForReduce(common::Type type) {
     return "_fp32";
   } else if (type.is_float(16)) {
     return "_fp16";
+  } else if (type.is_float(64)) {
+    return "_fp64";
   } else if (type.is_bool()) {
     return "";
   }

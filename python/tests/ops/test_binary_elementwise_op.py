@@ -99,6 +99,14 @@ class TestAddOp(TestBinaryOp):
         return builder.add(x, y, axis)
 
 
+class TestAddOpFP64(TestAddOp):
+    def get_x_data(self):
+        return self.random([32, 64], 'float64', -10.0, 10.0)
+
+    def get_y_data(self):
+        return self.random([32, 64], 'float64', -10.0, 10.0)
+
+
 class TestSubtractOp(TestBinaryOp):
     def paddle_func(self, x, y):
         return paddle.subtract(x, y)
@@ -190,7 +198,8 @@ class TestRemainderOp(TestBinaryOp):
         return paddle.remainder(x, y)
 
     def cinn_func(self, builder, x, y, axis):
-        return builder.remainder(x, y, axis)
+        # paddle.remainder actual invoke mod function
+        return builder.mod(x, y, axis)
 
 
 class TestMaxOp(TestBinaryOp):

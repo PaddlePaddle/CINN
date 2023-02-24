@@ -43,6 +43,10 @@ class PassTest(OpTest):
         self.assertEqual(
             len(inputs), len(self.feed_data),
             "The feed data size not equal to program input size!")
+        self.assertIsNotNone(outputs, "The program's output should not empty!")
+        self.assertIsInstance(
+            outputs[0], Variable,
+            "The program's output should be list(cinn.frontend.Variable)")
 
         pass_prog = net_builder.build()
         return pass_prog, inputs, outputs
@@ -63,7 +67,10 @@ class PassTest(OpTest):
     def check_pass_outputs(self,
                            pass_diff,
                            test_passes,
-                           base_passes=["AutoCast", "Decomposer"],
+                           base_passes=[
+                               "AutoCast", "Decomposer", "OpFusionPass",
+                               "FusionMergePass"
+                           ],
                            max_relative_error=1e-5,
                            all_equal=False,
                            equal_nan=False):
