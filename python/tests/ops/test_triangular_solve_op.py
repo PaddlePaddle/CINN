@@ -33,18 +33,15 @@ class TestTriangularSolveOp(OpTest):
     def init_case(self):
         self.inputs = {
             "input1": np.array(
-                [[[1.0, 1.0, 1.0], [0.0, 2.0, 1.0], [0.0, 0.0, -1.0]]]
+                [[1.0, 1.0, 1.0], [0.0, 2.0, 1.0], [0.0, 0.0, -1.0]]
             ).astype(np.float32),
-            "input2": np.array([[[0.0, 0.0], [-9.0, -9.0], [5.0, 5.0]]]).astype(np.float32),
+            "input2": np.array([[0.0], [-9.0], [5.0]]).astype(np.float32),
         }
-        self.outputs = {
-            "solution": np.array([[[7.0, 7.0], [-2.0, -2.0], [-5.0, -5.0]]]).astype(np.float32)
-        }
+        self.outputs = {"solution": np.array([[7.0], [-2.0], [-5.0]]).astype(np.float32)}
         self.left_side = True
         self.upper = True
         self.transpose_a = False
         self.unit_diagonal = False
-        print(self.inputs["input1"].shape, self.inputs["input2"].shape)
 
     def build_paddle_program(self, target):
         solution = paddle.to_tensor(self.outputs["solution"], stop_gradient=False)
@@ -127,7 +124,47 @@ class TestTriangularSolveOpLower(TestTriangularSolveOp):
 @OpTestTool.skip_if(
     not is_compiled_with_cuda(), "triangular solve op support GPU only now."
 )
-class TestTriangularSolveOpZeroBatchDim(TestTriangularSolveOp):
+class TestTriangularSolveOpZeroBatchDim1(TestTriangularSolveOp):
+    def init_case(self):
+        self.inputs = {
+            "input1": np.array(
+                [[1.0, 1.0, 1.0], [0.0, 2.0, 1.0], [0.0, 0.0, -1.0]]
+            ).astype(np.float32),
+            "input2": np.array([[0.0], [-9.0], [5.0]]).astype(np.float32),
+        }
+        self.outputs = {
+            "solution": np.array([[7.0], [-2.0], [-5.0]]).astype(np.float32)
+        }
+        self.left_side = True
+        self.upper = True
+        self.transpose_a = False
+        self.unit_diagonal = False
+
+
+@OpTestTool.skip_if(
+    not is_compiled_with_cuda(), "triangular solve op support GPU only now."
+)
+class TestTriangularSolveOpZeroBatchDim2(TestTriangularSolveOp):
+    def init_case(self):
+        self.inputs = {
+            "input1": np.array(
+                [[[1.0, 1.0, 1.0], [0.0, 2.0, 1.0], [0.0, 0.0, -1.0]]]
+            ).astype(np.float32),
+            "input2": np.array([[0.0], [-9.0], [5.0]]).astype(np.float32),
+        }
+        self.outputs = {
+            "solution": np.array([[7.0], [-2.0], [-5.0]]).astype(np.float32)
+        }
+        self.left_side = True
+        self.upper = True
+        self.transpose_a = False
+        self.unit_diagonal = False
+
+
+@OpTestTool.skip_if(
+    not is_compiled_with_cuda(), "triangular solve op support GPU only now."
+)
+class TestTriangularSolveOpZeroBatchDim3(TestTriangularSolveOp):
     def init_case(self):
         self.inputs = {
             "input1": np.array(

@@ -1220,13 +1220,13 @@ void cinn_call_triangular_solve_nvgpu(void* v_args, int num_args, int batch_size
   cudaStream_t custream = static_cast<cudaStream_t>(stream);
   CUBLAS_CALL(cublasSetStream(handle, custream));
 
-  int b_rows = left_side ? m : k;
-  int b_cols = left_side ? k : m;
+  int b_rows = left_side ? k : m;
+  int b_cols = left_side ? m : k;
   int lda = m;
   int ldb = b_rows;
-  cublasSideMode_t side = left_side ? CUBLAS_SIDE_LEFT : CUBLAS_SIDE_RIGHT;
+  cublasSideMode_t side = left_side ? CUBLAS_SIDE_RIGHT : CUBLAS_SIDE_LEFT;
   cublasFillMode_t uplo = upper ? CUBLAS_FILL_MODE_LOWER : CUBLAS_FILL_MODE_UPPER;
-  cublasOperation_t transa = transpose_a ? CUBLAS_OP_N : CUBLAS_OP_T;
+  cublasOperation_t transa = transpose_a ? CUBLAS_OP_T : CUBLAS_OP_N;
   cublasDiagType_t diag = unit_diagonal ? CUBLAS_DIAG_UNIT: CUBLAS_DIAG_NON_UNIT;
   
   cinn_pod_value_t *args = static_cast<cinn_pod_value_t *>(v_args);
