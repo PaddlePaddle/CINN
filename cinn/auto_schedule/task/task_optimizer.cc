@@ -46,12 +46,12 @@ namespace auto_schedule {
 TaskOptimizer::TaskOptimizer(const TuneTask& task, ScheduleMeasurer* schedule_measurer, Database* database)
     : task_(&task), schedule_measurer_(schedule_measurer), database_(database), cost_model_() {}
 
-TuningResult::OptimizedComputeExpr TaskOptimizer::Optimize(const TuningOptions& options) {
+FunctionGroup TaskOptimizer::Optimize(const TuningOptions& options) {
   // TODO(zhhsplendid): develop other optimize methods and configure the method by options.
   return OptimizeByEvolution(options);
 }
 
-TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const TuningOptions& options) {
+FunctionGroup TaskOptimizer::OptimizeByEvolution(const TuningOptions& options) {
   CHECK_EQ(options.num_measure_trials % options.num_samples_per_iteration, 0)
       << "TuningOptions.num_measure_trials % TuningOptions.num_samples_per_iteration must be 0.";
 
@@ -69,13 +69,12 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
   }
 
   // use initial lowered function as default result
-  TuningResult::OptimizedComputeExpr result;
-  result.lowered_funcs.push_back(optim::IRCopy(task_->lowered_funcs));
+  FunctionGroup result = optim::IRCopy(task_->lowered_funcs);
   if (options.num_measure_trials == 0) {  // no need to measure and simply return the best searched
     std::vector<MeasureInput> measure_candidates;
     std::vector<SearchState> states = SearchOneRound(options, &measure_candidates);
     if (!states.empty()) {
-      result.lowered_funcs = measure_candidates[0].lowered_funcs;
+      result = measure_candidates[0].lowered_funcs;
     } else {
       LOG(WARNING) << "No valid candidate searched, will return initial state";
     }
@@ -131,8 +130,8 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
     for (size_t i = 0; i < measure_outputs.size(); ++i) {
       if (measure_outputs[i].execution_cost < min_exec_time) {
         VLOG(4) << "Update best candidate with execution_cost:" << measure_outputs[i].execution_cost << "us";
-        min_exec_time        = measure_outputs[i].execution_cost;
-        result.lowered_funcs = measure_inputs[i].lowered_funcs;
+        min_exec_time = measure_outputs[i].execution_cost;
+        result        = measure_inputs[i].lowered_funcs;
       }
     }
 
@@ -167,8 +166,8 @@ std::vector<SearchState> TaskOptimizer::SearchOneRound(const TuningOptions& opti
     if (valid_funcs.size() == init_funcs.size()) {
       states[valid_cnt++] = states[i];
       measure_candidates->emplace_back(MeasureInput());
-      measure_candidates->back().task = task_;
-      measure_candidates->back().lowered_funcs.emplace_back(std::move(valid_funcs));
+      measure_candidates->back().task          = task_;
+      measure_candidates->back().lowered_funcs = std::move(valid_funcs);
     }
   }
 

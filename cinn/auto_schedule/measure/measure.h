@@ -32,7 +32,7 @@ struct MeasureInput {
   // The task object releated to this measurement.
   const TuneTask* task;
   // lowered Exprs to be measured
-  std::vector<std::vector<ir::LoweredFunc>> lowered_funcs;
+  std::vector<ir::LoweredFunc> lowered_funcs;
   // It is used to pass for some arguments that maybe
   // specified value in advance. default is null
   const std::map<std::string, cinn_pod_value_t>* execution_args = nullptr;

@@ -47,8 +47,8 @@ std::vector<TuneTask> TaskCreator::CreateTuneTaskOpLevel(Graph* graph) {
 
   for (const auto& sub_graph : *groups) {
     ret_tasks.emplace_back(TuneTask());
-    ret_tasks.back().task_graph.push_back(sub_graph);
-    ret_tasks.back().target = graph->target_;
+    ret_tasks.back().subgraph = sub_graph;
+    ret_tasks.back().target   = graph->target_;
   }
   return ret_tasks;
 }
