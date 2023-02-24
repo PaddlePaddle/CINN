@@ -22,6 +22,9 @@ import cinn
 from cinn.frontend import *
 from cinn.common import *
 
+paddle.seed(2)
+np.random.seed(2)
+
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
                     "x86 test will be skipped due to timeout.")
@@ -150,7 +153,7 @@ class TestReduceSumCase10(TestReduceSumOp):
 class TestReduceSumCase11(TestReduceSumOp):
     def init_case(self):
         self.inputs = {
-            "x": self.random([32, 32, 32, 32], "float32", -1.0, 1.0)
+            "x": self.random([32, 32, 32, 32], "float32", -0.1, 0.1)
         }
         self.dim = [0, 2, 3]
         self.keep_dim = False
@@ -183,33 +186,57 @@ class TestReduceSumCase14(TestReduceSumOp):
 
 class TestReduceSumCase15(TestReduceSumOp):
     def init_case(self):
-        # data shape from resnet50 bs=64
+        # data shape from resnet50 bs=32
         self.inputs = {
-            "x": self.random([128, 64, 56, 56], "float32", -1.0, 1.0)
+            "x": self.random([32, 64, 56, 56], "float32", -0.1, 0.1)
         }
         self.dim = [0, 2, 3]
         self.keep_dim = False
 
     def test_check_results(self):
         # the shape of tensor is large, lead to the different of result increase
-        self.check_outputs_and_grads(max_relative_error=1e-3)
+        self.check_outputs_and_grads(max_relative_error=1e-4)
 
 
 class TestReduceSumCase16(TestReduceSumOp):
     def init_case(self):
-        # data shape from resnet50 NHWC bs=64
+        # data shape from resnet50 NHWC bs=32
         self.inputs = {
-            "x": self.random([128, 56, 56, 64], "float32", -1.0, 1.0)
+            "x": self.random([32, 56, 56, 64], "float32", -0.1, 0.1)
         }
         self.dim = [0, 1, 2]
         self.keep_dim = False
 
     def test_check_results(self):
         # the shape of tensor is large, lead to the different of result increase
+        # NHWC's difference are more larger than NCHW
         self.check_outputs_and_grads(max_relative_error=1e-3)
 
 
-'''
+class TestReduceSumCase17(TestReduceSumOp):
+    def init_case(self):
+        # data shape from resnet50 bs=1
+        self.inputs = {"x": self.random([1, 64, 56, 56], "float32", -0.1, 0.1)}
+        self.dim = [0, 2, 3]
+        self.keep_dim = False
+
+    def test_check_results(self):
+        # the shape of tensor is large, lead to the different of result increase
+        self.check_outputs_and_grads(max_relative_error=1e-4)
+
+
+class TestReduceSumCase18(TestReduceSumOp):
+    def init_case(self):
+        # data shape from resnet50 NHWC bs=1
+        self.inputs = {"x": self.random([1, 56, 56, 64], "float32", -0.1, 0.1)}
+        self.dim = [0, 1, 2]
+        self.keep_dim = False
+
+    def test_check_results(self):
+        # the shape of tensor is large, lead to the different of result increase
+        self.check_outputs_and_grads(max_relative_error=1e-4)
+
+
 class TestReduceSumFP64(TestReduceSumOp):
     def init_case(self):
         self.inputs = {"x": self.random([10, 10, 10], "float64", -1.0, 1.0)}
@@ -484,7 +511,7 @@ class TestAnyCase5(TestAllOp):
         self.inputs = {"x": np.full([10, 10, 10], False, 'bool')}
         self.dim = []
         self.keep_dim = False
-'''
+
 
 if __name__ == "__main__":
     unittest.main()
