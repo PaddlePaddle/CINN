@@ -23,7 +23,6 @@
 #include <thrust/device_vector.h>
 
 #include <algorithm>
-#include <cstdint>
 #ifdef CINN_WITH_CUDNN
 #include <cudnn.h>
 #endif
@@ -1221,8 +1220,12 @@ void cinn_call_triangular_solve_nvgpu(void* v_args, int num_args, int batch_size
   cudaStream_t custream = static_cast<cudaStream_t>(stream);
   CUBLAS_CALL(cublasSetStream(handle, custream));
 
+  int b_rows = left_side ? m : k;
+  int b_cols = left_side ? k : m;
+  int lda = m;
+  int ldb = b_rows;
   cublasSideMode_t side = left_side ? CUBLAS_SIDE_LEFT : CUBLAS_SIDE_RIGHT;
-  cublasFillMode_t uplo = upper ? CUBLAS_FILL_MODE_UPPER : CUBLAS_FILL_MODE_LOWER;
+  cublasFillMode_t uplo = upper ? CUBLAS_FILL_MODE_LOWER : CUBLAS_FILL_MODE_UPPER;
   cublasOperation_t transa = transpose_a ? CUBLAS_OP_N : CUBLAS_OP_T;
   cublasDiagType_t diag = unit_diagonal ? CUBLAS_DIAG_UNIT: CUBLAS_DIAG_NON_UNIT;
   
@@ -1260,13 +1263,13 @@ void cinn_call_triangular_solve_nvgpu(void* v_args, int num_args, int batch_size
 
   if (bits == 32) {     
     std::vector<float> alpha(batch_size, 1.0f); 
-    CUBLAS_CALL(cublasStrsmBatched(handle, side, uplo, transa, diag, m, k, alpha.data(), reinterpret_cast<float **>(dev_a_array.data().get()), 
-                                  m, reinterpret_cast<float **>(dev_x_array.data().get()), m, batch_size));
+    CUBLAS_CALL(cublasStrsmBatched(handle, side, uplo, transa, diag, b_rows, b_cols, alpha.data(), reinterpret_cast<float **>(dev_a_array.data().get()), 
+                                   lda, reinterpret_cast<float **>(dev_x_array.data().get()), ldb, batch_size));
   }
   else if (bits == 64) {
     std::vector<double> alpha(batch_size, 1.0);
-    CUBLAS_CALL(cublasDtrsmBatched(handle, side, uplo, transa, diag, m, k, alpha.data(), reinterpret_cast<double **>(dev_a_array.data().get()), 
-                                  m, reinterpret_cast<double **>(dev_x_array.data().get()), m, batch_size));
+    CUBLAS_CALL(cublasDtrsmBatched(handle, side, uplo, transa, diag, b_rows, b_cols, alpha.data(), reinterpret_cast<double **>(dev_a_array.data().get()), 
+                                   lda, reinterpret_cast<double **>(dev_x_array.data().get()), ldb, batch_size));
   }
 }
 

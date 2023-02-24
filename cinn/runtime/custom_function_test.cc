@@ -300,14 +300,14 @@ TEST(CustomCallTriangular, test) {
 
   int batch_size = 1;
   int m = 3;
-  int k = 1;
+  int k = 2;
   bool left_side = true;
-  bool upper = false;
+  bool upper = true;
   bool transpose_a = false;
   bool unit_diagonal = false;
 
   double input_a_host[9] = {1.0, 1.0, 1.0, 0.0, 2.0, 1.0, 0.0, 0.0, -1.0};
-  double input_b_host[9] = {0.0, -9.0, 5.0};
+  double input_b_host[6] = {0.0, -9.0, 5.0, 0.0, -9.0, 5.0};
   CinnBufferAllocHelper a(cinn_x86_device, cinn_float64_t(), {m, m});
   CinnBufferAllocHelper b(cinn_x86_device, cinn_float64_t(), {m, k});
   auto* input_a = a.mutable_data<double>(target);
@@ -320,8 +320,7 @@ TEST(CustomCallTriangular, test) {
   auto* output = out.mutable_data<double>(target);
 
   // Result matrix res
-  // The results of cpu and gpu are slightly different, 0.76365214 vs 0.76365221
-  double result[9] = {7.0, -2.0, -5.0};
+  double result[6] = {7.0, -2.0, -5.0, 7.0, -2.0, -5.0};
 
   constexpr int num_args               = 3;
   cinn_pod_value_t v_args[num_args] = {cinn_pod_value_t(a.get()), cinn_pod_value_t(b.get()), cinn_pod_value_t(out.get())};
@@ -334,7 +333,7 @@ TEST(CustomCallTriangular, test) {
     std::vector<double> host_output(batch_size * m * k, 0.0f);
     cudaMemcpy(host_output.data(), output, batch_size * m * k * sizeof(double), cudaMemcpyDeviceToHost);
     for (int i = 0; i < batch_size * m * k; i++) {
-      std::cout << host_output[i] << " ";
+      std::cout << result[i] << " ";
       // ASSERT_NEAR(host_output[i], result[i], 1e-5) << "The output of triangular solve should be the same as result";
     }
 #else

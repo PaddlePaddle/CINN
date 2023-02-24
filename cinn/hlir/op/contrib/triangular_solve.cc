@@ -60,7 +60,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForTriangularSolve(const framewor
   framework::CINNCompute triangular_solve_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of triangular_solve is empty! Please check.";
     CINNValuePack pack_args = args[0];
-    CHECK_EQ(pack_args.size(), 2U) << "Two input tensors are required for the computation of triangular_solve.";
+    CHECK_GE(pack_args.size(), 2U) << "Two input tensors are required for the computation of triangular_solve.";
     Expr a_expr             = pack_args[0];
     Expr b_expr             = pack_args[1];
     ir::Tensor a            = a_expr.as_tensor_ref();
@@ -78,16 +78,31 @@ std::shared_ptr<framework::OpStrategy> StrategyForTriangularSolve(const framewor
 
 std::vector<framework::shape_t> InferShapeForTriangularSolve(const std::vector<framework::shape_t> &inputs_shape,
                                                       const framework::AttrMapType &attrs) {
-  CHECK_EQ(inputs_shape.size(), 2U) << "The input's shape size should be 1! Please check again.";
+  CHECK_EQ(inputs_shape.size(), 2U) << "The input's shape size should be 2! Please check again.";
   framework::shape_t a_shape = inputs_shape[0];
   framework::shape_t b_shape = inputs_shape[1];
   int a_shape_size           = a_shape.size();
   int b_shape_size           = b_shape.size();
   CHECK_GE(a_shape_size, 2U) << "The input a shape size should >= 2! Please check again.";
   CHECK_GE(b_shape_size, 2U) << "The input b shape size should >= 2! Please check again.";
+
+  int left_side = -1;
+  for (auto &iter : attrs) {
+    if (iter.first == "left_side") {
+      left_side = absl::get<bool>(iter.second);
+      break;
+    }
+  }
+
   CHECK_EQ(a_shape[a_shape_size - 2], a_shape[a_shape_size - 1]) << "The last two dimensions of the input a must be the same!";
-  CHECK_EQ(a_shape[a_shape_size - 2], b_shape[a_shape_size - 2]) << "The last 2-th dimension of two input tensors must be the same";
-  return inputs_shape;
+  if (left_side) {
+    CHECK_EQ(a_shape[a_shape_size - 2], b_shape[b_shape_size - 2]) << "The last-but-one dimension of the two vectors must be consistent.";
+  }
+  else {
+    CHECK_EQ(a_shape[a_shape_size - 1], b_shape[b_shape_size - 1]) << "The last dimension of the two vectors must be consistent.";
+  }
+  
+  return {b_shape};
 }
 
 std::vector<Type> InferDtypeForTriangularSolve(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
