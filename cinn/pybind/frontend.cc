@@ -671,8 +671,14 @@ void BindFrontend(pybind11::module *m) {
            py::arg("dtype") = "float32")
       .def("norm", &NetBuilder::Norm, py::arg("x"), py::arg("axis") = -1, py::arg("epsilon") = 1e-12f)
       .def("cholesky", &NetBuilder::Cholesky, py::arg("x"), py::arg("upper") = false)
-      .def("triangular_solve", &NetBuilder::TriangularSolve, py::arg("input1"), py::arg("input2"), 
-           py::arg("left_side") = true, py::arg("upper") = false, py::arg("transpose_a") = false, py::arg("unit_diagonal") = false);
+      .def("triangular_solve",
+           &NetBuilder::TriangularSolve,
+           py::arg("input1"),
+           py::arg("input2"),
+           py::arg("left_side")     = true,
+           py::arg("upper")         = false,
+           py::arg("transpose_a")   = false,
+           py::arg("unit_diagonal") = false);
 
   auto computation = py::class_<CinnComputation, std::shared_ptr<CinnComputation>>(*m, "Computation");
   py::class_<CinnComputation::CompileOptions>(computation, "CompileOptions")
