@@ -294,7 +294,8 @@ TEST(CustomCallCholesky, test) {
   }
 }
 
-TEST(CustomCallTriangular, test) {
+#ifdef CINN_WITH_CUDA
+TEST(CustomCallTriangularSolve, test) {
   Target target      = common::DefaultNVGPUTarget();
   Target host_target = common::DefaultHostTarget();
 
@@ -325,24 +326,15 @@ TEST(CustomCallTriangular, test) {
   constexpr int num_args            = 3;
   cinn_pod_value_t v_args[num_args] = {
       cinn_pod_value_t(a.get()), cinn_pod_value_t(b.get()), cinn_pod_value_t(out.get())};
-
-  if (target == common::DefaultHostTarget()) {
-    LOG(ERROR) << "Host Target is not supported yet";
-  } else if (target == common::DefaultNVGPUTarget()) {
-#ifdef CINN_WITH_CUDA
-    cinn::runtime::cuda::cinn_call_triangular_solve_nvgpu(
-        v_args, num_args, batch_size, m, k, left_side, upper, transpose_a, unit_diagonal);
-    std::vector<double> device_output(batch_size * m * k, 0.0f);
-    cudaMemcpy(device_output.data(), output, batch_size * m * k * sizeof(double), cudaMemcpyDeviceToHost);
-    for (int i = 0; i < batch_size * m * k; i++) {
-      std::cout << device_output[i] << " ";
-      // ASSERT_NEAR(host_output[i], result[i], 1e-5) << "The output of triangular solve should be the same as result";
-    }
-#else
-    LOG(INFO) << "NVGPU Target only support on flag CINN_WITH_CUDA ON! Please check.";
-#endif
+  cinn::runtime::cuda::cinn_call_triangular_solve_nvgpu(
+      v_args, num_args, batch_size, m, k, left_side, upper, transpose_a, unit_diagonal);
+  std::vector<double> device_output(batch_size * m * k, 0.0f);
+  cudaMemcpy(device_output.data(), output, batch_size * m * k * sizeof(double), cudaMemcpyDeviceToHost);
+  for (int i = 0; i < batch_size * m * k; i++) {
+    ASSERT_NEAR(device_output[i], result[i], 1e-5) << "The output of triangular solve should be the same as result";
   }
 }
+#endif
 
 }  // namespace runtime
 }  // namespace cinn
