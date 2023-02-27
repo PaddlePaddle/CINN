@@ -987,7 +987,7 @@ std::vector<int> SampleTile(utils::LinearRandomEngine::StateType* rand_seed, int
     int product                          = 1;
     for (auto& factor : factors) {
       if (factor.second >= 1) {
-        int num = utils::SampleUniformInt(1, factor.second, rand_seed);
+        int num = utils::SampleUniformInt(1, factor.second + 1, rand_seed);
         product *= std::pow(factor.first, num);
       }
     }
