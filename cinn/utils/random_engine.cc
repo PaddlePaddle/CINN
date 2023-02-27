@@ -18,21 +18,21 @@ namespace cinn {
 namespace utils {
 
 // Sample Integers from uniform distribution [min, max)
-int SampleUniformInt(int min, int max, LinearRandomEngine::StateType* state) {
+int SampleUniformInt(int min, int max, LinearRandomEngine::StateType* rand_seed) {
   CHECK(min < max) << "Input value error: min(" << min << ") must be less than max(" << max << ")";
   if (min + 1 == max) {
     return min;
   }
 
-  LinearRandomEngine engine(state);
+  LinearRandomEngine engine(rand_seed);
   std::uniform_int_distribution<> dist(min, max - 1);
   return dist(engine);
 }
 
 // Sample Real Numbers from uniform distribution [min, max)
-double SampleUniformDouble(double min, double max, LinearRandomEngine::StateType* state) {
+double SampleUniformDouble(double min, double max, LinearRandomEngine::StateType* rand_seed) {
   CHECK(min < max) << "Input value error: min(" << min << ") must be less than max(" << max << ")";
-  LinearRandomEngine engine(state);
+  LinearRandomEngine engine(rand_seed);
   std::uniform_real_distribution<> dist(min, max);
   return dist(engine);
 }

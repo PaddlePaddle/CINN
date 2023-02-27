@@ -140,6 +140,14 @@ class IRSchedule {
   std::vector<Expr> Split(const std::string& block_name, int loop_index, const std::vector<int>& factors);
 
   /**
+   * \brief Split a for loop into multiple loops, based on the factors, only used for deserialization of trace.
+   * @param loop The loop to be splited.
+   * @param factors The factors we used to split the loop.
+   * @return The splited loops.
+   */
+  std::vector<Expr> Split(const Expr& loop, const std::vector<Expr>& factors);
+
+  /**
    * \brief Fuse for loops and return the fused loop.
    * @param loops All the loops to be fused, stored in ascending order.
    * @return The fused loop.
@@ -380,7 +388,10 @@ class IRSchedule {
    *  }
    * }
    */
-  std::vector<Expr> SamplePerfectTile(const Expr& loop, int n, int max_innermost_factor);
+  std::vector<Expr> SamplePerfectTile(const Expr& loop,
+                                      int n,
+                                      int max_innermost_factor,
+                                      const std::vector<int>& decision = {});
 
  private:
   std::unique_ptr<ScheduleImpl> impl_;
