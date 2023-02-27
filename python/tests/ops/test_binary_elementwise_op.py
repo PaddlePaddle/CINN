@@ -107,6 +107,30 @@ class TestAddOpFP64(TestAddOp):
         return self.random([32, 64], 'float64', -10.0, 10.0)
 
 
+class TestAddOpFP16(TestAddOp):
+    def get_x_data(self):
+        return self.random([32, 64], 'float16', -10.0, 10.0)
+
+    def get_y_data(self):
+        return self.random([32, 64], 'float16', -10.0, 10.0)
+
+
+class TestAddOpInt32(TestAddOp):
+    def get_x_data(self):
+        return self.random([32, 64], 'int32', -10.0, 10.0)
+
+    def get_y_data(self):
+        return self.random([32, 64], 'int32', -10.0, 10.0)
+
+
+class TestAddOpInt64(TestAddOp):
+    def get_x_data(self):
+        return self.random([32, 64], 'int64', -10.0, 10.0)
+
+    def get_y_data(self):
+        return self.random([32, 64], 'int64', -10.0, 10.0)
+
+
 class TestSubtractOp(TestBinaryOp):
     def paddle_func(self, x, y):
         return paddle.subtract(x, y)
