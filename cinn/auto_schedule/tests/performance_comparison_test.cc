@@ -271,6 +271,7 @@ TEST_F(PerformanceTester, LookupTable) {
   std::vector<int32_t> table_shape{50001, 768};
   std::vector<int32_t> ids_shape{10, 128, 1};
 
+  options_.evaluate_knobs = 0UL;
   Evaluate(LookupTableProgramBuilder(table_shape, ids_shape, -1)());
 }
 
