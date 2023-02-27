@@ -20,53 +20,24 @@
 namespace cinn {
 namespace backends {
 namespace nvrtc {
-namespace {
-#ifdef NVRTC_STL_PATH
-static constexpr char* nvrtc_stl_path = NVRTC_STL_PATH;
-#else
-static constexpr char* nvrtc_stl_path = nullptr;
-#endif
-}  // namespace
+
+HeaderGeneratorBase& JitSafeHeaderGenerator::GetInstance() {
+  static JitSafeHeaderGenerator instance;
+  return instance;
+}
+
+const size_t JitSafeHeaderGenerator::size() const {
+  CHECK_EQ(include_names_.size(), headers_.size()) << "Internal error in size of header files.";
+  return include_names_.size();
+}
 
 JitSafeHeaderGenerator::JitSafeHeaderGenerator() {
-  for (const auto& pair : headers_map_) {
-    header_names_.emplace_back(pair.first);
+  const auto& headers_map = ::jitify::detail::get_jitsafe_headers_map();
+  for (auto& pair : headers_map) {
+    include_names_.emplace_back(pair.first.data());
+    headers_.emplace_back(pair.second.data());
   }
 }
-
-JitSafeHeaderGenerator::JitSafeHeaderGenerator(std::vector<std::string> header_names)
-    : header_names_{std::move(header_names)} {}
-
-void JitSafeHeaderGenerator::GenerateFiles(const std::string& dir) const {
-  std::ofstream os;
-  std::ifstream is;
-  // TODO(Shixiaowei02): parallel execution
-  for (const auto& name : header_names_) {
-    is.clear();
-    os.clear();
-    std::string full_path = dir + "/" + name;
-    is.open(full_path);
-    if (is.good()) {
-      is.close();
-      continue;
-    }
-    is.close();
-    os.open(full_path, std::ios_base::out);
-    os << headers_map_.at(name);
-    os.close();
-    if (!os) {
-      LOG(FATAL) << "file writing failed: " << full_path;
-    }
-  }
-}
-
-void JitSafeHeaderGenerator::GenerateFiles() const {
-  CHECK(nvrtc_stl_path) << "The default directory path does not exist.";
-  GenerateFiles(nvrtc_stl_path);
-}
-
-const std::map<std::string, std::string> JitSafeHeaderGenerator::headers_map_ =
-    jitify::detail::get_jitsafe_headers_map();
 
 }  // namespace nvrtc
 }  // namespace backends
