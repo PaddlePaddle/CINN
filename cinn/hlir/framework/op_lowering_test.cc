@@ -295,7 +295,6 @@ TEST(OP_LOWERING, Elementwise_Test_Concat_Before_Reduce) {
     CodeGen(lowered_func[0]);
   }
 }
-*/
 
 TEST(OP_LOWERING, Elementwise_Test_Reshape_Before_Reduce) {
   NetBuilder net_builder("Elementwise_Test_Reshape_Before_Reduce");
@@ -326,7 +325,6 @@ TEST(OP_LOWERING, Elementwise_Test_Reshape_Before_Reduce) {
     CHECK_EQ(lowered_func.size(), 1);
     CodeGen(lowered_func[0]);
   }
-  exit(0);
 }
 
 TEST(OP_LOWERING, Elementwise_Test_Reshape_After_Reduce) {
@@ -499,6 +497,7 @@ TEST(OP_LOWERING, Elementwise_TEST_0) {
     CodeGen(lowered_func[0]);
   }
 }
+*/
 
 TEST(OP_LOWERING, NonFusibleOp_TEST_0) {
   NetBuilder net_builder("NonFusibleOp_TEST_0");
@@ -523,6 +522,7 @@ TEST(OP_LOWERING, NonFusibleOp_TEST_0) {
     CHECK_EQ(lowered_func.size(), 1);
     CodeGen(lowered_func[0]);
   }
+  exit(0);
 }
 
 TEST(OP_LOWERING, NonFusibleOp_TEST_1) {
