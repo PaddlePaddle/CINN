@@ -782,6 +782,8 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   auto topo_order  = graph_->topological_order();
   auto& nodes      = std::get<0>(topo_order);
   VLOG(3) << "Begin GraphCompiler::Build";
+  function2input_args_.clear();
+  function2output_args_.clear();
   m_builder_.Clear();
   // if there are no avaiable groups, we will take each node as a group
   if (options.groups.empty() && graph_->groups.empty() && graph_->fusion_groups.empty()) {
