@@ -22,24 +22,24 @@ namespace cinn {
 namespace backends {
 class HeaderGeneratorBase {
  public:
-  // Generate header files to the default directory.
-  virtual void GenerateFiles() const = 0;
-  // Generate header files to the specified directory.
-  virtual void GenerateFiles(const std::string& dir) const = 0;
+  virtual const size_t size() const                             = 0;
+  virtual const std::vector<const char*>& headers() const       = 0;
+  virtual const std::vector<const char*>& include_names() const = 0;
 };
 
 namespace nvrtc {
 
 class JitSafeHeaderGenerator : public HeaderGeneratorBase {
  public:
-  JitSafeHeaderGenerator();
-  explicit JitSafeHeaderGenerator(std::vector<std::string> header_names);
-  void GenerateFiles(const std::string& dir) const override;
-  void GenerateFiles() const override;
+  static HeaderGeneratorBase& GetInstance();
+  const size_t size() const;
+  const std::vector<const char*>& headers() const override { return headers_; }
+  const std::vector<const char*>& include_names() const override { return include_names_; }
 
  private:
-  std::vector<std::string> header_names_;
-  static const std::map<std::string, std::string> headers_map_;
+  JitSafeHeaderGenerator();
+  std::vector<const char*> headers_;
+  std::vector<const char*> include_names_;
 };
 
 }  // namespace nvrtc
