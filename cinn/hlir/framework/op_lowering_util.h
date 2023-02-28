@@ -430,8 +430,49 @@ inline bool CanbeInline(Node* node,
 }
 
 inline Node* GetMasterToComputeAt(Node* node,
+                                  const std::vector<Node*>& nodes_in_order,
                                   const std::unordered_set<Node*>& nodes_inline,
                                   const std::unordered_set<Node*>& nodes_set) {
+  auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
+  // if node is reduction, try find horizontal to compute at.
+  if (op_pattern_dict[node->op()] == framework::kReduction) {
+    // find all reduce node has done schedule.
+    std::unordered_set<Node*> done_schedule;
+    for (auto tmp : nodes_in_order) {
+      if (tmp == node) {
+        break;
+      }
+      if (op_pattern_dict[tmp->op()] == framework::kReduction) {
+        done_schedule.insert(tmp);
+      }
+    }
+    // remove all consuemr reducer node of node from done_schedule.
+    std::unordered_set<Node*> visited;
+    std::queue<Node*> candidates;
+    candidates.push(node);
+
+    while (!candidates.empty()) {
+      auto candidate = candidates.front();
+      candidates.pop();
+
+      for (auto consumer : GetConsumersInSet(candidate, nodes_set)) {
+        // remove reduction node from done_schedule.
+        if (op_pattern_dict[consumer->op()] == framework::kReduction) {
+          done_schedule.erase(consumer);
+        }
+        if (!visited.count(consumer)) {
+          candidates.push(consumer);
+          visited.insert(consumer);
+        }
+      }
+    }
+
+    if (done_schedule.size()) {
+      return *done_schedule.begin();
+    }
+  }
+
+  // find consumer
   std::unordered_set<Node*> visited;
   std::queue<Node*> candidates;
   candidates.push(node);
@@ -653,14 +694,59 @@ inline void InsertSyncThread(ir::IRSchedule& ir_sch,
   }
 }
 
+inline void MergeReduceToReduce(ir::IRSchedule& ir_sch,
+                                const Node* node,
+                                const Node* master,
+                                const std::unordered_map<std::string, ir::Tensor>& tensor_map) {
+  auto do_reduce_init_schedule = [&ir_sch](ir::Tensor t0, ir::Tensor t1) {
+    if (ir_sch.HasBlock(t0->name + "__reduce_init")) {
+      auto block = ir_sch.GetBlock(t0->name + "__reduce_init");
+      auto loops = ir_sch.GetLoops(t1->name + "__reduce_init");
+      ir_sch.SimpleComputeAt(block, loops.back());
+    }
+  };
+
+  auto node_data   = GetNodeData(node);
+  auto master_data = GetNodeData(master);
+
+  std::string post = "";
+  for (int idx = 0;; ++idx) {
+    if (!tensor_map.count(node_data->id() + post)) {
+      break;
+    }
+
+    auto tensor  = tensor_map.find(node_data->id() + post)->second;
+    auto tensor_ = tensor_map.find(master_data->id() + post)->second;
+
+    if (!ir_sch.HasBlock(tensor->name)) {
+      do_reduce_init_schedule(tensor, tensor_);
+      break;
+    }
+    auto node_block   = ir_sch.GetBlock(tensor->name);
+    auto master_loops = ir_sch.GetLoops(tensor_->name);
+
+    ir_sch.SimpleComputeAt(node_block, master_loops.back());
+    do_reduce_init_schedule(tensor, tensor_);
+    post = "_" + std::to_string(idx);
+  }
+}
+
 inline void MergeReduceLoop(ir::IRSchedule& ir_sch,
                             const Node* node,
                             const Node* master,
                             const absl::flat_hash_map<std::string, shape_t>& shape_dict,
                             const std::unordered_map<std::string, ir::Tensor>& tensor_map) {
-  auto node_data    = GetNodeData(node);
-  std::string post_ = "", post__ = "_0";
+  auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
+  if (op_pattern_dict[master->op()] == kReduction) {
+    MergeReduceToReduce(ir_sch, node, master, tensor_map);
+    return;
+  }
+
+  auto node_data   = GetNodeData(node);
+  auto master_data = GetNodeData(master);
+
   int min_index_loop = INT_MAX;
+  std::string post_ = "", post__ = "_0";
   for (int idx = 0;; ++idx) {
     if (!tensor_map.count(node_data->id() + post__)) {
       break;
@@ -690,8 +776,6 @@ inline void MergeReduceLoop(ir::IRSchedule& ir_sch,
   InsertSyncThread(ir_sch, node, shape_dict, tensor_map);
 
   if (node == master) return;
-  auto master_data = GetNodeData(master);
-
   auto node_loops   = ir_sch.GetLoops(node_data->id());
   auto master_loops = ir_sch.GetLoops(master_data->id());
 
@@ -703,6 +787,11 @@ inline void MergeReduceLoop(ir::IRSchedule& ir_sch,
     }
 
     MergeLoops(ir_sch.GetModule().GetExprs().at(0), node_loops, master_loops, std::min(index, min_index_loop));
+
+    auto block = ir_sch.GetBlock(node_data->id());
+    auto loops = ir_sch.GetLoops(master_data->id());
+    ir_sch.SimpleComputeAt(block, loops.back());
+
     break;
   } while (--index);
 }
