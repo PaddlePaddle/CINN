@@ -315,16 +315,37 @@ class TestTriangularSolveOpMultipleRightHandSides(TestTriangularSolveOp):
 class TestTriangularSolveOpSingular(TestTriangularSolveOp):
     def init_case(self):
         self.inputs = {
-            "input1":
-            np.array([[[1.0, 1.0, 1.0], [0.0, 2.0, 1.0],
-                       [0.0, 0.0, 0.0]]]).astype(np.float32),
-            "input2":
-            np.array([[[0.0], [-9.0], [5.0]]]).astype(np.float32),
+            "input1": np.random.random((1, 3, 3)).astype(np.float32),
+            "input2": np.random.random((1, 3, 1)).astype(np.float32),
         }
+        # set one dim to zeros to make a singular matrix
+        self.inputs["input1"][0][0] = 0
         self.left_side = True
         self.upper = True
         self.transpose_a = True
         self.unit_diagonal = False
+
+    def test_check_results(self):
+        self.check_outputs_and_grads(equal_nan=True)
+
+
+@OpTestTool.skip_if(not is_compiled_with_cuda(),
+                    "triangular solve op support GPU only now.")
+class TestTriangularSolveOpSingular1(TestTriangularSolveOp):
+    def init_case(self):
+        self.inputs = {
+            "input1": np.random.random((1, 3, 3)).astype(np.float32),
+            "input2": np.random.random((1, 3, 1)).astype(np.float32),
+        }
+        # set one dim to zeros to make a singular matrix
+        self.inputs["input1"][0][2] = 0
+        self.left_side = True
+        self.upper = True
+        self.transpose_a = True
+        self.unit_diagonal = False
+
+    def test_check_results(self):
+        self.check_outputs_and_grads(equal_nan=True)
 
 
 if __name__ == "__main__":
