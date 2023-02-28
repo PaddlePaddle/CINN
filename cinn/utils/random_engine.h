@@ -22,11 +22,19 @@
 namespace cinn {
 namespace utils {
 
+/**
+ * LinearRandomEngine is a random number engine using linear congruence algorithm.
+ * The transition function of state is: x(i + 1) = (multiplier * x(i) + increment) mod modulus.
+ * Its interface and members are roughly the same as std::linear_congruential_engine,
+ * which can be used for std::xxx_distribution. The difference from std::linear_congruential_engine is that
+ * the LinearRandomEngine does not own the random seed,
+ * but holds the pointer of the random seed and transfers the state for other objects.
+ */
 class LinearRandomEngine {
  public:
   using StateType = int64_t;
   // the type name "resule_type" is needed by std::xxx_distribution
-  using result_type = uint64_t;
+  using result_type = uint32_t;
 
   // The minimum possible value of random state
   static constexpr result_type min() { return 0; }
@@ -62,9 +70,6 @@ class LinearRandomEngine {
 
     return state;
   }
-
-  // Change the state with a new seed
-  void InitState(StateType state) { *state_ = NormalizeState(state); }
 
   // Fork a new state for another Random Generator from current state
   StateType ForkState() { return (Next() * 32767) % 1999999973; }
