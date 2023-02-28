@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "cinn/frontend/syntax.h"
+#include "cinn/hlir/pe/broadcast.h"
 
 namespace cinn {
 namespace frontend {
@@ -662,8 +663,68 @@ Variable NetBuilder::Cholesky(const Variable& x, bool upper) {
 
 Variable NetBuilder::TriangularSolve(
     const Variable& input1, const Variable& input2, bool left_side, bool upper, bool transpose_a, bool unit_diagonal) {
+  auto a_ndim = input1->shape.size();
+  auto b_ndim = input2->shape.size();
+  std::vector<int> a_shape_cut;
+  std::vector<int> b_shape_cut;
+  for (int i = 0; i < a_ndim - 2; i++) {
+    a_shape_cut.push_back(input1->shape[i]);
+  }
+  for (int i = 0; i < b_ndim - 2; i++) {
+    b_shape_cut.push_back(input2->shape[i]);
+  }
+
+  // broadcast
+  std::vector<Variable> inputs{input1, input2};
+  if (a_ndim == b_ndim) {
+    std::vector<int> common_shape;
+    bool need_broadcast_first  = false;
+    bool need_broadcast_second = false;
+    for (auto i = 0; i < a_shape_cut.size(); ++i) {
+      int a_size = a_shape_cut[i];
+      int b_size = b_shape_cut[i];
+      CHECK_EQ(a_size == b_size || a_size == 1 || b_size == 1, true)
+          << "The tensor shape cannot broadcast, please check.";
+      if (a_size == 1) {
+        need_broadcast_first = true;
+      }
+      if (b_size == 1) {
+        need_broadcast_second = true;
+      }
+      common_shape.push_back(a_size != 1 ? a_size : b_size);
+    }
+    if (need_broadcast_first) {
+      std::vector<int> input1_shape(common_shape.begin(), common_shape.end());
+      input1_shape.push_back(input1->shape[a_ndim - 2]);
+      input1_shape.push_back(input1->shape[a_ndim - 1]);
+      Variable broadcasted_input1 = BroadcastTo(input1, input1_shape);
+      inputs[0]                   = broadcasted_input1;
+    }
+    if (need_broadcast_second) {
+      std::vector<int> input2_shape(common_shape.begin(), common_shape.end());
+      input2_shape.push_back(input2->shape[b_ndim - 2]);
+      input2_shape.push_back(input2->shape[b_ndim - 1]);
+      Variable broadcasted_input2 = BroadcastTo(input2, input2_shape);
+      inputs[1]                   = broadcasted_input2;
+    }
+  } else if (a_ndim < b_ndim) {
+    std::vector<int> common_shape;
+    hlir::pe::GetBroadcastOutShape(b_shape_cut, a_shape_cut, &common_shape);
+    common_shape.push_back(input1->shape[a_ndim - 2]);
+    common_shape.push_back(input1->shape[a_ndim - 1]);
+    Variable broadcasted_input1 = BroadcastTo(input1, common_shape);
+    inputs[0]                   = broadcasted_input1;
+  } else if (a_ndim > b_ndim) {
+    std::vector<int> common_shape;
+    hlir::pe::GetBroadcastOutShape(a_shape_cut, b_shape_cut, &common_shape);
+    common_shape.push_back(input2->shape[b_ndim - 2]);
+    common_shape.push_back(input2->shape[b_ndim - 1]);
+    Variable broadcasted_input2 = BroadcastTo(input2, common_shape);
+    inputs[1]                   = broadcasted_input2;
+  }
+
   return CustomInstr("triangular_solve",
-                     {input1, input2},
+                     inputs,
                      {{"left_side", left_side},
                       {"upper", upper},
                       {"transpose_a", transpose_a},

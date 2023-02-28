@@ -16,6 +16,7 @@
 
 #include <functional>
 #include <sstream>
+#include <vector>
 
 #ifdef CINN_WITH_CUDA
 #include <cuda_runtime.h>
@@ -23,6 +24,7 @@
 #include "cinn/runtime/cuda/cuda_util.h"
 #endif
 
+#include "/CINN/cinn/hlir/pe/broadcast.h"
 #include "cinn/runtime/cinn_runtime.h"
 #include "cinn/runtime/custom_function.h"
 
