@@ -1387,11 +1387,11 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
   for (auto node : nodes_in_order) {
     LOG(INFO) << GetNodeData(node)->id();
     // consumers.
-    auto consumers      = GetConsumers(node, nodes_set);
+    auto consumers      = GetConsumersInSet(node, nodes_set);
     const Node* reducer = greducer ? FindNearestReducer(node, nodes_set) : greducer;
 
     // node can be inline.
-    if (CanbeInline(node, consumers, reducer, nodes_in_order.front(), group, this->shape_dict_)) {
+    if (CanbeInline(node, consumers, reducer, nodes_in_order.front(), group, nodes_set, this->shape_dict_)) {
       // if exist global reduce node.
       if (greducer) {
         auto loops = ir_sch.GetLoops(GetNodeData(node)->id());
@@ -1407,24 +1407,25 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
       nodes_inline.insert(node);
       continue;
     }
-
     // find master to computeat.
     auto master = GetMasterToComputeAt(node, nodes_inline, nodes_set);
+
     // assign to reducer/master loop.
     if (reducer) {
       // if node is vertical with reduce, loop assign reducer.
       LoopAssignReduce(ir_sch, node, reducer, this->target_, tensor_map, this->shape_dict_);
     } else if (greducer) {
-      // if node is horizontal with reduce, loop assign master.
+      // if node is horizontal with reduce or node is reduce, loop assign master.
       auto loops = ir_sch.GetLoops(GetNodeData(node)->id());
       if (op_pattern_dict[node->op()] == framework::kElementWise) {
         ir_sch.FlattenLoops(loops, true);
+      } else if (op_pattern_dict[node->op()] == framework::kReduction) {
       } else {
         ir_sch.FlattenLoops(loops, false);
       }
     }
     // do loop fuse.
-    LoopComputeAt(ir_sch, node, master ? master : nodes_in_order.front(), group, tensor_map);
+    LoopComputeAt(ir_sch, node, master ? master : nodes_in_order.front(), group, this->shape_dict_, tensor_map);
   }
   LOG(INFO) << "After -> " << ir_sch.GetModule().GetExprs().at(0);
 }
