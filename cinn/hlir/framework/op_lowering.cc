@@ -1374,7 +1374,6 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerNonFusibleOp(GroupPtr& group, boo
 void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
                            const GroupPtr& group,
                            const std::unordered_map<std::string, ir::Tensor>& tensor_map) {
-  LOG(INFO) << "Before -> " << ir_sch.GetModule().GetExprs().at(0);
   // topological order.
   std::unordered_set<Node*> nodes_set = group->NodeSet();
   std::vector<Node*> nodes_in_order   = TopologicalOrder(group);
@@ -1427,7 +1426,6 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
     // do loop fuse.
     LoopComputeAt(ir_sch, node, master ? master : nodes_in_order.front(), group, this->shape_dict_, tensor_map);
   }
-  LOG(INFO) << "After -> " << ir_sch.GetModule().GetExprs().at(0);
 }
 
 }  // namespace framework

@@ -787,10 +787,11 @@ inline void MergeReduceLoop(ir::IRSchedule& ir_sch,
     }
 
     MergeLoops(ir_sch.GetModule().GetExprs().at(0), node_loops, master_loops, std::min(index, min_index_loop));
-
-    auto block = ir_sch.GetBlock(node_data->id());
-    auto loops = ir_sch.GetLoops(master_data->id());
-    ir_sch.SimpleComputeAt(block, loops.back());
+    if (index > min_index_loop) {
+      auto block = ir_sch.GetBlock(node_data->id());
+      auto loops = ir_sch.GetLoops(master_data->id());
+      ir_sch.SimpleComputeAt(block, loops.back());
+    }
 
     break;
   } while (--index);
