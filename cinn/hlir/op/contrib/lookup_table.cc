@@ -73,6 +73,55 @@ ir::Tensor LookupTable(const ir::Tensor& table,
       common::UniqName(output_name));
 }
 
+CINNSchedule ScheduleFunc(const std::vector<std::vector<int>>& output_shapes, const Target& target) {
+  // Configure the schedule for intermediate results
+  return CINNSchedule([=](lang::Args args, lang::RetValue* ret) {
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK(!args.empty()) << "The input argument of InjectiveSchedule is empty! Please check.\n";
+      common::CINNValuePack arg_pack = args[0];
+      std::vector<Expr> vec_ast;
+      for (int i = 0; i < arg_pack.size(); i++) {
+        if (arg_pack[i].is_expr()) {
+          Expr temp = arg_pack[i];
+          vec_ast.emplace_back(temp);
+        }
+      }
+      CHECK(!vec_ast.empty());
+      ir::ModuleExpr mod_expr(vec_ast);
+      ir::IRSchedule ir_sch(mod_expr);
+      ir_sch.MergeExprs();
+      VLOG(3) << "Before IRInjectiveSchedule, new ir is : " << ir_sch.GetModule().GetExprs().at(0);
+      if (target == common::DefaultNVGPUTarget()) {
+        auto blocks       = ir_sch.GetAllBlocks();
+        auto output_shape = output_shapes.front();
+        for (size_t i = 0; i < blocks.size(); ++i) {
+          if (i < blocks.size() - 1) {
+            // CUDA device codegen not support memory type heap
+            ir_sch.SetBuffer(blocks[i], "local");
+          }
+          ir_sch.FlattenLoops(ir_sch.GetLoops(blocks[i]), false);
+          auto loops = ir_sch.GetLoops(blocks[i]);
+          auto size  = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>());
+          if (size <= target.max_num_threads()) {
+            ir_sch.Bind(loops[0], "threadIdx.x");
+          } else {
+            auto splited = ir_sch.Split(loops[0], {-1, target.max_num_threads() / 4});
+            ir_sch.Bind(splited[0], "blockIdx.x");
+            ir_sch.Bind(splited[1], "threadIdx.x");
+          }
+        }
+      } else {
+        LOG(FATAL) << "unsupported scheduler.";
+      }
+      VLOG(3) << "After IRInjectiveSchedule, new ir is : " << ir_sch.GetModule().GetExprs().at(0);
+      std::vector<common::CINNValue> res{common::CINNValue(ir_sch.GetModule().GetExprs().at(0))};
+      *ret = common::CINNValuePack{res};
+    } else {
+      LOG(FATAL) << "unsupported scheduler.";
+    }
+  });
+}
+
 std::shared_ptr<framework::OpStrategy> StrategyForLookupTable(const framework::NodeAttr& attrs,
                                                               const std::vector<ir::Tensor>& inputs,
                                                               const std::vector<Type>& out_type,
@@ -102,8 +151,13 @@ std::shared_ptr<framework::OpStrategy> StrategyForLookupTable(const framework::N
       CHECK_EQ(pack_args.size(), 3U);
       tensor_name = pack_args[2].operator std::string();
     }
-    ir::Tensor out = LookupTable(tensor_A, tensor_B, padding_idx, tensor_name);
+    ir::Tensor out_inplace = LookupTable(tensor_A, tensor_B, padding_idx, tensor_name);
+
+    ir::Tensor out = lang::Compute(
+        out_inplace->shape, [&](const std::vector<ir::Expr>& indices) { return out_inplace(indices); }, "Assign__");
+
     std::vector<CINNValue> res;
+    stages->InsertLazily(out_inplace);
     stages->InsertLazily(out);
     res.push_back(CINNValue(out));
     CHECK(!out_type.empty()) << "Output type of " << op_name << " is empty! Please check.\n";
@@ -112,7 +166,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForLookupTable(const framework::N
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(lookup_table_compute, GetInjectiveScheduleFunc(output_shapes, target), "strategy.lookup_table", 1);
+  strategy->AddImpl(lookup_table_compute, ScheduleFunc(output_shapes, target), "strategy.lookup_table", 1);
   return strategy;
 }
 
