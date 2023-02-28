@@ -279,6 +279,7 @@ TEST_F(PerformanceTester, Gather) {
   std::vector<int32_t> operand_shape{10, 12, 128, 512};
   std::vector<int32_t> index_shape{128};
 
+  options_.evaluate_knobs = 0UL;
   Evaluate(GatherProgramBuilder(operand_shape, index_shape, 3)());
 }
 
