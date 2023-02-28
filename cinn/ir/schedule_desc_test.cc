@@ -148,17 +148,25 @@ TEST_F(TestScheduleDesc, Append_Replay) {
   auto fused = ir_sch.Fuse("B", {0, 1});
   trace.Append(ScheduleDesc::Step(
       "FuseWithName", {}, {{"block_name", std::string("B")}, {"loops_index", std::vector<int>({0, 1})}}, {fused}));
-  auto splited = ir_sch.Split(fused, {4, -1});
-  trace.Append(ScheduleDesc::Step(
-      "Split", {{"loop", std::vector<Expr>({fused})}}, {{"factors", std::vector<int>({4, -1})}}, splited));
+  auto sample = ir_sch.SamplePerfectTile(fused, 2, 1, {4, -1});
+  trace.Append(ScheduleDesc::Step("SamplePerfectTile",
+                                  {{"loop", std::vector<Expr>({fused})}},
+                                  {{"n", 2}, {"max_innermost_factor", 1}, {"decision", std::vector<int>{4, -1}}},
+                                  sample));
+  auto splited = ir_sch.Split(fused, sample);
+  trace.Append(ScheduleDesc::Step("Split", {{"loop", std::vector<Expr>({fused})}, {"factors", sample}}, {}, splited));
 
   auto loops = ir_sch.GetLoops("B");
   trace.Append(ScheduleDesc::Step("GetLoopsWithName", {}, {{"block_name", std::string("B")}}, loops));
   fused = ir_sch.Fuse(loops);
   trace.Append(ScheduleDesc::Step("Fuse", {{"loops", loops}}, {}, {fused}));
-  splited = ir_sch.Split(fused, {256, -1});
-  trace.Append(ScheduleDesc::Step(
-      "Split", {{"loop", std::vector<Expr>({fused})}}, {{"factors", std::vector<int>({256, -1})}}, splited));
+  sample = ir_sch.SamplePerfectTile(fused, 2, 1, {256, -1});
+  trace.Append(ScheduleDesc::Step("SamplePerfectTile",
+                                  {{"loop", std::vector<Expr>({fused})}},
+                                  {{"n", 2}, {"max_innermost_factor", 1}, {"decision", std::vector<int>{256, -1}}},
+                                  sample));
+  splited = ir_sch.Split(fused, sample);
+  trace.Append(ScheduleDesc::Step("Split", {{"loop", std::vector<Expr>({fused})}, {"factors", sample}}, {}, splited));
 
   // check the equality of results between the ir_sch and replaying of trace
   CheckTracingOutputs(splited, trace);
