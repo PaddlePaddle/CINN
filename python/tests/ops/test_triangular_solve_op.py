@@ -234,19 +234,23 @@ class TestTriangularSolveOpTranspose(TestTriangularSolveOp):
 class TestTriangularSolveOpRightSide(TestTriangularSolveOp):
     def init_case(self):
         self.inputs = {
-            "input1":
-            np.array([[[1.0, 1.0, 1.0], [0.0, 2.0, 1.0],
-                       [0.0, 0.0, -1.0]]]).astype(np.float32),
-            "input2":
-            np.array([[[0.0, -9.0, 5.0]]]).astype(np.float32),
-        }
-        self.outputs = {
-            "solution": np.array([[[0.0, -4.5, -9.5]]]).astype(np.float32)
+            "input1": np.random.random((2, 3, 3)).astype(np.float32),
+            "input2": np.random.random((2, 1, 3)).astype(np.float32),
         }
         self.left_side = False
         self.upper = True
         self.transpose_a = False
         self.unit_diagonal = False
+
+        input1 = paddle.to_tensor(self.inputs["input1"], stop_gradient=True)
+        input2 = paddle.to_tensor(self.inputs["input2"], stop_gradient=True)
+        input1 = paddle.transpose(input1, perm=[0, 2, 1])
+        input2 = paddle.transpose(input2, perm=[0, 2, 1])
+        out = paddle.linalg.triangular_solve(input1, input2, not self.upper,
+                                             self.transpose_a,
+                                             self.unit_diagonal)
+        out = paddle.transpose(out, perm=[0, 2, 1])
+        self.outputs = {"solution": out}
 
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
