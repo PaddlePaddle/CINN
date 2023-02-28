@@ -33,26 +33,37 @@ class TestTriangularSolveOp(OpTest):
             "input1": np.random.random((1, 3, 3)).astype(np.float32),
             "input2": np.random.random((1, 3, 1)).astype(np.float32),
         }
-        self.outputs = None
         self.left_side = True
         self.upper = True
         self.transpose_a = False
         self.unit_diagonal = False
 
     def build_paddle_program(self, target):
+        def transpose_last_two_dims(x):
+            shape = x.shape
+            last_dim_idx = len(shape) - 1
+            second_last_dim_idx = len(shape) - 2
+            perm = list(range(len(shape)))
+            perm[last_dim_idx], perm[second_last_dim_idx] = perm[
+                second_last_dim_idx], perm[last_dim_idx]
+            x_transposed = paddle.transpose(x, perm=perm)
+            return x_transposed
+
+        input1 = paddle.to_tensor(self.inputs["input1"], stop_gradient=True)
+        input2 = paddle.to_tensor(self.inputs["input2"], stop_gradient=True)
         if self.left_side:
-            input1 = paddle.to_tensor(
-                self.inputs["input1"], stop_gradient=True)
-            input2 = paddle.to_tensor(
-                self.inputs["input2"], stop_gradient=True)
             out = paddle.linalg.triangular_solve(input1, input2, self.upper,
                                                  self.transpose_a,
                                                  self.unit_diagonal)
             self.paddle_outputs = [out]
         else:
-            solution = paddle.to_tensor(
-                self.outputs["solution"], stop_gradient=False)
-            self.paddle_outputs = [solution]
+            input1 = transpose_last_two_dims(input1)
+            input2 = transpose_last_two_dims(input2)
+            out = paddle.linalg.triangular_solve(
+                input1, input2, not self.upper, self.transpose_a,
+                self.unit_diagonal)
+            out = transpose_last_two_dims(out)
+            self.paddle_outputs = [out]
 
     def build_cinn_program(self, target):
         builder = NetBuilder("triangular_solve")
@@ -242,15 +253,19 @@ class TestTriangularSolveOpRightSide(TestTriangularSolveOp):
         self.transpose_a = False
         self.unit_diagonal = False
 
-        input1 = paddle.to_tensor(self.inputs["input1"], stop_gradient=True)
-        input2 = paddle.to_tensor(self.inputs["input2"], stop_gradient=True)
-        input1 = paddle.transpose(input1, perm=[0, 2, 1])
-        input2 = paddle.transpose(input2, perm=[0, 2, 1])
-        out = paddle.linalg.triangular_solve(input1, input2, not self.upper,
-                                             self.transpose_a,
-                                             self.unit_diagonal)
-        out = paddle.transpose(out, perm=[0, 2, 1])
-        self.outputs = {"solution": out}
+
+@OpTestTool.skip_if(not is_compiled_with_cuda(),
+                    "triangular solve op support GPU only now.")
+class TestTriangularSolveOpRightSide1(TestTriangularSolveOp):
+    def init_case(self):
+        self.inputs = {
+            "input1": np.random.random((1, 3, 2, 3, 3)).astype(np.float32),
+            "input2": np.random.random((2, 1, 2, 1, 3)).astype(np.float32),
+        }
+        self.left_side = False
+        self.upper = True
+        self.transpose_a = False
+        self.unit_diagonal = False
 
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
