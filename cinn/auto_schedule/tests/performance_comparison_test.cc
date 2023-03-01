@@ -174,20 +174,20 @@ TEST_F(PerformanceTester, Mul) {
   int K = 16;
   int N = 32;
 
-  Evaluate(MulProgramBuilder({M, K}, {N, K})());
+  Evaluate(MulOpBuilder({M, K}, {N, K})());
 }
 
-TEST_F(PerformanceTester, Add) { Evaluate(AddProgramBuilder({1, 56, 56, 256}, {1, 56, 56, 256})()); }
+TEST_F(PerformanceTester, Add) { Evaluate(AddOpBuilder({1, 56, 56, 256}, {1, 56, 56, 256})()); }
 
 TEST_F(PerformanceTester, Matmul) {
   int M = batch_size;
   int K = 2048;
   int N = 1000;
 
-  Evaluate(MatmulProgramBuilder({M, K}, {K, N})());
+  Evaluate(MatmulOpBuilder({M, K}, {K, N})());
 }
 
-TEST_F(PerformanceTester, Relu) { Evaluate(ReluProgramBuilder({batch_size, 64, 56, 56})()); }
+TEST_F(PerformanceTester, Relu) { Evaluate(ReluOpBuilder({batch_size, 64, 56, 56})()); }
 
 TEST_F(PerformanceTester, Conv2d) {
   std::vector<int32_t> input_shape{batch_size, 3, 224, 224};
@@ -199,7 +199,7 @@ TEST_F(PerformanceTester, Conv2d) {
   std::string data_format       = "NCHW";
   std::string padding_algorithm = "EXPLICIT";
 
-  Evaluate(Conv2dProgramBuilder(
+  Evaluate(Conv2dOpBuilder(
       input_shape, weight_shape, strides, paddings, dilations, groups, data_format, padding_algorithm)());
 }
 
@@ -216,17 +216,17 @@ TEST_F(PerformanceTester, Pool2d) {
   bool adaptive                 = false;
   std::string padding_algorithm = "EXPLICIT";
 
-  Evaluate(Pool2dProgramBuilder(input_shape,
-                                pooling_type,
-                                ksize,
-                                strides,
-                                paddings,
-                                ceil_mode,
-                                exclusive,
-                                global_pooling,
-                                data_format,
-                                adaptive,
-                                padding_algorithm)());
+  Evaluate(Pool2dOpBuilder(input_shape,
+                           pooling_type,
+                           ksize,
+                           strides,
+                           paddings,
+                           ceil_mode,
+                           exclusive,
+                           global_pooling,
+                           data_format,
+                           adaptive,
+                           padding_algorithm)());
 }
 
 TEST_F(PerformanceTester, BatchNorm) {
@@ -240,7 +240,7 @@ TEST_F(PerformanceTester, BatchNorm) {
   const std::string& data_layout = "NCHW";
   bool is_test                   = true;
 
-  Evaluate(BatchNormProgramBuilder(
+  Evaluate(BatchNormOpBuilder(
       input_shape, scale_shape, bias_shape, mean_shape, variance_shape, epsilon, momentum, data_layout, is_test)());
 }
 
@@ -248,14 +248,14 @@ TEST_F(PerformanceTester, Reshape) {
   std::vector<int32_t> input_shape{batch_size, 2048, 1, 1};
   std::vector<int32_t> output_shape{batch_size, 2048};
 
-  Evaluate(ReshapeProgramBuilder(input_shape, output_shape)());
+  Evaluate(ReshapeOpBuilder(input_shape, output_shape)());
 }
 
 TEST_F(PerformanceTester, Softmax) {
   std::vector<int32_t> input_shape{batch_size, 1000};
   int axis = -1;
 
-  Evaluate(SoftmaxProgramBuilder(input_shape, {axis})());
+  Evaluate(SoftmaxOpBuilder(input_shape, {axis})());
 }
 
 TEST_F(PerformanceTester, Scale) {
@@ -264,21 +264,21 @@ TEST_F(PerformanceTester, Scale) {
   float bias            = 0.0f;
   bool bias_after_scale = true;
 
-  Evaluate(ScaleProgramBuilder(input_shape, scale, bias, bias_after_scale)());
+  Evaluate(ScaleOpBuilder(input_shape, scale, bias, bias_after_scale)());
 }
 
 TEST_F(PerformanceTester, LookupTable) {
   std::vector<int32_t> table_shape{50001, 768};
   std::vector<int32_t> ids_shape{10, 128, 1};
 
-  Evaluate(LookupTableProgramBuilder(table_shape, ids_shape, -1)());
+  Evaluate(LookupTableOpBuilder(table_shape, ids_shape, -1)());
 }
 
 TEST_F(PerformanceTester, Gather) {
   std::vector<int32_t> operand_shape{10, 12, 128, 512};
   std::vector<int32_t> index_shape{128};
 
-  Evaluate(GatherProgramBuilder(operand_shape, index_shape, 3)());
+  Evaluate(GatherOpBuilder(operand_shape, index_shape, 3)());
 }
 
 // paddle model test
