@@ -55,14 +55,14 @@ TEST(TraversalBlockSampler, NextBlock) {
 
 TEST(ProbabilisticBlockSampler, NextBlock) {
   std::vector<ir::Expr> blocks     = CreateTestBlocks();
-  auto probabilistic_block_sampler = BlockSampler::Make(blocks, false, "probabilistic", {4, 2, 1});
+  auto probabilistic_block_sampler = BlockSampler::Make(blocks, false, "probabilistic", 0, {4, 2, 1});
   std::string block_name;
   for (int i = 0; i < 20; ++i) {
     block_name = probabilistic_block_sampler->NextBlock();
     VLOG(6) << "next block name: " << block_name;
   }
 
-  probabilistic_block_sampler = BlockSampler::Make(blocks, true, "probabilistic", {4, 2, 1});
+  probabilistic_block_sampler = BlockSampler::Make(blocks, true, "probabilistic", 0, {4, 2, 1});
   probabilistic_block_sampler->NextBlock();
   probabilistic_block_sampler->NextBlock();
   probabilistic_block_sampler->NextBlock();

@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "cinn/ir/ir_base.h"
+#include "cinn/utils/random_engine.h"
 
 namespace cinn {
 namespace auto_schedule {
@@ -39,9 +40,10 @@ class BlockSampler {
    * @param weights Used for the probabilistic policy, giving each candidate a weight.
    */
   static std::unique_ptr<BlockSampler> Make(const std::vector<ir::Expr>& all_blocks,
-                                            bool default_remove_policy      = true,
-                                            const std::string& strategy     = "traversal",
-                                            const std::vector<int>& weights = {});
+                                            bool default_remove_policy                     = true,
+                                            const std::string& strategy                    = "traversal",
+                                            utils::LinearRandomEngine::StateType rand_seed = 0,
+                                            const std::vector<int>& weights                = {});
 
   // Return the name of sample strategy
   virtual const char* Name() const = 0;
@@ -93,7 +95,8 @@ class ProbabilisticBlockSampler : public BlockSampler {
  public:
   ProbabilisticBlockSampler(const std::vector<ir::Expr>& all_blocks,
                             bool default_remove_policy,
-                            const std::vector<int>& weights = {});
+                            utils::LinearRandomEngine::StateType rand_seed = 0,
+                            const std::vector<int>& weights                = {});
 
   const char* Name() const override { return "probabilistic"; }
 
@@ -104,9 +107,7 @@ class ProbabilisticBlockSampler : public BlockSampler {
 
  private:
   std::vector<int> weights_;
-  std::random_device rd_;
-  std::mt19937 gen_;
-  std::discrete_distribution<> distribution_;
+  utils::LinearRandomEngine::StateType rand_seed_;
   int remains_;
 };
 
