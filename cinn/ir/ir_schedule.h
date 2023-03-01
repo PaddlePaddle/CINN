@@ -75,12 +75,6 @@ class IRSchedule {
   IRSchedule& operator=(IRSchedule&& src);
   ~IRSchedule();
 
-  // Init the random seed with a new seed
-  void InitSeed(utils::LinearRandomEngine::StateType rand_seed);
-
-  // Fork a new seed from current seed
-  utils::LinearRandomEngine::StateType ForkSeed() const;
-
   void SetExprs(const std::vector<Expr>& exprs);
 
   //! Get the ModuleExpr stored in ScheduleImpl.
@@ -392,6 +386,13 @@ class IRSchedule {
                                       int n,
                                       int max_innermost_factor,
                                       const std::vector<int>& decision = {});
+
+ private:
+  // Init the random seed with a new seed
+  void InitSeed(utils::LinearRandomEngine::StateType rand_seed);
+
+  // Fork a new seed from current seed
+  utils::LinearRandomEngine::StateType ForkSeed() const;
 
  private:
   std::unique_ptr<ScheduleImpl> impl_;
