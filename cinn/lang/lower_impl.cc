@@ -90,7 +90,11 @@ Expr LowerGroup(const poly::ScheduleGroup& group,
   poly::AstGen gen(context, stages, group);
   isl::ast_node ast = gen.Build();
   ir::Expr e;
-  poly::IslAstNodeToCinnExpr(ast, &e);
+
+  // The code where adds length 1 loop back to CINN Expr, if you do not want to
+  // add back, call poly::IslAstNodeToCinnExpr(ast, &e) instead of
+  // poly::IslAstNodeToCinnExpr(ast, gen.domain(), &e);
+  poly::IslAstNodeToCinnExpr(ast, gen.domain(), &e);
   // now we get a workable expression, but the statement are something like `B(((16 * po0) + po1), po2)`, we need to
   // transform this to some realworld statement in CINN.
 
