@@ -108,7 +108,7 @@ TEST(AstGen_Build, not_delete_length1_loop) {
     }
   }
 })ROC";
-        size_t pos                       = -1;
+        int pos                          = -1;
         std::vector<char> iterator_names = {'i', 'j', 'k', 'a'};
         for (int i = 0; i < origin_shape.size(); ++i) {
           pos = target_str.find("9", pos + 1);
