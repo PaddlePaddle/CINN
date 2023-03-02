@@ -253,24 +253,6 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOp(IRComputeFunction compute, Gro
   return {func};
 }
 
-std::vector<ir::Tensor> OpLowerer::CollectInputTensor(const Node* node,
-                                                      std::vector<ir::Tensor>& func_args,
-                                                      std::unordered_map<std::string, ir::Tensor>& tensor_map) {
-  std::vector<ir::Tensor> tensors;
-  // get all input nodes
-  for (auto& node_data : GetProducerNodeData(node)) {
-    CHECK(node_data);
-    auto tensor = GetTensor(node_data, this->type_dict_, this->shape_dict_);
-    if (!tensor_map.count(node_data->id())) {
-      tensor_map[node_data->id()] = tensor;
-      // record func input args
-      func_args.push_back(tensor);
-    }
-    tensors.push_back(tensor);
-  }
-  return tensors;
-}
-
 std::vector<Expr> OpLowerer::IRElementwiseCompute(poly::StageMap& stages,
                                                   std::vector<ir::Tensor>& func_tensors,
                                                   std::unordered_map<std::string, ir::Tensor>& tensor_map,
@@ -426,7 +408,7 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerNonFusibleOp(GroupPtr& group, boo
 
   std::vector<ir::Argument> args;
   std::unordered_map<std::string, ir::Tensor> tensor_map;
-  for (auto& node_data : GetProducerNodeData(node)) {
+  for (auto& node_data : GetInputNodeData(node)) {
     CHECK(node_data);
     ir::Tensor tensor;
     if (!tensor_map.count(node_data->id())) {

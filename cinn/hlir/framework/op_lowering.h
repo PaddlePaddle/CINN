@@ -94,9 +94,6 @@ class OpLowerer {
   DEFINE_IR_COMPUTE_SCHDULE(Reduce);
   DEFINE_IR_COMPUTE_SCHDULE(OutEWiseFusable);
 
-  std::vector<ir::Tensor> CollectInputTensor(const Node* node,
-                                             std::vector<ir::Tensor>& func_args,
-                                             std::unordered_map<std::string, ir::Tensor>& tensor_map);
   void IRSchedule(ir::IRSchedule& ir_sch,
                   const GroupPtr& group,
                   const std::unordered_map<std::string, ir::Tensor>& tensor_map);
