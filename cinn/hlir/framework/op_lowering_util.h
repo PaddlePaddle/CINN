@@ -30,8 +30,10 @@ ir::Tensor GetTensor(const NodeData* node_data,
                      const absl::flat_hash_map<std::string, shape_t>& shape_dict);
 
 std::vector<ir::Tensor> CollectInputTensor(const Node* node,
-                                           const std::vector<ir::Tensor>& func_args,
-                                           const std::unordered_map<std::string, ir::Tensor>& tensor_map);
+                                           std::vector<ir::Tensor>& func_args,
+                                           std::unordered_map<std::string, ir::Tensor>& tensor_map,
+                                           const absl::flat_hash_map<std::string, Type>& type_dict,
+                                           const absl::flat_hash_map<std::string, shape_t>& shape_dict);
 
 NodeData* GetNodeData(const Node* node);
 
@@ -51,7 +53,7 @@ std::vector<int> GetInputShape(const Node* node, const absl::flat_hash_map<std::
 
 std::vector<int> GetOutputShape(const Node* node, const absl::flat_hash_map<std::string, shape_t>& shape_dict);
 
-std::vector<Node*> TopologicalOrder(const GroupPtr& group);
+std::vector<Node*> TopologicalOrder(const GroupPtr& group, const absl::flat_hash_map<std::string, shape_t>& shape_dict);
 
 Node* FindGlobalReducer(const std::vector<Node*>& nodes_in_order);
 

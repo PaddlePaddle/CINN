@@ -20,7 +20,7 @@ namespace cinn {
 namespace hlir {
 namespace framework {
 
-std::vector<NodeData*> GetProducerNodeData(const Node* node) {
+std::vector<NodeData*> GetInputNodeData(const Node* node) {
   std::vector<NodeData*> producers;
   for (auto& link : node->inlinks_in_order(true)) {
     auto node_data = link->source()->safe_as<NodeData>();
@@ -64,12 +64,14 @@ ir::Tensor GetTensor(const NodeData* node_data,
 
 std::vector<ir::Tensor> CollectInputTensor(const Node* node,
                                            std::vector<ir::Tensor>& func_args,
-                                           std::unordered_map<std::string, ir::Tensor>& tensor_map) {
+                                           std::unordered_map<std::string, ir::Tensor>& tensor_map,
+                                           const absl::flat_hash_map<std::string, Type>& type_dict,
+                                           const absl::flat_hash_map<std::string, shape_t>& shape_dict) {
   std::vector<ir::Tensor> tensors;
   // get all input nodes
   for (auto& node_data : GetInputNodeData(node)) {
     CHECK(node_data);
-    auto tensor = GetTensor(node_data, this->type_dict_, this->shape_dict_);
+    auto tensor = GetTensor(node_data, type_dict, shape_dict);
     if (!tensor_map.count(node_data->id())) {
       tensor_map[node_data->id()] = tensor;
       // record func input args
@@ -167,31 +169,6 @@ std::vector<int> GetOutputShape(const Node* node, const absl::flat_hash_map<std:
   return shape_dict.at(node_data->id());
 }
 
-std::vector<Node*> TopologicalOrder(const GroupPtr& group) {
-  std::vector<Node*> nodes_in_order;
-  std::unordered_set<Node*> node_set = group->NodeSet();
-
-  while (!node_set.empty()) {
-    auto tmp_node_set = node_set;
-    for (auto node : tmp_node_set) {
-      auto consumers     = GetConsumersInSet(node, node_set);
-      bool cant_be_erase = false;
-      for (auto consumer : consumers) {
-        if (node_set.count(consumer)) {
-          cant_be_erase = true;
-          break;
-        }
-      }
-
-      if (cant_be_erase) continue;
-      nodes_in_order.push_back(node);
-      node_set.erase(node);
-    }
-  }
-
-  return nodes_in_order;
-}
-
 Node* FindGlobalReducer(const std::vector<Node*>& nodes_in_order) {
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
   for (auto iter = nodes_in_order.rbegin(); iter != nodes_in_order.rend(); ++iter) {
@@ -231,6 +208,96 @@ Node* FindNearestReducer(const Node* node, const std::unordered_set<Node*>& node
     return reducer;
   else
     return FindReducerInRoute(node, nodes_set, GetProducersInSet);
+}
+
+std::vector<Node*> TopologicalOrder(const GroupPtr& group,
+                                    const absl::flat_hash_map<std::string, shape_t>& shape_dict) {
+  std::vector<Node*> nodes_in_order;
+  std::unordered_set<Node*> nodes_set = group->NodeSet();
+
+  std::unordered_map<Node*, Node*> virtual_consumers;
+  if (group->op_pattern_kind == framework::kReduction) {
+    // if exist output node, the shape is not equal.
+    auto base  = *group->master_nodes.begin();
+    auto shape = shape_dict.at(GetNodeData(base)->id());
+    auto size  = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<int>());
+    for (auto t_node : group->master_nodes) {
+      if (t_node == base) {
+        continue;
+      }
+
+      auto t_shape = shape_dict.at(GetNodeData(t_node)->id());
+      auto t_size  = std::accumulate(t_shape.begin(), t_shape.end(), 1, std::multiplies<int>());
+      if (size > t_size) {
+        base = t_node;
+        size = t_size;
+      }
+    }
+
+    for (auto t_node : group->master_nodes) {
+      if (t_node == base) {
+        continue;
+      }
+
+      auto t_shape = shape_dict.at(GetNodeData(t_node)->id());
+      auto t_size  = std::accumulate(t_shape.begin(), t_shape.end(), 1, std::multiplies<int>());
+      if (size < t_size) {
+        std::queue<Node*> candidates;
+        std::unordered_set<Node*> visited;
+
+        candidates.push(t_node);
+        while (!candidates.empty()) {
+          auto candidate = candidates.front();
+          candidates.pop();
+
+          for (auto producer : GetProducersInSet(candidate, nodes_set)) {
+            if (visited.count(producer)) {
+              continue;
+            }
+
+            auto reducer = FindReducerInRoute(producer, nodes_set, GetConsumersInSet);
+            if (reducer) {
+              virtual_consumers[t_node] = reducer;
+              break;
+            }
+            visited.insert(producer);
+          }
+          // if find horizontal reducer.
+          if (virtual_consumers.count(t_node)) {
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  auto FindConsumers = [&virtual_consumers, &nodes_set](Node* node) {
+    auto consumers = GetConsumersInSet(node, nodes_set);
+    if (virtual_consumers.count(node)) {
+      consumers.push_back(virtual_consumers[node]);
+    }
+    return consumers;
+  };
+
+  while (!nodes_set.empty()) {
+    auto tmp_node_set = nodes_set;
+    for (auto node : tmp_node_set) {
+      auto consumers     = FindConsumers(node);
+      bool cant_be_erase = false;
+      for (auto consumer : consumers) {
+        if (nodes_set.count(consumer)) {
+          cant_be_erase = true;
+          break;
+        }
+      }
+
+      if (cant_be_erase) continue;
+      nodes_in_order.push_back(node);
+      nodes_set.erase(node);
+    }
+  }
+
+  return nodes_in_order;
 }
 
 bool WithoutLastDimInReduce(const std::vector<int>& shape, const std::vector<int>& axes) {

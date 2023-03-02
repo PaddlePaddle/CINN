@@ -267,7 +267,8 @@ std::vector<Expr> OpLowerer::IRElementwiseCompute(poly::StageMap& stages,
     auto node_data = GetNodeData(node);
     CHECK_EQ(GetAllNodeData(node).size(), 1U);
     std::vector<common::CINNValue> cinn_inputs;
-    std::vector<ir::Tensor> tensor_inputs = std::move(CollectInputTensor(node, func_tensors, tensor_map));
+    std::vector<ir::Tensor> tensor_inputs =
+        std::move(CollectInputTensor(node, func_tensors, tensor_map, this->type_dict_, this->shape_dict_));
     for (auto& tensor : tensor_inputs) {
       cinn_inputs.push_back(common::CINNValue(ir::Expr(tensor)));
     }
@@ -332,7 +333,8 @@ std::vector<Expr> OpLowerer::IRReduceCompute(poly::StageMap& stages,
     VLOG(3) << "In ReduceCompute, process node: " << node->id() << " with op type: " << node->op()->name;
 
     std::vector<common::CINNValue> cinn_inputs;
-    std::vector<ir::Tensor> tensor_inputs = std::move(CollectInputTensor(node, func_args, tensor_map));
+    std::vector<ir::Tensor> tensor_inputs =
+        std::move(CollectInputTensor(node, func_args, tensor_map, this->type_dict_, this->shape_dict_));
     for (auto& tensor : tensor_inputs) {
       cinn_inputs.push_back(common::CINNValue(ir::Expr(tensor)));
     }
@@ -525,7 +527,7 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
                            const std::unordered_map<std::string, ir::Tensor>& tensor_map) {
   // topological order.
   std::unordered_set<Node*> nodes_set = group->NodeSet();
-  std::vector<Node*> nodes_in_order   = TopologicalOrder(group);
+  std::vector<Node*> nodes_in_order   = TopologicalOrder(group, this->shape_dict_);
   // find reducer.
   std::unordered_set<Node*> nodes_inline;
   auto greducer         = FindGlobalReducer(nodes_in_order);
