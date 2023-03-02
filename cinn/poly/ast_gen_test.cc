@@ -69,7 +69,7 @@ TEST(AstGen_Build, not_delete_length1_loop) {
           len1_shape[i] = Expr(1);
         }
       }
-      LOG(INFO) << "Debug index_length1 = " << index_length1[0] << index_length1[1] << index_length1[2]
+      LOG(INFO) << "index_length1 hint = " << index_length1[0] << index_length1[1] << index_length1[2]
                 << index_length1[3];
       Placeholder<float> A("A", len1_shape);
       Tensor B = lang::Compute(
