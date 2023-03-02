@@ -1407,7 +1407,7 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
       continue;
     }
     // find master to computeat.
-    auto master = GetMasterToComputeAt(node, nodes_in_order, nodes_inline, nodes_set);
+    auto master = GetMasterToComputeAt(node, nodes_in_order, nodes_inline, nodes_set, this->shape_dict_);
 
     // assign to reducer/master loop.
     if (reducer) {

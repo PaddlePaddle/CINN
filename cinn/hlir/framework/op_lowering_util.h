@@ -368,7 +368,7 @@ inline void LoopAssignReduceWithLast(ir::IRSchedule& ir_sch,
     }
     LoopOrderAssignReduce(ir_sch, block_name, first_axes, target, true);
     // fuse axis before reduce to bind blockidx.
-    for (int idx = 0; idx < (inshape.size() - axes.size()) - 1; ++idx) {
+    for (int idx = 0; idx < int(inshape.size() - axes.size()) - 1; ++idx) {
       ir_sch.Fuse(block_name, {0, 1});
     }
   }
@@ -432,7 +432,8 @@ inline bool CanbeInline(Node* node,
 inline Node* GetMasterToComputeAt(Node* node,
                                   const std::vector<Node*>& nodes_in_order,
                                   const std::unordered_set<Node*>& nodes_inline,
-                                  const std::unordered_set<Node*>& nodes_set) {
+                                  const std::unordered_set<Node*>& nodes_set,
+                                  const absl::flat_hash_map<std::string, shape_t>& shape_dict) {
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
   // if node is reduction, try find horizontal to compute at.
   if (op_pattern_dict[node->op()] == framework::kReduction) {
@@ -468,6 +469,13 @@ inline Node* GetMasterToComputeAt(Node* node,
     }
 
     if (done_schedule.size()) {
+      auto shape = shape_dict.at(node->inlinks_in_order()[0]->source()->id());
+      for (auto rnode : done_schedule) {
+        auto rshape = shape_dict.at(rnode->inlinks_in_order()[0]->source()->id());
+        if (shape == rshape) {
+          return rnode;
+        }
+      }
       return *done_schedule.begin();
     }
   }
@@ -570,26 +578,28 @@ inline void LoopAssignReduce(ir::IRSchedule& ir_sch,
       auto nloops = ir_sch.GetLoops(node_data->id());
       auto rloops = ir_sch.GetLoops(tensor_map.find(reducer_data->id() + "_0")->second->name);
       if (nloops.size() < rloops.size()) {
-        ir_sch.Split(nloops[0], {-1, ir::GetLoopExtent(nloops[0])});
+        ir_sch.Split(nloops[0], {1, -1});
       }
     } else {
       LoopOrderAssignReduce(ir_sch, node_data->id(), axes, target);
       auto nloops = ir_sch.GetLoops(node_data->id());
       auto rloops = ir_sch.GetLoops(tensor_map.find(reducer_data->id())->second->name);
       if (nloops.size() < rloops.size()) {
-        ir_sch.Split(nloops[0], {-1, ir::GetLoopExtent(nloops[0])});
+        ir_sch.Split(nloops[0], {1, -1});
       }
     }
   } else {
     if (tensor_map.count(reducer_data->id() + "_1")) {
-      auto nloops = ir_sch.GetLoops(node_data->id());
-      ir_sch.Split(nloops.back(), shape);
+      {
+        auto nloops = ir_sch.GetLoops(node_data->id());
+        ir_sch.Split(nloops.back(), shape);
+      }
       LoopAssignReduceWithLast(ir_sch, node_data->id(), shape, axes, target);
-      nloops      = ir_sch.GetLoops(node_data->id());
-      auto rloops = ir_sch.GetLoops(tensor_map.find(reducer_data->id() + "_1")->second->name);
 
+      auto nloops = ir_sch.GetLoops(node_data->id());
+      auto rloops = ir_sch.GetLoops(tensor_map.find(reducer_data->id() + "_1")->second->name);
       if (nloops.size() < rloops.size()) {
-        ir_sch.Split(nloops[0], {-1, ir::GetLoopExtent(nloops[0])});
+        ir_sch.Split(nloops[0], {1, -1});
       }
     } else if (tensor_map.count(reducer_data->id() + "_0")) {
       auto tensor = tensor_map.find(reducer_data->id() + "_0")->second;
@@ -694,40 +704,240 @@ inline void InsertSyncThread(ir::IRSchedule& ir_sch,
   }
 }
 
+// The struct used to remove the original block in ComputeAt.
+class InsertExpr : public ir::IRMutator<> {
+ public:
+  InsertExpr(Expr& target, Expr& anchor) : target_(target), anchor_(anchor) {}
+
+  void operator()(Expr* expr) { IRMutator::Visit(expr, expr); }
+
+ private:
+  void Visit(const ir::ScheduleBlockRealize* expr, Expr* op) override { IRMutator::Visit(expr, op); }
+
+  void Visit(const ir::For* expr, Expr* op) override { IRMutator::Visit(expr, op); }
+
+  void Visit(const ir::Block* expr, Expr* op) override {
+    auto* node = op->As<ir::Block>();
+    auto iter  = std::find(node->stmts.begin(), node->stmts.end(), anchor_);
+    if (iter != node->stmts.end()) {
+      node->stmts.insert(iter, target_);
+    } else {
+      for (auto stmt : node->stmts) {
+        IRMutator::Visit(&stmt, &stmt);
+      }
+    }
+  }
+
+ private:
+  Expr target_;
+  Expr anchor_;
+};
+
 inline void MergeReduceToReduce(ir::IRSchedule& ir_sch,
                                 const Node* node,
                                 const Node* master,
+                                const absl::flat_hash_map<std::string, shape_t>& shape_dict,
                                 const std::unordered_map<std::string, ir::Tensor>& tensor_map) {
-  auto do_reduce_init_schedule = [&ir_sch](ir::Tensor t0, ir::Tensor t1) {
-    if (ir_sch.HasBlock(t0->name + "__reduce_init")) {
-      auto block = ir_sch.GetBlock(t0->name + "__reduce_init");
-      auto loops = ir_sch.GetLoops(t1->name + "__reduce_init");
-      ir_sch.SimpleComputeAt(block, loops.back());
-    }
-  };
-
   auto node_data   = GetNodeData(node);
   auto master_data = GetNodeData(master);
 
-  std::string post = "";
-  for (int idx = 0;; ++idx) {
-    if (!tensor_map.count(node_data->id() + post)) {
-      break;
+  CHECK(shape_dict.count(node->inlinks_in_order()[0]->source()->id()));
+  auto shape = shape_dict.at(node->inlinks_in_order()[0]->source()->id());
+  auto axes  = absl::get<std::vector<int>>(node->attrs.attr_store.at("dim"));
+  if (axes.empty()) {
+    for (int idx = 0; idx < shape.size(); idx++) {
+      axes.push_back(idx);
     }
+  }
+  if (WithoutLastDimInReduce(shape, axes)) {
+    auto mshape = shape_dict.at(master->inlinks_in_order()[0]->source()->id());
+    // using block shuffle
+    if (tensor_map.count(node_data->id() + "_1")) {
+      if (shape == mshape) {
+        // block shuffle
+        {
+          auto block = ir_sch.GetBlock(node_data->id());
+          auto loops = ir_sch.GetLoops(master_data->id());
+          ir_sch.SimpleComputeAt(block, loops.back());
+        }
+        // reduce loop
+        {
+          auto n_tensor = tensor_map.find(node_data->id() + "_0")->second;
+          auto m_tensor = tensor_map.find(master_data->id() + "_0")->second;
 
-    auto tensor  = tensor_map.find(node_data->id() + post)->second;
-    auto tensor_ = tensor_map.find(master_data->id() + post)->second;
+          auto block = ir_sch.GetBlock(n_tensor->name);
+          auto loops = ir_sch.GetLoops(m_tensor->name);
+          ir_sch.SimpleComputeAt(block, loops.back());
+          // reduce init
+          {
+            auto block = ir_sch.GetBlock(n_tensor->name + "__reduce_init");
+            auto loops = ir_sch.GetLoops(m_tensor->name + "__reduce_init");
+            ir_sch.SimpleComputeAt(block, loops.back());
+          }
+        }
+      } else {
+        auto n_tensor = tensor_map.find(node_data->id() + "_0")->second;
+        auto m_tensor = tensor_map.find(master_data->id() + "_0")->second;
+        if (n_tensor->shape.back() == m_tensor->shape.back()) {
+          // block shuffle
+          {
+            auto block = ir_sch.GetBlock(node_data->id());
+            auto loops = ir_sch.GetLoops(master_data->id());
+            ir_sch.SimpleComputeAt(block, loops.back());
+          }
+          // reduce loop
+          {
+            auto n_tensor = tensor_map.find(node_data->id() + "_0")->second;
+            auto m_tensor = tensor_map.find(master_data->id() + "_0")->second;
 
-    if (!ir_sch.HasBlock(tensor->name)) {
-      do_reduce_init_schedule(tensor, tensor_);
-      break;
+            auto n_block = ir_sch.GetBlock(n_tensor->name);
+            auto m_block = ir_sch.GetBlock(m_tensor->name);
+
+            auto n_loops = ir_sch.GetLoops(n_tensor->name);
+            auto m_loops = ir_sch.GetLoops(m_tensor->name);
+
+            std::vector<ir::Var> src_vars;
+            std::vector<ir::Expr> dst_vars;
+            for (int idx = 0; idx < m_loops.size() - 1; ++idx) {
+              src_vars.push_back(n_loops[idx].As<ir::For>()->loop_var);
+              dst_vars.push_back(ir::Expr(m_loops[idx].As<ir::For>()->loop_var));
+            }
+            ReplaceExpr(&n_block, src_vars, dst_vars);
+
+            int index = n_loops.size();
+            InsertExpr insert_expr(n_loops[index - 1], m_loops[index - 1]);
+            insert_expr(&m_loops[0]);
+
+            // reduce init
+            {
+              auto block = ir_sch.GetBlock(n_tensor->name + "__reduce_init");
+              auto loops = ir_sch.GetLoops(m_tensor->name + "__reduce_init");
+              ir_sch.SimpleComputeAt(block, loops.back());
+            }
+            RemoveExpr remove_expr(n_loops[0]);
+            remove_expr(&ir_sch.GetModule().GetExprs().at(0));
+          }
+        } else {
+          // block shuffle
+          {
+            auto block = ir_sch.GetBlock(node_data->id());
+            auto loops = ir_sch.GetLoops(master_data->id());
+            ir_sch.SimpleComputeAt(block, loops.back());
+          }
+          // reducer loop
+          {
+            auto n_tensor = tensor_map.find(node_data->id() + "_0")->second;
+            auto m_tensor = tensor_map.find(master_data->id() + "_0")->second;
+
+            auto n_loops = ir_sch.GetLoops(n_tensor->name);
+            auto m_loops = ir_sch.GetLoops(m_tensor->name);
+
+            MergeLoops(ir_sch.GetModule().GetExprs().at(0), n_loops, m_loops, 0);
+          }
+        }
+      }
+    } else {
+      if (shape == mshape) {
+        // reduce loop
+        {
+          auto block = ir_sch.GetBlock(node_data->id());
+          auto loops = ir_sch.GetLoops(master_data->id());
+          ir_sch.SimpleComputeAt(block, loops.back());
+          // reduce init
+          {
+            auto block = ir_sch.GetBlock(node_data->id() + "__reduce_init");
+            auto loops = ir_sch.GetLoops(master_data->id() + "__reduce_init");
+            ir_sch.SimpleComputeAt(block, loops.back());
+          }
+        }
+      } else {
+        // reduce loop
+        {
+          auto block  = ir_sch.GetBlock(node_data->id());
+          auto nloops = ir_sch.GetLoops(node_data->id());
+          auto mloops = ir_sch.GetLoops(master_data->id());
+          for (int idx = 0; idx < mloops.size(); ++idx) {
+            if (GetLoopExtent(nloops[idx]) != GetLoopExtent(mloops[idx])) {
+              ir_sch.SimpleComputeAt(block, mloops[idx - 1]);
+              break;
+            }
+          }
+          // reduce init
+          {
+            auto block = ir_sch.GetBlock(node_data->id() + "__reduce_init");
+            auto loops = ir_sch.GetLoops(master_data->id() + "__reduce_init");
+            ir_sch.SimpleComputeAt(block, loops.back());
+          }
+        }
+      }
     }
-    auto node_block   = ir_sch.GetBlock(tensor->name);
-    auto master_loops = ir_sch.GetLoops(tensor_->name);
+  } else {
+    if (tensor_map.count(node_data->id() + "_1")) {
+      // identity
+      {
+        auto block = ir_sch.GetBlock(node_data->id());
+        auto loops = ir_sch.GetLoops(master_data->id());
+        ir_sch.SimpleComputeAt(block, loops.back());
+      }
+      // reduce
+      {
+        auto n_tensor = tensor_map.find(node_data->id() + "_1")->second;
+        auto m_tensor = tensor_map.find(master_data->id() + "_1")->second;
 
-    ir_sch.SimpleComputeAt(node_block, master_loops.back());
-    do_reduce_init_schedule(tensor, tensor_);
-    post = "_" + std::to_string(idx);
+        auto block = ir_sch.GetBlock(n_tensor->name);
+        auto loops = ir_sch.GetLoops(m_tensor->name);
+        ir_sch.SimpleComputeAt(block, loops.back());
+        // reduce init
+        {
+          auto block = ir_sch.GetBlock(n_tensor->name + "__reduce_init");
+          auto loops = ir_sch.GetLoops(m_tensor->name + "__reduce_init");
+          ir_sch.SimpleComputeAt(block, loops.back());
+        }
+      }
+      // block shuffle
+      {
+        auto n_tensor = tensor_map.find(node_data->id() + "_0")->second;
+        auto m_tensor = tensor_map.find(master_data->id() + "_0")->second;
+
+        auto n_block = ir_sch.GetBlock(n_tensor->name);
+        auto m_block = ir_sch.GetBlock(m_tensor->name);
+
+        auto n_loops = ir_sch.GetLoops(n_tensor->name);
+        auto m_loops = ir_sch.GetLoops(m_tensor->name);
+
+        std::vector<ir::Var> src_vars;
+        std::vector<ir::Expr> dst_vars;
+        for (int idx = 0; idx < m_loops.size(); ++idx) {
+          src_vars.push_back(n_loops[idx].As<ir::For>()->loop_var);
+          dst_vars.push_back(ir::Expr(m_loops[idx].As<ir::For>()->loop_var));
+        }
+        ReplaceExpr(&n_block, src_vars, dst_vars);
+
+        InsertExpr insert_expr(n_block, m_block);
+        insert_expr(&m_loops.back());
+
+        RemoveExpr remove_expr(n_loops[0]);
+        remove_expr(&ir_sch.GetModule().GetExprs().at(0));
+      }
+    } else if (tensor_map.count(node_data->id() + "_0")) {
+      // identity
+      {
+        auto block = ir_sch.GetBlock(node_data->id());
+        auto loops = ir_sch.GetLoops(master_data->id());
+        ir_sch.SimpleComputeAt(block, loops.back());
+      }
+      // shuffle reduce
+      {
+        auto n_tensor = tensor_map.find(node_data->id() + "_0")->second;
+        auto m_tensor = tensor_map.find(master_data->id() + "_0")->second;
+
+        auto block = ir_sch.GetBlock(n_tensor->name);
+        auto loops = ir_sch.GetLoops(m_tensor->name);
+        ir_sch.SimpleComputeAt(block, loops.back());
+      }
+    } else {
+      LOG(FATAL) << "Error! Unkown Reduce Type, Please Check!";
+    }
   }
 }
 
@@ -737,8 +947,8 @@ inline void MergeReduceLoop(ir::IRSchedule& ir_sch,
                             const absl::flat_hash_map<std::string, shape_t>& shape_dict,
                             const std::unordered_map<std::string, ir::Tensor>& tensor_map) {
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
-  if (op_pattern_dict[master->op()] == kReduction) {
-    MergeReduceToReduce(ir_sch, node, master, tensor_map);
+  if (op_pattern_dict[master->op()] == kReduction && node != master) {
+    MergeReduceToReduce(ir_sch, node, master, shape_dict, tensor_map);
     return;
   }
 
