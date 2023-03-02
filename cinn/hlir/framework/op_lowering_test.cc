@@ -106,8 +106,8 @@ TEST(OP_LOWERING, Reduce_Dim_Equal_1_1) {
   }
 }
 
-TEST(OP_LOWERING, Reduce_Dim_Equal_1_2) {
-  NetBuilder net_builder("Reduce_Dim_Equal_1_2");
+TEST(OP_LOWERING, Reduce_Dim_Equal_One_2) {
+  NetBuilder net_builder("Reduce_Dim_Equal_One_2");
   {
     auto A = net_builder.CreateInput(Float(32), {32, 1024}, "A");
     auto B = net_builder.ReduceSum(A, {1}, false);
@@ -927,7 +927,6 @@ TEST(OP_LOWERING, Reduce_Test_0) {
     CHECK_EQ(lowered_func.size(), 1);
     CodeGen(lowered_func[0]);
   }
-  exit(0);
 }
 
 TEST(OP_LOWERING, Reduce_Test_1) {

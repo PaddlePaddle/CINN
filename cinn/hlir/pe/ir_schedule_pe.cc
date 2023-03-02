@@ -409,7 +409,7 @@ void IRCudaScheduleBlockReduceInternal(ir::IRSchedule &ir_sch,
     ir_sch.Bind(loops_tmp_out[1], "threadIdx.x");
 
     if (loops_out.size() == 1) {
-      ir_sch.Split(loops_out[0], {1, -1});
+      ir_sch.Split(loops_out[0], {-1, 1});
     }
     loops_out = ir_sch.GetLoops(out->name);
     ir_sch.Bind(loops_out[0], "blockIdx.x");
