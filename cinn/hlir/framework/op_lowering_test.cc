@@ -54,6 +54,32 @@ void CodeGen(ir::LoweredFunc& func) {
 #endif
 }
 
+TEST(OP_LOWERING, Reduce_Dim_Equal_1_0) {
+  NetBuilder net_builder("Reduce_Dim_Equal_1_0");
+  {
+    auto A = net_builder.CreateInput(Float(32), {1, 1, 10}, "A");
+    auto B = net_builder.ReduceSum(A, {0, 2}, false);
+  }
+
+  auto program = net_builder.Build();
+  auto target  = common::DefaultTarget();
+  RunDecomposer(&program, target);
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
+
+  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
+  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
+
+  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
+  for (auto& fusion_op : graph->fusion_groups) {
+    auto lowered_func = op_lowerer.Lower(fusion_op);
+    CHECK_EQ(lowered_func.size(), 1);
+    CodeGen(lowered_func[0]);
+  }
+}
+
 TEST(OP_LOWERING, Reduce_Keep_Dim_Fuse_Elementwise_0) {
   NetBuilder net_builder("Reduce_Keep_Dim_Fuse_Elementwise_0");
   {
@@ -1029,36 +1055,6 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_0) {
 
     auto C = net_builder.ReduceSum(A, {0});
     auto D = net_builder.Add(B, C);
-  }
-
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
-}
-
-TEST(OP_LOWERING, Reduce_Fusion_Test_11) {
-  int h = 32, w = 32;
-  NetBuilder net_builder("Reduce_Fusion_Test_11");
-  // create model
-  {
-    auto A = net_builder.CreateInput(Float(32), {h, w}, "A");
-    auto B = net_builder.CreateInput(Float(32), {h, w}, "B");
-    auto D = net_builder.Add(A, B);
-    auto E = net_builder.ReduceSum(D, {1});
   }
 
   auto program = net_builder.Build();

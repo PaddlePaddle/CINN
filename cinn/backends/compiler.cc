@@ -128,6 +128,7 @@ void Compiler::CompileCudaModule(const Module& module, const std::string& code) 
 
   backends::nvrtc::Compiler compiler;
 
+  VLOG(3) << "[CUDA] device code:\n" << source_code;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
 

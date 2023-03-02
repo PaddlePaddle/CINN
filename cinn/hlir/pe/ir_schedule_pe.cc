@@ -502,7 +502,7 @@ void IRCudaScheduleBlockReduce(ir::IRSchedule &ir_sch,
     auto loops = ir_sch.GetLoops(tensor->name);
     CHECK(!loops.empty());
     if (loops.size() == 1) {
-      ir_sch.Split(loops[0], {-1, 1});
+      ir_sch.Split(loops[0], {1, -1});
     }
 
     loops = ir_sch.GetLoops(tensor->name);

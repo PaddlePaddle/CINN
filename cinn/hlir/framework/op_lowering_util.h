@@ -17,10 +17,53 @@
 #include <queue>
 
 #include "cinn/hlir/framework/op_lowering.h"
+#include "cinn/runtime/cuda/float16.h"
 
 namespace cinn {
 namespace hlir {
 namespace framework {
+
+inline std::vector<NodeData*> GetProducerNodeData(const Node* node) {
+  std::vector<NodeData*> producers;
+  for (auto& link : node->inlinks_in_order(true)) {
+    auto node_data = link->source()->safe_as<NodeData>();
+    producers.push_back(node_data);
+  }
+  return producers;
+}
+
+inline ir::Tensor GetTensor(const NodeData* node_data,
+                            const absl::flat_hash_map<std::string, Type>& type_dict,
+                            const absl::flat_hash_map<std::string, shape_t>& shape_dict) {
+  auto dtype = type_dict.at(node_data->id());
+  if (dtype.is_float(32)) {
+    return lang::Placeholder<float>(node_data->id(), shape_dict.at(node_data->id()));
+  } else if (dtype.is_float(64)) {
+    return lang::Placeholder<double>(node_data->id(), shape_dict.at(node_data->id()));
+  } else if (dtype.is_float(16)) {
+    return lang::Placeholder<common::float16>(node_data->id(), shape_dict.at(node_data->id()));
+  } else if (dtype.is_bool()) {
+    return lang::Placeholder<bool>(node_data->id(), shape_dict.at(node_data->id()));
+  } else if (dtype.is_int(8)) {
+    return lang::Placeholder<int8_t>(node_data->id(), shape_dict.at(node_data->id()));
+  } else if (dtype.is_int(16)) {
+    return lang::Placeholder<int16_t>(node_data->id(), shape_dict.at(node_data->id()));
+  } else if (dtype.is_int(32)) {
+    return lang::Placeholder<int32_t>(node_data->id(), shape_dict.at(node_data->id()));
+  } else if (dtype.is_int(64)) {
+    return lang::Placeholder<int64_t>(node_data->id(), shape_dict.at(node_data->id()));
+  } else if (dtype.is_uint(8)) {
+    return lang::Placeholder<uint8_t>(node_data->id(), shape_dict.at(node_data->id()));
+  } else if (dtype.is_uint(16)) {
+    return lang::Placeholder<uint16_t>(node_data->id(), shape_dict.at(node_data->id()));
+  } else if (dtype.is_uint(32)) {
+    return lang::Placeholder<uint32_t>(node_data->id(), shape_dict.at(node_data->id()));
+  } else if (dtype.is_uint(64)) {
+    return lang::Placeholder<uint64_t>(node_data->id(), shape_dict.at(node_data->id()));
+  } else {
+    LOG(FATAL) << "Unsupport dtype: " << dtype;
+  }
+}
 
 inline NodeData* GetNodeData(const Node* node) {
   auto node_data = (*node->outlinks().begin())->sink()->safe_as<NodeData>();

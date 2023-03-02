@@ -76,9 +76,9 @@ std::vector<ir::LoweredFunc> OpLowerer::Lower(GroupPtr& group) {
       case framework::kElementWise:
       case framework::kBroadcast:
       case framework::kInjective:
-        return IRLowerOp(&OpLowerer::IRElementwiseCompute, &OpLowerer::IRElementwiseSchedule, group);
+        return IRLowerOp(&OpLowerer::IRElementwiseCompute, group);
       case framework::kReduction:
-        return IRLowerOp(&OpLowerer::IRReduceCompute, &OpLowerer::IRReduceSchedule, group);
+        return IRLowerOp(&OpLowerer::IRReduceCompute, group);
       case framework::kOutFusible:
         LOG(FATAL) << "Group Pattern Kind kOutFusible Is Not Implemented!";
       case framework::kNonFusible:
@@ -174,9 +174,7 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpWithoutSchedule(IRComputeFuncti
   return {func};
 }
 
-std::vector<ir::LoweredFunc> OpLowerer::IRLowerOp(IRComputeFunction compute,
-                                                  IRScheduleFunction schedule,
-                                                  GroupPtr& group) {
+std::vector<ir::LoweredFunc> OpLowerer::IRLowerOp(IRComputeFunction compute, GroupPtr& group) {
   poly::StageMap stages;
   std::vector<ir::Tensor> arg_tensors;
   std::unordered_map<std::string, ir::Tensor> tensor_map;
@@ -255,150 +253,22 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOp(IRComputeFunction compute,
   return {func};
 }
 
-// fusion op lowering
-std::vector<ir::LoweredFunc> OpLowerer::LowerOp(ComputeFunction compute, ScheduleFunction schedule, GroupPtr& group) {
-  poly::StageMap stages;
-  std::vector<ir::Tensor> func_args;
-  std::unordered_map<std::string, ir::Tensor> tensor_map;
-  VLOG(3) << "Fused Sub-Graph Size Is : " << group->fused_sub_groups.size();
-  // do compute.
-  if (group->fused_sub_groups.size() == 0) {
-    (this->*compute)(stages, func_args, tensor_map, group, group);
-  } else {
-    for (auto& sub_group : group->fused_sub_groups) {
-      (this->*compute)(stages, func_args, tensor_map, group, sub_group);
-    }
-  }
-
-  VLOG(3) << "After Compute, Do Schedule!";
-  // do schedule.
-  if (group->fused_sub_groups.size() == 0) {
-    (this->*schedule)(stages, tensor_map, group, group);
-  } else {
-    for (auto& sub_group : group->fused_sub_groups) {
-      (this->*schedule)(stages, tensor_map, group, sub_group);
-    }
-  }
-  group->input_names.clear();
-  for (auto& args : func_args) {
-    // input node data name.
-    group->input_names.push_back(args->name);
-  }
-
-  group->output_names.clear();
-  for (auto& node : group->output_nodes) {
-    // output node data name.
-    for (auto node_data : GetAllNodeData(node)) {
-      group->output_names.push_back(node_data->id());
-    }
-    // collect all output tensor.
-    std::string post   = "";
-    std::string prefix = GetNodeData(node)->id();
-    for (int idx = 0;; ++idx) {
-      if (idx == 0) {
-        CHECK(tensor_map.count(prefix)) << "Can't find output tensor " << prefix;
-      }
-      if (!tensor_map.count(prefix + post)) {
-        break;
-      }
-      auto tensor = tensor_map[prefix + post];
-      // if tensor is with buffer, it's not a output.
-      if (!tensor->buffer.defined() && !stages[tensor]->inlined()) {
-        func_args.push_back(tensor);
-      }
-      // update post
-      post = "_" + std::to_string(idx);
-    }
-  }
-
-  return lang::LowerVec(group->GetFuncName(), stages, func_args, {}, {}, nullptr, this->target_);
-}
-
-std::vector<ir::Tensor> OpLowerer::CollectInputTensor(std::vector<ir::Tensor>& func_args,
-                                                      std::unordered_map<std::string, ir::Tensor>& tensor_map,
-                                                      const Node* node) {
-  std::vector<ir::Tensor> tensor_inputs;
+std::vector<ir::Tensor> OpLowerer::CollectInputTensor(const Node* node,
+                                                      std::vector<ir::Tensor>& func_args,
+                                                      std::unordered_map<std::string, ir::Tensor>& tensor_map) {
+  std::vector<ir::Tensor> tensors;
   // get all input nodes
-  for (auto& link : node->inlinks_in_order(true)) {
-    auto source = link->source();
-    CHECK(source);
-    auto source_data = source->safe_as<NodeData>();
-    CHECK(source_data);
-    if (FLAGS_cinn_ir_schedule) {
-      auto dtype = this->type_dict_.at(source_data->id());
-      CHECK(dtype.is_supported()) << "Node " << source_data->id() << " 's dtype " << dtype << "is not supported yet!";
-      ir::Tensor tensor;
-      if (dtype.is_float(32)) {
-        tensor = lang::Placeholder<float>(source_data->id(), this->shape_dict_.at(source_data->id()));
-      } else if (dtype.is_float(64)) {
-        tensor = lang::Placeholder<double>(source_data->id(), this->shape_dict_.at(source_data->id()));
-      } else if (dtype.is_float(16)) {
-        tensor = lang::Placeholder<float16>(source_data->id(), this->shape_dict_.at(source_data->id()));
-      } else if (dtype.is_bool()) {
-        tensor = lang::Placeholder<bool>(source_data->id(), this->shape_dict_.at(source_data->id()));
-      } else if (dtype.is_int(8)) {
-        tensor = lang::Placeholder<int8_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
-      } else if (dtype.is_int(16)) {
-        tensor = lang::Placeholder<int16_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
-      } else if (dtype.is_int(32)) {
-        tensor = lang::Placeholder<int32_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
-      } else if (dtype.is_int(64)) {
-        tensor = lang::Placeholder<int64_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
-      } else if (dtype.is_uint(8)) {
-        tensor = lang::Placeholder<uint8_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
-      } else if (dtype.is_uint(16)) {
-        tensor = lang::Placeholder<uint16_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
-      } else if (dtype.is_uint(32)) {
-        tensor = lang::Placeholder<uint32_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
-      } else if (dtype.is_uint(64)) {
-        tensor = lang::Placeholder<uint64_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
-      }
-      if (!tensor_map.count(source_data->id())) {
-        tensor_map[source_data->id()] = tensor;
-        // record func input args
-        func_args.push_back(tensor);
-      }
-      tensor_inputs.push_back(tensor);
-    } else {
-      if (tensor_map.count(source_data->id())) {
-        tensor_inputs.push_back(tensor_map[source_data->id()]);
-      } else {
-        auto dtype = this->type_dict_.at(source_data->id());
-        CHECK(dtype.is_supported()) << "Node " << source_data->id() << " 's dtype " << dtype << "is not supported yet!";
-        ir::Tensor tensor;
-        if (dtype.is_float(32)) {
-          tensor = lang::Placeholder<float>(source_data->id(), this->shape_dict_.at(source_data->id()));
-        } else if (dtype.is_float(64)) {
-          tensor = lang::Placeholder<double>(source_data->id(), this->shape_dict_.at(source_data->id()));
-        } else if (dtype.is_float(16)) {
-          tensor = lang::Placeholder<float16>(source_data->id(), this->shape_dict_.at(source_data->id()));
-        } else if (dtype.is_bool()) {
-          tensor = lang::Placeholder<bool>(source_data->id(), this->shape_dict_.at(source_data->id()));
-        } else if (dtype.is_int(8)) {
-          tensor = lang::Placeholder<int8_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
-        } else if (dtype.is_int(16)) {
-          tensor = lang::Placeholder<int16_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
-        } else if (dtype.is_int(32)) {
-          tensor = lang::Placeholder<int32_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
-        } else if (dtype.is_int(64)) {
-          tensor = lang::Placeholder<int64_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
-        } else if (dtype.is_uint(8)) {
-          tensor = lang::Placeholder<uint8_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
-        } else if (dtype.is_uint(16)) {
-          tensor = lang::Placeholder<uint16_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
-        } else if (dtype.is_uint(32)) {
-          tensor = lang::Placeholder<uint32_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
-        } else if (dtype.is_uint(64)) {
-          tensor = lang::Placeholder<uint64_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
-        }
-        tensor_map[source_data->id()] = tensor;
-        tensor_inputs.push_back(tensor);
-        // record func input args
-        func_args.push_back(tensor);
-      }
+  for (auto& node_data : GetProducerNodeData(node)) {
+    CHECK(node_data);
+    auto tensor = GetTensor(node_data, this->type_dict_, this->shape_dict_);
+    if (!tensor_map.count(node_data->id())) {
+      tensor_map[node_data->id()] = tensor;
+      // record func input args
+      func_args.push_back(tensor);
     }
+    tensors.push_back(tensor);
   }
-  return tensor_inputs;
+  return tensors;
 }
 
 std::vector<Expr> OpLowerer::IRElementwiseCompute(poly::StageMap& stages,
@@ -415,7 +285,7 @@ std::vector<Expr> OpLowerer::IRElementwiseCompute(poly::StageMap& stages,
     auto node_data = GetNodeData(node);
     CHECK_EQ(GetAllNodeData(node).size(), 1U);
     std::vector<common::CINNValue> cinn_inputs;
-    std::vector<ir::Tensor> tensor_inputs = std::move(CollectInputTensor(func_tensors, tensor_map, node));
+    std::vector<ir::Tensor> tensor_inputs = std::move(CollectInputTensor(node, func_tensors, tensor_map));
     for (auto& tensor : tensor_inputs) {
       cinn_inputs.push_back(common::CINNValue(ir::Expr(tensor)));
     }
@@ -464,49 +334,6 @@ std::vector<Expr> OpLowerer::IRElementwiseCompute(poly::StageMap& stages,
   return ast_exprs;
 }
 
-void OpLowerer::IRElementwiseSchedule(ir::IRSchedule& ir_sch,
-                                      std::unordered_map<std::string, ir::Tensor>& tensor_map,
-                                      const GroupPtr& group,
-                                      const GroupPtr& sub_group,
-                                      Node*&,
-                                      Node*&) {
-  VLOG(2) << "IRElementwiseSchedule Group : " << sub_group->group_id;
-  auto master_node    = *group->master_nodes.begin();
-  auto manster_tensor = tensor_map[GetNodeData(master_node)->id()];
-
-  for (int idx = sub_group->nodes.size() - 1; idx >= 0; --idx) {
-    auto node        = sub_group->nodes[idx];
-    auto node_tensor = tensor_map[GetNodeData(node)->id()];
-
-    VLOG(3) << "Schedule node -> " << node->id() << " var : " << node_tensor->name;
-    if (group->master_nodes.count(node)) {
-      continue;
-    }
-
-    if (IsConstOp(node) && !group->output_nodes.count(node)) {
-      ir_sch.ComputeInline(ir_sch.GetBlock(node_tensor->name));
-      continue;
-    }
-
-    // if node is fringe node or internal node, fringe node is output node of sub-graph
-    if (group->output_nodes.count(node) || group->internal_nodes.count(node) || sub_group->internal_nodes.count(node)) {
-      // internal node use buffer
-      if (!group->output_nodes.count(node)) {
-        auto node_block = ir_sch.GetBlock(node_tensor->name);
-        ir_sch.SetBuffer(node_block, "local", true);
-      }
-
-      auto node_block   = ir_sch.GetBlock(node_tensor->name);
-      auto master_loops = ir_sch.GetLoops(manster_tensor->name);
-      ir_sch.SimpleComputeAt(node_block, master_loops.back());
-      continue;
-    }
-
-    // others elemenwise internal node use compute-inline
-    ir_sch.ComputeInline(ir_sch.GetBlock(node_tensor->name));
-  }
-}
-
 std::vector<Expr> OpLowerer::IRReduceCompute(poly::StageMap& stages,
                                              std::vector<ir::Tensor>& func_args,
                                              std::unordered_map<std::string, ir::Tensor>& tensor_map,
@@ -523,7 +350,7 @@ std::vector<Expr> OpLowerer::IRReduceCompute(poly::StageMap& stages,
     VLOG(3) << "In ReduceCompute, process node: " << node->id() << " with op type: " << node->op()->name;
 
     std::vector<common::CINNValue> cinn_inputs;
-    std::vector<ir::Tensor> tensor_inputs = std::move(CollectInputTensor(func_args, tensor_map, node));
+    std::vector<ir::Tensor> tensor_inputs = std::move(CollectInputTensor(node, func_args, tensor_map));
     for (auto& tensor : tensor_inputs) {
       cinn_inputs.push_back(common::CINNValue(ir::Expr(tensor)));
     }
@@ -599,46 +426,19 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerNonFusibleOp(GroupPtr& group, boo
 
   std::vector<ir::Argument> args;
   std::unordered_map<std::string, ir::Tensor> tensor_map;
-  for (auto& i : node->inlinks_in_order(true)) {
-    std::string id = i->source()->as<NodeData>()->id();
-    auto shape     = shape_dict_.at(id);
-    Type dtype     = type_dict_.at(id);
-    CHECK(dtype.is_supported()) << "Node " << id << " 's dtype " << dtype << "is not supported yet!";
-
+  for (auto& node_data : GetProducerNodeData(node)) {
+    CHECK(node_data);
     ir::Tensor tensor;
-    if (!tensor_map.count(id)) {
-      if (dtype.is_float(32)) {
-        tensor = lang::Placeholder<float>(id, shape);
-      } else if (dtype.is_float(64)) {
-        tensor = lang::Placeholder<double>(id, shape);
-      } else if (dtype.is_float(16)) {
-        tensor = lang::Placeholder<float16>(id, shape);
-      } else if (dtype.is_bool()) {
-        tensor = lang::Placeholder<bool>(id, shape);
-      } else if (dtype.is_int(8)) {
-        tensor = lang::Placeholder<int8_t>(id, shape);
-      } else if (dtype.is_int(16)) {
-        tensor = lang::Placeholder<int16_t>(id, shape);
-      } else if (dtype.is_int(32)) {
-        tensor = lang::Placeholder<int32_t>(id, shape);
-      } else if (dtype.is_int(64)) {
-        tensor = lang::Placeholder<int64_t>(id, shape);
-      } else if (dtype.is_uint(8)) {
-        tensor = lang::Placeholder<uint8_t>(id, shape);
-      } else if (dtype.is_uint(16)) {
-        tensor = lang::Placeholder<uint16_t>(id, shape);
-      } else if (dtype.is_uint(32)) {
-        tensor = lang::Placeholder<uint32_t>(id, shape);
-      } else if (dtype.is_uint(64)) {
-        tensor = lang::Placeholder<uint64_t>(id, shape);
-      }
-      tensor_map[id] = tensor;
-      // input name
-      group->input_names.push_back(id);
-      // input args type
+    if (!tensor_map.count(node_data->id())) {
+      tensor = GetTensor(node_data, this->type_dict_, this->shape_dict_);
+      // record tensor.
+      tensor_map[node_data->id()] = tensor;
+      // input name.
+      group->input_names.push_back(node_data->id());
+      // input type.
       args.emplace_back(tensor->buffer, ir::Argument::IO::kInput);
     } else {
-      tensor = tensor_map[id];
+      tensor = tensor_map[node_data->id()];
     }
     inputs.push_back(tensor);
     cinn_inputs.push_back(common::CINNValue(tensor));
@@ -751,7 +551,6 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
 
   // do schedule
   for (auto node : nodes_in_order) {
-    LOG(INFO) << GetNodeData(node)->id();
     // consumers.
     auto consumers      = GetConsumersInSet(node, nodes_set);
     const Node* reducer = greducer ? FindNearestReducer(node, nodes_set) : greducer;
