@@ -58,8 +58,15 @@ bool IsWrappedByCustomCall(const TuneTask* task);
 // tell whether the task can use external call
 bool HasExternalCall(const TuneTask* task);
 
-TaskOptimizer::TaskOptimizer(TuneTask* task, ScheduleMeasurer* schedule_measurer, Database* database)
-    : task_(task), schedule_measurer_(schedule_measurer), database_(database), cost_model_() {}
+TaskOptimizer::TaskOptimizer(TuneTask* task,
+                             ScheduleMeasurer* schedule_measurer,
+                             Database* database,
+                             utils::LinearRandomEngine::StateType rand_seed)
+    : task_(task),
+      schedule_measurer_(schedule_measurer),
+      database_(database),
+      cost_model_(),
+      rand_seed_(utils::LinearRandomEngine::NormalizeState(rand_seed)) {}
 
 FunctionGroup TaskOptimizer::Optimize(const TuningOptions& options) {
   CHECK(task_->subgraph != nullptr) << "subgraph can't be empty";
@@ -205,7 +212,8 @@ TaskOptimizer::Result TaskOptimizer::OptimizeByEvolution(const TuningOptions& op
   if (evolutionary_search_ == nullptr) {
     // TODO(zhhsplendid): check whether the options is same as previous,
     // if not, we should create new EvolutionarySearch
-    evolutionary_search_ = std::make_unique<EvolutionarySearch>(*task_, cost_model_, database_);
+    evolutionary_search_ =
+        std::make_unique<EvolutionarySearch>(*task_, cost_model_, database_, utils::ForkRandomState(&rand_seed_));
   }
 
   TaskOptimizer::Result result("Evolution");

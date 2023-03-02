@@ -36,9 +36,15 @@
 namespace cinn {
 namespace auto_schedule {
 
-EvolutionarySearch::EvolutionarySearch(const TuneTask& tune_task, const ExprCostModel& cost_model, Database* database)
-    : tune_task_(tune_task), cost_model_(cost_model), database_(database) {
-  search_space_ = std::make_unique<SearchSpace>(tune_task);
+EvolutionarySearch::EvolutionarySearch(const TuneTask& tune_task,
+                                       const ExprCostModel& cost_model,
+                                       Database* database,
+                                       utils::LinearRandomEngine::StateType rand_seed)
+    : tune_task_(tune_task),
+      cost_model_(cost_model),
+      database_(database),
+      rand_seed_(utils::LinearRandomEngine::NormalizeState(rand_seed)) {
+  search_space_ = std::make_unique<SearchSpace>(tune_task, utils::ForkRandomState(&rand_seed_));
 }
 
 EvolutionarySearch::~EvolutionarySearch() {}
@@ -86,7 +92,8 @@ std::vector<SearchState> EvolutionarySearch::GetTopKCandidatesFromDatabase(int t
   auto records                       = database_->GetTopK(task_key, topk);
   InitialTaskRegistry* task_registry = InitialTaskRegistry::Global();
   for (auto&& record : records) {
-    ir::IRSchedule ir_sch(optim::IRCopy(task_registry->Get(task_key)->module_expr));
+    ir::IRSchedule ir_sch(optim::IRCopy(task_registry->Get(task_key)->module_expr),
+                          utils::ForkRandomState(&rand_seed_));
     ir::ScheduleDesc::ReplayWithProto(record.trace, &ir_sch);
     results.emplace_back(SearchState(std::move(ir_sch), record.predicted_cost));
   }
@@ -108,13 +115,13 @@ SearchState EvolutionarySearch::CrossOver(const SearchState& state1, const Searc
       << "CrossOver ModuleExpr in EvolutionarySearch must have same number of AST";
 
   for (size_t i = 0; i < father_exprs.size(); ++i) {
-    if (rand() % 2 == 0) {
+    if (utils::SampleUniformInt(0, 2, &rand_seed_) == 0) {
       cross_over_exprs.push_back(optim::IRCopy(father_exprs[i]));
     } else {
       cross_over_exprs.push_back(optim::IRCopy(mother_exprs[i]));
     }
   }
-  auto res = SearchState(ir::IRSchedule(ir::ModuleExpr(cross_over_exprs)));
+  auto res = SearchState(ir::IRSchedule(ir::ModuleExpr(cross_over_exprs), utils::ForkRandomState(&rand_seed_)));
   VLOG(4) << JoinStatesDebugString("EvolutionarySearch::CrossOver", {state1, state2, res}, /*verbose=*/VLOG_IS_ON(5));
   return res;
 }
@@ -131,10 +138,10 @@ std::vector<SearchState> EvolutionarySearch::Evolve(const std::vector<SearchStat
   std::vector<SearchState> evolution(population);
 
   for (int i = 0; i < cross_over_num; ++i) {
-    int first_rand_idx  = rand() % generation_num;
-    int second_rand_idx = rand() % generation_num;
+    int first_rand_idx  = utils::SampleUniformInt(0, generation_num, &rand_seed_);
+    int second_rand_idx = utils::SampleUniformInt(0, generation_num, &rand_seed_);
     while (first_rand_idx == second_rand_idx) {
-      second_rand_idx = rand() % generation_num;
+      second_rand_idx = utils::SampleUniformInt(0, generation_num, &rand_seed_);
     }
     evolution.push_back(CrossOver(population[first_rand_idx], population[second_rand_idx]));
   }

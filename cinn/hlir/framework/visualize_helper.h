@@ -32,6 +32,8 @@ namespace cinn {
 namespace hlir {
 namespace framework {
 
+std::string Attribute2String(const utils::Attribute& attr);
+
 inline void WriteToFile(const std::string& filepath, const std::string& content) {
   VLOG(4) << "Write to " << filepath;
   std::ofstream of(filepath);
@@ -105,6 +107,7 @@ std::string GetFilePathForGroup(const std::vector<std::vector<Node*>>& groups,
 
 std::string GenNodeDataLabel(const NodeData* node,
                              const absl::flat_hash_map<std::string, shape_t>& shape_dict,
+                             const absl::flat_hash_map<std::string, common::Type>& dtype_dict,
                              const std::string dot_nodedata_id);
 
 void Summary(const std::vector<std::vector<Node*>>& groups, const std::string& viz_path);
@@ -118,6 +121,7 @@ void AddGroupNode(const Node* node,
                   const std::string& dot_cluster_id,
                   const std::unordered_set<std::string>& fetch_var_ids,
                   const absl::flat_hash_map<std::string, shape_t>& shape_dict,
+                  const absl::flat_hash_map<std::string, common::Type>& dtype_dict,
                   std::unordered_map<std::string, int>* recompute_nodes,
                   std::unordered_map<std::string, std::string>* outnode2dot_id,
                   std::unordered_set<std::string>* nodedatas_set,

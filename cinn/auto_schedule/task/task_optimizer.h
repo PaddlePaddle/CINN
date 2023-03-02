@@ -23,6 +23,7 @@
 #include "cinn/auto_schedule/task/tune_task.h"
 #include "cinn/auto_schedule/tuning.h"
 #include "cinn/ir/lowered_func.h"
+#include "cinn/utils/random_engine.h"
 
 namespace cinn {
 namespace auto_schedule {
@@ -32,7 +33,10 @@ namespace auto_schedule {
 // optimal schedule for the task.
 class TaskOptimizer {
  public:
-  TaskOptimizer(TuneTask* task, ScheduleMeasurer* schedule_measurer, Database* database);
+  TaskOptimizer(TuneTask* task,
+                ScheduleMeasurer* schedule_measurer,
+                Database* database,
+                utils::LinearRandomEngine::StateType rand_seed = -1);
 
   FunctionGroup Optimize(const TuningOptions& options);
 
@@ -59,6 +63,7 @@ class TaskOptimizer {
   std::unique_ptr<EvolutionarySearch> evolutionary_search_ = nullptr;
   ExprCostModel cost_model_;
   Database* database_;
+  utils::LinearRandomEngine::StateType rand_seed_;
 };
 
 }  // namespace auto_schedule

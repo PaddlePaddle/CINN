@@ -12,6 +12,7 @@ gather_srcs(cinnapi_src SRCS
   profiler.cc
   multi_threading.cc
   data_util.cc
+  random_engine.cc
   )
 
 cc_test(test_string SRCS string_test.cc DEPS cinncore)

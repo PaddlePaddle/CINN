@@ -24,6 +24,7 @@
 #include "cinn/ir/ir_mutator.h"
 #include "cinn/ir/schedule_desc.h"
 #include "cinn/ir/tensor.h"
+#include "cinn/utils/random_engine.h"
 
 namespace cinn {
 namespace ir {
@@ -64,13 +65,21 @@ class ScheduleImpl;
 class IRSchedule {
  public:
   IRSchedule();
-  explicit IRSchedule(const ModuleExpr& modexpr, bool debug_flag = false);
-  IRSchedule(ir::ModuleExpr&& mod_expr, ScheduleDesc&& trace);
+  explicit IRSchedule(const ModuleExpr& modexpr,
+                      utils::LinearRandomEngine::StateType rand_seed = -1,
+                      bool debug_flag                                = false);
+  IRSchedule(ir::ModuleExpr&& mod_expr, ScheduleDesc&& trace, utils::LinearRandomEngine::StateType rand_seed = -1);
   IRSchedule(const IRSchedule& other);
   IRSchedule& operator=(const IRSchedule& src);
   IRSchedule(IRSchedule&& other);
   IRSchedule& operator=(IRSchedule&& src);
   ~IRSchedule();
+
+  // Init the random seed with a new seed
+  void InitSeed(utils::LinearRandomEngine::StateType rand_seed);
+
+  // Fork a new seed from current seed
+  utils::LinearRandomEngine::StateType ForkSeed() const;
 
   void SetExprs(const std::vector<Expr>& exprs);
 
@@ -376,6 +385,7 @@ class IRSchedule {
  private:
   std::unique_ptr<ScheduleImpl> impl_;
   mutable ScheduleDesc trace_;  // trace the scheduling process
+  mutable utils::LinearRandomEngine::StateType rand_seed_;
 };
 
 /*!
