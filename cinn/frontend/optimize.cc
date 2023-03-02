@@ -70,15 +70,15 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
     options.graph_passes.emplace_back("TransToCustomCallPass");
   }
 
+  if (FLAGS_cinn_use_common_subexpression_elimination) {
+    options.graph_passes.emplace_back("CommonSubexpressionEliminationPass");
+  }
+
   if (FLAGS_cinn_use_op_fusion) {
     options.graph_passes.emplace_back("OpFusionPass");
     options.graph_passes.emplace_back("FusionMergePass");
   } else {
     options.graph_passes.emplace_back("BuildNonFusedGroupsPass");
-  }
-
-  if (FLAGS_cinn_use_common_subexpression_elimination) {
-    options.graph_passes.emplace_back("CommonSubexpressionEliminationPass");
   }
 
   // WARNING: the pass must be the last pass !!!

@@ -36,26 +36,19 @@ namespace auto_schedule {
 class TuneTask {
  public:
   TuneTask() = default;
-  TuneTask(hlir::framework::OpLowerer* op_lowerer) : op_lowerer_(op_lowerer) {}
-
-  void SetOpLowerer(hlir::framework::OpLowerer* op_lowerer);
-  // Set lowered_funcs and analyze output names.
-  void SetLoweredFuncsAndAnalyzeOutput(const std::vector<ir::LoweredFunc>& lowered_funcs);
+  TuneTask(std::shared_ptr<hlir::framework::Graph::Group> group) : subgraph(group) {}
+  // Initialize a task
+  void Initialize(const absl::flat_hash_map<std::string, hlir::framework::shape_t>& shape_dict,
+                  const absl::flat_hash_map<std::string, cinn::common::Type>& dtype_dict,
+                  hlir::framework::OpLowerer* lower_handler);
   // Extract bodies in lowered_funcs() and return
   std::vector<ir::Expr> GetLoweredFuncBodyExprs() const;
-  // Set bodies in lowered_funcs() by exprs
-  void SetLoweredFuncBodyExprs(const std::vector<ir::Expr>& exprs);
-  // When you set OpLowerer and task_graph, lower the task graph to
-  // un-optimized LoweredFunc and store in lowered_funcs().
-  void TaskGraphToUnoptLoweredFunc();
-  // Serialize this task as a string contains specific fields of it
-  const std::string& SerializeToString(const absl::flat_hash_map<std::string, hlir::framework::shape_t>& shape_dict,
-                                       const absl::flat_hash_map<std::string, cinn::common::Type>& dtype_dict);
 
   // In CINN, we use hlir::framework::Graph::Group to represent a fused
-  // sub-graph (if an op won't be fused, it will be a Group with size=1). So
-  // the task_graph_ consists of multiple "fused sub-graph" / "unfused op"
-  std::vector<std::shared_ptr<hlir::framework::Graph::Group>> task_graph;
+  // sub-graph (if an op won't be fused, it will be a Group with size=1).
+  std::shared_ptr<hlir::framework::Graph::Group> subgraph;
+  // Lower handler, Not owned
+  hlir::framework::OpLowerer* op_lowerer;
   // target of this task
   common::Target target;
   // stores the initial (un-optimized) LoweredFuncs
@@ -63,12 +56,13 @@ class TuneTask {
   // names of the output arguments of lowered_funcs_
   std::unordered_set<std::string> output_names;
   // serialized string of this task, it contain struct,shape,dtype,input/output variable name
-  // of the task_graph and can be further used to hash
+  // of the subgraph and can be further used to hash
   std::string serialized_key;
 
  private:
-  // Not owned
-  hlir::framework::OpLowerer* op_lowerer_;
+  // Serialize this task as a string contains specific fields of it
+  std::string SerializeToString(const absl::flat_hash_map<std::string, hlir::framework::shape_t>& shape_dict,
+                                const absl::flat_hash_map<std::string, cinn::common::Type>& dtype_dict);
 };
 
 }  // namespace auto_schedule

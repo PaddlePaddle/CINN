@@ -88,7 +88,23 @@ std::vector<std::vector<Node*>> Graph::FusionGroupsToGroups() {
 }
 
 std::string Graph::DebugGroupedGraph(const std::unordered_set<std::string>& fetch_var_ids) {
-  return DebugGroupedGraph(FusionGroupsToGroups(), fetch_var_ids);
+  if (!fusion_groups.empty()) {
+    return DebugGroupedGraph(FusionGroupsToGroups(), fetch_var_ids);
+  }
+
+  std::vector<std::vector<Node*>> graph_ops(1);
+  auto nodes_inorder = std::get<0>(topological_order());
+  for (auto* graph_node : nodes_inorder) {
+    auto node = graph_node->safe_as<Node>();
+    // if node is NodeData or not op, continue.
+    if (!node || node->op() == nullptr) {
+      continue;
+    }
+
+    graph_ops[0].emplace_back(node);
+  }
+
+  return DebugGroupedGraph(graph_ops, fetch_var_ids);
 }
 
 std::string Graph::DebugGroupedGraph(const std::vector<std::vector<Node*>>& groups,
@@ -133,6 +149,8 @@ void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
 
   auto& shape_dict = HasAttr("infershape") ? GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape")
                                            : absl::flat_hash_map<std::string, shape_t>{};
+  auto& dtype_dict = HasAttr("inferdtype") ? GetAttrs<absl::flat_hash_map<std::string, common::Type>>("inferdtype")
+                                           : absl::flat_hash_map<std::string, common::Type>{};
 
   std::unordered_map<std::string, int> recompute_nodes;
   FindRecomputeNodes(groups, &recompute_nodes);
@@ -150,8 +168,15 @@ void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
 
     std::unordered_map<std::string, std::string> outnode2dot_id;
     for (auto* node : group) {
-      AddGroupNode(
-          node, dot_cluster_id, fetch_var_ids, shape_dict, &recompute_nodes, &outnode2dot_id, &nodedatas_set, &dot);
+      AddGroupNode(node,
+                   dot_cluster_id,
+                   fetch_var_ids,
+                   shape_dict,
+                   dtype_dict,
+                   &recompute_nodes,
+                   &outnode2dot_id,
+                   &nodedatas_set,
+                   &dot);
     }
     group_id++;
   }
@@ -166,6 +191,8 @@ void Graph::VisualizeGroups(const std::vector<std::vector<Node*>>& groups,
                             const std::unordered_set<std::string>& fetch_var_ids) {
   auto& shape_dict = HasAttr("infershape") ? GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape")
                                            : absl::flat_hash_map<std::string, shape_t>{};
+  auto& dtype_dict = HasAttr("inferdtype") ? GetAttrs<absl::flat_hash_map<std::string, common::Type>>("inferdtype")
+                                           : absl::flat_hash_map<std::string, common::Type>{};
 
   std::unordered_map<std::string, int> recompute_nodes;
   FindRecomputeNodes(groups, &recompute_nodes);
@@ -181,7 +208,15 @@ void Graph::VisualizeGroups(const std::vector<std::vector<Node*>>& groups,
 
     std::unordered_map<std::string, std::string> outnode2dot_id;
     for (auto* node : group) {
-      AddGroupNode(node, dot_cluster_id, fetch_var_ids, shape_dict, &recompute_nodes, &outnode2dot_id, nullptr, &dot);
+      AddGroupNode(node,
+                   dot_cluster_id,
+                   fetch_var_ids,
+                   shape_dict,
+                   dtype_dict,
+                   &recompute_nodes,
+                   &outnode2dot_id,
+                   nullptr,
+                   &dot);
       nodes_set.insert(node);
     }
 

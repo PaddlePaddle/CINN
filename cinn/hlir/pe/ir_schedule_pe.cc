@@ -456,7 +456,9 @@ void IRCudaScheduleBlockReduce(ir::IRSchedule &ir_sch,
     for (auto &tensor : {reduce_tmp_out, tmp_out, out}) {
       auto loops      = ir_sch.GetLoops(tensor->name);
       int reduce_axis = tensor->reduce_axis.size();
-      if (loops.size() >= 2 + reduce_axis) ir_sch.Fuse({loops[0], loops[1]});
+      if (loops.size() >= 2 + reduce_axis) {
+        ir_sch.Fuse({loops[0], loops[1]});
+      }
     }
   }
 

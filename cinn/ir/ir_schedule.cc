@@ -73,7 +73,10 @@ class ScheduleImpl {
   Expr GetBlock(const std::string& block_name) const;
   std::vector<Expr> Split(const Expr& loop, const std::vector<int>& factors);
   std::vector<Expr> Split(const std::string& block_name, int loop_index, const std::vector<int>& factors);
-  std::vector<Expr> SamplePerfectTile(const uint32_t seed, const Expr& loop, int n, int max_innermost_factor);
+  std::vector<Expr> SamplePerfectTile(utils::LinearRandomEngine::StateType* rand_seed,
+                                      const Expr& loop,
+                                      int n,
+                                      int max_innermost_factor);
   Expr Fuse(const std::vector<Expr>& loops);
   Expr Fuse(const std::string& block_name, const std::vector<int>& loops_index);
   Expr Fuse(const Expr& block, const std::vector<int>& loops_index);
@@ -1802,7 +1805,7 @@ void ScheduleImpl::CopyTransformAndLoopInfo(const Expr& block, const Expr& block
   this->Replace(all_loops[0], res);
 }
 
-std::vector<Expr> ScheduleImpl::SamplePerfectTile(const uint32_t seed,
+std::vector<Expr> ScheduleImpl::SamplePerfectTile(utils::LinearRandomEngine::StateType* rand_seed,
                                                   const Expr& loop,
                                                   int n,
                                                   int max_innermost_factor) {
@@ -1818,8 +1821,8 @@ std::vector<Expr> ScheduleImpl::SamplePerfectTile(const uint32_t seed,
     }
   }
   CHECK(!innermost_factors.empty()) << "No innermost factor found";
-  int innermost_factor = innermost_factors[ir::SampleInt(0, innermost_factors.size() - 1, seed)];
-  auto result          = SampleTile(seed, n - 1, loop_extent / innermost_factor);
+  int innermost_factor = innermost_factors[utils::SampleUniformInt(0, innermost_factors.size() - 1, rand_seed)];
+  auto result          = SampleTile(rand_seed, n - 1, loop_extent / innermost_factor);
   std::vector<Expr> result_expr;
   for (auto& factor : result) {
     result_expr.push_back(Expr(factor));
@@ -1830,31 +1833,46 @@ std::vector<Expr> ScheduleImpl::SamplePerfectTile(const uint32_t seed,
 
 IRSchedule::IRSchedule() {}
 
-IRSchedule::IRSchedule(const ModuleExpr& module_expr, bool debug_flag) {
+IRSchedule::IRSchedule(const ModuleExpr& module_expr, utils::LinearRandomEngine::StateType rand_seed, bool debug_flag) {
   impl_ = std::make_unique<ScheduleImpl>(module_expr, debug_flag);
+  this->InitSeed(rand_seed);
 }
 
-IRSchedule::IRSchedule(ir::ModuleExpr&& mod_expr, ScheduleDesc&& trace)
-    : impl_(std::make_unique<ScheduleImpl>(std::move(mod_expr))), trace_(std::move(trace)) {}
+IRSchedule::IRSchedule(ir::ModuleExpr&& mod_expr, ScheduleDesc&& trace, utils::LinearRandomEngine::StateType rand_seed)
+    : impl_(std::make_unique<ScheduleImpl>(std::move(mod_expr))), trace_(std::move(trace)) {
+  this->InitSeed(rand_seed);
+}
 
 IRSchedule::IRSchedule(const IRSchedule& other)
-    : impl_(std::make_unique<ScheduleImpl>(optim::IRCopy(other.GetModule()))), trace_(other.trace_) {}
+    : impl_(std::make_unique<ScheduleImpl>(optim::IRCopy(other.GetModule()))), trace_(other.trace_) {
+  this->InitSeed(other.ForkSeed());
+}
 
 IRSchedule& IRSchedule::operator=(const IRSchedule& src) {
   impl_  = std::make_unique<ScheduleImpl>(optim::IRCopy(src.GetModule()));
   trace_ = src.trace_;
+  this->InitSeed(src.ForkSeed());
   return *this;
 }
 
-IRSchedule::IRSchedule(IRSchedule&& other) : impl_(std::move(other.impl_)), trace_(std::move(other.trace_)) {}
+IRSchedule::IRSchedule(IRSchedule&& other) : impl_(std::move(other.impl_)), trace_(std::move(other.trace_)) {
+  this->InitSeed(other.ForkSeed());
+}
 
 IRSchedule& IRSchedule::operator=(IRSchedule&& src) {
   impl_  = std::move(src.impl_);
   trace_ = std::move(src.trace_);
+  this->InitSeed(src.ForkSeed());
   return *this;
 }
 
 IRSchedule::~IRSchedule() {}
+
+void IRSchedule::InitSeed(utils::LinearRandomEngine::StateType rand_seed) {
+  this->rand_seed_ = utils::LinearRandomEngine::NormalizeState(rand_seed);
+}
+
+utils::LinearRandomEngine::StateType IRSchedule::ForkSeed() const { return utils::ForkRandomState(&rand_seed_); }
 
 void IRSchedule::SetExprs(const std::vector<Expr>& exprs) {
   return impl_->SetExprs(exprs);
@@ -2087,7 +2105,11 @@ void IRSchedule::CopyTransformAndLoopInfo(const std::string& block_name, const s
 }
 
 std::vector<Expr> IRSchedule::SamplePerfectTile(const Expr& loop, int n, int max_innermost_factor) {
-  auto result = impl_->SamplePerfectTile(ir::RandomSeedController::seed, loop, n, max_innermost_factor);
+  // TODO(BiynXu): After we add the decision mechanism, change the random seed
+  // to the member(rand_seed_) of the IRSchedule object.
+  // Temporarily use a constant as the random seed to ensure the consistency when replaying the trace.
+  cinn::utils::LinearRandomEngine::StateType tmp_seed = 1;
+  auto result = impl_->SamplePerfectTile(&tmp_seed, loop, n, max_innermost_factor);
   trace_.Append(ScheduleDesc::Step("SamplePerfectTile",
                                    {{"loop", std::vector<Expr>({loop})}},
                                    {{"n", n}, {"max_innermost_factor", max_innermost_factor}},

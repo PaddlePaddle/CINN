@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
+#include "cinn/utils/random_engine.h"
 
 namespace cinn {
 namespace auto_schedule {
@@ -39,9 +40,10 @@ class RuleSampler {
    * @param weights Used for the probabilistic policy, giving each candidate a weight.
    */
   static std::unique_ptr<RuleSampler> Make(const std::vector<AutoGenRule*>& potential_rules,
-                                           bool default_remove_policy      = true,
-                                           const std::string& strategy     = "traversal",
-                                           const std::vector<int>& weights = {});
+                                           bool default_remove_policy                     = true,
+                                           const std::string& strategy                    = "traversal",
+                                           utils::LinearRandomEngine::StateType rand_seed = 0,
+                                           const std::vector<int>& weights                = {});
   // Return the name of sample strategy
   virtual const char* Name() const = 0;
 
@@ -92,7 +94,8 @@ class ProbabilisticRuleSampler : public RuleSampler {
  public:
   ProbabilisticRuleSampler(const std::vector<AutoGenRule*>& potential_rules,
                            bool default_remove_policy,
-                           const std::vector<int>& weights = {});
+                           utils::LinearRandomEngine::StateType rand_seed = 0,
+                           const std::vector<int>& weights                = {});
 
   const char* Name() const override { return "probabilistic"; }
 
@@ -103,9 +106,7 @@ class ProbabilisticRuleSampler : public RuleSampler {
 
  private:
   std::vector<int> weights_;
-  std::random_device rd_;
-  std::mt19937 gen_;
-  std::discrete_distribution<> distribution_;
+  utils::LinearRandomEngine::StateType rand_seed_;
   int remains_;
 };
 

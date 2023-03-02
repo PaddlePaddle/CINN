@@ -41,9 +41,7 @@ using cinn::common::float16;
 
 const std::string &CodeGenCUDA_Dev::GetSourceHeader() const { return source_header_; }
 
-CodeGenCUDA_Dev::CodeGenCUDA_Dev(Target target) : CodeGenC(target) {
-  generator_ = std::make_unique<backends::nvrtc::JitSafeHeaderGenerator>();
-}
+CodeGenCUDA_Dev::CodeGenCUDA_Dev(Target target) : CodeGenC(target) {}
 
 std::string CodeGenCUDA_Dev::Compile(const ir::Module &module, bool for_nvrtc) {
   for_nvrtc_  = for_nvrtc;
@@ -239,11 +237,7 @@ std::string CodeGenCUDA_Dev::Compile(const ir::Module &module, CodeGenC::OutputK
   return ss_.str();
 }
 
-void CodeGenCUDA_Dev::PrintIncludes() {
-  // TODO(Shixiaowei02): call the function once.
-  generator_->GenerateFiles();
-  os() << GetSourceHeader();
-}
+void CodeGenCUDA_Dev::PrintIncludes() { os() << GetSourceHeader(); }
 
 void CodeGenCUDA_Dev::PrintTempBufferCreation(const ir::Buffer &buffer) {
   CHECK_NE(buffer->type(), Void());

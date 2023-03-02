@@ -294,8 +294,12 @@ class TransposeCollapsingPass : public ProgramPass {
 
   // if the transpose axis like {0, 1, 2, 3, 4, 5}, the transpose is useless, should remove
   bool CheckTransposeUseless(const ShapeType& axis) const {
-    if (axis.front() != 0) return false;
-    return std::is_sorted(axis.begin(), axis.end(), [](DimType dim1, DimType dim2) { return dim1 + 1 == dim2; });
+    for (int i = 0; i < axis.size(); ++i) {
+      if (axis[i] != i) {
+        return false;
+      }
+    }
+    return true;
   }
 
   // replace the op's input variable whose name is `old_input_name` to `new_input`, note we need keep the input list

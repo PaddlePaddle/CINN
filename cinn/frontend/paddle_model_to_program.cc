@@ -487,11 +487,6 @@ void PaddleModelToProgram::AddOpMapper_pool2d() {
     auto strides = op_desc.GetAttr<std::vector<int>>("strides");
     CHECK(op_desc.HasAttr("paddings"));
     auto paddings = op_desc.GetAttr<std::vector<int>>("paddings");
-
-    if (paddings.size() == 2) {
-      paddings.insert(paddings.begin(), paddings.front());
-      paddings.push_back(paddings.back());
-    }
     CHECK(op_desc.HasAttr("ceil_mode"));
     auto ceil_mode = op_desc.GetAttr<bool>("ceil_mode");
     CHECK(op_desc.HasAttr("exclusive"));

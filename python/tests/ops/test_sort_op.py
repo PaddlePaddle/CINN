@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (c) 2022 CINN Authors. All Rights Reserved.
+# Copyright (c) 2023 CINN Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -26,70 +26,74 @@ from cinn.common import *
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
                     "x86 test will be skipped due to timeout.")
-class TestPowOp(OpTest):
+class TestSortOp(OpTest):
     def setUp(self):
         self.init_case()
 
     def init_case(self):
         self.inputs = {
-            "x": self.random([32, 64], "float32"),
-            "y": self.random([32, 64], "float32", 0.0, 4.0)
+            "x1": np.random.random([
+                2,
+                4,
+            ]).astype("float32")
         }
-        self.axis = -1
+        self.axis = 1
+        self.descending = False
 
     def build_paddle_program(self, target):
-        x = paddle.to_tensor(self.inputs["x"], stop_gradient=False)
-        y = paddle.to_tensor(self.inputs["y"], stop_gradient=False)
-
-        out = paddle.pow(x, y)
+        x1 = paddle.to_tensor(self.inputs["x1"], stop_gradient=True)
+        out = paddle.sort(x1, self.axis, self.descending)
 
         self.paddle_outputs = [out]
 
     def build_cinn_program(self, target):
-        builder = NetBuilder("pow")
-        x = builder.create_input(
-            self.nptype2cinntype(self.inputs["x"].dtype),
-            self.inputs["x"].shape, "x")
-        y = builder.create_input(
-            self.nptype2cinntype(self.inputs["y"].dtype),
-            self.inputs["y"].shape, "y")
-        out = builder.pow(x, y, axis=self.axis)
-
+        builder = NetBuilder("sum")
+        x1 = builder.create_input(Float(32), self.inputs["x1"].shape, "x1")
+        out = builder.sort(x1, self.axis, not self.descending)
         prog = builder.build()
-        res = self.get_cinn_output(prog, target, [x, y],
-                                   [self.inputs["x"], self.inputs["y"]], [out])
+        forward_res = self.get_cinn_output(prog, target, [x1],
+                                           [self.inputs["x1"]], [out])
 
-        self.cinn_outputs = [res[0]]
+        self.cinn_outputs = forward_res
 
     def test_check_results(self):
         self.check_outputs_and_grads()
 
 
-class TestPowCase1(TestPowOp):
+class TestSortCase1(TestSortOp):
     def init_case(self):
         self.inputs = {
-            "x": self.random([8, 16, 32, 32], "float32"),
-            "y": self.random([1], "float32", 0.0, 4.0)
+            "x1": np.random.random([
+                2,
+                4,
+            ]).astype("float32")
         }
         self.axis = 0
+        self.descending = False
 
 
-class TestPowCase2(TestPowOp):
+class TestSortCase2(TestSortOp):
     def init_case(self):
         self.inputs = {
-            "x": self.random([8, 16, 32, 32], "int32", 2, 10),
-            "y": self.random([8, 16, 32, 32], "int32", 0, 5)
+            "x1": np.random.random([
+                2,
+                4,
+            ]).astype("float32")
         }
-        self.axis = -1
+        self.axis = 0
+        self.descending = True
 
 
-class TestPowFP64(TestPowOp):
+class TestSortCase3(TestSortOp):
     def init_case(self):
         self.inputs = {
-            "x": self.random([8, 16, 32, 32], "float64", 2, 10),
-            "y": self.random([8, 16, 32, 32], "float64", 0, 5)
+            "x1": np.random.random([
+                2,
+                4,
+            ]).astype("float32")
         }
-        self.axis = -1
+        self.axis = 1
+        self.descending = True
 
 
 if __name__ == "__main__":

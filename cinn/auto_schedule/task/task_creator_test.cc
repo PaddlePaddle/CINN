@@ -62,10 +62,9 @@ TEST(TaskCreator, Basic) {
 
   ASSERT_EQ(tasks.size(), 2UL);
   for (TuneTask& task : tasks) {
-    std::vector<std::shared_ptr<Graph::Group>>& task_graph = task.task_graph;
-    ASSERT_EQ(task_graph.size(), 1UL);
-    ASSERT_EQ(task_graph[0]->CollectNodes().size(), 1UL);
-    ASSERT_EQ(task_graph[0]->nodes[0]->op()->name, "elementwise_add");
+    std::shared_ptr<Graph::Group> subgraph = task.subgraph;
+    ASSERT_EQ(subgraph->CollectNodes().size(), 1UL);
+    ASSERT_EQ(subgraph->nodes[0]->op()->name, "elementwise_add");
   }
 }
 

@@ -18,7 +18,6 @@
 #include <vector>
 
 #include "cinn/backends/codegen_c.h"
-#include "cinn/backends/nvrtc/header_generator.h"
 #include "cinn/common/common.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_printer.h"
@@ -104,7 +103,6 @@ class CodeGenCUDA_Dev : public CodeGenC {
   // names of vectorized tensors from `Let` statments where dtypes of the tensors
   // are customized_type with customized_type::kcuda_builtin_vector_t prefix
   std::unordered_set<std::string> vectorized_tensor_names_;
-  std::unique_ptr<backends::HeaderGeneratorBase> generator_;
   static const std::string source_header_;
 };
 
