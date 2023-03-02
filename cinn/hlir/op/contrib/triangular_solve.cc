@@ -12,38 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <gflags/gflags.h>
-
 #include <memory>
-#include <string>
-#include <utility>
 #include <vector>
 
-#include "absl/types/variant.h"
-#include "cinn/common/cas.h"
-#include "cinn/common/cinn_value.h"
 #include "cinn/common/common.h"
-#include "cinn/common/context.h"
-#include "cinn/common/ir_util.h"
 #include "cinn/common/macros.h"
-#include "cinn/common/target.h"
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
 #include "cinn/hlir/op/op_util.h"
 #include "cinn/hlir/pe/elementwise.h"
 #include "cinn/hlir/pe/ir_schedule_pe.h"
-#include "cinn/hlir/pe/nn.h"
-#include "cinn/hlir/pe/schedule.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_base.h"
-#include "cinn/ir/ir_operators.h"
 #include "cinn/ir/tensor.h"
 #include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
-#include "cinn/lang/packed_func.h"
-#include "cinn/poly/stage.h"
-#include "glog/logging.h"
 
 namespace cinn {
 namespace hlir {
@@ -84,8 +68,8 @@ std::vector<framework::shape_t> InferShapeForTriangularSolve(const std::vector<f
   framework::shape_t b_shape = inputs_shape[1];
   int a_shape_size           = a_shape.size();
   int b_shape_size           = b_shape.size();
-  CHECK_GE(a_shape_size, 2U) << "The input a shape size should >= 2! Please check again.";
-  CHECK_GE(b_shape_size, 2U) << "The input b shape size should >= 2! Please check again.";
+  CHECK_GE(a_shape_size, 2U) << "The input matrix A shape size should >= 2! Please check again.";
+  CHECK_GE(b_shape_size, 2U) << "The input matrix B shape size should >= 2! Please check again.";
 
   int left_side = -1;
   for (auto &iter : attrs) {

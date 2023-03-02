@@ -23,6 +23,7 @@
 #include <thrust/device_vector.h>
 
 #include <algorithm>
+#include <string>
 #ifdef CINN_WITH_CUDNN
 #include <cudnn.h>
 #endif
@@ -1247,9 +1248,16 @@ void cinn_call_triangular_solve_nvgpu(void *v_args,
   CHECK_EQ(input1->type.bits, input2->type.bits);
   uint8_t bits  = input1->type.bits;
   uint8_t bytes = bits / 8;
-  if (bits != 32 && bits != 64) {
-    LOG(FATAL) << "unsupported bits = " << bits << " for float data type";
-  }
+  CHECK(bits == 32 || bits == 64) << "unsupported bits = " << bits << " float data type for triangular solve";
+
+  std::string debug_info =
+      "triangular solve op: left_side=" + std::to_string(left_side) + ", upper=" + std::to_string(uplo) +
+      ", transpose_a=" + std::to_string(transa) + ", unit_diagonal=" + std::to_string(unit_diagonal) +
+      ", batch_size=" + std::to_string(batch_size) + ", m=" + std::to_string(m) + ", k=" + std::to_string(k) +
+      ", input1_dtype={code: " + std::to_string(input1->type.code) + ", bits: " + std::to_string(input1->type.bits) +
+      "}" + ", input2_dtype={code: " + std::to_string(input2->type.code) +
+      ", bits: " + std::to_string(input2->type.bits) + "}";
+  VLOG(4) << debug_info;
 
   void *a_ptr = reinterpret_cast<void *>(input1->memory);
   void *b_ptr = reinterpret_cast<void *>(input2->memory);
