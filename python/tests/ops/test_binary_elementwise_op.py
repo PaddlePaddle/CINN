@@ -157,40 +157,20 @@ class TestMultiplyOp(TestBinaryOp):
 
 class TestFloorDivideOp(TestBinaryOp):
     def get_x_data(self):
-        return self.random([32, 64], 'int32', 1, 100)
+        # avoid random generate 0
+        return self.random([32, 64], 'int32', 1, 100) * np.random.choice(
+            [-1, 1], [1])[0]
 
     def get_y_data(self):
-        return self.random([32, 64], 'int32', 1, 100)
+        # avoid random generate 0
+        return self.random([32, 64], 'int32', 1, 100) * np.random.choice(
+            [-1, 1], [1])[0]
 
     def paddle_func(self, x, y):
         return paddle.floor_divide(x, y)
 
     def cinn_func(self, builder, x, y, axis):
         return builder.floor_divide(x, y, axis)
-
-
-class TestFloorDivideCase1(TestFloorDivideOp):
-    def get_x_data(self):
-        return self.random([32, 64], 'int32', -100, -1)
-
-    def get_y_data(self):
-        return self.random([32, 64], 'int32', 1, 100)
-
-
-class TestFloorDivideCase2(TestFloorDivideOp):
-    def get_x_data(self):
-        return self.random([32, 64], 'int32', -100, -1)
-
-    def get_y_data(self):
-        return self.random([32, 64], 'int32', -100, -1)
-
-
-class TestFloorDivideCase3(TestFloorDivideOp):
-    def get_x_data(self):
-        return self.random([32, 64], 'int32', 1, 100)
-
-    def get_y_data(self):
-        return self.random([32, 64], 'int32', -100, -1)
 
 
 class TestModOp(TestBinaryOp):
@@ -201,29 +181,33 @@ class TestModOp(TestBinaryOp):
         return builder.mod(x, y, axis)
 
 
-# TODO(thisjiang): fix mod result error when x and y are negative int
 class TestModCase1(TestModOp):
     def get_x_data(self):
-        return self.random([32, 64], 'int32', 1, 100)
+        return self.random([32, 64], 'int32', 1, 100) * np.random.choice(
+            [-1, 1], [1])[0]
 
     def get_y_data(self):
-        return self.random([32, 64], 'int32', 1, 100)
+        return self.random([32, 64], 'int32', 1, 100) * np.random.choice(
+            [-1, 1], [1])[0]
 
 
-# TODO(thisjiang): fix remainder result error when x and y are float or negative int
 class TestRemainderOp(TestBinaryOp):
-    def get_x_data(self):
-        return self.random([32, 64], 'int32', 1, 100)
-
-    def get_y_data(self):
-        return self.random([32, 64], 'int32', 1, 100)
-
     def paddle_func(self, x, y):
         return paddle.remainder(x, y)
 
     def cinn_func(self, builder, x, y, axis):
         # paddle.remainder actual invoke mod function
         return builder.mod(x, y, axis)
+
+
+class TestRemainderCase1(TestRemainderOp):
+    def get_x_data(self):
+        return self.random([32, 64], 'int32', 1, 100) * np.random.choice(
+            [-1, 1], [1])[0]
+
+    def get_y_data(self):
+        return self.random([32, 64], 'int32', 1, 100) * np.random.choice(
+            [-1, 1], [1])[0]
 
 
 class TestMaxOp(TestBinaryOp):

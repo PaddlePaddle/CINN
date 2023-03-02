@@ -44,8 +44,15 @@ DECLARE_bool(auto_schedule_use_cost_model);
 namespace cinn {
 namespace auto_schedule {
 
-TaskOptimizer::TaskOptimizer(const TuneTask& task, ScheduleMeasurer* schedule_measurer, Database* database)
-    : task_(&task), schedule_measurer_(schedule_measurer), database_(database), cost_model_() {}
+TaskOptimizer::TaskOptimizer(const TuneTask& task,
+                             ScheduleMeasurer* schedule_measurer,
+                             Database* database,
+                             utils::LinearRandomEngine::StateType rand_seed)
+    : task_(&task),
+      schedule_measurer_(schedule_measurer),
+      database_(database),
+      cost_model_(),
+      rand_seed_(utils::LinearRandomEngine::NormalizeState(rand_seed)) {}
 
 FunctionGroup TaskOptimizer::Optimize(const TuningOptions& options) {
   // TODO(zhhsplendid): develop other optimize methods and configure the method by options.
@@ -66,7 +73,8 @@ FunctionGroup TaskOptimizer::OptimizeByEvolution(const TuningOptions& options) {
   if (evolutionary_search_ == nullptr) {
     // TODO(zhhsplendid): check whether the options is same as previous,
     // if not, we should create new EvolutionarySearch
-    evolutionary_search_ = std::make_unique<EvolutionarySearch>(*task_, cost_model_, database_);
+    evolutionary_search_ =
+        std::make_unique<EvolutionarySearch>(*task_, cost_model_, database_, utils::ForkRandomState(&rand_seed_));
   }
 
   // use initial lowered function as default result
