@@ -212,7 +212,7 @@ NETBUILDER_REDUCE_OP_DEF(ReduceAny, reduce_any)
 
 Placeholder NetBuilder::CreateInput(const Type& type, const std::vector<int>& shape, const std::string& id_hint) {
   if (!id_hint.empty()) {
-    CheckVarNameValid(id_hint);
+    cinn::utils::TransValidVarName(id_hint);
   }
   std::string id = id_hint.empty() ? Context::Global().NewName("placeholder") : id_hint;
 

@@ -405,7 +405,7 @@ void BindFrontend(pybind11::module *m) {
       .def("get_program", &frontend::Interpreter::GetProgram)
       .def("get_scope", &frontend::Interpreter::GetScope);
 
-  py::class_<NetBuilder>(*m, "NetBuilder")
+  py::class_<NetBuilder, std::shared_ptr<NetBuilder>>(*m, "NetBuilder")
       .def(py::init<const std::string &>(), py::arg("name") = "")
   // clang-format off
 #define PY_REGISTER_CONSTANT_OP(TYPE__)                                              \
@@ -748,13 +748,26 @@ void BindFrontend(pybind11::module *m) {
 
   py::class_<PaddleModelConvertor>(*m, "PaddleModelConvertor")
       .def(py::init<>())
-      .def("__call__",
-           &PaddleModelConvertor::operator(),
+      .def(py::init<const common::Target &, std::shared_ptr<NetBuilder>, std::shared_ptr<hlir::framework::Scope>>(),
            py::arg("target"),
-           py::arg("model_path"),
-           py::arg("is_combined") = false,
-           py::arg("scope")       = nullptr)
-      .def("get_fetch_list", &PaddleModelConvertor::GetFetchList)
+           py::arg("builder") = nullptr,
+           py::arg("scope")   = nullptr)
+      .def("__call__", &PaddleModelConvertor::operator())
+      .def("load_model", &PaddleModelConvertor::LoadModel, py::arg("model_dir"), py::arg("is_combined") = false)
+      .def("create_input", &PaddleModelConvertor::CreateInput, py::arg("dtype"), py::arg("shape"), py::arg("name"))
+      .def("append_op",
+           static_cast<void (PaddleModelConvertor::*)(const std::string &,
+                                                      const std::map<std::string, std::vector<std::string>> &,
+                                                      const std::map<std::string, std::vector<std::string>> &,
+                                                      const std::map<std::string, cinn::utils::Attribute> &)>(
+               &PaddleModelConvertor::RunOp),
+           py::arg("type"),
+           py::arg("inputs"),
+           py::arg("outputs"),
+           py::arg("attrs"))
+      .def("get_fetch_list",
+           &PaddleModelConvertor::GetFetchList,
+           py::arg("fetch_list") = std::unordered_set<std::string>{})
       .def("get_cinn_name", [](PaddleModelConvertor &self, const std::string &paddle_name) {
         CHECK(self.var_model_to_program_map().count(paddle_name))
             << "Cannot find variabel " << paddle_name << " in CINN! Please check.";
