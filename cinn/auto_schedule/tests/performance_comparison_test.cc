@@ -271,6 +271,7 @@ TEST_F(PerformanceTester, LookupTable) {
   std::vector<int32_t> table_shape{50001, 768};
   std::vector<int32_t> ids_shape{10, 128, 1};
 
+  options_.evaluate_knobs = 0UL;
   Evaluate(LookupTableOpBuilder(table_shape, ids_shape, -1)());
 }
 
@@ -278,6 +279,7 @@ TEST_F(PerformanceTester, Gather) {
   std::vector<int32_t> operand_shape{10, 12, 128, 512};
   std::vector<int32_t> index_shape{128};
 
+  options_.evaluate_knobs = 0UL;
   Evaluate(GatherOpBuilder(operand_shape, index_shape, 3)());
 }
 

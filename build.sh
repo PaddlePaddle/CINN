@@ -104,7 +104,8 @@ function prepare_ci {
     python${py_version} -m venv $build_dir/ci-env
   fi
   source $build_dir/ci-env/bin/activate
-  pip install -U pip
+  # pip install -U pip
+  pip install -U --no-cache-dir pip
   pip install pre-commit
   pip install clang-format==9.0
   pip install wheel
