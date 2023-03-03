@@ -210,79 +210,68 @@ Node* FindNearestReducer(const Node* node, const std::unordered_set<Node*>& node
     return FindReducerInRoute(node, nodes_set, GetProducersInSet);
 }
 
-std::vector<Node*> TopologicalOrder(const GroupPtr& group,
-                                    const absl::flat_hash_map<std::string, shape_t>& shape_dict) {
-  std::vector<Node*> nodes_in_order;
-  std::unordered_set<Node*> nodes_set = group->NodeSet();
-
+std::unordered_map<Node*, Node*> BuildVirtualConsumer(const GroupPtr& group,
+                                                      const absl::flat_hash_map<std::string, shape_t>& shape_dict) {
   std::unordered_map<Node*, Node*> virtual_consumers;
-  if (group->op_pattern_kind == framework::kReduction) {
-    // if exist output node, the shape is not equal.
-    auto base  = *group->master_nodes.begin();
-    auto shape = shape_dict.at(GetNodeData(base)->id());
-    auto size  = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<int>());
-    for (auto t_node : group->master_nodes) {
-      if (t_node == base) {
-        continue;
-      }
-
-      auto t_shape = shape_dict.at(GetNodeData(t_node)->id());
-      auto t_size  = std::accumulate(t_shape.begin(), t_shape.end(), 1, std::multiplies<int>());
-      if (size > t_size) {
-        base = t_node;
-        size = t_size;
-      }
+  std::unordered_set<Node*> nodes_set = group->NodeSet();
+  if (group->op_pattern_kind != framework::kReduction) {
+    return virtual_consumers;
+  }
+  // try to find reducer with different shape.
+  for (auto t_node : group->output_nodes) {
+    if (FindNearestReducer(t_node, nodes_set)) {
+      continue;
     }
 
-    for (auto t_node : group->master_nodes) {
-      if (t_node == base) {
-        continue;
-      }
+    std::unordered_set<Node*> visited;
+    std::queue<Node*> candidates;
 
-      auto t_shape = shape_dict.at(GetNodeData(t_node)->id());
-      auto t_size  = std::accumulate(t_shape.begin(), t_shape.end(), 1, std::multiplies<int>());
-      if (size < t_size) {
-        std::queue<Node*> candidates;
-        std::unordered_set<Node*> visited;
+    candidates.push(t_node);
+    visited.insert(t_node);
+    // from producers find reducer consumer.
+    while (!candidates.empty()) {
+      auto candidate = candidates.front();
+      candidates.pop();
 
-        candidates.push(t_node);
-        while (!candidates.empty()) {
-          auto candidate = candidates.front();
-          candidates.pop();
-
-          for (auto producer : GetProducersInSet(candidate, nodes_set)) {
-            if (visited.count(producer)) {
-              continue;
-            }
-
-            auto reducer = FindReducerInRoute(producer, nodes_set, GetConsumersInSet);
-            if (reducer) {
-              virtual_consumers[t_node] = reducer;
-              break;
-            }
-            visited.insert(producer);
-          }
-          // if find horizontal reducer.
-          if (virtual_consumers.count(t_node)) {
-            break;
-          }
+      for (auto producer : GetProducersInSet(candidate, nodes_set)) {
+        if (visited.count(producer)) {
+          continue;
         }
+
+        auto reducer = FindReducerInRoute(producer, nodes_set, GetConsumersInSet);
+        if (reducer) {
+          virtual_consumers[t_node] = reducer;
+          break;
+        }
+        visited.insert(producer);
+      }
+      // if find horizontal reducer.
+      if (virtual_consumers.count(t_node)) {
+        break;
       }
     }
   }
+  return virtual_consumers;
+}
 
-  auto FindConsumers = [&virtual_consumers, &nodes_set](Node* node) {
-    auto consumers = GetConsumersInSet(node, nodes_set);
-    if (virtual_consumers.count(node)) {
-      consumers.push_back(virtual_consumers[node]);
-    }
-    return consumers;
-  };
+std::vector<Node*> FindConsumers(Node* node,
+                                 const std::unordered_set<Node*>& nodes_set,
+                                 const std::unordered_map<Node*, Node*>& virtual_consumers) {
+  auto consumers = GetConsumersInSet(node, nodes_set);
+  if (virtual_consumers.count(node)) {
+    consumers.push_back(virtual_consumers.find(node)->second);
+  }
+  return consumers;
+}
+
+std::vector<Node*> TopologicalOrder(const GroupPtr& group, const std::unordered_map<Node*, Node*>& virtual_consumers) {
+  std::vector<Node*> nodes_in_order;
+  std::unordered_set<Node*> nodes_set = group->NodeSet();
 
   while (!nodes_set.empty()) {
     auto tmp_node_set = nodes_set;
     for (auto node : tmp_node_set) {
-      auto consumers     = FindConsumers(node);
+      auto consumers     = FindConsumers(node, nodes_set, virtual_consumers);
       bool cant_be_erase = false;
       for (auto consumer : consumers) {
         if (nodes_set.count(consumer)) {
@@ -326,7 +315,7 @@ void LoopOrderAssignReduce(ir::IRSchedule& ir_sch,
                            const std::string& block_name,
                            const std::vector<int>& axes,
                            const common::Target& target,
-                           const bool just_reorder) {
+                           const bool just_reorder = false) {
   // reorder none-last reduce axis to last.
   // like: shape = [16,16,16,16,16],axes = [1,3] -> new order = [0, 2, 4, 1, 3].
   std::vector<int> order;
@@ -549,6 +538,7 @@ Node* GetMasterToComputeAt(Node* node,
                            const std::vector<Node*>& nodes_in_order,
                            const std::unordered_set<Node*>& nodes_inline,
                            const std::unordered_set<Node*>& nodes_set,
+                           const std::unordered_map<Node*, Node*>& virtual_consumers,
                            const absl::flat_hash_map<std::string, shape_t>& shape_dict) {
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
   // if node is reduction, try find horizontal to compute at.
@@ -605,7 +595,8 @@ Node* GetMasterToComputeAt(Node* node,
     auto candidate = candidates.front();
     candidates.pop();
 
-    for (auto consumer : GetConsumersInSet(candidate, nodes_set)) {
+    auto consumers = FindConsumers(candidate, nodes_set, virtual_consumers);
+    for (auto consumer : consumers) {
       if (nodes_inline.count(consumer)) {
         if (!visited.count(consumer)) {
           candidates.push(consumer);

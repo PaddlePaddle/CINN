@@ -526,8 +526,9 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
                            const GroupPtr& group,
                            const std::unordered_map<std::string, ir::Tensor>& tensor_map) {
   // topological order.
-  std::unordered_set<Node*> nodes_set = group->NodeSet();
-  std::vector<Node*> nodes_in_order   = TopologicalOrder(group, this->shape_dict_);
+  auto nodes_set      = group->NodeSet();
+  auto v_consumers    = BuildVirtualConsumer(group, this->shape_dict_);
+  auto nodes_in_order = TopologicalOrder(group, v_consumers);
   // find reducer.
   std::unordered_set<Node*> nodes_inline;
   auto greducer         = FindGlobalReducer(nodes_in_order);
@@ -535,6 +536,7 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
 
   // do schedule
   for (auto node : nodes_in_order) {
+    LOG(INFO) << node->id();
     // consumers.
     auto consumers      = GetConsumersInSet(node, nodes_set);
     const Node* reducer = greducer ? FindNearestReducer(node, nodes_set) : greducer;
@@ -557,7 +559,7 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
       continue;
     }
     // find master to computeat.
-    auto master = GetMasterToComputeAt(node, nodes_in_order, nodes_inline, nodes_set, this->shape_dict_);
+    auto master = GetMasterToComputeAt(node, nodes_in_order, nodes_inline, nodes_set, v_consumers, this->shape_dict_);
 
     // assign to reducer/master loop.
     if (reducer) {

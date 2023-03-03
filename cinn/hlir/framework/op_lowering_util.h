@@ -35,6 +35,9 @@ std::vector<ir::Tensor> CollectInputTensor(const Node* node,
                                            const absl::flat_hash_map<std::string, Type>& type_dict,
                                            const absl::flat_hash_map<std::string, shape_t>& shape_dict);
 
+std::unordered_map<Node*, Node*> BuildVirtualConsumer(const GroupPtr& group,
+                                                      const absl::flat_hash_map<std::string, shape_t>& shape_dict);
+
 NodeData* GetNodeData(const Node* node);
 
 std::vector<NodeData*> GetAllNodeData(const Node* node);
@@ -45,42 +48,11 @@ std::vector<Node*> GetConsumersInSet(const Node* node, const std::unordered_set<
 
 std::vector<Node*> GetProducers(const Node* node);
 
-std::vector<Node*> GetProducersInSet(const Node* node, const std::unordered_set<Node*>& node_set);
-
-bool IsConstOp(const framework::Node* node);
-
-std::vector<int> GetInputShape(const Node* node, const absl::flat_hash_map<std::string, shape_t>& shape_dict);
-
-std::vector<int> GetOutputShape(const Node* node, const absl::flat_hash_map<std::string, shape_t>& shape_dict);
-
-std::vector<Node*> TopologicalOrder(const GroupPtr& group, const absl::flat_hash_map<std::string, shape_t>& shape_dict);
+std::vector<Node*> TopologicalOrder(const GroupPtr& group, const std::unordered_map<Node*, Node*>& virtual_consumers);
 
 Node* FindGlobalReducer(const std::vector<Node*>& nodes_in_order);
 
-using Visitor = std::function<std::vector<Node*>(const Node*, const std::unordered_set<Node*>&)>;
-Node* FindReducerInRoute(const Node* node, const std::unordered_set<Node*>& nodes_set, Visitor visitor);
-
 Node* FindNearestReducer(const Node* node, const std::unordered_set<Node*>& nodes_set);
-
-bool WithoutLastDimInReduce(const std::vector<int>& shape, const std::vector<int>& axes);
-
-void LoopOrderAssignReduce(ir::IRSchedule& ir_sch,
-                           const std::string& block_name,
-                           const std::vector<int>& axes,
-                           const common::Target& target,
-                           const bool just_reorder = false);
-
-void LoopAssignReduceWithoutLast(ir::IRSchedule& ir_sch,
-                                 const std::string& block_name,
-                                 const std::vector<int>& inshape,
-                                 const std::vector<int>& axes,
-                                 const common::Target& target);
-
-void LoopAssignReduceWithLast(ir::IRSchedule& ir_sch,
-                              const std::string& block_name,
-                              const std::vector<int>& inshape,
-                              const std::vector<int>& axes,
-                              const common::Target& target);
 
 bool CanbeInline(Node* node,
                  const std::vector<Node*> consumers,
@@ -94,6 +66,7 @@ Node* GetMasterToComputeAt(Node* node,
                            const std::vector<Node*>& nodes_in_order,
                            const std::unordered_set<Node*>& nodes_inline,
                            const std::unordered_set<Node*>& nodes_set,
+                           const std::unordered_map<Node*, Node*>& virtual_consumers,
                            const absl::flat_hash_map<std::string, shape_t>& shape_dict);
 
 void LoopAssignReduce(ir::IRSchedule& ir_sch,
@@ -102,25 +75,6 @@ void LoopAssignReduce(ir::IRSchedule& ir_sch,
                       const Target& target,
                       const std::unordered_map<std::string, ir::Tensor>& tensor_map,
                       const absl::flat_hash_map<std::string, shape_t>& shape_dict);
-
-void MergeLoops(ir::Expr root, std::vector<ir::Expr>& src, std::vector<ir::Expr>& dst, int index);
-
-void InsertSyncThread(ir::IRSchedule& ir_sch,
-                      const Node* node,
-                      const absl::flat_hash_map<std::string, shape_t>& shape_dict,
-                      const std::unordered_map<std::string, ir::Tensor>& tensor_map);
-
-void MergeReduceToReduce(ir::IRSchedule& ir_sch,
-                         const Node* node,
-                         const Node* master,
-                         const absl::flat_hash_map<std::string, shape_t>& shape_dict,
-                         const std::unordered_map<std::string, ir::Tensor>& tensor_map);
-
-void MergeReduceLoop(ir::IRSchedule& ir_sch,
-                     const Node* node,
-                     const Node* master,
-                     const absl::flat_hash_map<std::string, shape_t>& shape_dict,
-                     const std::unordered_map<std::string, ir::Tensor>& tensor_map);
 
 void LoopComputeAt(ir::IRSchedule& ir_sch,
                    Node* node,
