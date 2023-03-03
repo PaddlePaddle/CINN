@@ -69,9 +69,9 @@ void AutoTuner::Initialize(const Config& config, hlir::framework::GraphCompiler*
   // create task optimizers
   utils::LinearRandomEngine::StateType initial_seed = utils::LinearRandomEngine::GetDeviceRandomValue();
   task_optimizers_.resize(tasks_.size());
-  std::transform(tasks_.begin(), tasks_.end(), task_optimizers_.begin(), [&](const TuneTask& task) {
+  std::transform(tasks_.begin(), tasks_.end(), task_optimizers_.begin(), [&](TuneTask& task) {
     return std::make_unique<TaskOptimizer>(
-        task, schedule_measurer_.get(), database_.get(), utils::ForkRandomState(&initial_seed));
+        &task, schedule_measurer_.get(), database_.get(), utils::ForkRandomState(&initial_seed));
   });
 
   // create task scheduler
@@ -85,7 +85,7 @@ void PrintResult(std::shared_ptr<hlir::framework::Graph::Group> group) {
 
   auto nodes = group->CollectNodes();
   VLOG(3) << "Node size:" << nodes.size();
-  VLOG(3) << "Group  {";
+  VLOG(3) << "Group {";
   for (auto* node : nodes) {
     VLOG(3) << "  " << hlir::framework::DebugString(node);
   }
