@@ -616,14 +616,22 @@ class FusionMergePassHelper : public FusionHelperBase {
           candidates.insert(consumer);
         } else {
           VLOG(4) << "Fuse Producer : " << producer->group_id << " into Consumer : " << consumer->group_id;
+          auto& sub_group    = consumer->fused_sub_groups.front();
+          auto constant_node = producer->CollectNodes()[0];
+          if (sub_group->NodeSet().count(constant_node)) {
+            // remove depency.
+            consumer->input_nodes.erase(constant_node);
+            consumer->producer_groups.erase(producer);
+            producer->consumer_groups.erase(consumer);
+            continue;
+          }
           consumer->group_id = producer->group_id + "_" + consumer->group_id;
           // just merge the node into group.
-          auto& sub_group     = consumer->fused_sub_groups.front();
           sub_group->group_id = producer->group_id + "_" + sub_group->group_id;
-          sub_group->nodes.insert(sub_group->nodes.begin(), producer->CollectNodes()[0]);
-          sub_group->nodes_set.insert(producer->CollectNodes()[0]);
+          sub_group->nodes.insert(sub_group->nodes.begin(), constant_node);
+          sub_group->nodes_set.insert(constant_node);
           // remove depency.
-          consumer->input_nodes.erase(producer->CollectNodes()[0]);
+          consumer->input_nodes.erase(constant_node);
           consumer->producer_groups.erase(producer);
           producer->consumer_groups.erase(consumer);
         }
