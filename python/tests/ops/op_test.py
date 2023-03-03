@@ -211,22 +211,6 @@ class OpTest(unittest.TestCase):
             self.assertTrue(is_allclose, msg=error_message)
 
     @staticmethod
-    def paddleddtype2str(dtype):
-        switch_map = {
-            paddle.float16: "float16",
-            paddle.float32: "float32",
-            paddle.float64: "float64",
-            paddle.int8: "int8",
-            paddle.int16: "int16",
-            paddle.int32: "int32",
-            paddle.int64: "int64",
-            paddle.uint8: "uint8",
-            paddle.bool: "bool",
-        }
-        assert dtype in switch_map, str(dtype) + " not support in CINN"
-        return switch_map[dtype]
-
-    @staticmethod
     def nptype2cinntype(dtype):
         switch_map = {
             "float16": Float(16),

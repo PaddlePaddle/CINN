@@ -27,6 +27,7 @@ from paddle.fluid.layer_helper import LayerHelper
 
 from cinn.frontend import NetBuilder, PaddleModelConvertor
 from cinn.common import is_compiled_with_cuda
+from cinn.framework import Scope
 
 from tests.ops.op_test import OpTest, OpTestTool
 
@@ -109,6 +110,7 @@ class OpMapperTest(OpTest):
         # collect some important infomation
         self.input_arg_map = self.__get_arguments_map(self.inputs)
         self.fetch_targets = list()
+        self.op_desc = None
 
     def __check_valid(self):
         self.assertIsInstance(self.op_type, str)
@@ -126,7 +128,7 @@ class OpMapperTest(OpTest):
                 msg="The shape of input {} in feed_data error".format(
                     var.name))
             self.assertEqual(
-                self.paddleddtype2str(var.dtype),
+                self.paddleddtype2nptype(var.dtype),
                 str(self.feed_data[name].dtype),
                 msg="The type of input {} in feed_data erroe".format(var.name))
 
@@ -164,11 +166,11 @@ class OpMapperTest(OpTest):
                 self.fetch_targets.append(out_var)
                 self.outputs[var_name] = [out_var]
 
-            helper.append_op(
+            self.op_desc = helper.append_op(
                 type=self.op_type,
                 inputs=self.inputs,
                 outputs=self.outputs,
-                attrs=self.attrs)
+                attrs=self.attrs).desc
 
         logger.debug("Paddle Program:\n" + str(main_program))
 
@@ -186,9 +188,8 @@ class OpMapperTest(OpTest):
                      } for i in range(len(self.fetch_targets))]))
 
     def build_cinn_program(self, target):
-        builder = NetBuilder(self.op_type + "_op_mapper_test")
-
-        convertor = PaddleModelConvertor(target=self.target)
+        scope = Scope()
+        convertor = PaddleModelConvertor(target=self.target, scope=scope)
 
         for var_name, var in self.input_arg_map.items():
             convertor.create_input(
@@ -196,52 +197,37 @@ class OpMapperTest(OpTest):
                 shape=var.shape,
                 name=var_name)
 
-        def get_param_name_map(param_map: dict) -> dict:
-            """The op desc only need the map from param name to argument name list
-            """
-            name_map = dict()
-            for param_name, args in param_map.items():
-                name_map[param_name] = list()
-                for arg in args:
-                    name_map[param_name].append(arg.name)
-            return name_map
-
         convertor.append_op(
             type=self.op_type,
-            inputs=get_param_name_map(self.inputs),
-            outputs=get_param_name_map(self.outputs),
+            inputs=self.op_desc.inputs(),
+            outputs=self.op_desc.outputs(),
             attrs=self.attrs)
 
         prog = convertor()
 
         logger.debug("CINN Program:\n" + str(prog))
 
-        # get cinn input list
-        cinn_input_vars = prog.get_inputs()
-        self.assertEqual(
-            len(prog.get_inputs()),
-            len(self.input_arg_map),
-            msg=
-            "The cinn program's input list not equal to the paddle's input list."
-        )
-
-        # map the name the variable
-        input_dict = {var.name(): var for var in cinn_input_vars}
-
+        # get the CINN input list
         cinn_inputs = []
         cinn_feed_datas = []
-        for name in self.input_arg_map.keys():
-            cinn_name = convertor.get_cinn_name(name)
 
-            self.assertTrue(
-                cinn_name in input_dict,
-                msg="Cannot find variable " + cinn_name +
-                " in cinn program's input, which are " + str(
-                    input_dict.items()))
-            cinn_inputs.append(input_dict[cinn_name])
-            cinn_feed_datas.append(self.feed_data[name])
+        # map the name the variable
+        if len(self.input_arg_map) > 0:
+            feed_names = set(self.input_arg_map.keys())
+            input_dict = convertor.get_fetch_list(fetch_list=feed_names)
+            for name in feed_names:
+                cinn_name = convertor.get_cinn_name(name)
 
-        # get cinn output list
+                self.assertIn(
+                    cinn_name,
+                    input_dict,
+                    msg="Cannot find variable " + cinn_name +
+                    " in cinn program's input, which are " + str(
+                        input_dict.items()))
+                cinn_inputs.append(input_dict[cinn_name])
+                cinn_feed_datas.append(self.feed_data[name])
+
+        # get the CINN output list
         fetch_names = {var.name for var in self.fetch_targets}
         output_dict = convertor.get_fetch_list(fetch_list=fetch_names)
         cinn_output_vars = [
@@ -249,11 +235,48 @@ class OpMapperTest(OpTest):
         ]
 
         # run and get result
-        self.cinn_outputs = self.get_cinn_output(prog, target, cinn_inputs,
-                                                 cinn_feed_datas,
-                                                 cinn_output_vars, list())
+        self.cinn_outputs = self.get_cinn_output(
+            prog,
+            target,
+            cinn_inputs,
+            cinn_feed_datas,
+            cinn_output_vars,
+            passes=list(),
+            scope=scope)
 
         logger.debug("CINN result:\n" + str([{
             self.fetch_targets[i].name + "/" + convertor.get_cinn_name(self.fetch_targets[i].name):
             self.cinn_outputs[i]
         } for i in range(len(self.fetch_targets))]))
+
+    @staticmethod
+    def paddleddtype2nptype(dtype):
+        switch_map = {
+            paddle.float16: "float16",
+            paddle.float32: "float32",
+            paddle.float64: "float64",
+            paddle.int8: "int8",
+            paddle.int16: "int16",
+            paddle.int32: "int32",
+            paddle.int64: "int64",
+            paddle.uint8: "uint8",
+            paddle.bool: "bool",
+        }
+        assert dtype in switch_map, str(dtype) + " not support in CINN"
+        return switch_map[dtype]
+
+    @staticmethod
+    def nptype2paddledtype(dtype):
+        switch_map = {
+            "float16": paddle.float16,
+            "float32": paddle.float32,
+            "float64": paddle.float64,
+            "int8": paddle.int8,
+            "int16": paddle.int16,
+            "int32": paddle.int32,
+            "int64": paddle.int64,
+            "uint8": paddle.uint8,
+            "bool": paddle.bool,
+        }
+        assert dtype in switch_map, dtype + " not support in CINN"
+        return switch_map[dtype]
