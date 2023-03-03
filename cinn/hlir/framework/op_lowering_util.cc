@@ -758,8 +758,11 @@ class RemoveExpr : public ir::IRMutator<> {
 };
 
 void MergeLoops(ir::Expr root, std::vector<ir::Expr>& src, std::vector<ir::Expr>& dst, int index) {
-  CHECK_GT(src.size(), index);
-  CHECK_GT(dst.size(), index);
+  if (index < 0) {
+    return;
+  }
+  CHECK_GT(src.size(), index) << "\nindex -> " << index << "\n" << src[0];
+  CHECK_GT(dst.size(), index) << "\nindex -> " << index << "\n" << dst[0];
 
   if (src[0] == dst[0]) {
     return;

@@ -55,10 +55,14 @@ void CodeGen(ir::LoweredFunc& func) {
 }
 
 TEST(OP_LOWERING, Reduce_Dim_Equal_One_0) {
-  NetBuilder net_builder("Reduce_Dim_Equal_1_0");
+  NetBuilder net_builder("Reduce_Dim_Equal_One_0");
   {
-    auto A = net_builder.CreateInput(Float(32), {1, 1, 10}, "A");
-    auto B = net_builder.ReduceSum(A, {0, 2}, false);
+    auto A = net_builder.CreateInput(Float(32), {1, 1000}, "A");
+    auto B = net_builder.CreateInput(Float(32), {1, 1000}, "B");
+    auto C = net_builder.Add(A, B);
+    auto D = net_builder.ReduceSum(C, {1}, false);
+    auto E = net_builder.ReduceSum(C, {1}, false);
+    auto F = net_builder.Add(D, E);
   }
 
   auto program = net_builder.Build();
@@ -81,7 +85,7 @@ TEST(OP_LOWERING, Reduce_Dim_Equal_One_0) {
 }
 
 TEST(OP_LOWERING, Reduce_Dim_Equal_One_1) {
-  NetBuilder net_builder("Reduce_Dim_Equal_1_1");
+  NetBuilder net_builder("Reduce_Dim_Equal_One_1");
   {
     auto A = net_builder.CreateInput(Float(32), {32, 32}, "A");
     auto B = net_builder.ReduceSum(A, {0, 1}, false);
@@ -133,7 +137,7 @@ TEST(OP_LOWERING, Reduce_Dim_Equal_One_2) {
 }
 
 TEST(OP_LOWERING, Reduce_Dim_Equal_One_3) {
-  NetBuilder net_builder("Reduce_Dim_Equal_1_3");
+  NetBuilder net_builder("Reduce_Dim_Equal_One_3");
   {
     auto A = net_builder.CreateInput(Float(32), {32, 1024}, "A");
     auto B = net_builder.ReduceSum(A, {0, 1}, false);
@@ -159,7 +163,7 @@ TEST(OP_LOWERING, Reduce_Dim_Equal_One_3) {
 }
 
 TEST(OP_LOWERING, Reduce_Dim_Equal_One_4) {
-  NetBuilder net_builder("Reduce_Dim_Equal_1_4");
+  NetBuilder net_builder("Reduce_Dim_Equal_One_4");
   {
     auto A = net_builder.CreateInput(Float(32), {32, 32, 1024}, "A");
     auto B = net_builder.ReduceSum(A, {0, 2}, false);
@@ -185,7 +189,7 @@ TEST(OP_LOWERING, Reduce_Dim_Equal_One_4) {
 }
 
 TEST(OP_LOWERING, Reduce_Dim_Equal_One_5) {
-  NetBuilder net_builder("Reduce_Dim_Equal_1_5");
+  NetBuilder net_builder("Reduce_Dim_Equal_One_5");
   {
     auto A = net_builder.CreateInput(Float(32), {32, 32, 32, 256}, "A");
     auto B = net_builder.ReduceSum(A, {0, 2, 3}, false);
@@ -211,11 +215,37 @@ TEST(OP_LOWERING, Reduce_Dim_Equal_One_5) {
 }
 
 TEST(OP_LOWERING, Reduce_Dim_Equal_One_6) {
-  NetBuilder net_builder("Reduce_Dim_Equal_1_6");
+  NetBuilder net_builder("Reduce_Dim_Equal_One_6");
   {
     auto A = net_builder.CreateInput(Float(32), {32, 32, 256}, "A");
     auto B = net_builder.ReduceSum(A, {1, 2});
   }
+  auto program = net_builder.Build();
+  auto target  = common::DefaultTarget();
+  RunDecomposer(&program, target);
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
+
+  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
+  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
+
+  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
+  for (auto& fusion_op : graph->fusion_groups) {
+    auto lowered_func = op_lowerer.Lower(fusion_op);
+    CHECK_EQ(lowered_func.size(), 1);
+    CodeGen(lowered_func[0]);
+  }
+}
+
+TEST(OP_LOWERING, Reduce_Dim_Equal_One_7) {
+  NetBuilder net_builder("Reduce_Dim_Equal_One_7");
+  {
+    auto A = net_builder.CreateInput(Float(32), {1, 1, 1024}, "A");
+    auto B = net_builder.ReduceSum(A, {2}, false);
+  }
+
   auto program = net_builder.Build();
   auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
