@@ -217,8 +217,12 @@ std::unordered_map<Node*, Node*> BuildVirtualConsumer(const GroupPtr& group,
   if (group->op_pattern_kind != framework::kReduction) {
     return virtual_consumers;
   }
+  auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
   // try to find reducer with different shape.
   for (auto t_node : group->output_nodes) {
+    if (op_pattern_dict[t_node->op()] == framework::kReduction) {
+      continue;
+    }
     if (FindNearestReducer(t_node, nodes_set)) {
       continue;
     }
@@ -567,10 +571,11 @@ Node* GetMasterToComputeAt(Node* node,
         if (op_pattern_dict[consumer->op()] == framework::kReduction) {
           done_schedule.erase(consumer);
         }
-        if (!visited.count(consumer)) {
-          candidates.push(consumer);
-          visited.insert(consumer);
+        if (visited.count(consumer)) {
+          continue;
         }
+        candidates.push(consumer);
+        visited.insert(consumer);
       }
     }
 
@@ -597,11 +602,12 @@ Node* GetMasterToComputeAt(Node* node,
 
     auto consumers = FindConsumers(candidate, nodes_set, virtual_consumers);
     for (auto consumer : consumers) {
+      if (visited.count(consumer)) {
+        continue;
+      }
       if (nodes_inline.count(consumer)) {
-        if (!visited.count(consumer)) {
-          candidates.push(consumer);
-          visited.insert(consumer);
-        }
+        candidates.push(consumer);
+        visited.insert(consumer);
       } else {
         return consumer;
       }

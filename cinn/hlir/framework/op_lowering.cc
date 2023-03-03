@@ -536,10 +536,12 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
 
   // do schedule
   for (auto node : nodes_in_order) {
-    LOG(INFO) << node->id();
     // consumers.
     auto consumers      = GetConsumersInSet(node, nodes_set);
     const Node* reducer = greducer ? FindNearestReducer(node, nodes_set) : greducer;
+    if (!reducer && greducer) {
+      reducer = v_consumers.count(node) ? v_consumers.find(node)->second : reducer;
+    }
 
     // node can be inline.
     if (CanbeInline(node, consumers, reducer, nodes_in_order.front(), group, nodes_set, this->shape_dict_)) {
