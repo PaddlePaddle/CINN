@@ -33,7 +33,7 @@ namespace auto_schedule {
 // optimal schedule for the task.
 class TaskOptimizer {
  public:
-  TaskOptimizer(const TuneTask& task,
+  TaskOptimizer(TuneTask* task,
                 ScheduleMeasurer* schedule_measurer,
                 Database* database,
                 utils::LinearRandomEngine::StateType rand_seed = -1);
@@ -41,20 +41,24 @@ class TaskOptimizer {
   FunctionGroup Optimize(const TuningOptions& options);
 
  private:
-  FunctionGroup OptimizeByEvolution(const TuningOptions& options);
+  struct Result {
+    std::string from;
+    double cost;
+    FunctionGroup functions;
+    Result(const std::string& from_type) : from(from_type), cost(std::numeric_limits<double>::max()) {}
+  };
+
+  Result OptimizeByManual(bool need_measure);
+  Result OptimizeByExternal(bool need_measure);
+  Result OptimizeByEvolution(const TuningOptions& options);
 
   // call search candidates once by EvolutionarySearch and prune invalid ones
   std::vector<SearchState> SearchOneRound(const TuningOptions& options, std::vector<MeasureInput>* measure_candidates);
 
-  ir::LoweredFunc FuncWithUpdatedBody(const ir::LoweredFunc& old_func, ir::Expr& body);
-
-  // check whther a scheduled lowered function is valid
-  bool PruneInvalid(const ir::LoweredFunc& lowered_func);
-
  private:
   // the max retry times if continuously get empty result
   static constexpr uint32_t kMaxRetryContinuousEmpty_ = 3;
-  const TuneTask* task_;
+  TuneTask* task_;
   ScheduleMeasurer* schedule_measurer_;
   std::unique_ptr<EvolutionarySearch> evolutionary_search_ = nullptr;
   ExprCostModel cost_model_;
