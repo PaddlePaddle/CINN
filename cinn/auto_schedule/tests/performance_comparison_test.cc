@@ -19,8 +19,8 @@
 #include <iostream>
 
 #include "cinn/auto_schedule/auto_tuner.h"
-#include "cinn/auto_schedule/tests/paddle_model_program_builder.h"
-#include "cinn/auto_schedule/tests/single_op_program_builder.h"
+#include "cinn/auto_schedule/tests/test_model_builder.h"
+#include "cinn/auto_schedule/tests/test_op_builder.h"
 #include "cinn/common/target.h"
 #include "cinn/frontend/net_builder.h"
 #include "cinn/frontend/optimize.h"
@@ -290,7 +290,7 @@ TEST_F(PerformanceTester, ResNet50) {
   CHECK_NE(FLAGS_resnet50_model_dir, "");
 
   options_.evaluate_knobs = 0UL;
-  Evaluate(PaddleModelProgramBuilder(FLAGS_resnet50_model_dir, input_names, input_shapes)());
+  Evaluate(PaddleModelBuilder(FLAGS_resnet50_model_dir, input_names, input_shapes)());
 }
 
 }  // namespace auto_schedule
