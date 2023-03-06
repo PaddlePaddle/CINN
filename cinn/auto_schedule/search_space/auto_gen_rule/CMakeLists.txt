@@ -6,8 +6,9 @@ gather_srcs(cinnapi_src SRCS
 	auto_unroll.cc
 	multi_level_tiling.cc
 	skip_rule.cc
-  add_cache_read.cc
-  add_cache_write.cc
+    add_cache_read.cc
+    add_cache_write.cc
+    auto_bind.cc
 	)
 
 if (WITH_TESTING)
