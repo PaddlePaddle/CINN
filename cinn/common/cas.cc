@@ -2016,6 +2016,7 @@ Expr CasSimplifyMutator::SimplifyFracOp(Expr expr) {
   };
 
   {
+    /*
     std::vector<Expr> a_args, b_args;
     if (ap)
       a_args = ap->operands();
@@ -2027,6 +2028,7 @@ Expr CasSimplifyMutator::SimplifyFracOp(Expr expr) {
       b_args.push_back(b);
 
     return reduce_product_div_product(a_args, b_args);
+    */
   }
 
   // x / x
