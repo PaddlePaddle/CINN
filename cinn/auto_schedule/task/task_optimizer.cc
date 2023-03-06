@@ -25,6 +25,7 @@
 #include "cinn/auto_schedule/search_strategy/evolutionary_search.h"
 #include "cinn/common/target.h"
 #include "cinn/hlir/framework/op_lowering.h"
+#include "cinn/hlir/op/external_api_registry.h"
 #include "cinn/ir/buffer.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_base.h"
@@ -44,22 +45,161 @@ DECLARE_bool(auto_schedule_use_cost_model);
 namespace cinn {
 namespace auto_schedule {
 
-TaskOptimizer::TaskOptimizer(const TuneTask& task,
+using cinn::hlir::op::ExternalApiRegistry;
+
+// *** forward declarations of auxiliary functions to be used in this file only ***
+// update a scheduled function with several post-processors
+ir::LoweredFunc FuncWithUpdatedBody(const common::Target& target, const ir::LoweredFunc& old_func, ir::Expr& body);
+// check whther a scheduled lowered function is valid
+bool PruneInvalid(const ir::LoweredFunc& lowered_func, const common::Target& target);
+// exclude some special tasks
+bool IsForbiddenToTune(const TuneTask* task);
+// tell whether the task has been wrapped by custom_call in TransToCustomCallPass
+bool IsWrappedByCustomCall(const TuneTask* task);
+// tell whether the task has registered external api
+bool HasExternalApi(const TuneTask* task);
+
+TaskOptimizer::TaskOptimizer(TuneTask* task,
                              ScheduleMeasurer* schedule_measurer,
                              Database* database,
                              utils::LinearRandomEngine::StateType rand_seed)
-    : task_(&task),
+    : task_(task),
       schedule_measurer_(schedule_measurer),
       database_(database),
       cost_model_(),
       rand_seed_(utils::LinearRandomEngine::NormalizeState(rand_seed)) {}
 
 FunctionGroup TaskOptimizer::Optimize(const TuningOptions& options) {
-  // TODO(zhhsplendid): develop other optimize methods and configure the method by options.
-  return OptimizeByEvolution(options);
+  CHECK(task_->subgraph != nullptr) << "subgraph can't be empty";
+  // task with forbidden or custom_call ops can't be tuned
+  if (IsForbiddenToTune(task_) || IsWrappedByCustomCall(task_)) {
+    return task_->op_lowerer->Lower(task_->subgraph);
+  }
+  // TODO(CtfGo): the input/output names of a Graph::Group will be changed in Lowering by OpLowerer currently,
+  // so we should revert them after following different lower methods, remove this hard code by fixing the
+  // decoupling between lowering and BuildInstrutions
+  auto initial_input_names  = task_->subgraph->input_names;
+  auto initial_output_names = task_->subgraph->output_names;
+
+  std::vector<TaskOptimizer::Result> candidates;
+  candidates.emplace_back(OptimizeByEvolution(options));
+  candidates.emplace_back(OptimizeByManual(options.num_measure_trials > 0));
+  if (HasExternalApi(task_)) {
+    candidates.emplace_back(OptimizeByExternal(options.num_measure_trials > 0));
+  }
+  sort(candidates.begin(), candidates.end(), [](const auto& lhs, const auto& rhs) { return lhs.cost < rhs.cost; });
+  auto&& best = candidates.front();
+  VLOG(4) << "Total candidates=" << candidates.size() << ", the best from=" << best.from << ", cost=" << best.cost;
+
+  // revert input/output names
+  task_->subgraph->input_names  = initial_input_names;
+  task_->subgraph->output_names = initial_output_names;
+  return best.functions;
 }
 
-FunctionGroup TaskOptimizer::OptimizeByEvolution(const TuningOptions& options) {
+TaskOptimizer::Result TaskOptimizer::OptimizeByManual(bool need_measured) {
+  static constexpr char* kManualMeasuredKeyPrefix = "@ManualMeasured:\n";
+  TaskOptimizer::Result result("Manual");
+  result.functions = task_->op_lowerer->Lower(task_->subgraph);
+
+  // pack functions body
+  std::vector<ir::Expr> func_bodys;
+  for (const ir::LoweredFunc& func : result.functions) {
+    func_bodys.push_back(func->body);
+  }
+
+  SearchState state(ir::IRSchedule(ir::ModuleExpr(std::move(func_bodys))));
+  // the manual is regarded as the second best in default, so we set its cost 0.0
+  result.cost = 0.0;
+
+  // add the specific prefix in front of serialized_key to be store/load measured record for manual schedule
+  std::string measured_key = kManualMeasuredKeyPrefix + task_->serialized_key;
+  if (need_measured && database_->Count(measured_key) == 0) {
+    std::vector<MeasureInput> inputs(1);
+    inputs.back().task          = task_;
+    inputs.back().lowered_funcs = result.functions;
+    VLOG(4) << "Measure manual schedule";
+    std::vector<MeasureResult> measure_outputs = schedule_measurer_->Measure(inputs);
+    database_->AddRecord(TuningRecord(measured_key, state, measure_outputs[0].execution_cost));
+  }
+
+  auto measured_records = database_->LookUp(measured_key);
+  if (!measured_records.empty()) {  // update result.cost by measured if exists
+    result.cost = measured_records[0].execution_cost;
+  }
+  return result;
+}
+
+TaskOptimizer::Result TaskOptimizer::OptimizeByExternal(bool need_measured) {
+  static constexpr char* kExternalMeasuredKeyPrefix = "@ExternalMeasured:\n";
+  TaskOptimizer::Result result("External");
+  auto nodes       = task_->subgraph->CollectNodes();
+  auto* first_node = nodes.front();
+
+  // set the necessary field for lowering with external api
+  std::string original_op                     = first_node->op()->name;
+  first_node->attrs.attr_store["original_op"] = original_op;
+  first_node->attrs.op                        = hlir::framework::Operator::Get("custom_call");
+  result.functions                            = task_->op_lowerer->Lower(task_->subgraph);
+
+  // add the specific prefix in front of serialized_key to be store/load measured record for external api
+  result.cost              = -1.0;  // the external is regarded as the best in default, so we set its cost -1.0
+  std::string measured_key = kExternalMeasuredKeyPrefix + task_->serialized_key;
+  if (need_measured && database_->Count(measured_key) == 0) {
+    std::vector<MeasureInput> inputs(1);
+    inputs.back().task          = task_;
+    inputs.back().lowered_funcs = result.functions;
+    VLOG(4) << "Measure external api";
+    std::vector<MeasureResult> measure_outputs = schedule_measurer_->Measure(inputs);
+    // the SearchState of external is invalid and will not be used, so we just put a temporary one
+    database_->AddRecord(TuningRecord(measured_key, SearchState(ir::IRSchedule()), measure_outputs[0].execution_cost));
+  }
+
+  auto measured_records = database_->LookUp(measured_key);
+  if (!measured_records.empty()) {  // update result.cost by measured if exists
+    result.cost = measured_records[0].execution_cost;
+  }
+  return result;
+}
+
+bool IsForbiddenToTune(const TuneTask* task) {
+  // TODO(CtfGo): some operators may change its linked edges in
+  // TransToCustomCallPass, like conv2d, we will skip these ops in auto-schedule
+  // becuase they can't revert original links for no schedule and manual schedule lowering.
+  static std::unordered_set<std::string> links_changed_ops = {"conv2d"};
+  auto nodes                                               = task->subgraph->CollectNodes();
+  auto&& op_name                                           = nodes.front()->op()->name;
+  if (nodes.size() == 1 && links_changed_ops.count(op_name)) {
+    VLOG(5) << "Op:" << op_name << " is forbidden to call external_api";
+    return true;
+  }
+
+  return false;
+}
+
+bool HasExternalApi(const TuneTask* task) {
+  auto nodes       = task->subgraph->CollectNodes();
+  auto* first_node = nodes.front();
+  if (nodes.size() == 1 && ExternalApiRegistry::Global()->Has(first_node->op()->name, task->target)) {
+    return true;
+  }
+  return false;
+}
+
+bool IsWrappedByCustomCall(const TuneTask* task) {
+  auto nodes       = task->subgraph->CollectNodes();
+  auto* first_node = nodes.front();
+  if (nodes.size() == 1 && first_node->op()->name == "custom_call") {
+    CHECK(first_node->attrs.attr_store.count("original_op")) << "a custom_call op must store its original op name";
+    std::string op_name = absl::get<std::string>(first_node->attrs.attr_store.at("original_op"));
+    VLOG(5) << "Op:" << op_name << " was wrapped as custom_call";
+    return true;
+  }
+
+  return false;
+}
+
+TaskOptimizer::Result TaskOptimizer::OptimizeByEvolution(const TuningOptions& options) {
   CHECK_EQ(options.num_measure_trials % options.num_samples_per_iteration, 0)
       << "TuningOptions.num_measure_trials % TuningOptions.num_samples_per_iteration must be 0.";
 
@@ -77,13 +217,19 @@ FunctionGroup TaskOptimizer::OptimizeByEvolution(const TuningOptions& options) {
         std::make_unique<EvolutionarySearch>(*task_, cost_model_, database_, utils::ForkRandomState(&rand_seed_));
   }
 
+  TaskOptimizer::Result result("Evolution");
+  auto& optimized_funcs = result.functions;
+  auto& best_cost       = result.cost;
   // use initial lowered function as default result
-  FunctionGroup result = optim::IRCopy(task_->lowered_funcs);
+  optimized_funcs = optim::IRCopy(task_->lowered_funcs);
   if (options.num_measure_trials == 0) {  // no need to measure and simply return the best searched
     std::vector<MeasureInput> measure_candidates;
     std::vector<SearchState> states = SearchOneRound(options, &measure_candidates);
     if (!states.empty()) {
-      result = measure_candidates[0].lowered_funcs;
+      if (FLAGS_auto_schedule_use_cost_model) {
+        best_cost = cost_model_.Predict(states.front()->ir_schedule.GetModule(), task_->target);
+      }
+      optimized_funcs = measure_candidates[0].lowered_funcs;
     } else {
       LOG(WARNING) << "No valid candidate searched, will return initial state";
     }
@@ -92,7 +238,6 @@ FunctionGroup TaskOptimizer::OptimizeByEvolution(const TuningOptions& options) {
 
   int measured_count            = 0;
   uint32_t continuous_empty_cnt = 0;
-  double min_exec_time          = std::numeric_limits<double>().max();
   while (measured_count < options.num_measure_trials) {
     VLOG(4) << "Launch a new search, current measured_count:" << measured_count;
     std::vector<MeasureInput> measure_inputs;
@@ -137,10 +282,10 @@ FunctionGroup TaskOptimizer::OptimizeByEvolution(const TuningOptions& options) {
 
     // update the best
     for (size_t i = 0; i < measure_outputs.size(); ++i) {
-      if (measure_outputs[i].execution_cost < min_exec_time) {
+      if (measure_outputs[i].execution_cost < best_cost) {
         VLOG(4) << "Update best candidate with execution_cost:" << measure_outputs[i].execution_cost << "us";
-        min_exec_time = measure_outputs[i].execution_cost;
-        result        = measure_inputs[i].lowered_funcs;
+        best_cost       = measure_outputs[i].execution_cost;
+        optimized_funcs = measure_inputs[i].lowered_funcs;
       }
     }
 
@@ -164,7 +309,7 @@ std::vector<SearchState> TaskOptimizer::SearchOneRound(const TuningOptions& opti
     std::vector<ir::LoweredFunc> valid_funcs;
     for (size_t j = 0; j < best_exprs.size(); ++j) {
       auto updated_f = UpdateFuncWithNewBody(task_->target, init_funcs[j], best_exprs[j]);
-      if (PruneInvalid(updated_f)) {
+      if (PruneInvalid(updated_f, task_->target)) {
         VLOG(4) << "PruneInvalid states-" << i;
         break;
       }
@@ -240,11 +385,11 @@ bool IsGPUMemoryUsageExceedLimit(const ir::LoweredFunc& lowered_func,
   return used_bytes_cnt >= limit_bytes;
 }
 
-bool TaskOptimizer::PruneInvalid(const ir::LoweredFunc& lowered_func) {
+bool PruneInvalid(const ir::LoweredFunc& lowered_func, const common::Target& target) {
   static const size_t kGPUSharedMemoryLimitBytes = GetGPUSharedMemoryLimit();
   static const size_t kGPULocalStackLimitBytes   = GetGPULocalStackLimit();
 
-  if (task_->target == common::DefaultNVGPUTarget()) {
+  if (target == common::DefaultNVGPUTarget()) {
     if (IsGPUMemoryUsageExceedLimit(lowered_func, ir::MemoryType::GPUShared, kGPUSharedMemoryLimitBytes)) {
       VLOG(5) << ir::MemoryType::GPUShared << " memory usage exceeds limit, func:\n" << lowered_func;
       return true;

@@ -107,6 +107,8 @@ std::vector<ir::LoweredFunc> OpLowerer::LowerWithoutSchedule(GroupPtr& group) {
 
 std::vector<ir::LoweredFunc> OpLowerer::Lower(GroupPtr& group) {
   VLOG(3) << "Lowering Group : " << group->group_id << " , Op Pattern : " << group->op_pattern_kind;
+  group->input_names.clear();
+  group->output_names.clear();
   if (FLAGS_cinn_ir_schedule) {
     switch (group->op_pattern_kind) {
       case framework::kElementWise:
