@@ -129,40 +129,31 @@ class ReduceSplitPass {
         reshape0->LinkTo(reshape0_data);
         shape_dict[reshape0_data->id()] = absl::get<std::vector<int>>(reshape0->attrs.attr_store.at("shape"));
         dtype_dict[reshape0_data->id()] = common::Str2Type(common::Type2Str(dtype_dict[in->id()]));
-        VLOG(4) << 1;
 
         // create reduce node0
-        Node* reduce0                    = new Node(Operator::Get(name), name, common::UniqName(name));
-        reduce0->attrs.attr_store["dim"] = std::vector<int>{0};
-        auto a                           = absl::get<std::vector<int>>(reduce0->attrs.attr_store.at("dim"));
-        VLOG(4) << a[0];
+        Node* reduce0                         = new Node(Operator::Get(name), name, common::UniqName(name));
+        reduce0->attrs.attr_store["dim"]      = std::vector<int>{0};
+        auto a                                = absl::get<std::vector<int>>(reduce0->attrs.attr_store.at("dim"));
         reduce0->attrs.attr_store["keep_dim"] = absl::get<bool>(n->attrs.attr_store.at("keep_dim"));
-        VLOG(4) << reduce0->id();
         graph->RegisterNode(reduce0->id(), reduce0);
         reshape0_data->LinkTo(reduce0);
         auto reduce0_data = new NodeData(Shared<Node>(reduce0), 0, 0, common::UniqName("reduce"), false);
-        VLOG(4) << reduce0_data->id();
         graph->RegisterNode(reduce0_data->id(), reduce0_data);
         reduce0->LinkTo(reduce0_data);
         shape_dict[reduce0_data->id()] = std::vector<int>{reduce_numel1, in_shape[in_shape.size() - 1]};
         dtype_dict[reduce0_data->id()] = common::Str2Type(common::Type2Str(dtype_dict[in->id()]));
-        VLOG(4) << 1;
 
         // create reduce node1
         Node* reduce1                         = new Node(Operator::Get(name), name, common::UniqName(name));
         reduce1->attrs.attr_store["dim"]      = std::vector<int>{0};
         reduce1->attrs.attr_store["keep_dim"] = absl::get<bool>(n->attrs.attr_store.at("keep_dim"));
-        VLOG(4) << reduce1->id();
         graph->RegisterNode(reduce1->id(), reduce1);
         reduce0_data->LinkTo(reduce1);
         auto reduce1_data = new NodeData(Shared<Node>(reduce1), 0, 0, common::UniqName("reduce"), false);
-        VLOG(4) << reduce1_data->id();
         graph->RegisterNode(reduce1_data->id(), reduce1_data);
         reduce1->LinkTo(reduce1_data);
         shape_dict[reduce1_data->id()] = std::vector<int>{in_shape[in_shape.size() - 1]};
         dtype_dict[reduce1_data->id()] = common::Str2Type(common::Type2Str(dtype_dict[in->id()]));
-
-        VLOG(4) << 1 << " " << dtype_dict[in->id()] << " " << dtype_dict[reduce1_data->id()];
 
         // create reshape node1
         Node* reshape1 = new Node(Operator::Get("reshape"), "reshape", common::UniqName("reshape"));
@@ -170,7 +161,6 @@ class ReduceSplitPass {
         graph->RegisterNode(reshape1->id(), reshape1);
         reduce1_data->LinkTo(reshape1);
         reshape1->LinkTo(out);
-        VLOG(4) << 1;
 
         // drop old node
         graph->DropNode(node);
@@ -187,9 +177,7 @@ class ReduceSplitPass {
 }  // namespace
 
 void ReduceSplitFunc(framework::Graph* graph) {
-  // The cublas gemm is not yet supported.
   int n = ReduceSplitPass::Apply(graph);
-  LOG(INFO) << graph->Visualize();
   VLOG(3) << "ReduceSplit was performed " << n << " times.";
 }
 

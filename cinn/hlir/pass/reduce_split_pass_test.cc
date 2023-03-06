@@ -50,47 +50,24 @@ std::unordered_map<std::string, std::vector<float>> RunModelTest(
   return outputs;
 }
 
-// TEST(ReduceSplit, reduce_mean_nhwc) {
-//   NetBuilder net_builder("reduce_sum_nhwc");
-//   // create model
-//   int N = 64, H = 14, W = 14, C = 256;
-//   auto in = net_builder.CreateInput(Float(32), {N, H, W, C}, "in");
-//   auto out = net_builder.ReduceSum(in, {0, 1, 2});
-
-//   auto fetch_ids  = {out->id};
-//   std::vector<float> input_data(N*H*W*C);
-//   InitRandomVector<float>(&input_data, input_data.size(), 0.0f, 1.0f, 1e-3);
-//   std::unordered_map<std::string, std::vector<float>> feeds = {{"in", input_data}};
-//   auto program    = net_builder.Build();
-//   auto output    = RunModelTest(program, {"ReduceSplit", "OpFusionPass", "FusionMergePass"}, feeds, fetch_ids);
-//   auto output_expect = RunModelTest(program, {"OpFusionPass", "FusionMergePass"}, feeds, fetch_ids);
-
-//   for (auto& out : output) {
-//     CheckOutput<float>(out.second, output_expect[out.first], 1e-8, 1e-4);
-//   }
-// }
-
 TEST(ReduceSplit, reduce_mean_nhwc) {
   NetBuilder net_builder("reduce_sum_nhwc");
   // create model
   int N = 64, H = 14, W = 14, C = 256;
-  auto in      = net_builder.CreateInput(Float(32), {N, H, W, C}, "in");
-  auto reshape = net_builder.Reshape(in, {112, 112, 256});
-  auto reduce0 = net_builder.ReduceSum(reshape, {0});
-  auto reduce1 = net_builder.ReduceSum(reduce0, {0});
-  auto out     = net_builder.Reshape(reduce1, {256});
+  auto in  = net_builder.CreateInput(Float(32), {N, H, W, C}, "in");
+  auto out = net_builder.ReduceSum(in, {0, 1, 2});
 
   auto fetch_ids = {out->id};
   std::vector<float> input_data(N * H * W * C);
   InitRandomVector<float>(&input_data, input_data.size(), 0.0f, 1.0f, 1e-3);
   std::unordered_map<std::string, std::vector<float>> feeds = {{"in", input_data}};
   auto program                                              = net_builder.Build();
-  // auto output    = RunModelTest(program, {"ReduceSplit", "OpFusionPass", "FusionMergePass"}, feeds, fetch_ids);
+  auto output        = RunModelTest(program, {"ReduceSplit", "OpFusionPass", "FusionMergePass"}, feeds, fetch_ids);
   auto output_expect = RunModelTest(program, {"OpFusionPass", "FusionMergePass"}, feeds, fetch_ids);
 
-  // for (auto& out : output) {
-  //   CheckOutput<float>(out.second, output_expect[out.first], 1e-8, 1e-4);
-  // }
+  for (auto& out : output) {
+    CheckOutput<float>(out.second, output_expect[out.first], 1e-8, 1e-4);
+  }
 }
 
 }  // namespace frontend
