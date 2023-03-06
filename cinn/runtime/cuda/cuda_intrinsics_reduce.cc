@@ -27,10 +27,10 @@ CINN_REGISTER_HELPER(cuda_intrinsics_reduce) {
   using cinn::backends::FunctionProto;
 
 #define EXPAND_REDUCE_INT32_REGISTER_MARCO(MARCO, ...) \
-  MARCO(sum_int32, int32_t, ##__VA_ARGS__)             \
-  MARCO(prod_int32, int32_t, ##__VA_ARGS__)            \
-  MARCO(max_int32, int32_t, ##__VA_ARGS__)             \
-  MARCO(min_int32, int32_t, ##__VA_ARGS__)
+  MARCO(sum_int32, int, ##__VA_ARGS__)                 \
+  MARCO(prod_int32, int, ##__VA_ARGS__)                \
+  MARCO(max_int32, int, ##__VA_ARGS__)                 \
+  MARCO(min_int32, int, ##__VA_ARGS__)
 
 #define EXPAND_REDUCE_INT64_REGISTER_MARCO(MARCO, ...) \
   MARCO(sum_int64, int64_t, ##__VA_ARGS__)             \
