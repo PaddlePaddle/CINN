@@ -76,6 +76,9 @@ class ReduceSplitPass {
         VLOG(4) << i;
       }
     }
+    int MAX_NUM_THREADS               = common::DefaultNVGPUTarget().max_num_threads();
+    constexpr int MAX_ITER_PER_THREAD = 32;  // empirical value
+
     // loop the nodes in graph and find reduce_xx op
     auto nodes_inorder = std::get<0>(graph->topological_order());
     for (auto node : nodes_inorder) {
@@ -104,13 +107,15 @@ class ReduceSplitPass {
             all_preceding_dim_reduced = false;
           }
         }
-        if (!all_preceding_dim_reduced) {
+        int numel        = std::accumulate(in_shape.begin(), in_shape.end(), 1, std::multiplies<int>());
+        int reduce_numel = std::accumulate(in_shape.begin(), in_shape.end() - 1, 1, std::multiplies<int>());
+        CHECK(reduce_numel > 0);
+        VLOG(4) << "numel: " << numel << ", reduce_numel: " << reduce_numel << ", MAX_NUM_THREADS: " << MAX_NUM_THREADS
+                << ", MAX_ITER_PER_THREAD: " << MAX_ITER_PER_THREAD;
+        // if the numel is not large enough, it is no need to split
+        if ((!all_preceding_dim_reduced) || numel <= MAX_NUM_THREADS * MAX_ITER_PER_THREAD) {
           continue;
         }
-        int reduce_numel = std::accumulate(in_shape.begin(), in_shape.end() - 1, 1, std::multiplies<int>());
-
-        VLOG(4) << "reduce_numel " << reduce_numel;
-        CHECK(reduce_numel > 0);
 
         auto res          = DivideToClosetNum(reduce_numel);
         int reduce_numel0 = std::get<0>(res), reduce_numel1 = std::get<1>(res);

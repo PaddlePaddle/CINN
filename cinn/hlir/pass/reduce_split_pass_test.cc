@@ -70,5 +70,26 @@ TEST(ReduceSplit, reduce_mean_nhwc) {
   }
 }
 
+TEST(ReduceSplit, reduce_mean_nhwc_small_size) {
+  NetBuilder net_builder("reduce_sum_nhwc");
+  // create model
+  int N = 32, H = 2, W = 2, C = 256;
+  auto in  = net_builder.CreateInput(Float(32), {N, H, W, C}, "in");
+  auto out = net_builder.ReduceSum(in, {0, 1, 2});
+
+  auto fetch_ids = {out->id};
+  std::vector<float> input_data(N * H * W * C);
+  InitRandomVector<float>(&input_data, input_data.size(), 0.0f, 1.0f, 1e-3);
+  std::unordered_map<std::string, std::vector<float>> feeds = {{"in", input_data}};
+  auto program                                              = net_builder.Build();
+  auto output        = RunModelTest(program, {"ReduceSplit", "OpFusionPass", "FusionMergePass"}, feeds, fetch_ids);
+  auto output_expect = RunModelTest(program, {"OpFusionPass", "FusionMergePass"}, feeds, fetch_ids);
+
+  for (auto& out : output) {
+    // should be equal, since ReduceSplit is not affected
+    CheckOutput<float>(out.second, output_expect[out.first], 0.0f, 0.0f);
+  }
+}
+
 }  // namespace frontend
 }  // namespace cinn
