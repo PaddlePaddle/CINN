@@ -201,6 +201,28 @@ __device__ inline float16 FN_FP16(pow)(float16 a, float16 b) {
 
 // *************************************************************** //
 // reduce operator, need `--expt-relaxed-constexpr` option to call std function in device kernel
+#define EXPAND_REDUCE_INT32_MARCO(MARCO, ...)           \
+  MARCO(sum_int32, 0, int32_t, ##__VA_ARGS__)           \
+  MARCO(prod_int32, 1, int32_t, ##__VA_ARGS__)          \
+  MARCO(max_int32, -2147483648, int32_t, ##__VA_ARGS__) \
+  MARCO(min_int32, 2147483647, int32_t, ##__VA_ARGS__)
+
+__device__ inline int32_t cinn_sum_int32(const int32_t left, const int32_t right) { return left + right; }
+__device__ inline int32_t cinn_prod_int32(const int32_t left, const int32_t right) { return left * right; }
+__device__ inline int32_t cinn_max_int32(const int32_t left, const int32_t right) { return max(left, right); }
+__device__ inline int32_t cinn_min_int32(const int32_t left, const int32_t right) { return min(left, right); }
+
+#define EXPAND_REDUCE_INT64_MARCO(MARCO, ...)                    \
+  MARCO(sum_int64, 0, int64_t, ##__VA_ARGS__)                    \
+  MARCO(prod_int64, 1, int64_t, ##__VA_ARGS__)                   \
+  MARCO(max_int64, -9223372036854775808, int64_t, ##__VA_ARGS__) \
+  MARCO(min_int64, 9223372036854775807, int64_t, ##__VA_ARGS__)
+
+__device__ inline int64_t cinn_sum_int64(const int64_t left, const int64_t right) { return left + right; }
+__device__ inline int64_t cinn_prod_int64(const int64_t left, const int64_t right) { return left * right; }
+__device__ inline int64_t cinn_max_int64(const int64_t left, const int64_t right) { return max(left, right); }
+__device__ inline int64_t cinn_min_int64(const int64_t left, const int64_t right) { return min(left, right); }
+
 #define EXPAND_REDUCE_FP32_MACRO(MACRO, ...)          \
   MACRO(sum_fp32, 0.0f, float, ##__VA_ARGS__)         \
   MACRO(prod_fp32, 1.0f, float, ##__VA_ARGS__)        \
@@ -272,6 +294,8 @@ __device__ inline bool cinn_any(const bool left, const bool right) { return left
     }                                                                                     \
   }
 
+EXPAND_REDUCE_INT32_MARCO(CINN_WARP_SHUFFLE_INTERNAL_IMPL)
+EXPAND_REDUCE_INT64_MARCO(CINN_WARP_SHUFFLE_INTERNAL_IMPL)
 EXPAND_REDUCE_FP32_MACRO(CINN_WARP_SHUFFLE_INTERNAL_IMPL)
 EXPAND_REDUCE_BOOL_MACRO(CINN_WARP_SHUFFLE_INTERNAL_IMPL)
 EXPAND_REDUCE_FP64_MACRO(CINN_WARP_SHUFFLE_INTERNAL_IMPL)
@@ -291,6 +315,8 @@ EXPAND_REDUCE_FP16_MACRO(CINN_WARP_SHUFFLE_INTERNAL_IMPL)
     return cinn_warp_shuffle_##REDUCE_TYPE##_internal(tmp_val);                                      \
   }
 
+EXPAND_REDUCE_INT32_MARCO(CINN_WARP_REDUCE_IMPL)
+EXPAND_REDUCE_INT64_MARCO(CINN_WARP_REDUCE_IMPL)
 EXPAND_REDUCE_FP32_MACRO(CINN_WARP_REDUCE_IMPL)
 EXPAND_REDUCE_BOOL_MACRO(CINN_WARP_REDUCE_IMPL)
 EXPAND_REDUCE_FP64_MACRO(CINN_WARP_REDUCE_IMPL)
@@ -335,6 +361,8 @@ __device__ inline float cinn_warp_reduce_avg_fp32(const float *buf, int offset, 
     CINN_BLOCK_REDUCE_INTERNAL_IMPL(DTYPE, value, DTYPE(INITIAL_VALUE), cinn_warp_shuffle_##REDUCE_TYPE##_internal); \
   }
 
+EXPAND_REDUCE_INT32_MARCO(CINN_BLOCK_REDUCE_INTERNAL_MACRO)
+EXPAND_REDUCE_INT64_MARCO(CINN_BLOCK_REDUCE_INTERNAL_MACRO)
 EXPAND_REDUCE_FP32_MACRO(CINN_BLOCK_REDUCE_INTERNAL_MACRO)
 EXPAND_REDUCE_BOOL_MACRO(CINN_BLOCK_REDUCE_INTERNAL_MACRO)
 EXPAND_REDUCE_FP64_MACRO(CINN_BLOCK_REDUCE_INTERNAL_MACRO)
@@ -355,6 +383,8 @@ EXPAND_REDUCE_FP16_MACRO(CINN_BLOCK_REDUCE_INTERNAL_MACRO)
     return cinn_block_reduce_##REDUCE_TYPE##_internal(tmp_val);                                       \
   }
 
+EXPAND_REDUCE_INT32_MARCO(CINN_BLOCK_REDUCE_IMPL)
+EXPAND_REDUCE_INT64_MARCO(CINN_BLOCK_REDUCE_IMPL)
 EXPAND_REDUCE_FP32_MACRO(CINN_BLOCK_REDUCE_IMPL)
 EXPAND_REDUCE_BOOL_MACRO(CINN_BLOCK_REDUCE_IMPL)
 EXPAND_REDUCE_FP64_MACRO(CINN_BLOCK_REDUCE_IMPL)
@@ -374,6 +404,8 @@ EXPAND_REDUCE_FP16_MACRO(CINN_BLOCK_REDUCE_IMPL)
     return val;                                                                                 \
   }
 
+EXPAND_REDUCE_INT32_MARCO(BLOCK_SHUFFLE_IMPL)
+EXPAND_REDUCE_INT64_MARCO(BLOCK_SHUFFLE_IMPL)
 EXPAND_REDUCE_FP32_MACRO(BLOCK_SHUFFLE_IMPL)
 EXPAND_REDUCE_BOOL_MACRO(BLOCK_SHUFFLE_IMPL)
 EXPAND_REDUCE_FP64_MACRO(BLOCK_SHUFFLE_IMPL)
@@ -384,6 +416,8 @@ EXPAND_REDUCE_FP16_MACRO(BLOCK_SHUFFLE_IMPL)
 
 #undef BLOCK_SHUFFLE_IMPL
 
+#undef EXPAND_REDUCE_INT32_MARCO
+#undef EXPAND_REDUCE_INT64_MARCO
 #undef EXPAND_REDUCE_FP32_MACRO
 #undef EXPAND_REDUCE_BOOL_MACRO
 #undef EXPAND_REDUCE_FP64_MACRO

@@ -247,6 +247,73 @@ class TestReduceSumFP64(TestReduceSumOp):
         return builder.create_input(Float(64), shape, name)
 
 
+class TestReduceSumINT32(TestReduceSumOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([10], "int32", -100, 100)}
+        self.dim = []
+        self.keep_dim = False
+
+    def cinn_create_input(self, builder, shape, name):
+        return builder.create_input(Int(32), shape, name)
+
+    def paddle_func(self, x):
+        return paddle.sum(
+            x, axis=self.dim,
+            keepdim=self.keep_dim).cast(self.inputs["x"].dtype)
+
+
+class TestReduceSumINT32Case1(TestReduceSumINT32):
+    def init_case(self):
+        self.inputs = {"x": self.random([10, 1024], "int32", -100, 100)}
+        self.dim = [1]
+        self.keep_dim = False
+
+
+class TestReduceSumINT32Case2(TestReduceSumINT32):
+    def init_case(self):
+        self.inputs = {"x": self.random([10, 10, 10], "int32", -100, 100)}
+        self.dim = []
+        self.keep_dim = False
+
+
+class TestReduceSumINT32Case3(TestReduceSumINT32):
+    def init_case(self):
+        self.inputs = {"x": self.random([1, 56, 56, 64], "int32", -100, 100)}
+        self.dim = [0, 1, 2]
+        self.keep_dim = False
+
+
+class TestReduceSumINT64(TestReduceSumOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([10], "int64", -100, 100)}
+        self.dim = []
+        self.keep_dim = False
+
+    def cinn_create_input(self, builder, shape, name):
+        return builder.create_input(Int(64), shape, name)
+
+
+class TestReduceSumINT64Case1(TestReduceSumINT64):
+    def init_case(self):
+        self.inputs = {"x": self.random([10, 1024], "int64", -100, 100)}
+        self.dim = [1]
+        self.keep_dim = False
+
+
+class TestReduceSumINT64Case2(TestReduceSumINT64):
+    def init_case(self):
+        self.inputs = {"x": self.random([10, 10, 10], "int64", -100, 100)}
+        self.dim = []
+        self.keep_dim = False
+
+
+class TestReduceSumINT64Case3(TestReduceSumINT64):
+    def init_case(self):
+        self.inputs = {"x": self.random([1, 56, 56, 64], "int64", -100, 100)}
+        self.dim = [0, 1, 2]
+        self.keep_dim = False
+
+
 class TestReduceProdOp(TestReduceBaseOp):
     def paddle_func(self, x):
         return paddle.prod(x, axis=self.dim, keepdim=self.keep_dim)
@@ -291,6 +358,38 @@ class TestReduceProdFP64(TestReduceProdOp):
 
     def cinn_create_input(self, builder, shape, name):
         return builder.create_input(Float(64), shape, name)
+
+
+class TestReduceProdINT32(TestReduceProdOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([10], "int32", -10, 10)}
+        self.dim = []
+        self.keep_dim = False
+
+    def cinn_create_input(self, builder, shape, name):
+        return builder.create_input(Int(32), shape, name)
+
+    def paddle_func(self, x):
+        return paddle.prod(
+            x, axis=self.dim,
+            keepdim=self.keep_dim).cast(self.inputs["x"].dtype)
+
+
+class TestReduceProdINT64(TestReduceProdOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([10, 1024], "int64", -10, 10)}
+        self.dim = []
+        self.keep_dim = False
+
+    def cinn_create_input(self, builder, shape, name):
+        return builder.create_input(Int(64), shape, name)
+
+
+class TestReduceProdINT64Case1(TestReduceProdINT64):
+    def init_case(self):
+        self.inputs = {"x": self.random([1, 56, 56, 64], "int64", -10, 10)}
+        self.dim = [0, 1, 2]
+        self.keep_dim = False
 
 
 class TestReduceMaxOp(TestReduceBaseOp):
@@ -349,6 +448,38 @@ class TestReduceMaxFP64Case1(TestReduceMaxFP64):
         self.keep_dim = False
 
 
+class TestReduceMaxINT32(TestReduceMaxOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([10], "int32", -100, 100)}
+        self.dim = []
+        self.keep_dim = False
+
+    def cinn_create_input(self, builder, shape, name):
+        return builder.create_input(Int(32), shape, name)
+
+    def paddle_func(self, x):
+        return paddle.max(
+            x, axis=self.dim,
+            keepdim=self.keep_dim).cast(self.inputs["x"].dtype)
+
+
+class TestReduceMaxINT64(TestReduceMaxOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([10, 10], "int64", -100, 100)}
+        self.dim = []
+        self.keep_dim = False
+
+    def cinn_create_input(self, builder, shape, name):
+        return builder.create_input(Int(64), shape, name)
+
+
+class TestReduceMaxINT64Case1(TestReduceMaxINT64):
+    def init_case(self):
+        self.inputs = {"x": self.random([1, 56, 56, 64], "int64", -100, 100)}
+        self.dim = [0, 1, 2]
+        self.keep_dim = False
+
+
 class TestReduceMinOp(TestReduceBaseOp):
     def paddle_func(self, x):
         return paddle.min(x, axis=self.dim, keepdim=self.keep_dim)
@@ -402,6 +533,38 @@ class TestReduceMinFP64Case1(TestReduceMinFP64):
     def init_case(self):
         self.inputs = {"x": self.random([2, 3, 4, 5], "float64", -1.0, 1.0)}
         self.dim = [0, 1]
+        self.keep_dim = False
+
+
+class TestReduceMinINT32(TestReduceMinOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([10], "int32", -100, 100)}
+        self.dim = []
+        self.keep_dim = False
+
+    def cinn_create_input(self, builder, shape, name):
+        return builder.create_input(Int(32), shape, name)
+
+    def paddle_func(self, x):
+        return paddle.min(
+            x, axis=self.dim,
+            keepdim=self.keep_dim).cast(self.inputs["x"].dtype)
+
+
+class TestReduceMinINT64(TestReduceMinOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([10, 10], "int64", -100, 100)}
+        self.dim = []
+        self.keep_dim = False
+
+    def cinn_create_input(self, builder, shape, name):
+        return builder.create_input(Int(64), shape, name)
+
+
+class TestReduceMinINT64Case1(TestReduceMinINT64):
+    def init_case(self):
+        self.inputs = {"x": self.random([1, 56, 56, 64], "int64", -100, 100)}
+        self.dim = [0, 1, 2]
         self.keep_dim = False
 
 
