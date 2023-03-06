@@ -39,6 +39,9 @@ std::unordered_set<std::string> GetOutputNamesFromLoweredFunc(const std::vector<
  */
 bool NeedsMultiLevelTiling(const ir::ScheduleBlockRealize& sche_block_realize);
 
+/**
+ * Update a LoweredFunc by regenerating related fields with a new function body
+ */
 ir::LoweredFunc UpdateFuncWithNewBody(const common::Target& target, const ir::LoweredFunc& old_func, ir::Expr& body);
 
 }  // namespace auto_schedule
