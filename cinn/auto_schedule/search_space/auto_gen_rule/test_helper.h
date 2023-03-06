@@ -39,6 +39,11 @@ using test_func_type = void (*)(void**, int32_t);
 // A base utility class for testing AutoGenRule
 class TestAutoGenRuleBase : public ::testing::Test {
  public:
+  void SetUp() override {
+    srand(0);
+    Context::Global().ResetNameId();
+  }
+
   // Initialize a ir::IRSchedule by lowering the specified for following AutoGenRule test
   ir::IRSchedule InitSchedule(const frontend::Program& test_program, const common::Target& target);
 

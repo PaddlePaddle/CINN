@@ -31,10 +31,8 @@ namespace auto_schedule {
 
 class TestMixRules : public TestAutoGenRuleBase {
  public:
-  void SetUp() override {
-    srand(0);
-    Context::Global().ResetNameId();
-  }
+  std::vector<std::string> default_input_names  = {"X", "Y"};
+  std::vector<std::string> default_output_names = {"temp_matmul_out"};
 };
 
 TEST_F(TestMixRules, 2DMatmulOnMultiTilingRelated) {
@@ -71,8 +69,8 @@ TEST_F(TestMixRules, 2DMatmulOnMultiTilingRelated) {
   // execute and check precision
   CheckResult(GenExecutableKernel(ir_module),
               expected_func_matmul,
-              {"A", "B"},
-              {"C"},
+              default_input_names,
+              default_output_names,
               {{32, 32}, {32, 32}},
               {{32, 32}},
               target_);

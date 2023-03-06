@@ -42,6 +42,7 @@ using ::cinn::hlir::framework::Shape;
 using ::cinn::hlir::framework::Tensor;
 
 ir::IRSchedule TestAutoGenRuleBase::InitSchedule(const frontend::Program& test_program, const common::Target& target) {
+  Context::Global().ResetNameId();
   target_          = target;
   backend_compier_ = backends::Compiler::Create(target);
 
