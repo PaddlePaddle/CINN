@@ -369,6 +369,21 @@ CINN_REGISTER_HELPER(cinn_cuda_host_api) {
       .AddInputType<void *>()  // stream
       .End();
 
+  using cinn::runtime::cuda::cinn_call_triangular_solve_nvgpu;
+  REGISTER_EXTERN_FUNC_HELPER(cinn_call_triangular_solve_nvgpu, cinn::common::DefaultNVGPUTarget())
+      .SetRetType<void>()
+      .AddInputType<void *>()  // v_args
+      .AddInputType<int>()     // num_args
+      .AddInputType<int>()     // batch_size
+      .AddInputType<int>()     // m
+      .AddInputType<int>()     // k
+      .AddInputType<bool>()    // left_side
+      .AddInputType<bool>()    // upper
+      .AddInputType<bool>()    // transpose_a
+      .AddInputType<bool>()    // unit_diagonal
+      .AddInputType<void *>()  // stream
+      .End();
+
 #ifdef CINN_WITH_CUDNN
   using cinn::runtime::cuda::cinn_call_cudnn_conv2d_forward;
   REGISTER_EXTERN_FUNC_HELPER(cinn_call_cudnn_conv2d_forward, cinn::common::DefaultHostTarget())

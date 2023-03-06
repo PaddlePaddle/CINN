@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #pragma once
+#include "cinn/frontend/net_builder.h"
 
 namespace cinn {
 namespace auto_schedule {
@@ -20,6 +21,15 @@ namespace auto_schedule {
 class TestProgramBuilder {
  public:
   virtual frontend::Program operator()() = 0;
+};
+
+class TestOpBuilder : public TestProgramBuilder {
+ public:
+  TestOpBuilder(const std::string& name) : builder_(name) {}
+  frontend::Program operator()() { return builder_.Build(); }
+
+ protected:
+  frontend::NetBuilder builder_;
 };
 
 }  // namespace auto_schedule
