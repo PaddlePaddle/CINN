@@ -143,17 +143,23 @@ class OpMapperTest(OpTest):
             self.assertEqual(
                 var.shape,
                 self.feed_data[name].shape,
-                msg="The shape of input {} in feed_data error".format(
+                msg="The shape of input {} in feed_data is error".format(
                     var.name))
             self.assertEqual(
                 self.paddleddtype2nptype(var.dtype),
                 str(self.feed_data[name].dtype),
-                msg="The type of input {} in feed_data erroe".format(var.name))
+                msg="The dtype of input {} in feed_data is error".format(
+                    var.name))
 
     def __get_arguments_map(self, param_maps):
         arg_maps = dict()
         for args in param_maps.values():
-            self.assertIsInstance(args, list)
+            self.assertIsInstance(
+                args,
+                list,
+                msg=
+                "The type of arguments should be list(Variable), where Variable are created by paddle.static.data"
+            )
             for var in args:
                 self.assertIsInstance(
                     var,
@@ -219,7 +225,7 @@ class OpMapperTest(OpTest):
 
         for var_name, var in self.input_arg_map.items():
             convertor.create_input(
-                dtype=self.paddleddtype2str(var.dtype),
+                dtype=self.paddleddtype2nptype(var.dtype),
                 shape=var.shape,
                 name=var_name)
 
