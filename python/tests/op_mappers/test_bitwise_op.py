@@ -14,38 +14,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
 import unittest
 import numpy as np
-from op_mapper_test import OpMapperTest
+from op_mapper_test import OpMapperTest, logger
 import paddle
-from cinn.frontend import *
-from cinn.common import *
-
-paddle.enable_static()
-
-enable_gpu = sys.argv.pop()
 
 
 class TestBitwiseOp(OpMapperTest):
-    def setUp(self):
-        if enable_gpu == "ON":
-            self.target = DefaultNVGPUTarget()
-            self.place = paddle.CUDAPlace(0)
-        else:
-            self.target = DefaultHostTarget()
-            self.place = paddle.CPUPlace()
-
     def init_input_data(self):
         self.feed_data = {
             'x': self.random([32, 64], "int32", 0, 100000),
             'y': self.random([32, 64], "int32", 0, 100000),
         }
 
-    def paddle_func(self, x, y):
-        return paddle.bitwise_and(x, y)
+    def set_op_type(self):
+        return "bitwise_and"
 
-    def set_paddle_program(self):
+    def set_op_inputs(self):
         x = paddle.static.data(
             name='x',
             shape=self.feed_data['x'].shape,
@@ -53,39 +38,44 @@ class TestBitwiseOp(OpMapperTest):
         y = paddle.static.data(
             name='y',
             shape=self.feed_data['y'].shape,
-            dtype=self.feed_data['x'].dtype)
-        out = self.paddle_func(x, y)
+            dtype=self.feed_data['y'].dtype)
+        return {'X': [x], 'Y': [y]}
 
-        return ([x.name, y.name], [out])
+    def set_op_attrs(self):
+        return {}
+
+    def set_op_outputs(self):
+        return {'Out': [str(self.feed_data['x'].dtype)]}
 
     def test_check_results(self):
         self.check_outputs_and_grads()
 
 
 class TestBitwiseAndOp(TestBitwiseOp):
-    def paddle_func(self, x, y):
-        return paddle.bitwise_and(x, y)
+    def set_op_type(self):
+        return "bitwise_and"
 
 
 class TestBitwiseOrOp(TestBitwiseOp):
-    def paddle_func(self, x, y):
-        return paddle.bitwise_or(x, y)
+    def set_op_type(self):
+        return "bitwise_or"
 
 
 class TestBitwiseXOrOp(TestBitwiseOp):
-    def paddle_func(self, x, y):
-        return paddle.bitwise_xor(x, y)
+    def set_op_type(self):
+        return "bitwise_xor"
 
 
 class TestBitwiseNotOp(TestBitwiseOp):
-    def set_paddle_program(self):
+    def set_op_type(self):
+        return "bitwise_not"
+
+    def set_op_inputs(self):
         x = paddle.static.data(
             name='x',
             shape=self.feed_data['x'].shape,
             dtype=self.feed_data['x'].dtype)
-        out = paddle.bitwise_not(x)
-
-        return ([x.name], [out])
+        return {'X': [x]}
 
     def test_check_results(self):
         self.check_outputs_and_grads()

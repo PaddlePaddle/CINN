@@ -171,8 +171,23 @@ foreach(op_test_name ${CINN_OP_TEST})
 endforeach()
 
 # test op mapper
-if (WITH_CUDNN)
+if (WITH_CUDA)
 file(GLOB CINN_OP_MAPPER_TEST RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" "tests/op_mappers/test_*.py")
+set(EXCLUDE_OP_MAPPER test_mul_op test_conv2d_op)
+
+if (WITH_CUDNN)
+ADD_TEST(NAME test_mul_op
+        COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
+        python3 ${CMAKE_CURRENT_SOURCE_DIR}/test_mul_op.py
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+)
+
+ADD_TEST(NAME test_conv2d_op
+        COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
+        python3 ${CMAKE_CURRENT_SOURCE_DIR}/test_conv2d_op.py
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+)
+endif()
 
 foreach(op_mapper_test_name ${EXCLUDE_OP_MAPPER})
     list(REMOVE_ITEM CINN_OP_MAPPER_TEST tests/op_mappers/${op_mapper_test_name}.py)
@@ -182,7 +197,7 @@ foreach(op_mapper_test_name ${CINN_OP_MAPPER_TEST})
     string(REGEX REPLACE ".py" "" op_mapper_test_name ${op_mapper_test_name})
     ADD_TEST(NAME ${op_mapper_test_name}
         COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
-        python3 ${CMAKE_CURRENT_SOURCE_DIR}/${op_mapper_test_name}.py "${WITH_CUDA}"
+        python3 ${CMAKE_CURRENT_SOURCE_DIR}/${op_mapper_test_name}.py
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     )
 endforeach()
@@ -192,7 +207,7 @@ endif()
 if (WITH_CUDNN)
 file(GLOB CINN_PASS_TEST RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" "tests/passes/test_*.py")
 
-foreach(pass_test_name ${EXCLUDE_OP_MAPPER})
+foreach(pass_test_name ${EXCLUDE_PASS})
     list(REMOVE_ITEM CINN_PASS_TEST tests/passes/${pass_test_name}.py)
 endforeach()
 

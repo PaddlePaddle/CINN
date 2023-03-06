@@ -14,28 +14,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
 import unittest
 import numpy as np
-from op_mapper_test import OpMapperTest
+from op_mapper_test import OpMapperTest, logger
 import paddle
-from cinn.frontend import *
-from cinn.common import *
-
-paddle.enable_static()
-
-enable_gpu = sys.argv.pop()
 
 
 class TestGaussianRandomOp(OpMapperTest):
-    def setUp(self):
-        if enable_gpu == "ON":
-            self.target = DefaultNVGPUTarget()
-            self.place = paddle.CUDAPlace(0)
-        else:
-            self.target = DefaultHostTarget()
-            self.place = paddle.CPUPlace()
-
     def init_input_data(self):
         self.feed_data = dict()
         self.shape = [2, 3]
@@ -44,15 +29,23 @@ class TestGaussianRandomOp(OpMapperTest):
         self.seed = 10
         self.dtype = "float32"
 
-    def set_paddle_program(self):
-        # Use in PaddlePaddle-2.4
-        out = paddle.fluid.layers.gaussian_random(
-            self.shape, self.mean, self.std, self.seed, self.dtype)
-        # Use in PaddlePaddle develop branch
-        # out = paddle.tensor.random.gaussian(self.shape, self.mean, self.std,
-        #                                     self.seed, self.dtype)
+    def set_op_type(self):
+        return "gaussian_random"
 
-        return ([], [out])
+    def set_op_inputs(self):
+        return {}
+
+    def set_op_attrs(self):
+        return {
+            "mean": self.mean,
+            "std": self.std,
+            "seed": self.seed,
+            "shape": self.shape,
+            "dtype": self.nptype2paddledtype(self.dtype)
+        }
+
+    def set_op_outputs(self):
+        return {'Out': [self.dtype]}
 
     def test_check_results(self):
         # Due to the different random number generation numbers implemented

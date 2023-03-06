@@ -113,12 +113,30 @@ class OpMapperTest(OpTest):
         self.op_desc = None
 
     def __check_valid(self):
-        self.assertIsInstance(self.op_type, str)
-        self.assertNotEqual(self.op_type, "")
-        self.assertIsInstance(self.inputs, dict)
-        self.assertIsInstance(self.attrs, dict)
-        self.assertIsInstance(self.output_dtypes, dict)
-        self.assertGreater(len(self.output_dtypes), 0)
+        self.assertIsInstance(
+            self.op_type, str, msg="The op type should be a string")
+        self.assertNotEqual(
+            self.op_type, "", msg="The op type should not empty")
+        self.assertIsInstance(
+            self.inputs,
+            dict,
+            msg=
+            "The set_op_inputs should be return dict(InputName, list(Variable)), where Variable are created by paddle.static.data"
+        )
+        self.assertIsInstance(
+            self.attrs,
+            dict,
+            msg="The set_op_attrs should be return dict(AttrName, AttrValue)")
+        self.assertIsInstance(
+            self.output_dtypes,
+            dict,
+            msg=
+            "The set_op_outputs should be return dict(OutName, list(OutDtype)), where OutName and OutDtype are string"
+        )
+        self.assertGreater(
+            len(self.output_dtypes),
+            0,
+            msg="The set_op_outputs cannot return a empty dict")
 
         for name, var in self.input_arg_map.items():
             self.assertIn(name, self.feed_data)
@@ -161,10 +179,18 @@ class OpMapperTest(OpTest):
             helper = LayerHelper(self.op_type)
 
             self.outputs = dict()
-            for var_name, dtype in self.output_dtypes.items():
-                out_var = helper.create_variable_for_type_inference(dtype)
-                self.fetch_targets.append(out_var)
-                self.outputs[var_name] = [out_var]
+            for var_name, dtypes in self.output_dtypes.items():
+                self.assertIsInstance(
+                    dtypes,
+                    list,
+                    msg=
+                    "The set_op_outputs should be return dict(OutName, list(OutDtype)), where OutName and OutDtype are string"
+                )
+                self.outputs[var_name] = list()
+                for dtype in dtypes:
+                    out_var = helper.create_variable_for_type_inference(dtype)
+                    self.fetch_targets.append(out_var)
+                    self.outputs[var_name].append(out_var)
 
             self.op_desc = helper.append_op(
                 type=self.op_type,
