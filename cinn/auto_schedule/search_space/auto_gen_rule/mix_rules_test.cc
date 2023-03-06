@@ -22,7 +22,7 @@
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
 #include "cinn/auto_schedule/search_space/auto_gen_rule/multi_level_tiling.h"
 #include "cinn/auto_schedule/search_space/auto_gen_rule/test_helper.h"
-#include "cinn/auto_schedule/tests/single_op_program_builder.h"
+#include "cinn/auto_schedule/tests/test_op_builder.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_schedule.h"
 
@@ -38,7 +38,7 @@ class TestMixRules : public TestAutoGenRuleBase {
 };
 
 TEST_F(TestMixRules, 2DMatmulOnMultiTilingRelated) {
-  ir::IRSchedule ir_schedule = InitSchedule(MatmulProgramBuilder({32, 32}, {32, 32})(), common::DefaultNVGPUTarget());
+  ir::IRSchedule ir_schedule       = InitSchedule(MatmulOpBuilder({32, 32}, {32, 32})(), common::DefaultNVGPUTarget());
   std::vector<ir::Expr> func_bodys = ir_schedule.GetModule().GetExprs();
   ASSERT_EQ(func_bodys.size(), 1UL);
   VLOG(6) << "Original Expr:\n" << func_bodys[0];
