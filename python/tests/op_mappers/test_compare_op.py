@@ -14,41 +14,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
 import unittest
 import numpy as np
-from op_mapper_test import OpMapperTest
+from op_mapper_test import OpMapperTest, logger
 import paddle
-from cinn.frontend import *
-from cinn.common import *
-
-paddle.enable_static()
-
-enable_gpu = sys.argv.pop()
 
 
 class TestCompareOp(OpMapperTest):
-    def setUp(self):
-        if enable_gpu == "ON":
-            self.target = DefaultNVGPUTarget()
-            self.place = paddle.CUDAPlace(0)
-        else:
-            self.target = DefaultHostTarget()
-            self.place = paddle.CPUPlace()
-
-    def get_input_dtype(self):
-        return "float32"
-
     def init_input_data(self):
         self.feed_data = {
-            'x': self.random([32, 64], self.get_input_dtype(), 0, 10),
-            'y': self.random([32, 64], self.get_input_dtype(), 0, 10),
+            'x': self.random([32, 64], "float32", -10, 10),
+            'y': self.random([32, 64], "float32", -10, 10),
         }
 
-    def paddle_func(self, x, y):
-        return paddle.equal(x, y)
+    def set_op_type(self):
+        return "equal"
 
-    def set_paddle_program(self):
+    def set_op_inputs(self):
         x = paddle.static.data(
             name='x',
             shape=self.feed_data['x'].shape,
@@ -56,45 +38,48 @@ class TestCompareOp(OpMapperTest):
         y = paddle.static.data(
             name='y',
             shape=self.feed_data['y'].shape,
-            dtype=self.feed_data['x'].dtype)
-        out = self.paddle_func(x, y)
+            dtype=self.feed_data['y'].dtype)
+        return {'X': [x], 'Y': [y]}
 
-        return ([x.name, y.name], [out])
+    def set_op_attrs(self):
+        return {}
+
+    def set_op_outputs(self):
+        return {'Out': ['bool']}
 
     def test_check_results(self):
         self.check_outputs_and_grads()
 
 
-test_op_list = [
-    "equal", "not_equal", "greater_than", "less_than", "greater_equal",
-    "less_equal"
-]
+class TestEqualOp(TestCompareOp):
+    def set_op_type(self):
+        return "equal"
 
-for op_name in test_op_list:
-    paddle_module_name = ""
-    if hasattr(paddle, op_name):
-        paddle_module_name = "paddle."
-    elif hasattr(paddle.nn, op_name):
-        paddle_module_name = "paddle.nn."
-    elif hasattr(paddle.nn.functional, op_name):
-        paddle_module_name = "paddle.nn.functional."
-    elif hasattr(paddle.fluid.layers, op_name):
-        paddle_module_name = "paddle.fluid.layers."
-    else:
-        assert False, "Cannot find " + op_name + " in 'paddle' module!"
 
-    attrs = {
-        "paddle_func": lambda _, x, y: eval(paddle_module_name + op_name)(x, y
-                                                                          ),
-    }
-    exec("test_class_" + op_name +
-         " = type('Test' + op_name.title() + 'Op', (TestCompareOp,), attrs)")
+class TestNotEqualOp(TestCompareOp):
+    def set_op_type(self):
+        return "not_equal"
 
-    case1_attrs = {"get_input_dtype": lambda _: "int32"}
-    exec(
-        "test_case1_" + op_name +
-        " = type('Test' + op_name.title() + 'Case1', (globals()['test_class_' + op_name],), case1_attrs)"
-    )
+
+class TestGreaterEqualOp(TestCompareOp):
+    def set_op_type(self):
+        return "greater_equal"
+
+
+class TestGreaterThanOp(TestCompareOp):
+    def set_op_type(self):
+        return "greater_than"
+
+
+class TestLessEqualOp(TestCompareOp):
+    def set_op_type(self):
+        return "less_equal"
+
+
+class TestLessThanOp(TestCompareOp):
+    def set_op_type(self):
+        return "less_than"
+
 
 if __name__ == "__main__":
     unittest.main()
