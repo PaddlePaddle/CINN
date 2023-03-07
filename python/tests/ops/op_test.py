@@ -230,6 +230,10 @@ class OpTest(unittest.TestCase):
         return switch_map[str(dtype)]
 
     @staticmethod
+    def paddleddtype2cinntype(dtype):
+        return OpTest.nptype2cinntype(OpTest.paddleddtype2str(dtype))
+
+    @staticmethod
     def random(shape, dtype="float32", low=0.0, high=1.0):
         assert bool(shape), "Shape should not empty!"
         assert -1 not in shape, "Shape should not -1!"

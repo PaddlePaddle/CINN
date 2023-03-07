@@ -14,43 +14,35 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
 import unittest
 import numpy as np
-from op_mapper_test import OpMapperTest
+from op_mapper_test import OpMapperTest, logger
 import paddle
-from cinn.frontend import *
-from cinn.common import *
-
-paddle.enable_static()
-
-enable_gpu = sys.argv.pop()
 
 
 class TestSplitOp(OpMapperTest):
-    def setUp(self):
-        if enable_gpu == "ON":
-            self.target = DefaultNVGPUTarget()
-            self.place = paddle.CUDAPlace(0)
-        else:
-            self.target = DefaultHostTarget()
-            self.place = paddle.CPUPlace()
-
     def init_input_data(self):
         self.feed_data = {
             'x': self.random([32, 64], "float32"),
         }
         self.axis = 0
-        self.num_or_sections = 4
+        self.num = 4
 
-    def set_paddle_program(self):
+    def set_op_type(self):
+        return "split"
+
+    def set_op_inputs(self):
         x = paddle.static.data(
             name='x',
             shape=self.feed_data['x'].shape,
             dtype=self.feed_data['x'].dtype)
-        out = paddle.split(x, self.num_or_sections, self.axis)
+        return {'X': [x]}
 
-        return ([x.name], out)
+    def set_op_attrs(self):
+        return {"axis": 0, "num": self.num}
+
+    def set_op_outputs(self):
+        return {'Out': [str(self.feed_data['x'].dtype)] * self.num}
 
     def test_check_results(self):
         self.check_outputs_and_grads()
@@ -61,26 +53,32 @@ class TestSplitCase1(TestSplitOp):
         self.feed_data = {
             'x': self.random([32, 64], "float32"),
         }
-        self.axis = 0
-        self.num_or_sections = [3, 5, 16, 2, 6]
+        self.axis = -1
+        self.num = 8
 
 
-class TestSplitCase2(TestSplitOp):
+class TestSplitWithSection(TestSplitOp):
     def init_input_data(self):
         self.feed_data = {
             'x': self.random([32, 64], "float32"),
         }
-        self.axis = -1
-        self.num_or_sections = 8
+        self.axis = 0
+        self.sections = [3, 5, 16, 2, 6]
+
+    def set_op_attrs(self):
+        return {"axis": 0, "sections": self.sections}
+
+    def set_op_outputs(self):
+        return {'Out': [str(self.feed_data['x'].dtype)] * len(self.sections)}
 
 
-class TestSplitCase3(TestSplitOp):
+class TestSplitWithSectionCase1(TestSplitWithSection):
     def init_input_data(self):
         self.feed_data = {
             'x': self.random([32, 64], "int32", 0, 10000),
         }
         self.axis = 0
-        self.num_or_sections = [4, 4, 16, 8]
+        self.sections = [4, 4, 16, 8]
 
 
 if __name__ == "__main__":
