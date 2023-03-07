@@ -37,8 +37,12 @@ class TestUniformRandomOp(OpTest):
         self.dtype = "float32"
 
     def build_paddle_program(self, target):
-        out = paddle.uniform(self.shape, self.dtype, self.min, self.max,
-                             self.seed)
+        out = paddle.uniform(
+            shape=self.shape,
+            dtype=self.dtype,
+            min=self.min,
+            max=self.max,
+            seed=self.seed)
         self.paddle_outputs = [out]
 
     def build_cinn_program(self, target):
