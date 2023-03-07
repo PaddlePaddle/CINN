@@ -80,12 +80,11 @@ ir::Module TestAutoGenRuleBase::BuildIRModule(const ir::IRSchedule& schedule) {
 
 std::string TestAutoGenRuleBase::GenSourceCode(const ir::Module& ir_module) {
   std::unique_ptr<backends::CodeGenC> codegen;
-  if (target_ == common::DefaultNVGPUTarget()) {
-    codegen = std::make_unique<backends::CodeGenCUDA_Dev>(this->target_);
-  } else {
-    codegen = std::make_unique<backends::CodeGenCX86>(this->target_, CodeGenCX86::Feature::AVX512);
-  }
-
+#ifdef CINN_WITH_CUDA
+  codegen = std::make_unique<backends::CodeGenCUDA_Dev>(this->target_);
+#else
+  codegen      = std::make_unique<backends::CodeGenCX86>(this->target_, CodeGenCX86::Feature::AVX512);
+#endif
   codegen->SetInlineBuiltinCodes(false);
   return codegen->Compile(ir_module, CodeGenC::OutputKind::CImpl);
 }
