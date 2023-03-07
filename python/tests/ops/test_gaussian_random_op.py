@@ -38,11 +38,7 @@ class TestGaussianRandomOp(OpTest):
 
     def build_paddle_program(self, target):
         out = paddle.tensor.random.gaussian(
-            shape=self.shape,
-            mean=self.mean,
-            std=self.std,
-            seed=self.seed,
-            dtype=self.dtype)
+            shape=self.shape, mean=self.mean, std=self.std, dtype=self.dtype)
         self.paddle_outputs = [out]
 
     def build_cinn_program(self, target):
