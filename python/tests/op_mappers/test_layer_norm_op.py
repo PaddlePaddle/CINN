@@ -14,40 +14,49 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
 import unittest
 import numpy as np
-from op_mapper_test import OpMapperTest
+from op_mapper_test import OpMapperTest, logger
 import paddle
-from cinn.frontend import *
-from cinn.common import *
-
-paddle.enable_static()
-
-enable_gpu = sys.argv.pop()
+import functools
 
 
 class TestLayerNormOp(OpMapperTest):
-    def setUp(self):
-        if enable_gpu == "ON":
-            self.target = DefaultNVGPUTarget()
-            self.place = paddle.CUDAPlace(0)
-        else:
-            self.target = DefaultHostTarget()
-            self.place = paddle.CPUPlace()
-
     def init_input_data(self):
         self.feed_data = {
             'x': self.random([2, 3, 4, 5], 'float32'),
+            'scale': self.random([60], 'float32', 1.0, 2.0),
+            'bias': self.random([60], 'float32', -10.0, 10.0),
         }
+        self.beigin_norm_axis = 1
 
-    def set_paddle_program(self):
-        x = paddle.static.data(name='x', shape=[2, 3, 4, 5], dtype='float32')
+    def set_op_type(self):
+        return "layer_norm"
 
-        out = paddle.static.nn.layer_norm(
-            input=x, begin_norm_axis=2, epsilon=9.999999960041972e-13)
+    def set_op_inputs(self):
+        x = paddle.static.data(
+            name='x',
+            shape=self.feed_data['x'].shape,
+            dtype=self.feed_data['x'].dtype)
+        scale = paddle.static.data(
+            name='scale',
+            shape=self.feed_data['scale'].shape,
+            dtype=self.feed_data['scale'].dtype)
+        bias = paddle.static.data(
+            name='bias',
+            shape=self.feed_data['bias'].shape,
+            dtype=self.feed_data['bias'].dtype)
+        return {'X': [x], 'Scale': [scale], "Bias": [bias]}
 
-        return ([x.name], [out])
+    def set_op_attrs(self):
+        return {"epsilon": 1e-5, "begin_norm_axis": self.beigin_norm_axis}
+
+    def set_op_outputs(self):
+        return {
+            'Y': [str(self.feed_data['x'].dtype)],
+            'Mean': [str(self.feed_data['x'].dtype)],
+            'Variance': [str(self.feed_data['x'].dtype)]
+        }
 
     def test_check_results(self):
         self.check_outputs_and_grads()
