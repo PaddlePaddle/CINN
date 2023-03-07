@@ -17,7 +17,6 @@
 #include <queue>
 
 #include "cinn/hlir/framework/op_lowering.h"
-#include "cinn/runtime/cuda/float16.h"
 
 namespace cinn {
 namespace hlir {

@@ -13,7 +13,9 @@
 // limitations under the License.
 
 #include "cinn/hlir/framework/op_lowering_util.h"
-
+#ifdef CINN_WITH_CUDA
+#include "cinn/runtime/cuda/float16.h"
+#endif
 #include <queue>
 
 namespace cinn {
