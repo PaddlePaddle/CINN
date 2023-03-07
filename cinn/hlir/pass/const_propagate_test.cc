@@ -100,8 +100,8 @@ TEST(const_bn, const_bn) {
   LOG(INFO) << "graph:\n" << graph->Visualize();
 
   hlir::framework::ApplyPass(graph.get(), "InferShape");
-  hlir::framework::ApplyPass(graph.get(), "ConstPropagate");
   hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
   auto scope = BuildScope(target, graph);
 
   hlir::framework::GraphCompiler gc(target, scope, graph);
