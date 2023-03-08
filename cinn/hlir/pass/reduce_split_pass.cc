@@ -116,26 +116,26 @@ class ReduceSplitPass {
         VLOG(4) << "reduce_numel0: " << reduce_numel0 << " reduce_numel1: " << reduce_numel1;
 
         // create reshape node0
-        Node* reshape0 = new Node(Operator::Get("reshape"), "reshape", common::UniqName("reshape"));
+        Node* reshape0 = new Node(Operator::Get("reshape"), "reshape", common::UniqName("reshape_split"));
         reshape0->attrs.attr_store["shape"] =
             std::vector<int>{reduce_numel0, reduce_numel1, in_shape[in_shape.size() - 1]};
         graph->RegisterNode(reshape0->id(), reshape0);
         in->LinkTo(reshape0);
         in->UnLinkSingleTo(node);
         node->UnLinkSingleTo(out);
-        auto reshape0_data = new NodeData(Shared<Node>(reshape0), 0, 0, common::UniqName("reshape"), false);
+        auto reshape0_data = new NodeData(Shared<Node>(reshape0), 0, 0, common::UniqName("var"), false);
         graph->RegisterNode(reshape0_data->id(), reshape0_data);
         reshape0->LinkTo(reshape0_data);
         shape_dict[reshape0_data->id()] = absl::get<std::vector<int>>(reshape0->attrs.attr_store.at("shape"));
         dtype_dict[reshape0_data->id()] = common::Str2Type(common::Type2Str(dtype_dict[in->id()]));
 
         // create reduce node0
-        Node* reduce0                         = new Node(Operator::Get(name), name, common::UniqName(name));
+        Node* reduce0                         = new Node(Operator::Get(name), name, common::UniqName(name + "_split"));
         reduce0->attrs.attr_store["dim"]      = std::vector<int>{0};
         reduce0->attrs.attr_store["keep_dim"] = absl::get<bool>(n->attrs.attr_store.at("keep_dim"));
         graph->RegisterNode(reduce0->id(), reduce0);
         reshape0_data->LinkTo(reduce0);
-        auto reduce0_data = new NodeData(Shared<Node>(reduce0), 0, 0, common::UniqName("reduce"), false);
+        auto reduce0_data = new NodeData(Shared<Node>(reduce0), 0, 0, common::UniqName("var"), false);
         graph->RegisterNode(reduce0_data->id(), reduce0_data);
         reduce0->LinkTo(reduce0_data);
         shape_dict[reduce0_data->id()] = keep_dim ? std::vector<int>{1, reduce_numel1, in_shape[in_shape.size() - 1]}
@@ -143,12 +143,12 @@ class ReduceSplitPass {
         dtype_dict[reduce0_data->id()] = common::Str2Type(common::Type2Str(dtype_dict[in->id()]));
 
         // create reduce node1
-        Node* reduce1                         = new Node(Operator::Get(name), name, common::UniqName(name));
+        Node* reduce1                         = new Node(Operator::Get(name), name, common::UniqName(name + "_split"));
         reduce1->attrs.attr_store["dim"]      = keep_dim ? std::vector<int>{0, 1} : std::vector<int>{0};
         reduce1->attrs.attr_store["keep_dim"] = absl::get<bool>(n->attrs.attr_store.at("keep_dim"));
         graph->RegisterNode(reduce1->id(), reduce1);
         reduce0_data->LinkTo(reduce1);
-        auto reduce1_data = new NodeData(Shared<Node>(reduce1), 0, 0, common::UniqName("reduce"), false);
+        auto reduce1_data = new NodeData(Shared<Node>(reduce1), 0, 0, common::UniqName("var"), false);
         graph->RegisterNode(reduce1_data->id(), reduce1_data);
         reduce1->LinkTo(reduce1_data);
         shape_dict[reduce1_data->id()] = keep_dim ? std::vector<int>{1, 1, in_shape[in_shape.size() - 1]}
@@ -156,7 +156,7 @@ class ReduceSplitPass {
         dtype_dict[reduce1_data->id()] = common::Str2Type(common::Type2Str(dtype_dict[in->id()]));
 
         // create reshape node1
-        Node* reshape1 = new Node(Operator::Get("reshape"), "reshape", common::UniqName("reshape"));
+        Node* reshape1 = new Node(Operator::Get("reshape"), "reshape", common::UniqName("reshape_split"));
         reshape1->attrs.attr_store["shape"] = out_shape;
         graph->RegisterNode(reshape1->id(), reshape1);
         reduce1_data->LinkTo(reshape1);
@@ -178,10 +178,10 @@ class ReduceSplitPass {
 }  // namespace
 
 void ReduceSplitFunc(framework::Graph* graph) {
-  VLOG(3) << "Before ReduceSplitPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
+  VLOG(3) << "Before ReduceSplitPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{}) << std::endl;
   int n = ReduceSplitPass::Apply(graph);
   VLOG(3) << "ReduceSplit was performed " << n << " times.";
-  VLOG(3) << "After ReduceSplitPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
+  VLOG(3) << "After ReduceSplitPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{}) << std::endl;
 }
 
 }  // namespace pass
@@ -191,7 +191,7 @@ void ReduceSplitFunc(framework::Graph* graph) {
 CINN_REGISTER_HELPER(ReduceSplit) {
   CINN_REGISTER_PASS(ReduceSplit)
       .describe("")
-      .set_change_structure(false)
+      .set_change_structure(true)
       .provide_graph_attr("infershape")
       .provide_graph_attr("inferdtype")
       .set_body(cinn::hlir::pass::ReduceSplitFunc);
