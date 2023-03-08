@@ -1495,8 +1495,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_12) {
     CodeGen(lowered_func[0]);
   }
 }
-/*
-TODO:exist coredump.
+
 TEST(OP_LOWERING, Reduce_Fusion_Test_13) {
   int n = 8, c = 8, h = 8, w = 8;
   NetBuilder net_builder("Reduce_Fusion_Test_13");
@@ -1531,7 +1530,6 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_13) {
     CodeGen(lowered_func[0]);
   }
 }
-*/
 
 TEST(OP_LOWERING, Reduce_Fusion_Test_14) {
   int n = 8, c = 8, h = 8, w = 8;
