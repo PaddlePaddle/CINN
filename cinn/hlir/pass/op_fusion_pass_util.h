@@ -251,6 +251,43 @@ CONDITION_FUNC(horizontal_with_same_size) {
   return false;
 }
 
+CONDITION_FUNC(reduce_fuse_broadcast) {
+  if (horizontal_with_same_size(&helper, producer, consumer)) {
+    return true;
+  }
+
+  if (!is_horizontal_relation(&helper, producer, consumer)) {
+    return false;
+  }
+
+  auto rinput_shape = GetNodeInputShape(producer);
+  auto reduce_axes  = absl::get<std::vector<int>>(producer->attrs.attr_store.at("dim"));
+  for (auto& axis : reduce_axes) {
+    if (axis == -1) {
+      axis = rinput_shape.size() - 1;
+    }
+  }
+
+  for (auto node : consumer->nodes_set) {
+    if (helper->GetOpKind(node) != kBroadcast) {
+      continue;
+    }
+
+    auto shape = absl::get<std::vector<int>>(node->attrs.attr_store.at("out_shape"));
+    auto axes  = absl::get<std::vector<int>>(node->attrs.attr_store.at("broadcast_axes"));
+    for (auto& axis : axes) {
+      if (axis == -1) {
+        axis = shape.size() - 1;
+      }
+    }
+
+    if (reduce_axes == axes) {
+      return true;
+    }
+  }
+  return false;
+}
+
 #undef CONDITION_FUNC
 
 }  // namespace pass
