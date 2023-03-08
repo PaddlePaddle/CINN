@@ -362,7 +362,7 @@ TEST(CAS, SimplifyMinMax) {
     LOG(INFO) << "p0 " << p0;
     auto p2 = CasSimplify(p0);
     LOG(INFO) << "simplified " << p2;
-    // EXPECT_EQ(GetStreamCnt(p2), "cinn_min(7, ((x) / (2)))");
+    EXPECT_EQ(GetStreamCnt(p2), "cinn_min(7, (x / 2))");
   }
   {  // -(cinn_min(16, 3400-x-1)-1)/2 + x
     Var x   = ir::_Var_::Make("x", Int(32));

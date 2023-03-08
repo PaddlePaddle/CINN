@@ -65,7 +65,7 @@ std::vector<ir::LoweredFunc> OpLowerer::LowerWithoutSchedule(GroupPtr& group) {
         LOG(FATAL) << "Group Pattern Kind kNonFusible Is Not Implemented!";
     }
   } else {
-    LOG(FATAL) << "Previous IR Schedule Is Unsupport Now!";
+    LOG(FATAL) << "Previous IR Schedule Is Unsupport Now, please set FLAGS_cinn_ir_schedule=1 to use new IR Schedule!";
   }
 }
 
@@ -87,7 +87,7 @@ std::vector<ir::LoweredFunc> OpLowerer::Lower(GroupPtr& group) {
         LOG(FATAL) << "Group Pattern Kind Is Unknown!";
     }
   } else {
-    LOG(FATAL) << "Previous IR Schedule Is Unsupport Now!";
+    LOG(FATAL) << "Previous IR Schedule Is Unsupport Now, please set FLAGS_cinn_ir_schedule=1 to use new IR Schedule!";
   }
 }
 
@@ -572,8 +572,7 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
       auto loops = ir_sch.GetLoops(GetNodeData(node)->id());
       if (op_pattern_dict[node->op()] == framework::kElementWise) {
         ir_sch.FlattenLoops(loops, true);
-      } else if (op_pattern_dict[node->op()] == framework::kReduction) {
-      } else {
+      } else if (op_pattern_dict[node->op()] != framework::kReduction) {
         ir_sch.FlattenLoops(loops, false);
       }
     }

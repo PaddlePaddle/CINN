@@ -100,14 +100,12 @@ TEST(const_bn, const_bn) {
   LOG(INFO) << "graph:\n" << graph->Visualize();
 
   hlir::framework::ApplyPass(graph.get(), "InferShape");
-  // hlir::framework::ApplyPass(graph.get(), "ConstPropagate");
   hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
   auto scope = BuildScope(target, graph);
 
   hlir::framework::GraphCompiler gc(target, scope, graph);
   auto runtime_program = gc.Build();
-  // auto& prerun_instrs  = runtime_program->GetPreRunInstructions();
-  auto& run_instrs = runtime_program->GetRunInstructions();
+  auto& run_instrs     = runtime_program->GetRunInstructions();
   // Revert changes in PR #990 to pass the model unittests
   ASSERT_EQ(run_instrs.size(), 1);
 
