@@ -59,9 +59,9 @@ class TransposeFoldingOutputPass : public TransposeFoldingBase {
         return;
       }
 
-      auto nex_instr = dot;
-      for (int i = 0; i < fold_instrs.size(); ++i) {
-        auto instr = fold_instrs[i];
+      for (int i = fold_instrs.size() - 1; i >= 0; --i) {
+        auto instr      = fold_instrs[i];
+        auto prev_instr = (i == 0) ? dot : fold_instrs[i - 1];
 
         if (IsValidTranspose(*instr)) {
           // As for cublas_matmul, we can continue to set the `trans_out` attr.
@@ -78,12 +78,13 @@ class TransposeFoldingOutputPass : public TransposeFoldingBase {
           dot->SetAttr("alpha", alpha * scale);
           dot->SetAttr("beta", beta * scale);
         } else {
-          nex_instr = instr;
+          (*instr)->inputs[0]->shape = (*instr)->outputs[0]->shape;
+          (*instr)->inputs[0]->type  = (*instr)->outputs[0]->type;
           continue;
         }
 
         // relink input: dot -> x -> scale -> y ==> dot -> y
-        (*nex_instr)->outputs[0] = (*instr)->outputs[0];
+        (*prev_instr)->outputs[0] = (*instr)->outputs[0];
 
         // remove useless instruction, the `GetFoldInstruction` ensure this
         remove_instrs->insert(instr);

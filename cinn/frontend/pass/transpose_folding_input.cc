@@ -87,6 +87,8 @@ class TransposeFoldingInputPass : public TransposeFoldingBase {
           } else if (IsValidBroadCast(*instr)) {
             // nothin to do, can fold directly
           } else {
+            (*instr)->outputs[0]->shape = (*instr)->inputs[0]->shape;
+            (*instr)->outputs[0]->type  = (*instr)->inputs[0]->type;
             continue;
           }
 

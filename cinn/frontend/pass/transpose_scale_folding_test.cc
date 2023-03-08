@@ -338,8 +338,6 @@ TEST(TransposeBroadCastFolding, BatchComplexCase1) {
   CompareResult(&program, target, input_ids, {out->id}, 5, passes, 123, false);
 }
 
-// TODO(thisjiang): why cublas error out of bound?
-/*
 TEST(TransposeBroadCastFolding, BatchComplexCase2) {
   if (!IsCompiledWithCUDA()) {
     return;
@@ -348,13 +346,13 @@ TEST(TransposeBroadCastFolding, BatchComplexCase2) {
   auto x           = builder.CreateInput(Float(32), {4, 5, 3}, "X");
   auto y           = builder.CreateInput(Float(32), {5, 6}, "Y");
   auto transpose_x = builder.Transpose(x, {0, 2, 1});
-  auto cast_x = builder.Cast(transpose_x, "float32");
+  auto cast_x      = builder.Cast(transpose_x, "float32");
   auto scale_y     = builder.Scale(y, 2.0f);
-  auto broadcast_y     = builder.BroadcastTo(scale_y, {4, 5, 6});
+  auto broadcast_y = builder.BroadcastTo(scale_y, {4, 5, 6});
   auto out_matmul  = builder.Matmul(cast_x, broadcast_y);
-  auto out_trans = builder.Transpose(out_matmul, {0, 2, 1});
-  auto out_cast = builder.Cast(out_trans, "float32");
-  auto out = builder.Scale(out_cast, 2.0f);
+  auto out_cast    = builder.Cast(out_matmul, "float32");
+  auto out_trans   = builder.Transpose(out_cast, {0, 2, 1});
+  auto out         = builder.Scale(out_trans, 2.0f);
   auto program     = builder.Build();
 
   common::Target target = common::DefaultTarget();
@@ -367,6 +365,5 @@ TEST(TransposeBroadCastFolding, BatchComplexCase2) {
       std::vector<std::string>{"TransposeFoldingInput", "GemmRewriter", "TransposeFoldingOutput", "GemmRewriter"});
   CompareResult(&program, target, input_ids, {out->id}, 5, passes, 123, false);
 }
-*/
 
 }  // namespace cinn::frontend
