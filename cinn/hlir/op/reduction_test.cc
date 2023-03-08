@@ -317,9 +317,9 @@ void TestCaseForReduce(
     grid  = {n * c, 1, 1};
     block = {h * w, 1, 1};
   } else {
-    grid  = {c, 1, 1};
-    int block_dim_x = n*w*h > 1024 ? 1024 : n*w*h;
-    block = {block_dim_x, 1, 1};
+    grid            = {c, 1, 1};
+    int block_dim_x = n * w * h > 1024 ? 1024 : n * w * h;
+    block           = {block_dim_x, 1, 1};
   }
 
   void* args[]              = {&dev_x, &dev_z};
@@ -374,7 +374,7 @@ TEST(Operator, Operator_Reduction_Case_7) {
   runtime::cuda::CUDAModule cuda_module(ptx, runtime::cuda::CUDAModule::Kind::PTX);
   std::string new_func_name = func_name;
   if (FLAGS_cinn_ir_schedule) new_func_name = "fn_" + new_func_name;
-  void* reduce_sum_kernel = cuda_module.GetFunction(0, new_func_name + "_kernel"); 
+  void* reduce_sum_kernel = cuda_module.GetFunction(0, new_func_name + "_kernel");
   CHECK(reduce_sum_kernel);
 
   // register cufunction and stream
