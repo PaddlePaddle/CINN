@@ -14,28 +14,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
 import unittest
 import numpy as np
-from op_mapper_test import OpMapperTest
+from op_mapper_test import OpMapperTest, logger
 import paddle
-from cinn.frontend import *
-from cinn.common import *
-
-paddle.enable_static()
-
-enable_gpu = sys.argv.pop()
 
 
 class TestWhereOp(OpMapperTest):
-    def setUp(self):
-        if enable_gpu == "ON":
-            self.target = DefaultNVGPUTarget()
-            self.place = paddle.CUDAPlace(0)
-        else:
-            self.target = DefaultHostTarget()
-            self.place = paddle.CPUPlace()
-
     def init_input_data(self):
         self.feed_data = {
             'condition': self.random([2, 3], 'bool'),
@@ -43,13 +28,29 @@ class TestWhereOp(OpMapperTest):
             'y': self.random([2, 3], 'float32'),
         }
 
-    def set_paddle_program(self):
-        c = paddle.static.data(name='condition', shape=[2, 3], dtype='bool')
-        x = paddle.static.data(name='x', shape=[2, 3], dtype='float32')
-        y = paddle.static.data(name='y', shape=[2, 3], dtype='float32')
-        out = paddle.where(c, x, y)
+    def set_op_type(self):
+        return "where"
 
-        return ([c.name, x.name, y.name], [out])
+    def set_op_inputs(self):
+        condition = paddle.static.data(
+            name='condition',
+            shape=self.feed_data['condition'].shape,
+            dtype=self.feed_data['condition'].dtype)
+        x = paddle.static.data(
+            name='x',
+            shape=self.feed_data['x'].shape,
+            dtype=self.feed_data['x'].dtype)
+        y = paddle.static.data(
+            name='y',
+            shape=self.feed_data['y'].shape,
+            dtype=self.feed_data['y'].dtype)
+        return {'Condition': [condition], 'X': [x], "Y": [y]}
+
+    def set_op_attrs(self):
+        return {}
+
+    def set_op_outputs(self):
+        return {'Out': [str(self.feed_data['x'].dtype)]}
 
     def test_check_results(self):
         self.check_outputs_and_grads()

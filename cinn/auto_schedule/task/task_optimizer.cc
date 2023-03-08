@@ -55,8 +55,8 @@ bool PruneInvalid(const ir::LoweredFunc& lowered_func, const common::Target& tar
 bool IsForbiddenToTune(const TuneTask* task);
 // tell whether the task has been wrapped by custom_call in TransToCustomCallPass
 bool IsWrappedByCustomCall(const TuneTask* task);
-// tell whether the task can use external call
-bool HasExternalCall(const TuneTask* task);
+// tell whether the task has registered external api
+bool HasExternalApi(const TuneTask* task);
 
 TaskOptimizer::TaskOptimizer(TuneTask* task,
                              ScheduleMeasurer* schedule_measurer,
@@ -83,7 +83,7 @@ FunctionGroup TaskOptimizer::Optimize(const TuningOptions& options) {
   std::vector<TaskOptimizer::Result> candidates;
   candidates.emplace_back(OptimizeByEvolution(options));
   candidates.emplace_back(OptimizeByManual(options.num_measure_trials > 0));
-  if (HasExternalCall(task_)) {
+  if (HasExternalApi(task_)) {
     candidates.emplace_back(OptimizeByExternal(options.num_measure_trials > 0));
   }
   sort(candidates.begin(), candidates.end(), [](const auto& lhs, const auto& rhs) { return lhs.cost < rhs.cost; });
@@ -108,8 +108,8 @@ TaskOptimizer::Result TaskOptimizer::OptimizeByManual(bool need_measured) {
   }
 
   SearchState state(ir::IRSchedule(ir::ModuleExpr(std::move(func_bodys))));
-  // the manual is regarded as the second best in default, so we set its cost 1.0
-  result.cost = state->predicted_cost;
+  // the manual is regarded as the second best in default, so we set its cost 0.0
+  result.cost = 0.0;
 
   // add the specific prefix in front of serialized_key to be store/load measured record for manual schedule
   std::string measured_key = kManualMeasuredKeyPrefix + task_->serialized_key;
@@ -142,7 +142,7 @@ TaskOptimizer::Result TaskOptimizer::OptimizeByExternal(bool need_measured) {
   result.functions                            = task_->op_lowerer->Lower(task_->subgraph);
 
   // add the specific prefix in front of serialized_key to be store/load measured record for external api
-  result.cost              = 0;  // the external is regarded as the best in default, so we set its cost 0
+  result.cost              = -1.0;  // the external is regarded as the best in default, so we set its cost -1.0
   std::string measured_key = kExternalMeasuredKeyPrefix + task_->serialized_key;
   if (need_measured && database_->Count(measured_key) == 0) {
     std::vector<MeasureInput> inputs(1);
@@ -176,7 +176,7 @@ bool IsForbiddenToTune(const TuneTask* task) {
   return false;
 }
 
-bool HasExternalCall(const TuneTask* task) {
+bool HasExternalApi(const TuneTask* task) {
   auto nodes       = task->subgraph->CollectNodes();
   auto* first_node = nodes.front();
   if (nodes.size() == 1 && ExternalApiRegistry::Global()->Has(first_node->op()->name, task->target)) {
