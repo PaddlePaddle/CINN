@@ -14,46 +14,37 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
 import unittest
 import numpy as np
-from op_mapper_test import OpMapperTest
+from op_mapper_test import OpMapperTest, logger
 import paddle
-from cinn.frontend import *
-from cinn.common import *
-
-paddle.enable_static()
-
-enable_gpu = sys.argv.pop()
 
 
 class TestStackOp(OpMapperTest):
-    def setUp(self):
-        if enable_gpu == "ON":
-            self.target = DefaultNVGPUTarget()
-            self.place = paddle.CUDAPlace(0)
-        else:
-            self.target = DefaultHostTarget()
-            self.place = paddle.CPUPlace()
-
     def init_input_data(self):
         self.feed_data = {
-            'x': self.random([4, 3], 'float32'),
-            'y': self.random([4, 3], 'float32'),
+            'x1': self.random([4, 3], 'float32'),
+            'x2': self.random([4, 3], 'float32'),
         }
 
-    def set_paddle_program(self):
-        x = paddle.static.data(
-            name='x',
-            shape=self.feed_data['x'].shape,
-            dtype=self.feed_data['x'].dtype)
-        y = paddle.static.data(
-            name='y',
-            shape=self.feed_data['y'].shape,
-            dtype=self.feed_data['x'].dtype)
-        out = paddle.stack([x, y], 1)
+    def set_op_type(self):
+        return "stack"
 
-        return ([x.name, y.name], [out])
+    def set_op_inputs(self):
+        x = [
+            paddle.static.data(
+                name=var_name,
+                shape=self.feed_data[var_name].shape,
+                dtype=self.feed_data[var_name].dtype)
+            for var_name in self.feed_data.keys()
+        ]
+        return {'X': x}
+
+    def set_op_attrs(self):
+        return {"axis": 0}
+
+    def set_op_outputs(self):
+        return {'Y': [str(self.feed_data['x1'].dtype)]}
 
     def test_check_results(self):
         self.check_outputs_and_grads()

@@ -14,46 +14,38 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
 import unittest
 import numpy as np
-from op_mapper_test import OpMapperTest
+from op_mapper_test import OpMapperTest, logger
 import paddle
-from cinn.frontend import *
-from cinn.common import *
-
-paddle.enable_static()
-
-enable_gpu = sys.argv.pop()
 
 
 class TestPowOp(OpMapperTest):
-    def setUp(self):
-        if enable_gpu == "ON":
-            self.target = DefaultNVGPUTarget()
-            self.place = paddle.CUDAPlace(0)
-        else:
-            self.target = DefaultHostTarget()
-            self.place = paddle.CPUPlace()
-
     def init_input_data(self):
         self.feed_data = {
             'x': self.random([32, 64], "float32"),
-            'y': self.random([32, 64], "float32", 0.0, 4.0),
+            'factor': self.random([1], "float32", 0.0, 4.0),
         }
 
-    def set_paddle_program(self):
+    def set_op_type(self):
+        return "pow"
+
+    def set_op_inputs(self):
         x = paddle.static.data(
             name='x',
             shape=self.feed_data['x'].shape,
             dtype=self.feed_data['x'].dtype)
-        y = paddle.static.data(
-            name='y',
-            shape=self.feed_data['y'].shape,
-            dtype=self.feed_data['x'].dtype)
-        out = paddle.pow(x, y)
+        factor = paddle.static.data(
+            name='factor',
+            shape=self.feed_data['factor'].shape,
+            dtype=self.feed_data['factor'].dtype)
+        return {'X': [x], 'FactorTensor': [factor]}
 
-        return ([x.name, y.name], [out])
+    def set_op_attrs(self):
+        return {}
+
+    def set_op_outputs(self):
+        return {'Out': [str(self.feed_data['x'].dtype)]}
 
     def test_check_results(self):
         self.check_outputs_and_grads()
@@ -63,27 +55,28 @@ class TestPowCase1(TestPowOp):
     def init_input_data(self):
         self.feed_data = {
             'x': self.random([32, 64], "int32", 2, 10),
-            'y': self.random([32, 64], "int32", 0, 5),
+            'factor': self.random([1], "int32", 0, 5),
         }
 
 
 class TestPowCase2(TestPowOp):
-    def set_paddle_program(self):
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([32, 64], "int32", 2, 10),
+            'factor': self.random([1], "int32", 0, 5),
+        }
+
+
+class TestPowOpInFactorAttr(TestPowOp):
+    def set_op_inputs(self):
         x = paddle.static.data(
             name='x',
             shape=self.feed_data['x'].shape,
             dtype=self.feed_data['x'].dtype)
-        out = paddle.pow(x, 2)
+        return {'X': [x]}
 
-        return ([x.name], [out])
-
-
-class TestPowCase3(TestPowOp):
-    def init_input_data(self):
-        self.feed_data = {
-            'x': self.random([32, 64], "int32", 2, 10),
-            'y': self.random([64], "int32", 0, 5),
-        }
+    def set_op_attrs(self):
+        return {"factor": float(2)}
 
 
 if __name__ == "__main__":

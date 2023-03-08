@@ -28,13 +28,18 @@ namespace cinn::frontend::paddle::cpp {
 
 SET_ATTR_IMPL(int32_t, INT);
 SET_ATTR_IMPL(float, FLOAT);
+SET_ATTR_IMPL(double, FLOAT64);
 SET_ATTR_IMPL(std::string, STRING);
 SET_ATTR_IMPL(bool, BOOLEAN);
 SET_ATTR_IMPL(int64_t, LONG);
 SET_ATTR_IMPL(std::vector<int>, INTS);
 SET_ATTR_IMPL(std::vector<float>, FLOATS);
+SET_ATTR_IMPL(std::vector<double>, FLOAT64S);
 SET_ATTR_IMPL(std::vector<std::string>, STRINGS);
+SET_ATTR_IMPL(std::vector<bool>, BOOLEANS);
 SET_ATTR_IMPL(std::vector<int64_t>, LONGS);
+
+#undef SET_ATTR_IMPL
 
 std::pair<OpDesc::attrs_t::const_iterator, OpDesc::attr_types_t::const_iterator> FindAttr(const OpDesc& desc,
                                                                                           const std::string& name) {
@@ -55,7 +60,21 @@ std::pair<OpDesc::attrs_t::const_iterator, OpDesc::attr_types_t::const_iterator>
     return absl::any_cast<T>(pair.first->second);                                              \
   }
 
-GET_IMPL_ONE(int32_t, INT)
+GET_IMPL_ONE(int32_t, INT);
+GET_IMPL_ONE(float, FLOAT);
+GET_IMPL_ONE(double, FLOAT64);
+GET_IMPL_ONE(std::string, STRING);
+GET_IMPL_ONE(bool, BOOLEAN);
+GET_IMPL_ONE(int64_t, LONG);
+GET_IMPL_ONE(std::vector<int>, INTS);
+GET_IMPL_ONE(std::vector<float>, FLOATS);
+GET_IMPL_ONE(std::vector<double>, FLOAT64S);
+GET_IMPL_ONE(std::vector<std::string>, STRINGS);
+GET_IMPL_ONE(std::vector<bool>, BOOLEANS);
+GET_IMPL_ONE(std::vector<int64_t>, LONGS);
+
+#undef GET_IMPL_ONE
+
 std::vector<std::string> OpDesc::OutputArgumentNames() const {
   std::vector<std::string> res;
   for (const auto& x : outputs_) res.push_back(x.first);
@@ -104,14 +123,5 @@ bool OpDesc::HasOutput(const std::string& param) const {
   auto it = outputs_.find(param);
   return it != outputs_.end();
 }
-
-GET_IMPL_ONE(float, FLOAT);
-GET_IMPL_ONE(std::string, STRING);
-GET_IMPL_ONE(int64_t, LONG);
-GET_IMPL_ONE(bool, BOOLEAN);
-GET_IMPL_ONE(std::vector<int64_t>, LONGS);
-GET_IMPL_ONE(std::vector<float>, FLOATS);
-GET_IMPL_ONE(std::vector<int>, INTS);
-GET_IMPL_ONE(std::vector<std::string>, STRINGS);
 
 }  // namespace cinn::frontend::paddle::cpp
