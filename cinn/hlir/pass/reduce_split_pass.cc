@@ -67,17 +67,12 @@ class ReduceSplitPass {
  public:
   // Find the reduce op with nwhc format and large shape, split it into two ops
   static int Apply(framework::Graph* graph) {
+    int MAX_NUM_THREADS               = common::DefaultNVGPUTarget().max_num_threads();
+    constexpr int MAX_ITER_PER_THREAD = 32;  // empirical value
+
     int cnt          = 0;
     auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
     auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-    for (auto pair : shape_dict) {
-      VLOG(4) << pair.first << " ";
-      for (auto i : pair.second) {
-        VLOG(4) << i;
-      }
-    }
-    int MAX_NUM_THREADS               = common::DefaultNVGPUTarget().max_num_threads();
-    constexpr int MAX_ITER_PER_THREAD = 32;  // empirical value
 
     // loop the nodes in graph and find reduce_xx op
     auto nodes_inorder = std::get<0>(graph->topological_order());
@@ -89,12 +84,11 @@ class ReduceSplitPass {
       if (IsReduceOp(n)) {
         auto* op  = n->op();
         auto name = op->name;
-        VLOG(4) << name;
 
-        auto dims = absl::get<std::vector<int>>(n->attrs.attr_store.at("dim"));
-        VLOG(4) << n->num_inputs();
-        auto in  = (*n->inlinks().begin())->source()->safe_as<NodeData>();
-        auto out = (*n->outlinks().begin())->sink()->safe_as<NodeData>();
+        auto dims     = absl::get<std::vector<int>>(n->attrs.attr_store.at("dim"));
+        bool keep_dim = absl::get<bool>(n->attrs.attr_store.at("keep_dim"));
+        auto in       = (*n->inlinks().begin())->source()->safe_as<NodeData>();
+        auto out      = (*n->outlinks().begin())->sink()->safe_as<NodeData>();
 
         auto in_shape  = shape_dict.at(in->id());
         auto out_shape = shape_dict.at(out->id());
@@ -138,26 +132,27 @@ class ReduceSplitPass {
         // create reduce node0
         Node* reduce0                         = new Node(Operator::Get(name), name, common::UniqName(name));
         reduce0->attrs.attr_store["dim"]      = std::vector<int>{0};
-        auto a                                = absl::get<std::vector<int>>(reduce0->attrs.attr_store.at("dim"));
         reduce0->attrs.attr_store["keep_dim"] = absl::get<bool>(n->attrs.attr_store.at("keep_dim"));
         graph->RegisterNode(reduce0->id(), reduce0);
         reshape0_data->LinkTo(reduce0);
         auto reduce0_data = new NodeData(Shared<Node>(reduce0), 0, 0, common::UniqName("reduce"), false);
         graph->RegisterNode(reduce0_data->id(), reduce0_data);
         reduce0->LinkTo(reduce0_data);
-        shape_dict[reduce0_data->id()] = std::vector<int>{reduce_numel1, in_shape[in_shape.size() - 1]};
+        shape_dict[reduce0_data->id()] = keep_dim ? std::vector<int>{1, reduce_numel1, in_shape[in_shape.size() - 1]}
+                                                  : std::vector<int>{reduce_numel1, in_shape[in_shape.size() - 1]};
         dtype_dict[reduce0_data->id()] = common::Str2Type(common::Type2Str(dtype_dict[in->id()]));
 
         // create reduce node1
         Node* reduce1                         = new Node(Operator::Get(name), name, common::UniqName(name));
-        reduce1->attrs.attr_store["dim"]      = std::vector<int>{0};
+        reduce1->attrs.attr_store["dim"]      = keep_dim ? std::vector<int>{0, 1} : std::vector<int>{0};
         reduce1->attrs.attr_store["keep_dim"] = absl::get<bool>(n->attrs.attr_store.at("keep_dim"));
         graph->RegisterNode(reduce1->id(), reduce1);
         reduce0_data->LinkTo(reduce1);
         auto reduce1_data = new NodeData(Shared<Node>(reduce1), 0, 0, common::UniqName("reduce"), false);
         graph->RegisterNode(reduce1_data->id(), reduce1_data);
         reduce1->LinkTo(reduce1_data);
-        shape_dict[reduce1_data->id()] = std::vector<int>{in_shape[in_shape.size() - 1]};
+        shape_dict[reduce1_data->id()] = keep_dim ? std::vector<int>{1, 1, in_shape[in_shape.size() - 1]}
+                                                  : std::vector<int>{in_shape[in_shape.size() - 1]};
         dtype_dict[reduce1_data->id()] = common::Str2Type(common::Type2Str(dtype_dict[in->id()]));
 
         // create reshape node1
@@ -166,6 +161,7 @@ class ReduceSplitPass {
         graph->RegisterNode(reshape1->id(), reshape1);
         reduce1_data->LinkTo(reshape1);
         reshape1->LinkTo(out);
+        out->source_node = common::Shared<Node>(reshape1);
 
         // drop old node
         graph->DropNode(node);
@@ -182,8 +178,10 @@ class ReduceSplitPass {
 }  // namespace
 
 void ReduceSplitFunc(framework::Graph* graph) {
+  VLOG(3) << "Before ReduceSplitPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
   int n = ReduceSplitPass::Apply(graph);
   VLOG(3) << "ReduceSplit was performed " << n << " times.";
+  VLOG(3) << "After ReduceSplitPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
 }
 
 }  // namespace pass

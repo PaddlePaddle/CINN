@@ -75,15 +75,16 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
     options.graph_passes.emplace_back("CommonSubexpressionEliminationPass");
   }
 
+  // this pass should be applied before merge
+  if (FLAGS_use_reduce_split_pass) {
+    options.graph_passes.emplace_back("ReduceSplit");
+  }
+
   if (FLAGS_cinn_use_op_fusion) {
     options.graph_passes.emplace_back("OpFusionPass");
     options.graph_passes.emplace_back("FusionMergePass");
   } else {
     options.graph_passes.emplace_back("BuildNonFusedGroupsPass");
-  }
-
-  if (FLAGS_use_reduce_split_pass) {
-    options.graph_passes.emplace_back("ReduceSplit");
   }
 
   // WARNING: the pass must be the last pass !!!
