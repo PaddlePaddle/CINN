@@ -374,6 +374,7 @@ class IRSchedule {
    * \param loop the loop to be split
    * \param n the number of loop layers to split
    * \param max_innermost_factor the maximum factor of the innermost loop
+   * \param decision the decision data of the last sample, or the artificially given decision data
    * \return the split factors of the loop (The larger the index, the inner the corresponding loop)
    * For example, return {16,64} means the loop will be like this:
    * for (i, 0, 16) {
