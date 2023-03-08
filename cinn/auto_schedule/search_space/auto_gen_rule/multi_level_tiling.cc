@@ -39,18 +39,12 @@ namespace cinn {
 namespace auto_schedule {
 
 MultiLevelTiling::MultiLevelTiling(const common::Target& target) : AutoGenRule(target) {
-  if (target == common::DefaultNVGPUTarget()) {
-    bind_axis_   = {"blockIdx.x", "threadIdx.x"};
-    tile_struct_ = "SSSRRSRS";
-  } else {
-    bind_axis_   = {};
-    tile_struct_ = "SSRSRS";
-  }
+  config_ = kConfigs.at(target_->arch);
 
-  for (int i = 0; i < tile_struct_.size(); ++i) {
-    if (tile_struct_[i] == 'S') {
+  for (int i = 0; i < config_.tile_struct.size(); ++i) {
+    if (config_.tile_struct[i] == 'S') {
       s_indices_.push_back(i);
-    } else if (tile_struct_[i] == 'R') {
+    } else if (config_.tile_struct[i] == 'R') {
       r_indices_.push_back(i);
     } else {
       CHECK(false) << "Illegal tiling structure string";
@@ -88,7 +82,7 @@ void MultiLevelTiling::Apply(int index) {
       << "Currently index = " << index << ",  NumberApplicable() = " << num_applicable_;
 
   int apply_index = applicable_indices_[index];
-  Apply(ir_schedule_, all_block_realizes_[apply_index]);
+  ApplyTiling(ir_schedule_, all_block_realizes_[apply_index]);
 
   VLOG(4) << "Returning the result of MultiLevelTiling";
   return;
@@ -109,18 +103,22 @@ std::vector<SearchState> MultiLevelTiling::ApplyOnBlock(SearchState state, const
   SearchState new_state  = state.Copy();
   ir::IRSchedule* ir_sch = &new_state->ir_schedule;
   Expr block_expr        = ir_sch->GetBlock(block_name);
-  Apply(ir_sch, block_expr);
+  ApplyTiling(ir_sch, block_expr);
+  block_expr = ir_sch->GetBlock(block_name);
+  ApplyCacheRead(ir_sch, block_expr);
+  block_expr = ir_sch->GetBlock(block_name);
+  ApplyCacheWrite(ir_sch, block_expr);
 
   VLOG(4) << "Returning the result of MultiLevelTiling";
   return {new_state};
 }
 
-void MultiLevelTiling::Apply(ir::IRSchedule* ir_schedule, ir::Expr& block_expr) {
+void MultiLevelTiling::ApplyTiling(ir::IRSchedule* ir_schedule, ir::Expr& block_expr) {
   ir::ScheduleBlockRealize* sche_block_realize = block_expr.As<ir::ScheduleBlockRealize>();
   ir::ScheduleBlock* sche_block                = sche_block_realize->schedule_block.As<ir::ScheduleBlock>();
-
-  std::vector<Expr> for_exprs = ir_schedule->GetLoops(Expr(sche_block_realize));
-  std::vector<std::vector<Expr>> tiles(s_indices_.size() + r_indices_.size());
+  tile_loops_.clear();
+  tile_loops_.resize(config_.tile_struct.size());
+  std::vector<Expr> for_exprs = ir_schedule->GetLoops(block_expr);
 
   VLOG(5) << "The number of loops to split in MultiLevelTiling is " << for_exprs.size();
   for (int i = for_exprs.size() - 1; i >= 0; --i) {
@@ -137,11 +135,10 @@ void MultiLevelTiling::Apply(ir::IRSchedule* ir_schedule, ir::Expr& block_expr) 
 
     int num_split                      = idx->size();
     std::vector<int> tile_split_factor = SampleTileSplit<int>(extent, num_split);
-
-    std::vector<Expr> splited = ir_schedule->Split(Expr(ir_for), tile_split_factor);
+    std::vector<Expr> splited          = ir_schedule->Split(Expr(ir_for), tile_split_factor);
     VLOG(6) << "Finish Split for MultiLevelTiling on above loop";
     for (int j = 0; j < num_split; ++j) {
-      tiles[idx->at(j)].push_back(splited[j]);
+      tile_loops_[idx->at(j)].push_back(splited[j]);
     }
   }
   VLOG(5) << "Finish Split in MultiLevelTiling, before Reorder.";
@@ -155,7 +152,7 @@ void MultiLevelTiling::Apply(ir::IRSchedule* ir_schedule, ir::Expr& block_expr) 
   CHECK(loop_var_name_to_idx.size() == for_exprs.size()) << "Loops contain duplicate loop var names after split";
 
   std::vector<Expr> splited_loops;
-  for (auto& t : tiles) {
+  for (auto& t : tile_loops_) {
     std::reverse(t.begin(), t.end());
     for (auto& tile_loop_expr : t) {
       const ir::For* tile_loop = tile_loop_expr.As<ir::For>();
@@ -168,7 +165,7 @@ void MultiLevelTiling::Apply(ir::IRSchedule* ir_schedule, ir::Expr& block_expr) 
   Expr reordered_expr = ir_schedule->Reorder(splited_loops);
   VLOG(5) << "Finish Reorder in MultiLevelTiling, now do Fuse and Binding on the main loop chain";
 
-  int num_binds = std::min(bind_axis_.size(), tiles.size());
+  int num_binds = std::min(config_.bind_axis.size(), tile_loops_.size());
   for (int i = 0; i < num_binds; ++i) {
     loop_var_name_to_idx.clear();
     for_exprs = ir_schedule->GetLoops(sche_block->name);
@@ -180,18 +177,18 @@ void MultiLevelTiling::Apply(ir::IRSchedule* ir_schedule, ir::Expr& block_expr) 
     // Some loops extent may exceed the limited max factor (For example,
     // exceed the limit number of CUDA threads), here we check whether
     // the fused loop extent, which is the production of extends of loops
-    // to be fused, is less or equal to the max factore.
+    // to be fused, is less or equal to the max factor.
     //
     // If yes, we fuse those loops and bind the fused loop
     // If no, we bind the first loop whose extent is less than the factor.
     int extent_prod                    = 1;
     int first_idx_less_than_max_factor = -1;
-    for (int j = 0; j < tiles[i].size(); ++j) {
-      const ir::For* tile_loop = tiles[i][j].As<ir::For>();
+    for (int j = 0; j < tile_loops_[i].size(); ++j) {
+      const ir::For* tile_loop = tile_loops_[i][j].As<ir::For>();
       CHECK(tile_loop) << "tiles store non For Expr";
-      int idx     = loop_var_name_to_idx[tile_loop->loop_var->name];
-      tiles[i][j] = for_exprs[idx];
-      int extent  = tile_loop->extent.as_int32();  // maybe int64?
+      int idx           = loop_var_name_to_idx[tile_loop->loop_var->name];
+      tile_loops_[i][j] = for_exprs[idx];
+      int extent        = tile_loop->extent.as_int32();  // maybe int64?
       extent_prod *= extent;
       if (first_idx_less_than_max_factor == -1 && extent <= max_factor_) {
         first_idx_less_than_max_factor = idx;
@@ -199,10 +196,10 @@ void MultiLevelTiling::Apply(ir::IRSchedule* ir_schedule, ir::Expr& block_expr) 
     }
 
     if (extent_prod <= max_factor_) {
-      Expr fused = ir_schedule->Fuse(tiles[i]);
-      ir_schedule->Bind(fused, bind_axis_[i]);
+      Expr fused = ir_schedule->Fuse(tile_loops_[i]);
+      ir_schedule->Bind(fused, config_.bind_axis[i]);
     } else if (first_idx_less_than_max_factor != -1) {
-      ir_schedule->Bind(for_exprs[first_idx_less_than_max_factor], bind_axis_[i]);
+      ir_schedule->Bind(for_exprs[first_idx_less_than_max_factor], config_.bind_axis[i]);
     }
   }
 
@@ -236,13 +233,13 @@ void MultiLevelTiling::Apply(ir::IRSchedule* ir_schedule, ir::Expr& block_expr) 
           // Some loops extent may exceed the limited max factor (For example,
           // exceed the limit number of CUDA threads), here we check whether
           // the fused loop extent, which is the production of extends of loops
-          // to be fused, is less or equal to the max factore.
+          // to be fused, is less or equal to the max factor.
           //
           // If yes, we fuse those loops and bind the fused loop
           // If no, we bind the first loop whose extent is less than the factor.
           int extent_prod                    = 1;
           int first_idx_less_than_max_factor = -1;
-          for (int j = 0; j < tiles[i].size(); ++j) {
+          for (int j = 0; j < tile_loops_[i].size(); ++j) {
             int extent = for_exprs[fuse_index + j].As<ir::For>()->extent.as_int32();
             extent_prod *= extent;
             if (first_idx_less_than_max_factor == -1 && extent <= max_factor_) {
@@ -251,19 +248,114 @@ void MultiLevelTiling::Apply(ir::IRSchedule* ir_schedule, ir::Expr& block_expr) 
           }
           if (extent_prod <= max_factor_) {
             std::vector<Expr> loops_to_fuse(for_exprs.begin() + fuse_index,
-                                            for_exprs.begin() + fuse_index + tiles[i].size());
+                                            for_exprs.begin() + fuse_index + tile_loops_[i].size());
             Expr fused = ir_schedule->Fuse(loops_to_fuse);
-            ir_schedule->Bind(fused, bind_axis_[i]);
+            ir_schedule->Bind(fused, config_.bind_axis[i]);
             fuse_index += 1;
           } else if (first_idx_less_than_max_factor != -1) {
-            ir_schedule->Bind(for_exprs[first_idx_less_than_max_factor], bind_axis_[i]);
-            fuse_index += tiles[i].size();
+            ir_schedule->Bind(for_exprs[first_idx_less_than_max_factor], config_.bind_axis[i]);
+            fuse_index += tile_loops_[i].size();
           }
         }
       }
     }
   }
 }
+
+void MultiLevelTiling::ApplyCacheRead(ir::IRSchedule* ir_schedule, ir::Expr& block_expr) {
+  ir::ScheduleBlockRealize* sch_block_realize = block_expr.As<ir::ScheduleBlockRealize>();
+  ir::ScheduleBlock* sch_block                = sch_block_realize->schedule_block.As<ir::ScheduleBlock>();
+  std::string block_name                      = sch_block->name;
+
+  // Analyze which buffers can be cached
+  std::vector<int> read_buffer_indexes;
+  for (int i = 0; i < sch_block->read_buffers.size(); ++i) {
+    bool is_read_write = false;
+    for (int j = 0; j < sch_block->write_buffers.size(); ++j) {
+      if (sch_block->read_buffers[i] == sch_block->write_buffers[j]) {
+        is_read_write = true;
+        break;
+      }
+    }
+    if (!is_read_write) {
+      read_buffer_indexes.push_back(i);
+    }
+  }
+
+  // Schedule
+  for (int read_buffer_index : read_buffer_indexes) {
+    ir::Expr cache_block = ir_schedule->CacheRead(block_expr, read_buffer_index, config_.read_cache_memory_type);
+    // The original block expr is invalid after the CacheRead schedule,
+    // so we reacquire the block expr after the schedule according to the block name
+    block_expr                  = ir_schedule->GetBlock(block_name);
+    std::vector<Expr> for_exprs = ir_schedule->GetLoops(block_expr);
+    for (int level : config_.read_cache_levels) {
+      const auto loops = tile_loops_.at(level - 1);
+      if (loops.size() == 0) {
+        continue;
+      }
+      std::string target_for_loop_name = loops.back().As<ir::For>()->loop_var->name;
+      for (const Expr& for_expr : for_exprs) {
+        if (for_expr.As<ir::For>()->loop_var->name == target_for_loop_name) {
+          ir_schedule->ComputeAt(cache_block, for_expr);
+        }
+      }
+    }
+  }
+}
+
+void MultiLevelTiling::ApplyCacheWrite(ir::IRSchedule* ir_schedule, ir::Expr& block_expr) {
+  ir::Expr cache_block = ir_schedule->CacheWrite(block_expr, 0, config_.write_cache_memory_type);
+
+  for (int level : config_.write_cache_levels) {
+    const auto loops = tile_loops_.at(level - 1);
+    if (loops.size() == 0) {
+      continue;
+    }
+    std::string target_for_loop_name = loops.back().As<ir::For>()->loop_var->name;
+    // Because the block name is changed in CacheWrite, we need to calculate the derived name
+    // according to the logic of CacheWrite and find the loop structure according to the derived name.
+    const std::string original_block_name =
+        block_expr.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->name;
+    const std::string derivative_block_name =
+        original_block_name + "_" + config_.write_cache_memory_type + "_temp_buffer";
+    std::vector<Expr> for_exprs = ir_schedule->GetLoops(derivative_block_name);
+    for (const Expr& for_expr : for_exprs) {
+      if (for_expr.As<ir::For>()->loop_var->name == target_for_loop_name) {
+        ir_schedule->ReverseComputeAt(ir_schedule->GetBlock(original_block_name), for_expr);
+      }
+    }
+
+    const std::string reduce_init_block_name = original_block_name + "__reduce_init";
+    for_exprs                                = ir_schedule->GetLoops(derivative_block_name);
+    for (const Expr& for_expr : for_exprs) {
+      if (for_expr.As<ir::For>()->loop_var->name == target_for_loop_name &&
+          ir_schedule->HasBlock(reduce_init_block_name)) {
+        ir_schedule->SimpleComputeAt(ir_schedule->GetBlock(reduce_init_block_name), for_expr);
+      }
+    }
+  }
+}
+
+const std::unordered_map<common::Target::Arch, MultiLevelTiling::Config> MultiLevelTiling::kConfigs{
+    {common::Target::Arch::NVGPU,
+     MultiLevelTiling::Config{
+         /*bind_axis*/ std::vector<std::string>{"blockIdx.x", "threadIdx.x"},
+         /*tile_struct*/ std::string("SSSRRSRS"),
+         /*read_cache_memory_type*/ std::string("shared"),
+         /*read_cache_levels*/ std::vector<int>{4},
+         /*write_cache_memory_type*/ std::string("local"),
+         /*write_cache_levels*/ std::vector<int>{3},
+     }},
+    {common::Target::Arch::X86,
+     MultiLevelTiling::Config{
+         /*bind_axis*/ std::vector<std::string>{},
+         /*tile_struct*/ std::string("SSRSRS"),
+         /*read_cache_memory_type*/ std::string("local"),
+         /*read_cache_levels*/ std::vector<int>{3},
+         /*write_cache_memory_type*/ std::string("local"),
+         /*write_cache_levels*/ std::vector<int>{2},
+     }}};
 
 }  // namespace auto_schedule
 }  // namespace cinn

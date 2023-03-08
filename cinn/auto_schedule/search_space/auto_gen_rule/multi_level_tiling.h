@@ -94,8 +94,19 @@ class MultiLevelTiling : public AutoGenRule {
     return result;
   }
 
+  struct Config {
+    std::vector<std::string> bind_axis;
+    std::string tile_struct;
+    std::string read_cache_memory_type;
+    std::vector<int> read_cache_levels;
+    std::string write_cache_memory_type;
+    std::vector<int> write_cache_levels;
+  };
+
  private:
-  void Apply(ir::IRSchedule* ir_schedule, ir::Expr& block_expr);
+  void ApplyTiling(ir::IRSchedule* ir_schedule, ir::Expr& block_expr);
+  void ApplyCacheRead(ir::IRSchedule* ir_schedule, ir::Expr& block_expr);
+  void ApplyCacheWrite(ir::IRSchedule* ir_schedule, ir::Expr& block_expr);
 
  private:
   std::vector<ir::Expr> all_block_realizes_;
@@ -107,14 +118,15 @@ class MultiLevelTiling : public AutoGenRule {
   // For example, if tile_struct_ = "SSRSRS" and we are doing matrix
   // multiplication, i, j are the spatial indices and k is the reduce index,
   // the tiling result will be i_0, j0, i1, j1, k0, i2, j2, k1, i3, j3
-  std::string tile_struct_;
+  Config config_;
   std::vector<int> s_indices_;
   std::vector<int> r_indices_;
-
-  std::vector<std::string> bind_axis_;
+  std::vector<std::vector<ir::Expr>> tile_loops_;
 
   // A factor to limit the split factor within max thread number per block
   int max_factor_ = 1024;
+
+  static const std::unordered_map<common::Target::Arch, Config> kConfigs;
 };
 
 }  // namespace auto_schedule

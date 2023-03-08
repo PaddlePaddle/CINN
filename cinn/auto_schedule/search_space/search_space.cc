@@ -47,8 +47,6 @@ SearchSpace::SearchSpace(const TuneTask& tune_task) : tune_task_(tune_task) {
   // TODO(zhhsplendid): pass correct output names to AutoInline
   sketch_rules_.emplace_back(new AutoInline(target, tune_task_.output_names));
   sketch_rules_.emplace_back(new MultiLevelTiling(target));
-  sketch_rules_.emplace_back(new AddCacheRead(target));
-  sketch_rules_.emplace_back(new AddCacheWrite(target));
   sketch_rules_.emplace_back(new AutoUnroll(target));
   sketch_rules_.emplace_back(new SkipRule(target));
 }

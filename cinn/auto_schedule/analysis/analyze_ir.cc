@@ -111,15 +111,17 @@ bool NeedsMultiLevelTiling(const ir::ScheduleBlockRealize& sche_block_realize) {
     // Check the block iter vars are not used to index the read region
     int n_unused_block_vars = 0;
     for (const ir::Var& block_iter_var : sche_block->iter_vars) {
-      bool iter_var_in_read = false;
-      for (const std::string& var : vars_index_read) {
-        if (var == block_iter_var->name) {
-          iter_var_in_read = true;
-          break;
+      if (!block_iter_var->is_reduce_axis) {
+        bool iter_var_in_read = false;
+        for (const std::string& var : vars_index_read) {
+          if (var == block_iter_var->name) {
+            iter_var_in_read = true;
+            break;
+          }
         }
-      }
-      if (!iter_var_in_read) {
-        ++n_unused_block_vars;
+        if (!iter_var_in_read) {
+          ++n_unused_block_vars;
+        }
       }
     }
     total_unused_iter_vars += n_unused_block_vars;
