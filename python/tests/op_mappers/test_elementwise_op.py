@@ -14,38 +14,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
 import unittest
 import numpy as np
-from op_mapper_test import OpMapperTest
+from op_mapper_test import OpMapperTest, logger
 import paddle
-from cinn.frontend import *
-from cinn.common import *
-
-paddle.enable_static()
-
-enable_gpu = sys.argv.pop()
 
 
 class TestElementwiseOp(OpMapperTest):
-    def setUp(self):
-        if enable_gpu == "ON":
-            self.target = DefaultNVGPUTarget()
-            self.place = paddle.CUDAPlace(0)
-        else:
-            self.target = DefaultHostTarget()
-            self.place = paddle.CPUPlace()
-
     def init_input_data(self):
         self.feed_data = {
             'x': self.random([32, 64], "float32"),
             'y': self.random([32, 64], "float32")
         }
 
-    def set_elementwise_func(self, x, y):
-        return paddle.add(x, y)
+    def set_op_type(self):
+        return "elementwise_add"
 
-    def set_paddle_program(self):
+    def set_op_inputs(self):
         x = paddle.static.data(
             name='x',
             shape=self.feed_data['x'].shape,
@@ -54,52 +39,56 @@ class TestElementwiseOp(OpMapperTest):
             name='y',
             shape=self.feed_data['y'].shape,
             dtype=self.feed_data['y'].dtype)
-        out = self.set_elementwise_func(x, y)
+        return {'X': [x], 'Y': [y]}
 
-        return ([x.name, y.name], [out])
+    def set_op_attrs(self):
+        return {"axis": -1}
+
+    def set_op_outputs(self):
+        return {'Out': [str(self.feed_data['x'].dtype)]}
 
     def test_check_results(self):
         self.check_outputs_and_grads()
 
 
 class TestAddOp(TestElementwiseOp):
-    def set_elementwise_func(self, x, y):
-        return paddle.add(x, y)
+    def set_op_type(self):
+        return "elementwise_add"
 
 
 class TestSubOp(TestElementwiseOp):
-    def set_elementwise_func(self, x, y):
-        return paddle.subtract(x, y)
+    def set_op_type(self):
+        return "elementwise_sub"
 
 
 class TestDivOp(TestElementwiseOp):
-    def set_elementwise_func(self, x, y):
-        return paddle.divide(x, y)
+    def set_op_type(self):
+        return "elementwise_div"
 
 
 class TestMulOp(TestElementwiseOp):
-    def set_elementwise_func(self, x, y):
-        return paddle.multiply(x, y)
+    def set_op_type(self):
+        return "elementwise_mul"
 
 
 class TestPowOp(TestElementwiseOp):
-    def set_elementwise_func(self, x, y):
-        return paddle.pow(x, y)
+    def set_op_type(self):
+        return "elementwise_pow"
 
 
 class TestModOp(TestElementwiseOp):
-    def set_elementwise_func(self, x, y):
-        return paddle.mod(x, y)
+    def set_op_type(self):
+        return "elementwise_mod"
 
 
 class TestMaxOp(TestElementwiseOp):
-    def set_elementwise_func(self, x, y):
-        return paddle.maximum(x, y)
+    def set_op_type(self):
+        return "elementwise_max"
 
 
 class TestMinOp(TestElementwiseOp):
-    def set_elementwise_func(self, x, y):
-        return paddle.minimum(x, y)
+    def set_op_type(self):
+        return "elementwise_min"
 
 
 if __name__ == "__main__":

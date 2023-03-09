@@ -14,35 +14,52 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
 import unittest
 import numpy as np
-from op_mapper_test import OpMapperTest
+from op_mapper_test import OpMapperTest, logger
 import paddle
-from cinn.frontend import *
-from cinn.common import *
-
-paddle.enable_static()
-
-enable_gpu = sys.argv.pop()
 
 
 class TestAssignValueOp(OpMapperTest):
-    def setUp(self):
-        if enable_gpu == "ON":
-            self.target = DefaultNVGPUTarget()
-            self.place = paddle.CUDAPlace(0)
-        else:
-            self.target = DefaultHostTarget()
-            self.place = paddle.CPUPlace()
-
     def init_input_data(self):
         self.feed_data = {'x': self.random([10], 'float32')}
 
-    def set_paddle_program(self):
-        out = paddle.assign(self.feed_data['x'])
+    def set_op_type(self):
+        return "assign_value"
 
-        return ([], [out])
+    def set_op_inputs(self):
+        return {}
+
+    def convert_values(self, dtype, values):
+        if str(dtype) == "float64":
+            return 'fp32_values', [float(v) for v in values]
+        elif str(dtype) == "float32":
+            return 'fp32_values', [float(v) for v in values]
+        elif str(dtype) == "int64":
+            return 'int64_values', [int(v) for v in values]
+        elif str(dtype) == "int32":
+            return 'int32_values', [int(v) for v in values]
+        elif str(dtype) == "bool":
+            return 'bool_values', [int(v) for v in values]
+        else:
+            self.assertTrue(
+                False,
+                msg=
+                "The data type of 'input' must be bool, float32, int32 or int64"
+            )
+
+    def set_op_attrs(self):
+        dtype = self.feed_data['x'].dtype
+        shape = self.feed_data['x'].shape
+        value_name, values = self.convert_values(dtype, self.feed_data['x'])
+        return {
+            'dtype': self.nptype2paddledtype(str(dtype)),
+            'shape': shape,
+            value_name: values,
+        }
+
+    def set_op_outputs(self):
+        return {'Out': [str(self.feed_data['x'].dtype)]}
 
     def test_check_results(self):
         self.check_outputs_and_grads()

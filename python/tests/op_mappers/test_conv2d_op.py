@@ -14,28 +14,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
 import unittest
 import numpy as np
-from op_mapper_test import OpMapperTest
+from op_mapper_test import OpMapperTest, logger
 import paddle
-from cinn.frontend import *
-from cinn.common import *
-
-paddle.enable_static()
-
-enable_gpu = sys.argv.pop()
 
 
 class TestConv2dOp(OpMapperTest):
-    def setUp(self):
-        if enable_gpu == "ON":
-            self.target = DefaultNVGPUTarget()
-            self.place = paddle.CUDAPlace(0)
-        else:
-            self.target = DefaultHostTarget()
-            self.place = paddle.CPUPlace()
-
     def init_input_data(self):
         self.feed_data = {
             "x": self.random([3, 16, 32, 32], "float32"),
@@ -43,16 +28,29 @@ class TestConv2dOp(OpMapperTest):
         }
         self.data_format = 'NCHW'
 
-    def set_paddle_program(self):
+    def set_op_type(self):
+        return "conv2d"
+
+    def set_op_inputs(self):
         x = paddle.static.data('x', self.feed_data["x"].shape,
                                self.feed_data["x"].dtype)
         weight = paddle.static.data('weight', self.feed_data["weight"].shape,
                                     self.feed_data["weight"].dtype)
+        return {'Input': [x], 'Filter': [weight]}
 
-        out = paddle.nn.functional.conv2d(
-            x, weight, data_format=self.data_format)
+    def set_op_attrs(self):
+        return {
+            "strides": [1, 1],
+            "paddings": [0, 0],
+            "dilations": [1, 1],
+            "groups": 1,
+            "data_format": self.data_format,
+            "padding_algorithm": "EXPLICIT",
+            "use_cudnn": True
+        }
 
-        return ([x.name, weight.name], [out])
+    def set_op_outputs(self):
+        return {'Output': [str(self.feed_data['x'].dtype)]}
 
     def test_check_results(self):
         self.check_outputs_and_grads()
