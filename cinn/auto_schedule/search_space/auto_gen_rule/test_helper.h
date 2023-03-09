@@ -21,6 +21,7 @@
 
 #include "cinn/backends/compiler.h"
 #include "cinn/common/target.h"
+#include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/scope.h"
 #include "cinn/ir/ir_schedule.h"
 #include "cinn/ir/lowered_func.h"
@@ -28,38 +29,35 @@
 namespace cinn {
 namespace auto_schedule {
 
+/* @brief: Function pointer of executable code compiled by CINN.
+ * @params-1: Pointers to all arguments, including input and output.
+ * @params-2: The number of Arguments.
+ * @return: void
+ */
+using test_func_type = void (*)(void**, int32_t);
+
 // A base utility class for testing AutoGenRule
 class TestAutoGenRuleBase : public ::testing::Test {
  public:
-  // Initialize all data members, such as target_, lowered_funcs_ and so on.
-  // it will call virtual `GenLoweredFuncs` function in a derived class to
-  // initialize the lowered_funcs_ for supporting custom compute
-  ir::IRSchedule Initialize(const std::string& func_name,
-                            const std::vector<std::vector<int>>& input_shapes,
-                            const std::vector<std::vector<int>>& output_shapes);
+  void SetUp() override {
+    srand(0);
+    Context::Global().ResetNameId();
+  }
 
-  // build ir::Module with the original lowered funcs and their body updated through a ir_schedule
-  ir::Module BuildIRModule(const std::vector<ir::Expr>& updated_bodys);
+  // Initialize a ir::IRSchedule by lowering the specified for following AutoGenRule test
+  ir::IRSchedule InitSchedule(const frontend::Program& test_program, const common::Target& target);
 
-  // generate source code with the built module
+  // build ir::Module from the original lowered funcs with their bodys updated by the schedule
+  ir::Module BuildIRModule(const ir::IRSchedule& schedule);
+
+  // generate source code with the built ir module
   std::string GenSourceCode(const ir::Module& ir_module);
 
- protected:
-  // define a specified compute and lower it
-  virtual std::vector<ir::LoweredFunc> GenLoweredFuncs() = 0;
-  // define how to compile the ir::Module to machine code and check the precision
-  virtual void CheckPrecision(const ir::Module& ir_module) = 0;
-
-  // Lower 2D-matmul operator with specified input parameters
-  std::vector<ir::LoweredFunc> Lower2DMatmul(const int mi, const int ki, const int ni);
+  // generate executable kernel function with the built ir module
+  test_func_type GenExecutableKernel(const ir::Module& ir_module);
 
  protected:
   common::Target target_;
-  std::string func_name_;
-  std::vector<std::vector<int>> input_shapes_;
-  std::vector<std::vector<int>> output_shapes_;
-  std::vector<ir::Tensor> tensor_args_;
-  poly::StageMap stages_;
   std::vector<ir::LoweredFunc> lowered_funcs_;
   std::unique_ptr<backends::Compiler> backend_compier_;
 };
@@ -87,13 +85,6 @@ using expected_func_type = void (*)(const std::vector<float*>&,
                                     const std::vector<float*>&,
                                     const std::vector<std::vector<int>>&,
                                     const std::vector<std::vector<int>>&);
-
-/* @brief: Function pointer of executable code compiled by CINN.
- * @params-1: Pointers to all arguments, including input and output.
- * @params-2: The number of Arguments.
- * @return: void
- */
-using test_func_type = void (*)(void**, int32_t);
 
 /* @brief: Interface for checking function correctness.
  * @params-1: Function pointer of the function to be tested.

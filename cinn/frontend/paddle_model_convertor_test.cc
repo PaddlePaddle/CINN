@@ -89,8 +89,9 @@ void RunProgram(const Target& target, Program* prog) {
 TEST(PaddleModelConvertor, basic) {
   auto target = common::DefaultTarget();
 
-  PaddleModelConvertor model_transform;
-  auto program = model_transform(target, FLAGS_model_dir);
+  PaddleModelConvertor model_transform(target);
+  model_transform.LoadModel(FLAGS_model_dir);
+  auto program = model_transform();
 
   const auto& var_map                  = model_transform.var_map();
   const auto& var_model_to_program_map = model_transform.var_model_to_program_map();

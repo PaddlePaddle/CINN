@@ -14,14 +14,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from ast import arg
 import os
 import logging
+from typing import Any
 import unittest
 import numpy as np
+
 import paddle
-from cinn.frontend import *
-from cinn.common import *
-from cinn.framework import *
+from paddle.fluid.framework import Variable as PaddleVariable
+from paddle.fluid.layer_helper import LayerHelper
+
+from cinn.frontend import NetBuilder, PaddleModelConvertor
+from cinn.common import is_compiled_with_cuda
+from cinn.framework import Scope
+
 from tests.ops.op_test import OpTest, OpTestTool
 
 logging.basicConfig(level=os.environ.get('LOG_LEVEL', 'INFO').upper())
@@ -45,14 +52,172 @@ class OpMapperTest(OpTest):
         self.feed_data = {}
         logger.warn("No Input Data")
 
-    def set_paddle_program(self):
+    def set_op_type(self) -> str:
+        """Set paddle C++ op type:\n
+        The op type should be got from the paddle static program.
+        Not the paddle python api name or phi api name.\n
+        For example, the C++ op type of `paddle.sum` is `reduce_sum`, the code from `Paddle/python/paddle/tensor/math.py`:
+        ```
+        def sum(x, axis=None, dtype=None, keepdim=False, name=None):
+            ...
+             helper.append_op(
+                type='reduce_sum',
+                inputs={'X': x},
+                outputs={'Out': out},
+                attrs=attrs,
+            )
+        ```
+        """
         raise Exception("Not implemented.")
+
+    def set_op_inputs(self) -> dict:
+        """Map from input parameter name to argument list, the argument should be get from paddle.static.data.\n
+        For example, `concat` should return
+        ```
+        x1 = paddle.static.data(name='x1', shape=[1, 2], dtype='float32')
+        x2 = paddle.static.data(name='x2', shape=[1, 2], dtype='float32')
+        return {'X' : [x1, x2]}
+        ```        """
+        return dict()
+
+    def set_op_attrs(self) -> dict:
+        """Map from attribute name to attribute value:\n
+        For example, `concat` should return
+        ```
+        return {'axis' : 0}
+        ```
+        """
+        return dict()
+
+    def set_op_outputs(self) -> dict:
+        """Map from output parameter name to argument type, the argument type should be represented by a string.\n
+        For example, if the `out_dtype` attribute of `cast` is `'float16'`, here should return
+        ```
+        return {'Out' : 'float16'}
+        ```
+        """
+        raise Exception("Not implemented.")
+
+    def skip_check_outputs(self) -> list:
+        """Skip check some output because some paddle's op outputs are useless, CINN will not support these.
+        ```
+        # skip check the result of output 'Out'
+        return {'Out'}
+        ```
+        """
+        return list()
+
+    def __set_paddle_op(self):
+        # paddle C++ op type
+        self.op_type = self.set_op_type()
+        # map from input param name to argument name list
+        self.inputs = self.set_op_inputs()
+        # map from attribute name to attribute value
+        self.attrs = self.set_op_attrs()
+        # map from output param name to output data type
+        self.output_dtypes = self.set_op_outputs()
+        # list of outputs which will be skip
+        self.skip_outputs = self.skip_check_outputs()
+        # collect some important infomation
+        self.input_arg_map = self.__get_arguments_map(self.inputs)
+        self.fetch_targets = list()
+        self.op_desc = None
+
+    def __check_valid(self):
+        self.assertIsInstance(
+            self.op_type, str, msg="The op type should be a string")
+        self.assertNotEqual(
+            self.op_type, "", msg="The op type should not empty")
+        self.assertIsInstance(
+            self.inputs,
+            dict,
+            msg=
+            "The set_op_inputs should be return dict(InputName, list(Variable)), where Variable are created by paddle.static.data"
+        )
+        self.assertIsInstance(
+            self.attrs,
+            dict,
+            msg="The set_op_attrs should be return dict(AttrName, AttrValue)")
+        self.assertIsInstance(
+            self.output_dtypes,
+            dict,
+            msg=
+            "The set_op_outputs should be return dict(OutName, list(OutDtype)), where OutName and OutDtype are string"
+        )
+        self.assertGreater(
+            len(self.output_dtypes),
+            0,
+            msg="The set_op_outputs cannot return a empty dict")
+
+        for name, var in self.input_arg_map.items():
+            self.assertIn(name, self.feed_data)
+            self.assertEqual(
+                var.shape,
+                self.feed_data[name].shape,
+                msg="The shape of input {} in feed_data is error".format(
+                    var.name))
+            self.assertEqual(
+                self.paddleddtype2nptype(var.dtype),
+                str(self.feed_data[name].dtype),
+                msg="The dtype of input {} in feed_data is error".format(
+                    var.name))
+
+    def __get_arguments_map(self, param_maps):
+        arg_maps = dict()
+        for args in param_maps.values():
+            self.assertIsInstance(
+                args,
+                list,
+                msg=
+                "The type of arguments should be list(Variable), where Variable are created by paddle.static.data"
+            )
+            for var in args:
+                self.assertIsInstance(
+                    var,
+                    PaddleVariable,
+                    msg=
+                    "The type of argument should be paddle.fluid.framework.Variable"
+                )
+                self.assertTrue(
+                    (var.name not in arg_maps) or (arg_maps[var.name] == var),
+                    msg="Argument %s is duplicated" % var.name)
+                arg_maps[var.name] = var
+        return arg_maps
+
+    def __init_paddle_op(self):
+        self.__set_paddle_op()
+        self.__check_valid()
 
     def build_paddle_program(self, target):
         main_program = paddle.static.Program()
         startup_program = paddle.static.Program()
         with paddle.static.program_guard(main_program, startup_program):
-            [self.feed_names, self.fetch_targets] = self.set_paddle_program()
+            self.__init_paddle_op()
+            helper = LayerHelper(self.op_type)
+
+            self.outputs = dict()
+            for var_name, dtypes in self.output_dtypes.items():
+                self.assertIsInstance(
+                    dtypes,
+                    list,
+                    msg=
+                    "The set_op_outputs should be return dict(OutName, list(OutDtype)), where OutName and OutDtype are string"
+                )
+                self.outputs[var_name] = list()
+                for dtype in dtypes:
+                    out_var = helper.create_variable_for_type_inference(dtype)
+                    if var_name not in self.skip_outputs:
+                        # skip obtain the result in skip_outputs
+                        self.fetch_targets.append(out_var)
+                    self.outputs[var_name].append(out_var)
+
+            self.op_desc = helper.append_op(
+                type=self.op_type,
+                inputs=self.inputs,
+                outputs=self.outputs,
+                attrs=self.attrs).desc
+
+        logger.debug("Paddle Program:\n" + str(main_program))
 
         exe = paddle.static.Executor(self.place)
         exe.run(startup_program)
@@ -67,56 +232,96 @@ class OpMapperTest(OpTest):
                          self.fetch_targets[i].name: self.paddle_outputs[i]
                      } for i in range(len(self.fetch_targets))]))
 
-        paddle.fluid.io.save_inference_model(
-            "./op_mapper_test_save_model/op_mapper_test_" +
-            self.__class__.__name__, self.feed_names, self.fetch_targets, exe,
-            main_program)
-
     def build_cinn_program(self, target):
-        convertor = PaddleModelConvertor()
         scope = Scope()
-        prog = convertor(
-            self.target,
-            "./op_mapper_test_save_model/op_mapper_test_" +
-            self.__class__.__name__,
-            scope=scope)
+        convertor = PaddleModelConvertor(target=self.target, scope=scope)
 
-        # get cinn input list
-        inputs = prog.get_inputs()
-        self.assertEqual(
-            len(self.feed_names),
-            len(inputs),
-            msg="The paddle's input list not equal to cinn's input list!")
+        for var_name, var in self.input_arg_map.items():
+            convertor.create_input(
+                dtype=self.paddleddtype2nptype(var.dtype),
+                shape=var.shape,
+                name=var_name)
 
-        # map the name the variable
-        input_dict = {var.name(): var for var in inputs}
+        convertor.append_op(
+            type=self.op_type,
+            inputs=self.op_desc.inputs(),
+            outputs=self.op_desc.outputs(),
+            attrs=self.attrs)
 
+        prog = convertor()
+
+        logger.debug("CINN Program:\n" + str(prog))
+
+        # get the CINN input list
         cinn_inputs = []
         cinn_feed_datas = []
-        for name in self.feed_names:
-            cinn_name = convertor.get_cinn_name(name)
 
-            self.assertTrue(
-                cinn_name in input_dict,
-                msg="Cannot find variable " + cinn_name +
-                " in cinn program's input, which are " + str(
-                    input_dict.items()))
-            cinn_inputs.append(input_dict[cinn_name])
-            cinn_feed_datas.append(self.feed_data[name])
+        # map the name the variable
+        if len(self.input_arg_map) > 0:
+            feed_names = set(self.input_arg_map.keys())
+            input_dict = convertor.get_fetch_list(fetch_list=feed_names)
+            for name in feed_names:
+                cinn_name = convertor.get_cinn_name(name)
 
-        # get cinn output list
-        output_dict = convertor.get_fetch_list()
+                self.assertIn(
+                    cinn_name,
+                    input_dict,
+                    msg="Cannot find variable " + cinn_name +
+                    " in cinn program's input, which are " + str(
+                        input_dict.items()))
+                cinn_inputs.append(input_dict[cinn_name])
+                cinn_feed_datas.append(self.feed_data[name])
 
+        # get the CINN output list
+        fetch_names = {var.name for var in self.fetch_targets}
+        output_dict = convertor.get_fetch_list(fetch_list=fetch_names)
         cinn_output_vars = [
             output_dict[var.name] for var in self.fetch_targets
         ]
 
         # run and get result
         self.cinn_outputs = self.get_cinn_output(
-            prog, target, cinn_inputs, cinn_feed_datas, cinn_output_vars,
-            list(), scope)
+            prog,
+            target,
+            cinn_inputs,
+            cinn_feed_datas,
+            cinn_output_vars,
+            passes=list(),
+            scope=scope)
 
         logger.debug("CINN result:\n" + str([{
             self.fetch_targets[i].name + "/" + convertor.get_cinn_name(self.fetch_targets[i].name):
             self.cinn_outputs[i]
         } for i in range(len(self.fetch_targets))]))
+
+    @staticmethod
+    def paddleddtype2nptype(dtype):
+        switch_map = {
+            paddle.float16: "float16",
+            paddle.float32: "float32",
+            paddle.float64: "float64",
+            paddle.int8: "int8",
+            paddle.int16: "int16",
+            paddle.int32: "int32",
+            paddle.int64: "int64",
+            paddle.uint8: "uint8",
+            paddle.bool: "bool",
+        }
+        assert dtype in switch_map, str(dtype) + " not support in CINN"
+        return switch_map[dtype]
+
+    @staticmethod
+    def nptype2paddledtype(dtype):
+        switch_map = {
+            "float16": paddle.float16,
+            "float32": paddle.float32,
+            "float64": paddle.float64,
+            "int8": paddle.int8,
+            "int16": paddle.int16,
+            "int32": paddle.int32,
+            "int64": paddle.int64,
+            "uint8": paddle.uint8,
+            "bool": paddle.bool,
+        }
+        assert dtype in switch_map, dtype + " not support in CINN"
+        return switch_map[dtype]

@@ -65,10 +65,14 @@ void GetRealAxes(int ndim, const std::vector<int>& axes, std::vector<int>* real_
 
 std::string Type2StrForReduce(common::Type type) {
   std::string suffix;
-  if (type.is_float(32)) {
-    return "_fp32";
+  if (type.is_int(32)) {
+    return "_int32";
+  } else if (type.is_int(64)) {
+    return "_int64";
   } else if (type.is_float(16)) {
     return "_fp16";
+  } else if (type.is_float(32)) {
+    return "_fp32";
   } else if (type.is_float(64)) {
     return "_fp64";
   } else if (type.is_bool()) {

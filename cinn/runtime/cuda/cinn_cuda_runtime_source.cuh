@@ -201,6 +201,28 @@ __device__ inline float16 FN_FP16(pow)(float16 a, float16 b) {
 
 // *************************************************************** //
 // reduce operator, need `--expt-relaxed-constexpr` option to call std function in device kernel
+#define EXPAND_REDUCE_INT32_MARCO(MARCO, ...)       \
+  MARCO(sum_int32, 0, int, ##__VA_ARGS__)           \
+  MARCO(prod_int32, 1, int, ##__VA_ARGS__)          \
+  MARCO(max_int32, -2147483648, int, ##__VA_ARGS__) \
+  MARCO(min_int32, 2147483647, int, ##__VA_ARGS__)
+
+__device__ inline int cinn_sum_int32(const int left, const int right) { return left + right; }
+__device__ inline int cinn_prod_int32(const int left, const int right) { return left * right; }
+__device__ inline int cinn_max_int32(const int left, const int right) { return max(left, right); }
+__device__ inline int cinn_min_int32(const int left, const int right) { return min(left, right); }
+
+#define EXPAND_REDUCE_INT64_MARCO(MARCO, ...)                          \
+  MARCO(sum_int64, 0, long long int, ##__VA_ARGS__)                    \
+  MARCO(prod_int64, 1, long long int, ##__VA_ARGS__)                   \
+  MARCO(max_int64, -9223372036854775808, long long int, ##__VA_ARGS__) \
+  MARCO(min_int64, 9223372036854775807, long long int, ##__VA_ARGS__)
+
+__device__ inline long long int cinn_sum_int64(const long long int left, const long long int right) { return left + right; }
+__device__ inline long long int cinn_prod_int64(const long long int left, const long long int right) { return left * right; }
+__device__ inline long long int cinn_max_int64(const long long int left, const long long int right) { return max(left, right); }
+__device__ inline long long int cinn_min_int64(const long long int left, const long long int right) { return min(left, right); }
+
 #define EXPAND_REDUCE_FP32_MACRO(MACRO, ...)          \
   MACRO(sum_fp32, 0.0f, float, ##__VA_ARGS__)         \
   MACRO(prod_fp32, 1.0f, float, ##__VA_ARGS__)        \
@@ -255,11 +277,11 @@ __device__ inline bool cinn_any(const bool left, const bool right) { return left
     unsigned int mask = __activemask();                                                   \
     unsigned int lane = __popc(mask);                                                     \
     if (lane < 32) {                                                                      \
-      CINN_SHUFFLE_FUNCTION(16, cinn_##REDUCE_TYPE, DTYPE(INITIAL_VALUE))                 \
-      CINN_SHUFFLE_FUNCTION(8, cinn_##REDUCE_TYPE, DTYPE(INITIAL_VALUE))                  \
-      CINN_SHUFFLE_FUNCTION(4, cinn_##REDUCE_TYPE, DTYPE(INITIAL_VALUE))                  \
-      CINN_SHUFFLE_FUNCTION(2, cinn_##REDUCE_TYPE, DTYPE(INITIAL_VALUE))                  \
-      CINN_SHUFFLE_FUNCTION(1, cinn_##REDUCE_TYPE, DTYPE(INITIAL_VALUE))                  \
+      CINN_SHUFFLE_FUNCTION(16, cinn_##REDUCE_TYPE, (DTYPE)(INITIAL_VALUE))               \
+      CINN_SHUFFLE_FUNCTION(8, cinn_##REDUCE_TYPE, (DTYPE)(INITIAL_VALUE))                \
+      CINN_SHUFFLE_FUNCTION(4, cinn_##REDUCE_TYPE, (DTYPE)(INITIAL_VALUE))                \
+      CINN_SHUFFLE_FUNCTION(2, cinn_##REDUCE_TYPE, (DTYPE)(INITIAL_VALUE))                \
+      CINN_SHUFFLE_FUNCTION(1, cinn_##REDUCE_TYPE, (DTYPE)(INITIAL_VALUE))                \
       tmp_val = __shfl_sync(mask, tmp_val, 0, 32);                                        \
       return tmp_val;                                                                     \
     } else {                                                                              \
@@ -272,9 +294,11 @@ __device__ inline bool cinn_any(const bool left, const bool right) { return left
     }                                                                                     \
   }
 
+EXPAND_REDUCE_INT32_MARCO(CINN_WARP_SHUFFLE_INTERNAL_IMPL)
+EXPAND_REDUCE_INT64_MARCO(CINN_WARP_SHUFFLE_INTERNAL_IMPL)
 EXPAND_REDUCE_FP32_MACRO(CINN_WARP_SHUFFLE_INTERNAL_IMPL)
-EXPAND_REDUCE_BOOL_MACRO(CINN_WARP_SHUFFLE_INTERNAL_IMPL)
 EXPAND_REDUCE_FP64_MACRO(CINN_WARP_SHUFFLE_INTERNAL_IMPL)
+EXPAND_REDUCE_BOOL_MACRO(CINN_WARP_SHUFFLE_INTERNAL_IMPL)
 
 #ifdef CINN_CUDA_FP16
 EXPAND_REDUCE_FP16_MACRO(CINN_WARP_SHUFFLE_INTERNAL_IMPL)
@@ -284,16 +308,18 @@ EXPAND_REDUCE_FP16_MACRO(CINN_WARP_SHUFFLE_INTERNAL_IMPL)
 
 #define CINN_WARP_REDUCE_IMPL(REDUCE_TYPE, INITIAL_VALUE, DTYPE)                                     \
   __device__ inline DTYPE cinn_warp_reduce_##REDUCE_TYPE(const DTYPE *buf, int offset, int extend) { \
-    DTYPE tmp_val = DTYPE(INITIAL_VALUE);                                                            \
+    DTYPE tmp_val = (DTYPE)(INITIAL_VALUE);                                                          \
     for (int i = threadIdx.x; i < extend; i += 32) {                                                 \
       tmp_val = cinn_##REDUCE_TYPE(tmp_val, buf[offset + i]);                                        \
     }                                                                                                \
     return cinn_warp_shuffle_##REDUCE_TYPE##_internal(tmp_val);                                      \
   }
 
+EXPAND_REDUCE_INT32_MARCO(CINN_WARP_REDUCE_IMPL)
+EXPAND_REDUCE_INT64_MARCO(CINN_WARP_REDUCE_IMPL)
 EXPAND_REDUCE_FP32_MACRO(CINN_WARP_REDUCE_IMPL)
-EXPAND_REDUCE_BOOL_MACRO(CINN_WARP_REDUCE_IMPL)
 EXPAND_REDUCE_FP64_MACRO(CINN_WARP_REDUCE_IMPL)
+EXPAND_REDUCE_BOOL_MACRO(CINN_WARP_REDUCE_IMPL)
 
 #ifdef CINN_CUDA_FP16
 EXPAND_REDUCE_FP16_MACRO(CINN_WARP_REDUCE_IMPL)
@@ -332,12 +358,14 @@ __device__ inline float cinn_warp_reduce_avg_fp32(const float *buf, int offset, 
 
 #define CINN_BLOCK_REDUCE_INTERNAL_MACRO(REDUCE_TYPE, INITIAL_VALUE, DTYPE)                                          \
   __device__ inline DTYPE cinn_block_reduce_##REDUCE_TYPE##_internal(const DTYPE value) {                            \
-    CINN_BLOCK_REDUCE_INTERNAL_IMPL(DTYPE, value, DTYPE(INITIAL_VALUE), cinn_warp_shuffle_##REDUCE_TYPE##_internal); \
+    CINN_BLOCK_REDUCE_INTERNAL_IMPL(DTYPE, value, (DTYPE)(INITIAL_VALUE), cinn_warp_shuffle_##REDUCE_TYPE##_internal); \
   }
 
+EXPAND_REDUCE_INT32_MARCO(CINN_BLOCK_REDUCE_INTERNAL_MACRO)
+EXPAND_REDUCE_INT64_MARCO(CINN_BLOCK_REDUCE_INTERNAL_MACRO)
 EXPAND_REDUCE_FP32_MACRO(CINN_BLOCK_REDUCE_INTERNAL_MACRO)
-EXPAND_REDUCE_BOOL_MACRO(CINN_BLOCK_REDUCE_INTERNAL_MACRO)
 EXPAND_REDUCE_FP64_MACRO(CINN_BLOCK_REDUCE_INTERNAL_MACRO)
+EXPAND_REDUCE_BOOL_MACRO(CINN_BLOCK_REDUCE_INTERNAL_MACRO)
 
 #ifdef CINN_CUDA_FP16
 EXPAND_REDUCE_FP16_MACRO(CINN_BLOCK_REDUCE_INTERNAL_MACRO)
@@ -348,16 +376,18 @@ EXPAND_REDUCE_FP16_MACRO(CINN_BLOCK_REDUCE_INTERNAL_MACRO)
 
 #define CINN_BLOCK_REDUCE_IMPL(REDUCE_TYPE, INITIAL_VALUE, DTYPE)                                     \
   __device__ inline DTYPE cinn_block_reduce_##REDUCE_TYPE(const DTYPE *buf, int offset, int extend) { \
-    DTYPE tmp_val = DTYPE(INITIAL_VALUE);                                                             \
+    DTYPE tmp_val = (DTYPE)(INITIAL_VALUE);                                                           \
     for (int i = threadIdx.x; i < extend; i += blockDim.x) {                                          \
       tmp_val = cinn_##REDUCE_TYPE(tmp_val, buf[offset + i]);                                         \
     }                                                                                                 \
     return cinn_block_reduce_##REDUCE_TYPE##_internal(tmp_val);                                       \
   }
 
+EXPAND_REDUCE_INT32_MARCO(CINN_BLOCK_REDUCE_IMPL)
+EXPAND_REDUCE_INT64_MARCO(CINN_BLOCK_REDUCE_IMPL)
 EXPAND_REDUCE_FP32_MACRO(CINN_BLOCK_REDUCE_IMPL)
-EXPAND_REDUCE_BOOL_MACRO(CINN_BLOCK_REDUCE_IMPL)
 EXPAND_REDUCE_FP64_MACRO(CINN_BLOCK_REDUCE_IMPL)
+EXPAND_REDUCE_BOOL_MACRO(CINN_BLOCK_REDUCE_IMPL)
 
 #ifdef CINN_CUDA_FP16
 EXPAND_REDUCE_FP16_MACRO(CINN_BLOCK_REDUCE_IMPL)
@@ -367,16 +397,18 @@ EXPAND_REDUCE_FP16_MACRO(CINN_BLOCK_REDUCE_IMPL)
 
 #define BLOCK_SHUFFLE_IMPL(REDUCE_TYPE, INITIAL_VALUE, DTYPE)                                   \
   __device__ inline DTYPE block_shuffle_##REDUCE_TYPE(const DTYPE *buf, int line, int stride) { \
-    DTYPE val = DTYPE(INITIAL_VALUE);                                                           \
+    DTYPE val = (DTYPE)(INITIAL_VALUE);                                                         \
     for (int idx = threadIdx.x; idx < line; idx += stride) {                                    \
       val = cinn_##REDUCE_TYPE(val, buf[idx]);                                                  \
     }                                                                                           \
     return val;                                                                                 \
   }
 
+EXPAND_REDUCE_INT32_MARCO(BLOCK_SHUFFLE_IMPL)
+EXPAND_REDUCE_INT64_MARCO(BLOCK_SHUFFLE_IMPL)
 EXPAND_REDUCE_FP32_MACRO(BLOCK_SHUFFLE_IMPL)
-EXPAND_REDUCE_BOOL_MACRO(BLOCK_SHUFFLE_IMPL)
 EXPAND_REDUCE_FP64_MACRO(BLOCK_SHUFFLE_IMPL)
+EXPAND_REDUCE_BOOL_MACRO(BLOCK_SHUFFLE_IMPL)
 
 #ifdef CINN_CUDA_FP16
 EXPAND_REDUCE_FP16_MACRO(BLOCK_SHUFFLE_IMPL)
@@ -384,9 +416,11 @@ EXPAND_REDUCE_FP16_MACRO(BLOCK_SHUFFLE_IMPL)
 
 #undef BLOCK_SHUFFLE_IMPL
 
+#undef EXPAND_REDUCE_INT32_MARCO
+#undef EXPAND_REDUCE_INT64_MARCO
 #undef EXPAND_REDUCE_FP32_MACRO
-#undef EXPAND_REDUCE_BOOL_MACRO
 #undef EXPAND_REDUCE_FP64_MACRO
+#undef EXPAND_REDUCE_BOOL_MACRO
 
 #ifdef CINN_CUDA_FP16
 #undef EXPAND_REDUCE_FP16_MACRO

@@ -21,6 +21,7 @@
 #include <utility>
 
 #include "cinn/frontend/op_mappers/use_op_mappers.h"
+#include "cinn/frontend/paddle/cpp/op_desc.h"
 #include "cinn/frontend/paddle/cpp/program_desc.h"
 #include "cinn/frontend/paddle/model_parser.h"
 #include "cinn/frontend/var_type_utils.h"
@@ -28,6 +29,26 @@
 
 namespace cinn {
 namespace frontend {
+
+using cinn::utils::Attribute;
+
+PaddleModelConvertor::PaddleModelConvertor() : PaddleModelConvertor(common::DefaultTarget(), nullptr, nullptr) {}
+
+PaddleModelConvertor::PaddleModelConvertor(const common::Target& target,
+                                           std::shared_ptr<NetBuilder> builder,
+                                           std::shared_ptr<hlir::framework::Scope> scope)
+    : target_(target), builder_(builder), scope_(scope) {
+  if (!builder_) {
+    // do not need scope
+    builder_ = std::make_shared<NetBuilder>(cinn::UniqName("PaddleModelConvertor"));
+  }
+  if (!scope_) {
+    // do not need scope
+    scope_ = hlir::framework::Scope::Create();
+  }
+  ctx_ = std::make_unique<OpMapperContext>(
+      *scope_, target_, builder_.get(), &var_map_, &var_model_to_program_map_, &fetch_var_names_);
+}
 
 void PaddleModelConvertor::PrepareRun(const paddle::cpp::BlockDesc& block_desc, OpMapperContext* ctx) {
   std::unordered_map<std::string, const paddle::cpp::VarDesc*> var_desc_map;
@@ -57,50 +78,106 @@ void PaddleModelConvertor::RunOp(const paddle::cpp::OpDesc& op_desc, const OpMap
   kernel->Run(op_desc, ctx);
 }
 
-std::unordered_map<std::string, Variable> PaddleModelConvertor::GetFetchList() const {
+std::unordered_map<std::string, Variable> PaddleModelConvertor::GetFetchList(
+    const std::unordered_set<std::string>& fetch_name_list) const {
   // the return map's key is paddle variable name, the value is the cinn fetch variable
+  const std::unordered_set<std::string>* var_name_list = &fetch_name_list;
+  if (fetch_name_list.empty()) {
+    // if paddle var list is empty, fetch the program's fetch var instead
+    CHECK(!fetch_var_names_.empty()) << "Should not fetch empty variable in CINN.";
+    var_name_list = &fetch_var_names_;
+  }
+
   std::unordered_map<std::string, Variable> fetch_list;
-  fetch_list.reserve(fetch_var_names_.size());
-  for (const auto& pd_name : fetch_var_names_) {
+  fetch_list.reserve(var_name_list->size());
+  for (const auto& pd_name : *var_name_list) {
     CHECK(var_map_.count(pd_name)) << "Cannot find cinn variable [" << pd_name << "] in var_map_";
     fetch_list[pd_name] = var_map_.at(pd_name);
   }
   return fetch_list;
 }
 
-Program PaddleModelConvertor::operator()(const common::Target& target,
-                                         const std::string& model_dir,
-                                         bool is_combined,
-                                         std::shared_ptr<hlir::framework::Scope> scope) {
-  if (!scope) {
-    // do not need scope
-    scope = hlir::framework::Scope::Create();
-  }
-
+Program PaddleModelConvertor::LoadModel(const std::string& model_dir, bool is_combined) {
   paddle::cpp::ProgramDesc program_desc;
-  paddle::LoadModelPb(model_dir, "__model__", "", scope.get(), &program_desc, is_combined, false, target);
+  paddle::LoadModelPb(model_dir, "__model__", "", scope_.get(), &program_desc, is_combined, false, target_);
   CHECK_EQ(program_desc.BlocksSize(), 1) << "CINN can only support the model with a single block";
   auto* block_desc = program_desc.GetBlock<paddle::cpp::BlockDesc>(0);
 
-  // unique builder name like program_1_of_12
-  std::string builder_name = "program_";
-  if (program_desc.HasVersion()) {
-    builder_name.append(std::to_string(program_desc.Version()));
-  }
-  builder_name.append("_of_");
-  static uint64_t unique_invoke_number = 0;
-  builder_name.append(std::to_string(unique_invoke_number++));
-  VLOG(4) << "NetBuilder Name " << builder_name;
-
-  NetBuilder builder(builder_name);
-  OpMapperContext ctx(*scope, target, &builder, &var_map_, &var_model_to_program_map_, &fetch_var_names_);
+  OpMapperContext ctx(*scope_, target_, builder_.get(), &var_map_, &var_model_to_program_map_, &fetch_var_names_);
 
   PrepareRun(*block_desc, &ctx);
   for (int i = 0; i < block_desc->OpsSize(); i++) {
     auto* op_desc = block_desc->GetOp<paddle::cpp::OpDesc>(i);
     RunOp(*op_desc, ctx);
   }
-  return builder.Build();
+  return builder_->Build();
+}
+
+void SetOpDescAttr(const std::string& attr_name, const Attribute& attr_value, paddle::cpp::OpDesc* op_desc) {
+  class Visitor {
+   public:
+    Visitor(paddle::cpp::OpDesc* op_desc, const std::string& attr_name) : op_desc_(op_desc), attr_name_(attr_name) {}
+
+#define VISITOR_EXPAND(TYPE) \
+  void operator()(const TYPE& v) { op_desc_->SetAttr(attr_name_, v); }
+
+    VISITOR_EXPAND(bool)
+    VISITOR_EXPAND(float)
+    VISITOR_EXPAND(int)
+    VISITOR_EXPAND(std::string)
+    VISITOR_EXPAND(std::vector<bool>)
+    VISITOR_EXPAND(std::vector<int>)
+    VISITOR_EXPAND(std::vector<float>)
+    VISITOR_EXPAND(std::vector<std::string>)
+    VISITOR_EXPAND(int64_t)
+    VISITOR_EXPAND(double)
+    VISITOR_EXPAND(std::vector<int64_t>)
+    VISITOR_EXPAND(std::vector<double>)
+#undef VISITOR_EXPAND
+
+   private:
+    paddle::cpp::OpDesc* op_desc_;
+    const std::string& attr_name_;
+  };
+  absl::visit(Visitor{op_desc, attr_name}, attr_value);
+}
+
+void PaddleModelConvertor::RunOp(const std::string& op_type,
+                                 const std::map<std::string, std::vector<std::string>>& inputs,
+                                 const std::map<std::string, std::vector<std::string>>& outputs,
+                                 const std::map<std::string, Attribute>& attrs,
+                                 const OpMapperContext& ctx) {
+  paddle::cpp::OpDesc op_desc;
+  op_desc.SetType(op_type);
+  for (const auto& in_pair : inputs) {
+    op_desc.SetInput(in_pair.first, in_pair.second);
+  }
+  for (const auto& out_pair : outputs) {
+    op_desc.SetOutput(out_pair.first, out_pair.second);
+  }
+  for (const auto& attr_pair : attrs) {
+    SetOpDescAttr(attr_pair.first, attr_pair.second, &op_desc);
+  }
+
+  RunOp(op_desc, ctx);
+}
+
+void PaddleModelConvertor::RunOp(const std::string& op_type,
+                                 const std::map<std::string, std::vector<std::string>>& inputs,
+                                 const std::map<std::string, std::vector<std::string>>& outputs,
+                                 const std::map<std::string, Attribute>& attrs) {
+  RunOp(op_type, inputs, outputs, attrs, *ctx_);
+}
+
+Program PaddleModelConvertor::operator()() { return builder_->Build(); }
+
+void PaddleModelConvertor::CreateInput(const std::string& dtype,
+                                       const cinn::utils::ShapeType& shape,
+                                       const std::string& name) {
+  OpMapperContext::FeedInfo feed_info = {shape, common::Str2Type(dtype)};
+
+  ctx_->AddFeedInfo(name, feed_info);
+  RunOp("feed", {}, {{"Out", {name}}}, {});
 }
 
 }  // namespace frontend

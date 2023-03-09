@@ -19,9 +19,14 @@
 #include <memory.h>
 #include <stdlib.h>
 
+#include "cinn/auto_schedule/analysis/analyze_ir.h"
 #include "cinn/backends/codegen_cuda_dev.h"
 #include "cinn/cinn.h"
+#include "cinn/frontend/optimize.h"
 #include "cinn/hlir/framework/instruction.h"
+#include "cinn/hlir/framework/op.h"
+#include "cinn/hlir/framework/op_lowering.h"
+#include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/framework/tensor.h"
 #include "cinn/optim/transform_gpu_forloop.h"
 #ifdef CINN_WITH_CUDA
@@ -36,24 +41,19 @@ using ::cinn::hlir::framework::Scope;
 using ::cinn::hlir::framework::Shape;
 using ::cinn::hlir::framework::Tensor;
 
-ir::IRSchedule TestAutoGenRuleBase::Initialize(const std::string& func_name,
-                                               const std::vector<std::vector<int>>& input_shapes,
-                                               const std::vector<std::vector<int>>& output_shapes) {
-  func_name_     = func_name;
-  input_shapes_  = input_shapes;
-  output_shapes_ = output_shapes;
-#ifdef CINN_WITH_CUDA
-  target_ = common::DefaultNVGPUTarget();
-#else
-  target_ = common::DefaultHostTarget();
-#endif
-  backend_compier_ = backends::Compiler::Create(target_);
+ir::IRSchedule TestAutoGenRuleBase::InitSchedule(const frontend::Program& test_program, const common::Target& target) {
+  Context::Global().ResetNameId();
+  target_          = target;
+  backend_compier_ = backends::Compiler::Create(target);
 
-  lowered_funcs_ = GenLoweredFuncs();
-  CHECK_GE(tensor_args_.size(), output_shapes.size())
-      << "size of tensor_args_ should be as least equal to the number of output variables";
-  CHECK_GE(stages_->size(), output_shapes.size())
-      << "size of stages_ should be as least equal the number of output variables";
+  auto graph = std::make_shared<hlir::framework::Graph>(test_program, target);
+  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+  LOG_IF(WARNING, graph->fusion_groups.size() > 1) << "Test Graph has more than 1 group";
+  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, common::Type>>("inferdtype");
+  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, hlir::framework::shape_t>>("infershape");
+  hlir::framework::OpLowerer op_lowerer(dtype_dict, shape_dict, target);
+
+  lowered_funcs_ = op_lowerer.LowerWithoutSchedule(graph->fusion_groups.front());
   CHECK(!lowered_funcs_.empty()) << "lowered_funcs_ is empty";
 
   std::vector<Expr> bodys;
@@ -63,41 +63,15 @@ ir::IRSchedule TestAutoGenRuleBase::Initialize(const std::string& func_name,
   return ir::IRSchedule(ir::ModuleExpr({std::move(bodys)}));
 }
 
-std::vector<ir::LoweredFunc> TestAutoGenRuleBase::Lower2DMatmul(const int mi, const int ki, const int ni) {
-  ir::Expr M(mi);
-  ir::Expr N(ni);
-  ir::Expr K(ki);
-
-  Placeholder<float> A("A", {M, K});
-  Placeholder<float> B("B", {K, N});
-
-  Var k(K.as_int32(), "reduce_axis_k");
-  ir::Tensor C = Compute(
-      {M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k) * B(k, j), {k}); }, "C");
-
-  this->stages_      = CreateStages({C});
-  this->tensor_args_ = {A, B, C};
-  return lang::LowerVec(func_name_, this->stages_, {A, B, C}, {}, {}, nullptr, this->target_, true);
-}
-
-ir::Module TestAutoGenRuleBase::BuildIRModule(const std::vector<ir::Expr>& updated_bodys) {
+ir::Module TestAutoGenRuleBase::BuildIRModule(const ir::IRSchedule& schedule) {
+  auto&& updated_bodys = schedule.GetModule().GetExprs();
   CHECK_EQ(lowered_funcs_.size(), updated_bodys.size()) << "associated exprs size not equal";
 
   ir::Module::Builder builder("test_bulder", this->target_);
   for (int i = 0; i < lowered_funcs_.size(); ++i) {
     ir::Expr func_body              = updated_bodys.at(i);
     const ir::LoweredFunc& ori_func = lowered_funcs_.at(i);
-
-    auto temp_buffers = lang::GetTempBuffers(this->tensor_args_, this->stages_, func_body);
-    auto new_func     = ir::_LoweredFunc_::Make(ori_func->name, ori_func->args, func_body, temp_buffers);
-
-#ifdef CINN_WITH_CUDA
-    optim::OptimizeExprGPU(&func_body);
-    new_func->PrepareCudaAxisInfoFromBody();
-#endif
-    new_func = optim::Optimize(Expr(new_func), this->target_, false).as_lowered_func_ref();
-    new_func->PrepareBufferCastExprs(/*with_expr_gen_tensor = */ false);
-
+    auto&& new_func                 = UpdateFuncWithNewBody(target_, ori_func, func_body);
     builder.AddFunction(new_func);
   }
 
@@ -105,13 +79,26 @@ ir::Module TestAutoGenRuleBase::BuildIRModule(const std::vector<ir::Expr>& updat
 }
 
 std::string TestAutoGenRuleBase::GenSourceCode(const ir::Module& ir_module) {
+  std::unique_ptr<backends::CodeGenC> codegen;
 #ifdef CINN_WITH_CUDA
-  backends::CodeGenCUDA_Dev codegen(this->target_);
+  if (target_ == common::DefaultNVGPUTarget()) {
+    codegen = std::make_unique<backends::CodeGenCUDA_Dev>(this->target_);
+  } else {
+    codegen = std::make_unique<backends::CodeGenCX86>(this->target_, CodeGenCX86::Feature::AVX512);
+  }
 #else
-  backends::CodeGenCX86 codegen(this->target_, CodeGenCX86::Feature::AVX512);
+  codegen      = std::make_unique<backends::CodeGenCX86>(this->target_, CodeGenCX86::Feature::AVX512);
 #endif
-  codegen.SetInlineBuiltinCodes(false);
-  return codegen.Compile(ir_module, CodeGenC::OutputKind::CImpl);
+  codegen->SetInlineBuiltinCodes(false);
+  return codegen->Compile(ir_module, CodeGenC::OutputKind::CImpl);
+}
+
+test_func_type TestAutoGenRuleBase::GenExecutableKernel(const ir::Module& ir_module) {
+  auto&& func_name = lowered_funcs_.front()->name;
+  // Compile to machine code
+  backend_compier_->Build(ir_module);
+  auto test_func_ptr = reinterpret_cast<void (*)(void**, int32_t)>(backend_compier_->Lookup(func_name));
+  return test_func_ptr;
 }
 
 void naive_matmul(const float* A, const float* B, float* C, int M, int N, int K) {
@@ -182,12 +169,6 @@ void AddDataToScope(
 #endif
   MemoryCopy(data_ptr, tgt_data_ptr, cinn_shape.numel(), mem_cpy_type);
 }
-
-using expected_func_type = void (*)(const std::vector<float*>&,
-                                    const std::vector<float*>&,
-                                    const std::vector<std::vector<int>>&,
-                                    const std::vector<std::vector<int>>&);
-using test_func_type     = void (*)(void**, int32_t);
 
 void CheckResult(test_func_type test_func,
                  expected_func_type expected_func,
