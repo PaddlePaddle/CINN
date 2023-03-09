@@ -14,28 +14,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
 import unittest
 import numpy as np
-from op_mapper_test import OpMapperTest
+from op_mapper_test import OpMapperTest, logger
 import paddle
-from cinn.frontend import *
-from cinn.common import *
-
-paddle.enable_static()
-
-enable_gpu = sys.argv.pop()
 
 
 class TestRollOp(OpMapperTest):
-    def setUp(self):
-        if enable_gpu == "ON":
-            self.target = DefaultNVGPUTarget()
-            self.place = paddle.CUDAPlace(0)
-        else:
-            self.target = DefaultHostTarget()
-            self.place = paddle.CPUPlace()
-
     def init_input_data(self):
         self.feed_data = {
             'x': np.array([1, 2, 3], dtype='float32'),
@@ -43,15 +28,21 @@ class TestRollOp(OpMapperTest):
         self.axis = None
         self.shifts = 1
 
-    def set_paddle_program(self):
+    def set_op_type(self):
+        return "roll"
+
+    def set_op_inputs(self):
         x = paddle.static.data(
             name='x',
             shape=self.feed_data['x'].shape,
             dtype=self.feed_data['x'].dtype)
+        return {'X': [x]}
 
-        out = paddle.roll(x, self.shifts, self.axis)
+    def set_op_attrs(self):
+        return {"shifts": self.shifts, "axis": self.axis}
 
-        return ([x.name], [out])
+    def set_op_outputs(self):
+        return {'Out': [str(self.feed_data['x'].dtype)]}
 
     def test_check_results(self):
         self.check_outputs_and_grads(all_equal=True)
