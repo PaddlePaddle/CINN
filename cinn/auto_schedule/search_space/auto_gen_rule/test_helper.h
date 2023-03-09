@@ -34,7 +34,7 @@ namespace auto_schedule {
  * @params-2: The number of Arguments.
  * @return: void
  */
-using test_func_type = void (*)(void**, int32_t);
+using raw_func_type = void (*)(void**, int32_t);
 
 // A base utility class for testing AutoGenRule
 class TestAutoGenRuleBase : public ::testing::Test {
@@ -43,9 +43,11 @@ class TestAutoGenRuleBase : public ::testing::Test {
     srand(0);
     Context::Global().ResetNameId();
   }
+  // Initialize context for specified target
+  void Initialize(const common::Target& target);
 
-  // Initialize a ir::IRSchedule by lowering the specified for following AutoGenRule test
-  ir::IRSchedule InitSchedule(const frontend::Program& test_program, const common::Target& target);
+  // construct an ir::IRSchedule by lowering the specified for following AutoGenRule test
+  ir::IRSchedule MakeIRSchedule(const frontend::Program& test_program, bool apply_manual_schedule = false);
 
   // build ir::Module from the original lowered funcs with their bodys updated by the schedule
   ir::Module BuildIRModule(const ir::IRSchedule& schedule);
@@ -54,45 +56,13 @@ class TestAutoGenRuleBase : public ::testing::Test {
   std::string GenSourceCode(const ir::Module& ir_module);
 
   // generate executable kernel function with the built ir module
-  test_func_type GenExecutableKernel(const ir::Module& ir_module);
+  raw_func_type GenExecutableKernel(const ir::Module& ir_module);
 
  protected:
   common::Target target_;
   std::vector<ir::LoweredFunc> lowered_funcs_;
   std::unique_ptr<backends::Compiler> backend_compier_;
 };
-
-/* @brief: naive element-wise add on CPU as the base result required by the CheckResult interface.
- * params' definition can refer to the expected_func_type function prototype
- */
-void expected_func_add(const std::vector<float*>& inputs,
-                       const std::vector<float*>& outputs,
-                       const std::vector<std::vector<int>>& input_shapes,
-                       const std::vector<std::vector<int>>& output_shapes);
-
-/* @brief: Packaging the naive matmul as a unified format required by the CheckResult interface.
- * @params-1: Pointers to the memory of input data, each input corresponds to a pointer.
- * @params-2: Pointers to the memory of output data, each output corresponds to a pointer.
- * @params-3: Shapes of the input data, each input corresponds to a std::vector<int>.
- * @params-4: Shapes of the output data, each output corresponds to a std::vector<int>.
- * @return: void
- */
-void expected_func_matmul(const std::vector<float*>& inputs,
-                          const std::vector<float*>& outputs,
-                          const std::vector<std::vector<int>>& input_shapes,
-                          const std::vector<std::vector<int>>& output_shapes);
-
-/* @brief: Unified signature format as the expected function for comparison.
- * @params-1: Pointers to the memory of input data, each input corresponds to a pointer.
- * @params-2: Pointers to the memory of output data, each output corresponds to a pointer.
- * @params-3: Shapes of the input data, each input corresponds to a std::vector<int>.
- * @params-4: Shapes of the output data, each output corresponds to a std::vector<int>.
- * @return: void
- */
-using expected_func_type = void (*)(const std::vector<float*>&,
-                                    const std::vector<float*>&,
-                                    const std::vector<std::vector<int>>&,
-                                    const std::vector<std::vector<int>>&);
 
 /* @brief: Interface for checking function correctness.
  * @params-1: Function pointer of the function to be tested.
@@ -104,8 +74,8 @@ using expected_func_type = void (*)(const std::vector<float*>&,
  * @params-7: The Target expressing computing platform and architecture of the function to be tested.
  * @return: void
  */
-void CheckResult(test_func_type test_func,
-                 expected_func_type expected_func,
+void CheckResult(raw_func_type test_func,
+                 raw_func_type expected_func,
                  const std::vector<std::string>& input_names,
                  const std::vector<std::string>& output_names,
                  const std::vector<std::vector<int>>& input_shapes,
