@@ -1,0 +1,67 @@
+// Copyright (c) 2022 CINN Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include <iostream>
+
+#include "cinn/frontend/op_mapper_registry.h"
+#include "cinn/frontend/op_mappers/common_utils.h"
+
+namespace cinn {
+namespace frontend {
+namespace paddle_mappers {
+
+void ArgMaxOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+  CHECK_EQ(op_desc.Input("X").size(), 1UL);
+  auto x_name = op_desc.Input("X").front();
+
+  CHECK_EQ(op_desc.Output("Out").size(), 1UL);
+  auto out_name = op_desc.Output("Out").front();
+
+  auto x        = ctx.GetVar(x_name);
+  auto axis     = op_desc.GetAttr<int64_t>("axis");
+  auto keepdims = op_desc.GetAttr<bool>("keepdims");
+  auto flatten  = op_desc.GetAttr<bool>("flatten");
+  auto dtype    = op_desc.GetAttr<int>("dtype");
+
+  int ndim = x->shape.size();
+  // If flatten = true, flatten x and do argmax on axis 0.
+  if (flatten) {
+    x    = ctx.Builder()->Reshape(x, {-1});
+    axis = 0;
+    ndim = x->shape.size();
+  }
+  CHECK(-ndim <= axis && axis < ndim) << "Axis expected to be in range of [" << -ndim << "," << ndim << "]. But got "
+                                      << axis << ".";
+  if (axis < 0) {
+    axis = ndim + axis;
+  }
+
+  auto out = ctx.Builder()->Argmax(x, axis, keepdims);
+  // auto dtype_str = "int64";
+  // if (dtype == 2) dtype_str = "int32";
+  std::cout << "dtype:" << dtype << std::endl;
+  out = ctx.Builder()->Cast(out, "float32");
+
+  ctx.AddVar(out_name, out);
+  ctx.AddVarModelToProgram(out_name, out->id);
+}
+
+}  // namespace paddle_mappers
+}  // namespace frontend
+}  // namespace cinn
+
+CINN_REGISTER_HELPER(paddle_argmax) {
+  CINN_REGISTER_OP_MAPPER(argmax, cinn::frontend::paddle_mappers::ArgMaxOpMapper)
+  return true;
+}
