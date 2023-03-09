@@ -57,7 +57,7 @@ class TestRollOp(OpMapperTest):
         self.check_outputs_and_grads(all_equal=True)
 
 
-class TestRollCase1(TestTileOp):
+class TestRollCase1(TestRollOp):
     def init_input_data(self):
         self.feed_data = {
             'x': self.random([2, 3, 4], 'float32'),
@@ -66,7 +66,7 @@ class TestRollCase1(TestTileOp):
         self.shifts = 2
 
 
-class TestRollCase2(TestTileOp):
+class TestRollCase2(TestRollOp):
     def init_input_data(self):
         self.feed_data = {
             'x': self.random([2, 10, 5], 'float32'),
@@ -75,7 +75,7 @@ class TestRollCase2(TestTileOp):
         self.shifts = [3]
 
 
-class TestRollCase3(TestTileOp):
+class TestRollCase3(TestRollOp):
     def init_input_data(self):
         self.feed_data = {
             'x': self.random([2, 4, 15], 'float32'),
@@ -84,7 +84,7 @@ class TestRollCase3(TestTileOp):
         self.shifts = [3, 4, 10]
 
 
-class TestRollCase4(TestTileOp):
+class TestRollCase4(TestRollOp):
     def init_input_data(self):
         self.feed_data = {
             'x': self.random([12, 14], 'float32'),
@@ -93,7 +93,7 @@ class TestRollCase4(TestTileOp):
         self.shifts = [3, -8]
 
 
-class TestRollCase5(TestTileOp):
+class TestRollCase5(TestRollOp):
     def init_input_data(self):
         self.feed_data = {
             'x': self.random([120], 'float32'),
