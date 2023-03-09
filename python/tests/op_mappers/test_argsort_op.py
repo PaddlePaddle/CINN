@@ -24,13 +24,9 @@ class TestArgSortOp(OpMapperTest):
     def init_input_data(self):
         self.feed_data = {
             'x': self.random([3, 4], "float32"),
-            #'x': np.array([[5,8,9,5],
-            #               [0,0,1,7],
-            #               [6,9,2,4]]).astype('float32')
         }
         print("x = ", self.feed_data)
         self.axis = 1
-
 
     def set_op_type(self):
         return "argsort"
@@ -46,8 +42,7 @@ class TestArgSortOp(OpMapperTest):
         return {'axis': self.axis}
 
     def set_op_outputs(self):
-        return {'Out': ['int64'],
-                'Indices': ['int64']}
+        return {'Out': ['int64'], 'Indices': ['int64']}
 
     def skip_check_outputs(self):
         #'Out' is never used in Paddle API
