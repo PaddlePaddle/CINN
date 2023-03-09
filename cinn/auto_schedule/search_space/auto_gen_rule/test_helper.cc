@@ -101,24 +101,6 @@ test_func_type TestAutoGenRuleBase::GenExecutableKernel(const ir::Module& ir_mod
   return test_func_ptr;
 }
 
-void expected_func_add(const std::vector<float*>& inputs,
-                       const std::vector<float*>& outputs,
-                       const std::vector<std::vector<int>>& input_shapes,
-                       const std::vector<std::vector<int>>& output_shapes) {
-  CHECK_EQ(inputs.size(), 2) << "The number of inputs for matmul must be 2.";
-  CHECK_EQ(input_shapes[0].size(), input_shapes[1].size()) << "The dimension of inputs must be equal";
-  int M    = input_shapes[0][0];
-  int N    = input_shapes[0][1];
-  float* A = inputs[0];
-  float* B = inputs[1];
-  float* C = outputs[0];
-  for (int i = 0; i < M; ++i) {
-    for (int j = 0; j < N; ++j) {
-      C[i * N + j] = A[i * N + j] + B[i * N + j];
-    }
-  }
-}
-
 void naive_matmul(const float* A, const float* B, float* C, int M, int N, int K) {
   for (int i = 0; i < M; ++i) {
     for (int j = 0; j < N; ++j) {

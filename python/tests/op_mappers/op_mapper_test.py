@@ -98,6 +98,15 @@ class OpMapperTest(OpTest):
         """
         raise Exception("Not implemented.")
 
+    def skip_check_outputs(self) -> list:
+        """Skip check some output because some paddle's op outputs are useless, CINN will not support these.
+        ```
+        # skip check the result of output 'Out'
+        return {'Out'}
+        ```
+        """
+        return list()
+
     def __set_paddle_op(self):
         # paddle C++ op type
         self.op_type = self.set_op_type()
@@ -107,6 +116,8 @@ class OpMapperTest(OpTest):
         self.attrs = self.set_op_attrs()
         # map from output param name to output data type
         self.output_dtypes = self.set_op_outputs()
+        # list of outputs which will be skip
+        self.skip_outputs = self.skip_check_outputs()
         # collect some important infomation
         self.input_arg_map = self.__get_arguments_map(self.inputs)
         self.fetch_targets = list()
@@ -195,7 +206,9 @@ class OpMapperTest(OpTest):
                 self.outputs[var_name] = list()
                 for dtype in dtypes:
                     out_var = helper.create_variable_for_type_inference(dtype)
-                    self.fetch_targets.append(out_var)
+                    if var_name not in self.skip_outputs:
+                        # skip obtain the result in skip_outputs
+                        self.fetch_targets.append(out_var)
                     self.outputs[var_name].append(out_var)
 
             self.op_desc = helper.append_op(
