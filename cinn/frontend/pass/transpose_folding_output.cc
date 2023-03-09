@@ -59,6 +59,7 @@ class TransposeFoldingOutputPass : public TransposeFoldingBase {
         return;
       }
 
+      bool shape_has_changed = false;
       for (int i = fold_instrs.size() - 1; i >= 0; --i) {
         auto instr      = fold_instrs[i];
         auto prev_instr = (i == 0) ? dot : fold_instrs[i - 1];
@@ -67,6 +68,9 @@ class TransposeFoldingOutputPass : public TransposeFoldingBase {
           // As for cublas_matmul, we can continue to set the `trans_out` attr.
           bool trans_out = (*dot)->attrs.count("trans_out") ? absl::get<bool>((*dot)->attrs.at("trans_out")) : false;
           dot->SetAttr("trans_out", static_cast<bool>(trans_out ^ true));
+
+          // shape has changed, the ignore op should update shape
+          shape_has_changed = true;
         } else if (IsValidScale(*instr)) {
           // assume C = alpha * A * B + beta * C
           // fold scale into alpha/beta
@@ -77,9 +81,14 @@ class TransposeFoldingOutputPass : public TransposeFoldingBase {
 
           dot->SetAttr("alpha", alpha * scale);
           dot->SetAttr("beta", beta * scale);
+        } else if (CanSkip(*instr)) {
+          if (shape_has_changed) {
+            // the transpose op may change the shape, need update
+            (*instr)->inputs[0]->shape = (*instr)->outputs[0]->shape;
+          }
+          continue;
         } else {
-          (*instr)->inputs[0]->shape = (*instr)->outputs[0]->shape;
-          (*instr)->inputs[0]->type  = (*instr)->outputs[0]->type;
+          // invlid folding op, skip
           continue;
         }
 
