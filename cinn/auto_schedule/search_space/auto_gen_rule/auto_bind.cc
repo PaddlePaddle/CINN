@@ -25,11 +25,11 @@ namespace cinn {
 namespace auto_schedule {
 
 static constexpr uint32_t kMaxThreadBlocks = 256;
-
+// check whether the input ir::For is a spatial loop
 bool IsSpatialLoop(const ir::For* for_node) {
   if (for_node->for_type() != ir::ForType::Serial) return false;
-
-  const auto& loop_var      = for_node->loop_var;
+  const auto& loop_var = for_node->loop_var;
+  // collect cases where the loop_var used in one of reduce axis in underneath ScheduleBlock
   auto used_for_reduce_axis = ir::CollectIRNodesWithoutTensor(for_node->body, [&loop_var](const Expr* x) {
     const auto* block_realize = x->As<ir::ScheduleBlockRealize>();
     if (!block_realize) return false;
@@ -51,6 +51,8 @@ bool IsSpatialLoop(const ir::For* for_node) {
         if (!used_exprs.empty()) return true;
       }
     }
+
+    return false;
   });
 
   if (!used_for_reduce_axis.empty()) return false;
@@ -61,24 +63,25 @@ bool IsSpatialLoop(const ir::For* for_node) {
 int CountLoopCanBinded(const ir::For* for_node) {
   int cnt = 0;
   while (for_node) {
-    if (for_node->is_binded()) break;
-    if (!IsSpatialLoop(for_node)) break;
+    if (for_node->is_binded()) break;     // has binded
+    if (!IsSpatialLoop(for_node)) break;  // only spatial loops to be binded
 
     cnt += 1;
 
     CHECK(for_node->body.defined() && for_node->body.As<ir::Block>()) << "Body is not defined";
     const ir::Block* body = for_node->body.As<ir::Block>();
-    for_node              = body->stmts.size() == 1 ? body->stmts[0].As<ir::For>() : nullptr;
+    // terminate when body of this loop has more than one statements or the body is not a ir::For node
+    for_node = body->stmts.size() == 1 ? body->stmts[0].As<ir::For>() : nullptr;
   }
   return cnt;
 }
 
 void BindGPUIndex(ir::IRSchedule* ir_schedule,
-                  ir::Expr& applied_block,
+                  const std::string& block_name,
                   int num_loops_to_bind,
                   int max_blocks_num,
                   int max_threads_num) {
-  auto all_loops = ir_schedule->GetLoops(applied_block);
+  auto all_loops = ir_schedule->GetLoops(block_name);
   CHECK_LE(num_loops_to_bind, all_loops.size()) << "The number of loops to be bind is greater than size of all_loops";
   // check whether it is the case that threadIdx has been binded but blockIdx not,
   // the threadIdx can only be binded in the first loop after num_loops_to_bind loops
@@ -106,8 +109,9 @@ void BindGPUIndex(ir::IRSchedule* ir_schedule,
     auto splits = ir_schedule->Split(fused_loop, {-1, max_blocks_num, max_threads_num});
     CHECK_EQ(splits.size(), 3);
     ir_schedule->Reorder({splits[1], splits[2], splits[0]});
-    ir_schedule->Bind(splits[1], "blockIdx.x");
-    ir_schedule->Bind(splits[2], "threadIdx.x");
+    all_loops = ir_schedule->GetLoops(block_name);
+    ir_schedule->Bind(all_loops[0], "blockIdx.x");
+    ir_schedule->Bind(all_loops[1], "threadIdx.x");
   }
 }
 
@@ -130,7 +134,7 @@ void AutoBind::Apply(int index) {
   auto applied_block = applicable_schedule_blocks_.at(index);
   auto all_loops     = ir_schedule_->GetLoops(applied_block);
   BindGPUIndex(ir_schedule_,
-               applied_block,
+               applied_block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->name,
                CountLoopCanBinded(all_loops[0].As<ir::For>()),
                kMaxThreadBlocks,
                target_->max_num_threads());
@@ -146,10 +150,9 @@ RuleApplyType AutoBind::AnalyseApplyType(SearchState state, const std::string& b
 
 std::vector<SearchState> AutoBind::ApplyOnBlock(SearchState state, const std::string& block_name) {
   SearchState new_state = state.Copy();
-  Expr applied_block    = new_state->ir_schedule.GetBlock(block_name);
-  auto all_loops        = state->ir_schedule.GetLoops(applied_block);
+  auto all_loops        = state->ir_schedule.GetLoops(block_name);
   BindGPUIndex(&new_state->ir_schedule,
-               applied_block,
+               block_name,
                CountLoopCanBinded(all_loops[0].As<ir::For>()),
                kMaxThreadBlocks,
                target_->max_num_threads());

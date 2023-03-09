@@ -28,7 +28,10 @@
 #include "cinn/ir/ir_schedule.h"
 #include "cinn/ir/lowered_func.h"
 #include "cinn/ir/tensor.h"
+#include "cinn/lang/lower.h"
 #include "cinn/optim/ir_copy.h"
+#include "cinn/optim/optimize.h"
+#include "cinn/optim/transform_gpu_forloop.h"
 
 namespace cinn {
 namespace auto_schedule {
@@ -126,6 +129,45 @@ bool NeedsMultiLevelTiling(const ir::ScheduleBlockRealize& sche_block_realize) {
   }
 
   return total_unused_iter_vars >= 1;
+}
+
+ir::LoweredFunc UpdateFuncWithNewBody(const common::Target& target, const ir::LoweredFunc& old_func, ir::Expr& body) {
+  ir::ModuleExpr mod_expr(std::vector<ir::Expr>({body}));
+  ir::IRSchedule ir_sch(mod_expr);
+
+  // temp_bufs may be deleted during auto tuning (such as auto inline),
+  // we have to check from old temp bufs and set them as local buffer.
+  for (const ir::Buffer& buf : old_func->temp_bufs) {
+    const std::string& buf_name              = buf->name;
+    std::vector<ir::Expr> all_block_realizes = ir_sch.GetAllBlocks();
+    for (ir::Expr& e : all_block_realizes) {
+      const ir::ScheduleBlockRealize* sche_block_realize = e.As<ir::ScheduleBlockRealize>();
+      const std::string& sche_name = sche_block_realize->schedule_block.As<ir::ScheduleBlock>()->name;
+      if (buf_name == "_" + sche_name) {
+        VLOG(6) << "Set local buffer for temp buffer " << buf_name;
+        ir_sch.SetBuffer(e, "local", true);
+        break;
+      }
+    }
+  }
+
+  ir::Expr updated_body = ir_sch.GetModule().GetExprs()[0];
+#ifdef CINN_WITH_CUDA
+  optim::OptimizeExprGPU(&updated_body);
+#endif
+
+  // Get new temp bufs by analyzing.
+  std::vector<ir::Buffer> new_temp_bufs = lang::GetTempBuffers(old_func->args, updated_body);
+  ir::LoweredFunc new_func = ir::_LoweredFunc_::Make(old_func->name, old_func->args, updated_body, new_temp_bufs);
+#ifdef CINN_WITH_CUDA
+  if (target == common::DefaultNVGPUTarget()) {
+    new_func->PrepareCudaAxisInfoFromBody();
+  }
+#endif
+  new_func = optim::Optimize(Expr(new_func), target, false).as_lowered_func_ref();
+  new_func->PrepareBufferCastExprs(/*with_expr_gen_tensor = */ false);
+
+  return new_func;
 }
 
 }  // namespace auto_schedule
