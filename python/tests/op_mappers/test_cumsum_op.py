@@ -90,5 +90,23 @@ class TestCumsumCase4(TestCumsumOp):
         }
 
 
+class TestCumsumCase5(TestCumsumOp):
+    """
+    Test case with exclusive = True
+    """
+
+    def set_op_attrs(self):
+        return {"exclusive": True}
+
+
+class TestCumsumCase6(TestCumsumOp):
+    """
+    Test case with reverse = True
+    """
+
+    def set_op_attrs(self):
+        return {"reverse": True}
+
+
 if __name__ == "__main__":
     unittest.main()
