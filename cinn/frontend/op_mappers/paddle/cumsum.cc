@@ -33,7 +33,7 @@ void CumsumOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
   auto exclusive = utils::GetAttrOrDefault<bool>(op_desc, "exclusive", false);
   auto reverse   = utils::GetAttrOrDefault<bool>(op_desc, "reverse", false);
 
-  auto x = input;
+  auto x   = input;
   int ndim = x->shape.size();
   // If flatten = true, flatten x and do cumsum on axis 0.
   if (flatten) {
@@ -82,7 +82,6 @@ void CumsumOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
   if (exclusive) {
     output = ctx.Builder()->Subtract(output, input);
   }
-
   ctx.AddVar(out_name, output);
   ctx.AddVarModelToProgram(out_name, output->id);
 }
