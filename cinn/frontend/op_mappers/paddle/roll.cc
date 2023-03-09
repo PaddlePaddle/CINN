@@ -30,38 +30,34 @@ void RollOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
 
   // attr shifts and axis
   std::vector<int> shifts = op_desc.GetAttr<std::vector<int>>("shifts");
-  std::vector<int> axis = op_desc.GetAttr<std::vector<int>>("axis");
+  std::vector<int> axis   = op_desc.GetAttr<std::vector<int>>("axis");
 
-  auto x = ctx.GetVar(x_name);
-  auto vec_x_dims = std::vector<int>(x->shape);
+  auto x                        = ctx.GetVar(x_name);
+  auto vec_x_dims               = std::vector<int>(x->shape);
   std::vector<int> output_shape = vec_x_dims;
 
   // check axis and shifts
   bool axis_None = false;
   if (axis.size() == 0) {
-    CHECK_EQ(shifts.size(),1)
-      << "shifts.size() should be equal to 1 when axis is None";
+    CHECK_EQ(shifts.size(), 1) << "shifts.size() should be equal to 1 when axis is None";
     axis.push_back(0);
-    axis_None = true;
+    axis_None       = true;
     int reshape_num = 1;
     for (int i = 0; i < vec_x_dims.size(); ++i) {
       reshape_num *= vec_x_dims[i];
     }
     vec_x_dims = std::vector<int>{reshape_num};
-    x = ctx.Builder()->Reshape(x, vec_x_dims);
+    x          = ctx.Builder()->Reshape(x, vec_x_dims);
   } else {
-    CHECK_EQ(shifts.size(), axis.size())
-      << "shifts.size() should be equal to axis.size()";
+    CHECK_EQ(shifts.size(), axis.size()) << "shifts.size() should be equal to axis.size()";
   }
 
   // preprocessing the shifts and axis
   int shifts_size = shifts.size();
   for (int i = 0; i < shifts_size; ++i) {
     int vec_x_dims_size = vec_x_dims.size();
-    CHECK_GE(axis[i], -vec_x_dims_size)
-      << "axis value should be >= " << -vec_x_dims_size;
-    CHECK_LT(axis[i], vec_x_dims_size)
-      << "axis value should be < " << vec_x_dims_size;
+    CHECK_GE(axis[i], -vec_x_dims_size) << "axis value should be >= " << -vec_x_dims_size;
+    CHECK_LT(axis[i], vec_x_dims_size) << "axis value should be < " << vec_x_dims_size;
     if (axis[i] < 0) {
       axis[i] += vec_x_dims_size;
     }
@@ -74,7 +70,7 @@ void RollOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
   auto output = x;
   // use Split + Concat for each shift
   for (int i = 0; i < shifts_size; ++i) {
-    int length = vec_x_dims[axis[i]];
+    int length        = vec_x_dims[axis[i]];
     auto split_output = net_builder_->Split(output, {length - shifts[i]}, axis[i]);
     std::swap(split_output[0], split_output[1]);
     output = net_builder_->Concat(split_output, axis[i]);
