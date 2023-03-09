@@ -113,7 +113,7 @@ class TestArgmaxCase5(TestArgmaxOp):
         self.input_dtype = "uint8"
 
 
-class TestArgmaxCase5(TestArgmaxOp):
+class TestArgmaxCase6(TestArgmaxOp):
     """
     Test case with float64 input
     """
