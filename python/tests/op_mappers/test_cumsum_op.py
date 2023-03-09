@@ -72,11 +72,22 @@ class TestCumsumCase3(TestCumsumOp):
 
     def init_input_data(self):
         self.feed_data = {
-            'x': self.random([2, 3, 4], "int32"),
+            'x': self.random([2, 3, 4], "int32", -10, 10),
         }
 
     def set_op_attrs(self):
         return {"axis": 1, "flatten": False}
+
+
+class TestCumsumCase4(TestCumsumOp):
+    """
+    Test case with dtype int64
+    """
+
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([2, 3], "int64", -10, 10),
+        }
 
 
 if __name__ == "__main__":

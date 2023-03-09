@@ -33,16 +33,7 @@ void CumsumOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
   auto exclusive = utils::GetAttrOrDefault<bool>(op_desc, "exclusive", false);
   auto reverse   = utils::GetAttrOrDefault<bool>(op_desc, "reverse", false);
 
-  // Used for output type cast, can be removed when cinn reduce op support other dtype.
-  auto dtype = common::Type2Str(input->type);
-
   auto x = input;
-  // Reduce op in cinn only support fp32 and fp16, while cumsum needs to support fp32, fp64, int32, int64.
-  // When x dtype is not fp32, cast to fp32.
-  // When cinn reduce op support other dtype, we can remove this op.
-  if (!x->type.is_float(32)) {
-    x = ctx.Builder()->Cast(x, "float32");
-  }
   int ndim = x->shape.size();
   // If flatten = true, flatten x and do cumsum on axis 0.
   if (flatten) {
@@ -91,8 +82,6 @@ void CumsumOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
   if (exclusive) {
     output = ctx.Builder()->Subtract(output, input);
   }
-  // Output type cast, can be removed after cinn reduce op support other dtype.
-  output = ctx.Builder()->Cast(output, dtype);
 
   ctx.AddVar(out_name, output);
   ctx.AddVarModelToProgram(out_name, output->id);
