@@ -36,8 +36,9 @@ class TestAddCacheWrite : public TestAutoGenRuleBase {
 };
 
 TEST_F(TestAddCacheWrite, Init) {
+  Initialize(common::DefaultNVGPUTarget());
   // matmul case
-  ir::IRSchedule ir_schedule_matmul = InitSchedule(MatmulOpBuilder({32, 32}, {32, 32})(), common::DefaultNVGPUTarget());
+  ir::IRSchedule ir_schedule_matmul = MakeIRSchedule(MatmulOpBuilder({32, 32}, {32, 32})());
   std::vector<ir::Expr> func_bodys  = ir_schedule_matmul.GetModule().GetExprs();
   ASSERT_EQ(func_bodys.size(), 1UL);
   VLOG(6) << "Original Expr:\n" << func_bodys[0];
@@ -54,7 +55,7 @@ TEST_F(TestAddCacheWrite, Init) {
   VLOG(6) << "Matmul Expr after AddCacheRead: " << func_bodys[0];
 
   // add case
-  ir::IRSchedule ir_schedule_add = InitSchedule(AddOpBuilder({64, 64}, {64, 64})(), common::DefaultNVGPUTarget());
+  ir::IRSchedule ir_schedule_add = MakeIRSchedule(AddOpBuilder({64, 64}, {64, 64})());
   VLOG(6) << "Mat Add Expr before AddCacheRead:\n" << ir_schedule_add.GetModule().GetExprs();
   AddCacheWrite add_cache_write2(target_);
   EXPECT_EQ(add_cache_write2.Init(&ir_schedule_add), RuleApplyType::kCannotApply);
@@ -62,7 +63,8 @@ TEST_F(TestAddCacheWrite, Init) {
 }
 
 TEST_F(TestAddCacheWrite, BasicApplyOnMatmul) {
-  ir::IRSchedule ir_schedule = InitSchedule(MatmulOpBuilder({32, 32}, {32, 32})(), common::DefaultNVGPUTarget());
+  Initialize(common::DefaultNVGPUTarget());
+  ir::IRSchedule ir_schedule = MakeIRSchedule(MatmulOpBuilder({32, 32}, {32, 32})());
   SearchState state(ir_schedule, 0, {});
   std::vector<ir::Expr> func_bodys = ir_schedule.GetModule().GetExprs();
   ASSERT_EQ(func_bodys.size(), 1UL);
@@ -98,7 +100,8 @@ TEST_F(TestAddCacheWrite, BasicApplyOnMatmul) {
   EXPECT_EQ(source_code_applied_on_block, source_code);
   // execute and check precision
   CheckResult(GenExecutableKernel(build_module_applied_on_block),
-              expected_func_matmul,
+              GenExecutableKernel(BuildIRModule(
+                  MakeIRSchedule(MatmulOpBuilder({32, 32}, {32, 32})(), /* apply_manual_schedule*/ true))),
               default_input_names,
               default_output_names,
               {{32, 32}, {32, 32}},
@@ -107,7 +110,8 @@ TEST_F(TestAddCacheWrite, BasicApplyOnMatmul) {
 }
 
 TEST_F(TestAddCacheWrite, ApplyOnMatmulWithTiling) {
-  ir::IRSchedule ir_schedule       = InitSchedule(MatmulOpBuilder({32, 32}, {32, 32})(), common::DefaultNVGPUTarget());
+  Initialize(common::DefaultNVGPUTarget());
+  ir::IRSchedule ir_schedule       = MakeIRSchedule(MatmulOpBuilder({32, 32}, {32, 32})());
   std::vector<ir::Expr> func_bodys = ir_schedule.GetModule().GetExprs();
   ASSERT_EQ(func_bodys.size(), 1UL);
   VLOG(6) << "Original Expr:\n" << func_bodys[0];
@@ -129,14 +133,15 @@ TEST_F(TestAddCacheWrite, ApplyOnMatmulWithTiling) {
   VLOG(6) << "scheduled source code:\n" << source_code;
   // execute and check precision
   CheckResult(GenExecutableKernel(build_module),
-              expected_func_matmul,
+              GenExecutableKernel(BuildIRModule(
+                  MakeIRSchedule(MatmulOpBuilder({32, 32}, {32, 32})(), /* apply_manual_schedule*/ true))),
               default_input_names,
               default_output_names,
               {{32, 32}, {32, 32}},
               {{32, 32}},
               target_);
   // ApplyOnBlock
-  ir_schedule = InitSchedule(MatmulOpBuilder({32, 32}, {32, 32})(), common::DefaultNVGPUTarget());
+  ir_schedule = MakeIRSchedule(MatmulOpBuilder({32, 32}, {32, 32})());
   SearchState state(ir_schedule, 0, {});
   // Apply MultiLevelTiling before AddCacheRead.
   const std::string& applied_block_name = default_output_names.back();
@@ -163,7 +168,8 @@ TEST_F(TestAddCacheWrite, ApplyOnMatmulWithTiling) {
   VLOG(6) << "ApplyOnBlock scheduled source code:\n" << source_code;
   // execute and check precision
   CheckResult(GenExecutableKernel(build_module),
-              expected_func_matmul,
+              GenExecutableKernel(BuildIRModule(
+                  MakeIRSchedule(MatmulOpBuilder({32, 32}, {32, 32})(), /* apply_manual_schedule*/ true))),
               default_input_names,
               default_output_names,
               {{32, 32}, {32, 32}},
