@@ -32,7 +32,11 @@ void ArgMaxOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
   auto axis     = op_desc.GetAttr<int64_t>("axis");
   auto keepdims = op_desc.GetAttr<bool>("keepdims");
   auto flatten  = op_desc.GetAttr<bool>("flatten");
-  auto dtype    = op_desc.GetAttr<int>("dtype");
+  auto dtype_id =
+      utils::GetAttrOrDefault<int>(op_desc, "dtype", static_cast<int>(paddle::cpp::VarDescAPI::Type::INT64));
+  auto dtype_pd   = static_cast<paddle::cpp::VarDescAPI::Type>(dtype_id);
+  auto dtype_cinn = utils::CppVarType2CommonType(dtype_pd);
+  auto dtype      = common::Type2Str(dtype_cinn);
 
   int ndim = x->shape.size();
   // If flatten = true, flatten x and do argmax on axis 0.
@@ -48,10 +52,7 @@ void ArgMaxOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
   }
 
   auto out = ctx.Builder()->Argmax(x, axis, keepdims);
-  // auto dtype_str = "int64";
-  // if (dtype == 2) dtype_str = "int32";
-  std::cout << "dtype:" << dtype << std::endl;
-  out = ctx.Builder()->Cast(out, "float32");
+  out      = ctx.Builder()->Cast(out, dtype);
 
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);
