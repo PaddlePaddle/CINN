@@ -183,8 +183,14 @@ isl::ast_node AstGen::Build() {
   VLOG(4) << "transform schedule " << impl_->stages()[0]->transform();
   VLOG(4) << "schedule: " << schedule;
   VLOG(4) << "schedule_domain: " << schedule_domain;
+
+  // std::cerr << "domain: " << impl_->domain() << std::endl;
+  // std::cerr << "transform schedule " << impl_->stages()[0]->transform() << std::endl;
+  // std::cerr << "schedule: " << schedule << std::endl;
+  // std::cerr << "schedule_domain: " << schedule_domain << std::endl;
   auto ast = ast_build.node_from_schedule_map(schedule_domain);
   VLOG(2) << "AST:\n" << isl_ast_node_to_C_str(ast.get());
+  // std::cerr << "ast \n " << isl_ast_node_to_C_str(ast.get()) << std::endl;
   return ast;
 }
 

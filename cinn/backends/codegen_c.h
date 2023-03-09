@@ -55,7 +55,7 @@ class CodeGenC : public ir::IrPrinter {
   //! Disable inline the builtin codes(too large) for simpler string comparation.
   void SetInlineBuiltinCodes(bool x = true) { inline_builtin_codes_ = x; }
 
- protected:
+ public:
   std::string Compile(const ir::LoweredFunc& function);
   std::string Compile(const ir::Buffer& buffer);
 
@@ -111,7 +111,7 @@ class CodeGenC : public ir::IrPrinter {
 
   friend class ExternFunctionEmitter;
 
- protected:
+ public:
   Target target_;
   std::stringstream ss_;
   bool inline_builtin_codes_{true};

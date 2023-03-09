@@ -814,6 +814,7 @@ std::vector<ir::Tensor> TwoStepBlockReduceInternal(const ir::Tensor& A,
     }
   }
   if (first_axes.size()) {
+    std::cerr << "reduce internal " << std::endl;
     VLOG(3) << "Do Reduce Internal!";
     results.push_back(
         reduce_func(results.size() ? results.back() : A, first_axes, keep_dim_first, output_name + "_internal"));
@@ -821,6 +822,7 @@ std::vector<ir::Tensor> TwoStepBlockReduceInternal(const ir::Tensor& A,
   }
   if (second_axes.size()) {
     VLOG(3) << "Do Block Reduce!";
+    std::cerr << "block reduce" << std::endl;
     auto res = block_reduce_func(results.size() ? results.back() : A, second_axes, keep_dim_second, output_name);
     results.push_back(res[1]);
     results.push_back(res[0]);
@@ -833,6 +835,7 @@ std::vector<ir::Tensor> TwoStepBlockReduceSum(const ir::Tensor& A,
                                               const std::vector<int>& axes,
                                               const bool keep_dim,
                                               const std::string& output_name) {
+  std::cerr << "two step block reduce sum" << std::endl;
   return TwoStepBlockReduceInternal(
       A, axes, keep_dim, output_name, ReduceSum, BlockReduceSumInternal, ir::Zero(A->type()));
 }

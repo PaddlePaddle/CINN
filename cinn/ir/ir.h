@@ -298,8 +298,9 @@ struct Not : public UnaryOpNode<Not> {
 struct Let : public ExprNode<Let> {
   Expr symbol;
   Expr body;
+  bool with_dtype;
 
-  static Expr Make(Expr symbol, Expr body);
+  static Expr Make(Expr symbol, Expr body, bool with_dtype=true);
 
   Type type() const override;
 
@@ -315,6 +316,28 @@ struct Let : public ExprNode<Let> {
     if (!body.defined()) return {&symbol};
     return {&symbol, &body};
   }
+};
+
+struct LocalTemp : public ExprNode<LocalTemp>{
+  Expr symbol;
+  int local_size;
+ 
+  static Expr Make(Expr v, int size) {
+    auto *n = make_shared<LocalTemp>();    
+    n->symbol = v;
+    n->local_size = size;
+    n->set_type(n->symbol->type());
+    return Expr(n);
+  }
+
+  Type type() const override {
+    return symbol.type();
+  }
+  void Verify() const override {}
+
+  static const IrNodeTy _node_type_ = IrNodeTy::LocalTemp;
+
+
 };
 
 enum CallType : int {

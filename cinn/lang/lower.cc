@@ -251,6 +251,7 @@ std::vector<ir::LoweredFunc> LowerVec(const std::string& name,
                                       Module::Builder* b,
                                       const Target& target,
                                       bool support_ir_schedule) {
+  std::cerr << "lowering vec" << std::endl;                                        
   // Init the reduce tensors first before any process.
   for (auto& t : tensor_args) InitReduceTensor(stages, t, target);
   for (auto& t : temp_tensors) InitReduceTensor(stages, t, target);

@@ -29,7 +29,9 @@ namespace ir {
 
 using common::float16;
 
-void IrPrinter::Print(Expr e) { IRVisitor::Visit(&e); }
+void IrPrinter::Print(Expr e) { 
+  //std::cerr << "print here" << std::endl;
+  IRVisitor::Visit(&e); }
 void IrPrinter::Print(const std::vector<Expr> &exprs, const std::string &splitter) {
   for (int i = 0; !exprs.empty() && i < exprs.size() - 1; i++) {
     Print(exprs[i]);
@@ -93,7 +95,7 @@ void IrPrinter::Visit(const Max *x) {
   os_ << ")";
 }
 void IrPrinter::Visit(const Minus *x) {
-  os_ << "-(";
+  os_ << "expf(";
   Print(x->v());
   os_ << ")";
 }
@@ -382,6 +384,15 @@ void IrPrinter::Visit(const Broadcast *x) {
   os() << ",";
   os() << x->lanes;
   os() << ")";
+}
+
+void IrPrinter::Visit(const LocalTemp *x) {
+  os() << "\n";
+  os() << x->type() << " ";
+  Print(x->symbol);
+  os() << "[";
+  os() << x->local_size;
+  os() << "];\n";
 }
 
 void IrPrinter::Visit(const FracOp *x) {

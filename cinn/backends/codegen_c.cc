@@ -185,8 +185,11 @@ void CodeGenC::Visit(const ir::Not *op) {
   IrPrinter::Print(op->v());
   os() << ")";
 }
+void CodeGenC::Visit(const ir::LocalTemp* op) 
+{ IrPrinter::Visit( op ); }
 void CodeGenC::Visit(const ir::Cast *op) { PrintCastExpr(op->type(), op->v()); }
 void CodeGenC::Visit(const ir::For *op) {
+  // std::cerr << "visit loop" << std::endl;
   Expr extent  = op->extent;
   Expr min     = op->min;
   int num_task = 1;
@@ -209,8 +212,13 @@ void CodeGenC::Visit(const ir::For *op) {
     extent          = (task_id + 1) * n_per_task;
     DoIndent();
   }
+  if( op->is_unrolled() )
+  {
+    os() << "#pragma unroll" << std::endl;
+  }
   os() << "for (";
-  os() << GetTypeRepr(Int(32));
+  // os() << GetTypeRepr(Int(32));
+  os() << "int";
   os() << " " << op->loop_var->name;
   os() << " = ";
   Print(min);
@@ -508,7 +516,10 @@ void CodeGenC::Visit(const ir::Let *op) {
     os() << "auto";
     is_vec = true;
   } else {
-    os() << GetTypeRepr(op->type());
+    if ( op->with_dtype )
+    {
+      os() << GetTypeRepr(op->type());
+    }
   }
 
   os() << " ";

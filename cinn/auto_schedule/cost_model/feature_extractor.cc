@@ -150,6 +150,7 @@ VisitCountMemberPattern(Alloc, mem_alloc);
 VisitCountMemberPattern(Free, mem_free);
 VisitCountMemberPattern(Load, mem_read);
 VisitCountMemberPattern(Store, mem_write);
+VisitCountMemberPattern(LocalTemp, bool_op);
 
 /* Visit for loops */
 

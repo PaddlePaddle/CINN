@@ -69,6 +69,10 @@ template <typename T>
 void IRMutator<T>::Visit(const FloatImm *expr, T op) {}
 template <typename T>
 void IRMutator<T>::Visit(const StringImm *expr, T op) {}
+
+template <typename T>
+void IRMutator<T>::Visit(const LocalTemp *expr, T op) {}
+
 template <typename T>
 void IRMutator<T>::Visit(const Cast *expr, T op) {
   auto *node = op->template As<Cast>();

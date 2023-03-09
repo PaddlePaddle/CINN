@@ -57,6 +57,12 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     return Select::Make(condition, true_value, false_value);
   }
 
+  Expr Visit( const LocalTemp* op) override {
+    auto sym = Visit( &op->symbol);
+
+    return LocalTemp::Make( sym, op->local_size);
+  }
+
   Expr Visit(const IfThenElse* op) override {
     auto condition = Visit(&op->condition);
     auto true_case = Visit(&op->true_case);
@@ -449,6 +455,7 @@ Expr IRCopy(Expr x) {
   auto copied = visitor.Visit(&x);
   return copied;
 }
+
 
 std::vector<Expr> IRCopy(const std::vector<Expr>& x) {
   std::vector<Expr> res;

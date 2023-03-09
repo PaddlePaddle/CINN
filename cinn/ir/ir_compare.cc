@@ -185,6 +185,12 @@ bool IrEqualVisitor::Visit(const Store* lhs, const Expr* other) {
   return Compare(lhs->tensor, rhs->tensor) && Compare(lhs->indices, rhs->indices);
 }
 
+bool IrEqualVisitor::Visit(const LocalTemp* lhs, const Expr* other)
+{
+  std::cerr << "not impl ir equal visit";
+  return false;
+}
+
 bool IrEqualVisitor::Visit(const Alloc* lhs, const Expr* other) {
   auto* rhs = other->As<Alloc>();
   return Compare(lhs->destination, rhs->destination) && Compare(lhs->extents, rhs->extents) &&

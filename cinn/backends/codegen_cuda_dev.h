@@ -67,7 +67,8 @@ class CodeGenCUDA_Dev : public CodeGenC {
 
   const std::string& GetSourceHeader() const;
 
- protected:
+ public:
+ 
   void Visit(const ir::_Var_* op) override;
   void Visit(const ir::_LoweredFunc_* op) override;
   void Visit(const ir::Min* op) override;

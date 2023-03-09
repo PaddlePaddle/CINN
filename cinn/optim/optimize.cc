@@ -43,6 +43,9 @@ namespace cinn {
 namespace optim {
 
 Expr Optimize(Expr e, Target target, bool runtime_debug_info) {
+  std::cerr << "first opti" << std::endl;
+  // std::cerr << e << std::endl;
+  // std::cerr << "========================================" << std::endl;
   CHECK(e.defined());
   auto copied = IRCopy(e);
 
@@ -72,11 +75,18 @@ Expr Optimize(Expr e, Target target, bool runtime_debug_info) {
     LOG(WARNING) << "Turn on runtime debug information output";
     InsertDebugLogCallee(&copied);
   }
+
+  // std::cerr << copied << std::endl;
+  // std::cerr << "!!!!!!!!!!!!!!===================================" << std::endl;
+
   return copied;
 }
 
 ir::Module Optimize(const ir::Module& module, const Target& target) {
+  std::cerr << "opti " << std::endl;
   auto copied = IRCopy(Expr(module));
+  // std::cerr << "init " << copied << std::endl;
+  // std::cerr << "fin init ========================" << std::endl;
   if (FLAGS_cinn_ir_schedule) {
     UnrollLoop(&copied);
     VectorizeLoops(&copied, Target());

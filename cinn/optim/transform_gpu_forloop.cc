@@ -350,13 +350,16 @@ void TransformGpuForloops(const forloop_infos_t &forloop_infos,
                           std::unordered_map<std::string, std::vector<Expr>> &resized_buffer_cache,
                           Expr *expr) {
   VLOG(3) << "traverse_order=" << utils::Join(traverse_order, ",");
+  // std::cerr << "order " <<   utils::Join(traverse_order, ",") << std::endl;
   std::set<std::string> gpu_launch_axis;
   for (auto &i : traverse_order) {
     if (forloop_infos.count(i) == 0) continue;
     for (auto &f : forloop_infos.at(i)) {
       if (f.second.for_type == ir::ForType::GPUThread) {
+        // std::cerr << "gpu launch thread  "<<  f.second.offset << std::endl;
         gpu_launch_axis.insert(backends::cuda_thread_axis_name(f.second.offset));
       } else if (f.second.for_type == ir::ForType::GPUBlock) {
+        // std::cerr << "gpu launch block " <<  f.second.offset << std::endl;
         gpu_launch_axis.insert(backends::cuda_block_axis_name(f.second.offset));
       }
     }

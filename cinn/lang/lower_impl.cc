@@ -95,7 +95,7 @@ Expr LowerGroup(const poly::ScheduleGroup& group,
   // transform this to some realworld statement in CINN.
 
   VLOG(1) << "ast to expr: \n" << e << std::endl;
-
+  // std::cerr << "22  " << e << std::endl;
   // replace isl call to the corresponding CINN statement, we need to replace the axis at the same time.
   for (auto& statement : tuple_to_expr) {
     VLOG(2) << "LowerGroup working on statement: " << statement.first;
@@ -134,6 +134,7 @@ Expr LowerGroup(const poly::ScheduleGroup& group,
     mutator(&e);
   }
 
+  // std::cerr << "11  " << e << std::endl;
   // mark unroll.
   {
     std::map<std::string, std::set<int>> unrolls;
@@ -557,7 +558,11 @@ std::vector<ir::LoweredFunc> LowerImpl::operator()() {
 
   std::vector<ir::LoweredFunc> result;
   int num_func = 0;
+
   for (auto& func_iterator : func_body) {
+    // std::cerr << "body " << num_func << std::endl;
+    // std::cerr <<  func_iterator << std::endl;
+    // std::cerr << "==========================================" << std::endl;
     if (support_ir_schedule_) {
       // add ScheduleBlockRealize
       func_iterator = ir::ScheduleBlockRealize::Make(
@@ -646,7 +651,9 @@ std::vector<ir::LoweredFunc> LowerImpl::operator()() {
 
     // some necessary modification.
     optim::ComputeInlineExpand(&func->body, stages_, &all_tensor_map);
-
+    // std::cerr << "opti func " << num_func << std::endl;
+    // std::cerr << "real func " << func << std::endl;
+    // std::cerr << "================================================" << std::endl;
     auto res = optim::Optimize(func, target_, FLAGS_cinn_runtime_display_debug_info);
 
     if (cuda_axis_info_.size() > num_func && cuda_axis_info_[num_func].valid()) {
@@ -760,6 +767,8 @@ std::vector<Expr> LowerImpl::GenerateFunctionBody(const poly::Schedule* schedule
       if (target_ == common::DefaultNVGPUTarget() && !all_temp_tensor) {
         exprs.push_back(group_expr);
         Expr body = ir::Block::Make(exprs);
+        // std::cerr << body << std::endl;
+        // std::cerr << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
         result.push_back(body);
         exprs.clear();
       } else {
@@ -767,12 +776,15 @@ std::vector<Expr> LowerImpl::GenerateFunctionBody(const poly::Schedule* schedule
       }
     }
   }
+
+  // std::cerr << "last body  " << ir::Block::Make(exprs) <<  std::endl;
   if (target_ == common::DefaultHostTarget()) {
     Expr body = ir::Block::Make(exprs);
     result.push_back(body);
     exprs.clear();
   } else if (!exprs.empty()) {
     Expr body = ir::Block::Make(exprs);
+    
     result.push_back(body);
     exprs.clear();
   }

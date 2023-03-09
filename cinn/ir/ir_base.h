@@ -109,6 +109,7 @@ class ScheduleBlockRealize;
   macro__(_BufferRange_)                    \
   macro__(ScheduleBlock)                    \
   macro__(ScheduleBlockRealize)             \
+  macro__(LocalTemp)                        \
 
 
 #define NODETY_FORALL(__m)              \

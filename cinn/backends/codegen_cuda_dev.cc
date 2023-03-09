@@ -74,6 +74,8 @@ void CodeGenCUDA_Dev::Compile(const ir::Module &module, const Outputs &outputs) 
 }
 
 std::string CodeGenCUDA_Dev::Compile(const ir::LoweredFunc &func) {
+  // std::cerr << "fun " << func << std::endl;
+  std::cerr << "!!!==============\n";
   Print(Expr(func));
   return ss_.str();
 }
@@ -223,7 +225,7 @@ std::string CodeGenCUDA_Dev::Compile(const ir::Module &module, CodeGenC::OutputK
 
     PrintBuiltinCodes();
 
-    for (auto &func : module.functions()) {
+    for (auto &func : module.functions()) {  
       Compile(func);
     }
   } else {
@@ -317,8 +319,11 @@ void CodeGenCUDA_Dev::Visit(const ir::Let *op) {
   // with customized_type::kcuda_builtin_vector_t prefix, and save their names
   if (op->type().is_customized() &&
       utils::Startswith(op->type().customized_type(), common::customized_type::kcuda_builtin_vector_t)) {
-    os() << GetTypeRepr(op->type());
-    os() << " ";
+    if( op->with_dtype )
+    {
+      os() << GetTypeRepr(op->type());
+      os() << " ";
+    }
     Print(op->symbol);
     vectorized_tensor_names_.insert(utils::GetStreamCnt(op->symbol));
     os() << " = ";

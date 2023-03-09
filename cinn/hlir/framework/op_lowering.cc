@@ -116,6 +116,7 @@ std::vector<ir::LoweredFunc> OpLowerer::Lower(GroupPtr& group) {
       case framework::kInjective:
         return IRLowerOp(&OpLowerer::IRElementwiseCompute, &OpLowerer::IRElementwiseSchedule, group);
       case framework::kReduction:
+        std::cerr << "lower reduction" << std::endl;
         return IRLowerOp(&OpLowerer::IRReduceCompute, &OpLowerer::IRReduceSchedule, group);
       case framework::kOutFusible:
         LOG(FATAL) << "Group Pattern Kind kOutFusible Is Not Implemented!";
@@ -228,6 +229,7 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpWithoutSchedule(IRComputeFuncti
 std::vector<ir::LoweredFunc> OpLowerer::IRLowerOp(IRComputeFunction compute,
                                                   IRScheduleFunction schedule,
                                                   GroupPtr& group) {
+  std::cerr << "lowering reduce" << std::endl;
   poly::StageMap stages;
   std::vector<ir::Tensor> arg_tensors;
   std::unordered_map<std::string, ir::Tensor> tensor_map;
@@ -296,10 +298,15 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOp(IRComputeFunction compute,
   optim::OptimizeExprGPU(&(func_body));
 #endif
 
+  std::cerr << "group name " << group->GetFuncName() << std::endl;
   auto temp_buffers = lang::GetTempBuffers(arg_tensors, stages, func_body);
   auto func =
       ir::_LoweredFunc_::Make(group->GetFuncName(), func_args, ir_sch.GetModule().GetExprs().at(0), temp_buffers);
+  // std::cerr << "final expr " <<  Expr(func) << std::endl;
+ 
   func = optim::Optimize(Expr(func), target_, false).as_lowered_func_ref();
+ 
+  std::cerr << "fin " << std::endl;
   return {func};
 }
 
@@ -481,6 +488,7 @@ std::vector<Expr> OpLowerer::IRElementwiseCompute(poly::StageMap& stages,
     CHECK_EQ(pack.size(), 2U);
 
     Expr expr                  = pack[0];
+    
     poly::StageMap node_stages = pack.back();
     tensor_inputs.push_back(expr.as_tensor_ref());
     tensor_map[node_data->id()] = expr.as_tensor_ref();
@@ -488,6 +496,10 @@ std::vector<Expr> OpLowerer::IRElementwiseCompute(poly::StageMap& stages,
     auto func = lang::LowerVec("fn_" + node->id(), node_stages, tensor_inputs, {}, {}, nullptr, this->target_, true);
     CHECK_EQ(func.size(), 1);
 
+    for( size_t i = 0; i < func.size(); ++i)
+    {
+        std::cerr << "elementtwise func " << i << "\t" << func[i] << std::endl;
+    }
     if (apply_impl_schedule) {
       std::vector<common::CINNValue> schedule_inputs;
       // collect tensor
@@ -564,7 +576,7 @@ std::vector<Expr> OpLowerer::IRReduceCompute(poly::StageMap& stages,
   VLOG(2) << "ReduceCompute Group : " << sub_group->group_id;
   auto& cinn_strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
-
+  std::cerr << "reduce compute" << std::endl;
   std::vector<Expr> ast_exprs;
   for (auto& node : sub_group->nodes) {
     auto node_data = GetNodeData(node);
@@ -605,6 +617,10 @@ std::vector<Expr> OpLowerer::IRReduceCompute(poly::StageMap& stages,
       }
     }
     auto func = lang::LowerVec("fn_" + node->id(), tmp_stages, tensor_inputs, {}, {}, nullptr, this->target_, true);
+
+    for( size_t i = 0; i < func.size() ; ++i ) {
+      std::cerr << "reduce func " << i << "\t" << func[i] << std::endl;
+    }
 
     // node is kReduction
     if (op_pattern_dict[node->op()] == framework::kReduction && apply_impl_schedule) {

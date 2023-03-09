@@ -224,6 +224,12 @@ llvm::Value *CodeGenLLVM::Visit(const ir::IntImm *op) {
   return llvm::ConstantInt::get(type, op->value, true);
 }
 
+llvm::Value *CodeGenLLVM::Visit(const ir::LocalTemp *op) {
+  std::cerr << "not impl in llvm gen";
+  auto *type = b_->getIntNTy(op->type().bits());
+  return llvm::ConstantInt::get(type, op->local_size, true);
+}
+
 llvm::Value *CodeGenLLVM::Visit(const ir::UIntImm *op) {
   if (op->type().is_bool()) {
     auto *type = b_->getInt1Ty();
