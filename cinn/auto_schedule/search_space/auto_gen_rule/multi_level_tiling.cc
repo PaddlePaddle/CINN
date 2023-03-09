@@ -135,8 +135,8 @@ void MultiLevelTiling::Apply(ir::IRSchedule* ir_schedule, ir::Expr& block_expr) 
 
     int extent = ir_for->extent.as_int32();  // maybe int64?
 
-    int num_split                      = idx->size();
-    std::vector<int> tile_split_factor = SampleTileSplit<int>(extent, num_split);
+    int num_split                       = idx->size();
+    std::vector<Expr> tile_split_factor = ir_schedule->SamplePerfectTile(Expr(ir_for), num_split, 64);
 
     std::vector<Expr> splited = ir_schedule->Split(Expr(ir_for), tile_split_factor);
     VLOG(6) << "Finish Split for MultiLevelTiling on above loop";

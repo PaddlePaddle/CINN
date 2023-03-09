@@ -87,9 +87,9 @@ class FusionHelperBase {
     return shape_dict_.at(node_datas[0]->id());
   }
 
-  std::vector<NodeData*> GetProducerNodeData(const Node* node) const {
+  static std::vector<NodeData*> GetProducerNodeData(const Node* node) {
     std::vector<NodeData*> producer_node_data;
-    for (auto& edge : node->inlinks_in_order()) {
+    for (auto& edge : node->inlinks_in_order(true)) {
       auto graph_node    = edge->source();
       auto producer_data = graph_node->safe_as<NodeData>();
       CHECK(producer_data);
@@ -100,7 +100,7 @@ class FusionHelperBase {
 
   std::vector<Node*> GetProducerNode(const Node* node) const {
     std::vector<Node*> producer_node;
-    for (auto& edge : node->inlinks_in_order()) {
+    for (auto& edge : node->inlinks_in_order(true)) {
       auto graph_node    = edge->source();
       auto producer_data = graph_node->safe_as<NodeData>();
       CHECK(producer_data);

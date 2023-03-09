@@ -315,10 +315,9 @@ CINN_BUILD_STEP_KIND(GetBlock)
                 static_cast<Expr (IRSchedule::*)(const std::string&) const>(&IRSchedule::GetBlock))));
 
 CINN_BUILD_STEP_KIND(Split)
-    .Inputs({"loop"})
-    .Attrs({"factors"})
+    .Inputs({"loop", "factors"})
     .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(
-                static_cast<std::vector<Expr> (IRSchedule::*)(const Expr&, const std::vector<int>&)>(&IRSchedule::Split))));
+                static_cast<std::vector<Expr> (IRSchedule::*)(const Expr&, const std::vector<Expr>&)>(&IRSchedule::Split))));
 
 CINN_BUILD_STEP_KIND(SplitWithName)
     .Attrs({"block_name", "loop_index", "factors"})
@@ -469,7 +468,7 @@ CINN_BUILD_STEP_KIND(FlattenLoops)
 
 CINN_BUILD_STEP_KIND(SamplePerfectTile)
     .Inputs({"loop"})
-    .Attrs({"n","max_innermost_factor"})
+    .Attrs({"n", "max_innermost_factor", "decision"})
     .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(&IRSchedule::SamplePerfectTile)));
 
 // clang-format on
