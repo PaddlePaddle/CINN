@@ -388,7 +388,6 @@ void InsertBroadcastTo(Graph* graph) {
         // input shape is not equal to output shape, insert broadcast_to
         if (output_shape != input_shape) {
           // input_data UnLinkTo node
-          input_data->UnLinkSingleTo(node);
           std::vector<int> broadcast_axes;
           if (input_shape.size() == output_shape.size()) {
             for (int idx = 0; idx < input_shape.size(); ++idx) {
@@ -420,8 +419,22 @@ void InsertBroadcastTo(Graph* graph) {
           // create node data
           auto tmp_node_data = new NodeData(Shared<Node>(tmp_node), 0, 0, common::UniqName("var"), false);
           tmp_node->LinkTo(tmp_node_data);
-          tmp_node_data->LinkTo(node);
           graph->RegisterNode(tmp_node_data->id(), tmp_node_data);
+
+          // input_data->UnLinkSingleTo(node);
+          // tmp_node_data->LinkTo(node);
+          std::vector<NodeData*> upate_node_datas;
+          for (auto inode : FusionHelperBase::GetProducerNodeData(node)) {
+            if (inode == input_data) {
+              upate_node_datas.push_back(tmp_node_data);
+            } else {
+              upate_node_datas.push_back(inode);
+            }
+            inode->UnLinkSingleTo(node);
+          }
+          for (auto inode : upate_node_datas) {
+            inode->LinkTo(node);
+          }
           // update shape_dict
           shape_dict[tmp_node_data->id()] = output_shape;
           // update dtype_dict

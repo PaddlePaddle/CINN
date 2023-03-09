@@ -130,8 +130,9 @@ class TestPaddleModel(OpTest):
             fetch_list=self.fetch_targets)
 
     def build_cinn_program(self, target):
-        convertor = PaddleModelConvertor()
-        prog = convertor(self.target, self.model_dir)
+        convertor = PaddleModelConvertor(target)
+        convertor.load_model(self.model_dir)
+        prog = convertor()
 
         # get cinn input list
         inputs = prog.get_inputs()

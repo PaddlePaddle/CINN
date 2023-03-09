@@ -25,6 +25,7 @@
 #include "cinn/frontend/paddle/cpp/block_desc.h"
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/scope.h"
+#include "cinn/utils/type_defs.h"
 
 namespace cinn {
 namespace frontend {
@@ -37,7 +38,11 @@ namespace frontend {
 // Note that if anyone op not registered, the program will failed and aborted.
 class PaddleModelConvertor {
  public:
-  PaddleModelConvertor() = default;
+  PaddleModelConvertor();
+
+  PaddleModelConvertor(const common::Target& target,
+                       std::shared_ptr<NetBuilder> builder           = nullptr,
+                       std::shared_ptr<hlir::framework::Scope> scope = nullptr);
 
   // prepare feed variable before run CINN op
   void PrepareRun(const paddle::cpp::BlockDesc& block_desc, OpMapperContext* ctx);
@@ -45,11 +50,23 @@ class PaddleModelConvertor {
   // RunOp accept OpDesc and global run context then run it's kernel registered in OpMapper.
   static void RunOp(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx);
 
+  static void RunOp(const std::string& op_type,
+                    const std::map<std::string, std::vector<std::string>>& inputs,
+                    const std::map<std::string, std::vector<std::string>>& outputs,
+                    const std::map<std::string, cinn::utils::Attribute>& attrs,
+                    const OpMapperContext& ctx);
+
+  void RunOp(const std::string& op_type,
+             const std::map<std::string, std::vector<std::string>>& inputs,
+             const std::map<std::string, std::vector<std::string>>& outputs,
+             const std::map<std::string, cinn::utils::Attribute>& attrs);
+
+  void CreateInput(const std::string& dtype, const cinn::utils::ShapeType& shape, const std::string& name);
+
+  Program operator()();
+
   // operator() accept the modle's directory, and return the fronted::Program object.
-  Program operator()(const common::Target& target,
-                     const std::string& model_dir,
-                     bool is_combined                              = false,
-                     std::shared_ptr<hlir::framework::Scope> scope = nullptr);
+  Program LoadModel(const std::string& model_dir, bool is_combined = false);
 
   // return the internal variable map
   const std::unordered_map<std::string, Variable>& var_map() const { return var_map_; }
@@ -60,7 +77,8 @@ class PaddleModelConvertor {
   }
 
   // return the map the paddle variable name to cinn variable object
-  std::unordered_map<std::string, Variable> GetFetchList() const;
+  std::unordered_map<std::string, Variable> GetFetchList(
+      const std::unordered_set<std::string>& fetch_name_list = {}) const;
 
  private:
   std::unordered_map<std::string, Variable> var_map_;
@@ -68,6 +86,11 @@ class PaddleModelConvertor {
   std::unordered_map<std::string, std::string> var_model_to_program_map_;
   // fetch var names used in Paddle
   std::unordered_set<std::string> fetch_var_names_;
+
+  std::unique_ptr<OpMapperContext> ctx_;
+  std::shared_ptr<NetBuilder> builder_;
+  const common::Target& target_;
+  std::shared_ptr<hlir::framework::Scope> scope_;
 };
 
 }  // namespace frontend

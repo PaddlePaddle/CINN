@@ -53,6 +53,12 @@ class ScheduleDesc {
   // Re-applied a scheduling process represented as a proto::ScheduleDesc to a new IRSchedule object
   static std::vector<Expr> ReplayWithProto(const proto::ScheduleDesc& desc_proto, IRSchedule* sch);
 
+  ScheduleDesc() = default;
+
+  ScheduleDesc(const std::vector<Step>& steps) : steps_(steps) {}
+
+  ScheduleDesc(std::vector<Step>&& steps) : steps_(steps) {}
+
   // Append a new step
   void Append(Step&& step);
 
@@ -68,6 +74,10 @@ class ScheduleDesc {
 
   // return detail string of a ScheduleDesc for debug;
   std::string DebugString() const { return ToProto().DebugString(); }
+
+  std::vector<Step> Steps() const { return steps_; }
+
+  bool Empty() const { return steps_.empty(); }
 
  private:
   std::vector<Step> steps_;  // all operations are recorded in order.

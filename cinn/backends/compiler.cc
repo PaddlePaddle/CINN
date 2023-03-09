@@ -122,6 +122,8 @@ void Compiler::CompileCudaModule(const Module& module, const std::string& code) 
   VLOG(3) << "[CUDA] device module:\n" << device_module;
   CodeGenCUDA_Dev codegen(target_);
   auto source_code = codegen.Compile(device_module);
+
+  VLOG(3) << "[CUDA] C:\n" << source_code;
   if (!code.empty()) source_code = code;
   SourceCodePrint::GetInstance()->write(source_code);
   using runtime::cuda::CUDAModule;
