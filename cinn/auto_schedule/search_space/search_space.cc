@@ -164,7 +164,7 @@ std::vector<SearchState> SearchSpace::InitSketchWithRandomPrunedStrategy() {
   int total_steps                         = 0, steps;
   std::string block_name;
   while ("" != (block_name = block_sampler->NextBlock()) && total_steps < init_sketch_random_depth_) {
-    steps = utils::SampleUniformInt(0, init_rules.size(), &rand_seed_);
+    steps = utils::SampleUniformInt(1, init_rules.size() + 1, &rand_seed_);
     if (total_steps + steps > init_sketch_random_depth_) {
       steps = init_sketch_random_depth_ - total_steps;
     }
