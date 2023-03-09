@@ -224,11 +224,11 @@ class OpFusionPassHelper : public FusionHelperBase {
                return true;
              }
 
-             if (helper->IsConstOp(producer) && !helper->output_nodes_set_.count(producer)) {
-               return true;
-             }
-
-             return false;
+             return !helper->output_nodes_set_.count(producer);
+             // if (helper->IsConstOp(producer) && !helper->output_nodes_set_.count(producer)) {
+             //   return true;
+             // }
+             // return false;
            }},
           // horizontal or vertical relation, check with same output shape with horizontal relation or with last
           // successive dimension less than 1024 for gpu.

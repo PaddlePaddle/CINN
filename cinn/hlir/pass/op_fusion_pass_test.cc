@@ -19,14 +19,72 @@
 namespace cinn {
 namespace frontend {
 
-TEST(OpFusionPass, Reduce_Fuse_Broadcast_0) {
-  int h = 32, w = 32;
-  NetBuilder net_builder("Reduce_Fuse_Broadcast_0");
+TEST(OpFusionPass, Reduce_Fuse_Broadcast_Layernorm) {
+  int h = 32, w = 1024;
+  NetBuilder net_builder("Reduce_Fuse_Broadcast_Layernorm");
   // create model
   {
-    auto A = net_builder.CreateInput(Float(32), {h, h, w}, "A");
-    auto B = net_builder.ReduceSum(A, {0, 1, 2});
-    auto C = net_builder.BroadcastTo(B, {h, h, w}, {2});
+    // x
+    auto A = net_builder.CreateInput(Float(32), {h, w}, "A");
+    // x * x
+    auto B = net_builder.Multiply(A, A);
+    // sum x
+    auto C = net_builder.ReduceSum(A, {1});
+    // sum x*x
+    auto D = net_builder.ReduceSum(B, {1});
+    // constant w
+    auto E = net_builder.FillConstant<float>({h}, 1024.0f, "E");
+    // mean
+    auto F  = net_builder.Divide(C, E);
+    auto FF = net_builder.BroadcastTo(F, {h, w}, {0});
+    // mean x*x
+    auto G = net_builder.Divide(D, E);
+    // mean * mean
+    auto H = net_builder.Multiply(F, F);
+    // var^2
+    auto I = net_builder.Subtract(G, H);
+    // eps
+    auto J = net_builder.FillConstant<float>({h}, 1e-10f, "J");
+    // eps + delta
+    auto K = net_builder.Add(I, J);
+    // var
+    auto L  = net_builder.Sqrt(K);
+    auto LL = net_builder.BroadcastTo(L, {h, w}, {0});
+    // x - mean
+    auto M = net_builder.Subtract(A, FF);
+    // /var
+    auto N = net_builder.Divide(M, LL);
+  }
+
+  auto program = net_builder.Build();
+  auto target  = common::DefaultTarget();
+  RunDecomposer(&program, target);
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+  CHECK_EQ(graph->fusion_groups.size(), 1);
+}
+
+TEST(OpFusionPass, Reduce_Fuse_Broadcast_Softmax) {
+  int h = 32, w = 1024;
+  NetBuilder net_builder("Reduce_Fuse_Broadcast_Softmax");
+  // create model
+  {
+    // softmax
+    auto A = net_builder.CreateInput(Float(32), {h, w}, "A");
+    // redece max
+    auto B = net_builder.ReduceMax(A, {1});
+    // broadcast
+    auto C = net_builder.BroadcastTo(B, {h, w}, {0});
+    // x - max(x)
+    auto D = net_builder.Subtract(A, C);
+    // exp(x)
+    auto E = net_builder.Exp(D);
+    // reduce sum
+    auto F = net_builder.ReduceSum(E, {1});
+    // broadcast
+    auto G = net_builder.BroadcastTo(F, {h, w}, {0});
+    // exp(x)/sum(exp(x))
+    auto H = net_builder.Divide(E, G);
   }
 
   auto program = net_builder.Build();
@@ -35,7 +93,7 @@ TEST(OpFusionPass, Reduce_Fuse_Broadcast_0) {
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
   hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  CHECK_EQ(graph->fusion_groups.size(), 2);
+  CHECK_EQ(graph->fusion_groups.size(), 1);
 }
 
 TEST(OpFusionPass, Reduce_Fuse_Broadcast_1) {
@@ -112,6 +170,49 @@ TEST(OpFusionPass, Reduce_Fuse_Broadcast_4) {
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
   hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
   CHECK_EQ(graph->fusion_groups.size(), 2);
+}
+
+TEST(OpFusionPass, Reduce_Fuse_Broadcast_5) {
+  int h = 32, w = 32;
+  NetBuilder net_builder("Reduce_Fuse_Broadcast_5");
+  // create model
+  {
+    auto A = net_builder.CreateInput(Float(32), {h, h, w}, "A");
+    auto B = net_builder.ReduceSum(A, {1, 2});
+    auto C = net_builder.BroadcastTo(B, {h, h, w}, {0});
+    auto D = net_builder.ReduceSum(C, {1, 2});
+    auto E = net_builder.BroadcastTo(D, {h, h, w}, {0});
+  }
+
+  auto program = net_builder.Build();
+  auto target  = common::DefaultTarget();
+  RunDecomposer(&program, target);
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+  CHECK_EQ(graph->fusion_groups.size(), 1);
+}
+
+TEST(OpFusionPass, Reduce_Fuse_Broadcast_6) {
+  int h = 32, w = 32;
+  NetBuilder net_builder("Reduce_Fuse_Broadcast_6");
+  // create model
+  {
+    auto A = net_builder.CreateInput(Float(32), {h, h, w}, "A");
+    auto B = net_builder.ReduceSum(A, {1, 2});
+    auto C = net_builder.BroadcastTo(B, {h, h, w}, {0});
+    auto D = net_builder.CreateInput(Float(32), {h, w}, "B");
+    auto E = net_builder.BroadcastTo(D, {h, h, w}, {1, 2});
+    auto F = net_builder.Add(C, E);
+  }
+
+  auto program = net_builder.Build();
+  auto target  = common::DefaultTarget();
+  RunDecomposer(&program, target);
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+  CHECK_EQ(graph->fusion_groups.size(), 1);
 }
 
 TEST(OpFusionPass, ElementWise_Fusion_0) {
