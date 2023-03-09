@@ -71,9 +71,9 @@ void RollOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
   // use Split + Concat for each shift
   for (int i = 0; i < shifts_size; ++i) {
     int length        = vec_x_dims[axis[i]];
-    auto split_output = net_builder_->Split(output, {length - shifts[i]}, axis[i]);
+    auto split_output = ctx.Builder()->Split(output, {length - shifts[i]}, axis[i]);
     std::swap(split_output[0], split_output[1]);
-    output = net_builder_->Concat(split_output, axis[i]);
+    output = ctx.Builder()->Concat(split_output, axis[i]);
   }
 
   // reshape back when axis is None
