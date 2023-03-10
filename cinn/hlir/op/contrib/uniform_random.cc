@@ -87,6 +87,8 @@ std::vector<Type> InferDtypeForUniformRandom(const std::vector<Type> &inputs_typ
     dtype = absl::get<std::string>(attrs.at("dtype"));
   }
   std::vector<Type> res{common::Str2Type(dtype)};
+  CHECK(res[0].is_float(32) || res[0].is_float(64))
+      << "uniform_random only support float32 and float64, but here " << res[0] << "! Please check.";
   return res;
 }
 
