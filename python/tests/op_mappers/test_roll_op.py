@@ -26,7 +26,7 @@ class TestRollOp(OpMapperTest):
             'x': np.array([1, 2, 3], dtype='float32'),
         }
         self.axis = None
-        self.shifts = 1
+        self.shifts = [1]
 
     def set_op_type(self):
         return "roll"
@@ -53,8 +53,8 @@ class TestRollCase1(TestRollOp):
         self.feed_data = {
             'x': self.random([2, 3, 4], 'float32'),
         }
-        self.axis = 0
-        self.shifts = 2
+        self.axis = [0]
+        self.shifts = [2]
 
 
 class TestRollCase2(TestRollOp):
