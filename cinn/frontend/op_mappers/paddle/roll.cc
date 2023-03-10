@@ -66,6 +66,7 @@ void RollOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
       shifts[i] = (shifts[i] % size + size) % size;
     }
   }
+  VLOG(4) << "output_shape before: " << cinn::utils::Join(output_shape, ",");
 
   auto output = x;
   // use Split + Concat for each shift
@@ -81,7 +82,7 @@ void RollOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
       output            = ctx.Builder()->Concat(split_output, axis[i]);
     }
   }
-
+  VLOG(4) << "output_shape mid: " << cinn::utils::Join(output_shape, ",");
   // reshape back when axis is None
   if (axis_None) {
     output = ctx.Builder()->Reshape(output, output_shape);
@@ -89,6 +90,7 @@ void RollOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
 
   ctx.AddVar(out_name, output);
   ctx.AddVarModelToProgram(out_name, output->id);
+  VLOG(4) << "output_shape after: " << cinn::utils::Join(output_shape, ",");
 }
 
 }  // namespace paddle_mappers
