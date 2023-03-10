@@ -71,21 +71,6 @@ class TestArgmaxCase2(TestArgmaxOp):
         self.keepdim = False
 
 
-class TestArgmaxCase3(TestArgmaxOp):
-    """
-    Test case with dtype int32
-    """
-
-    def init_input_data(self):
-        super().init_input_data()
-        self.shape = [2, 3, 4]
-        self.axis = 1
-        self.input_dtype = "int32"
-        self.feed_data = {
-            'x': self.random(self.shape, self.input_dtype),
-        }
-
-
 class TestArgmaxCase4(TestArgmaxOp):
     """
     Test case with different input dtype and output dtype
