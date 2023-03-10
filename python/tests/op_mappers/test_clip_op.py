@@ -20,10 +20,9 @@ from op_mapper_test import OpMapperTest
 
 
 class TestClipOp(OpMapperTest):
-
     def init_input_data(self):
         self.feed_data = {
-            'x': self.random([2, 3, 4], "float32"),
+            'x': self.random([2], "float32"),
         }
 
     def set_op_type(self):
@@ -46,8 +45,28 @@ class TestClipOp(OpMapperTest):
         self.check_outputs_and_grads()
 
 
+class TestClipOp2D(TestClipOp):
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([2, 3], "float32"),
+        }
+
+
+class TestClipOp3D(TestClipOp):
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([2, 3, 4], "float32"),
+        }
+
+
+class TestClipOp4D(TestClipOp):
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([2, 3, 4, 5], "float32"),
+        }
+
+
 class TestClipOpMaxTensor(TestClipOp):
-    
     def init_input_data(self):
         self.feed_data = {
             'x': self.random([2, 3, 4], "float32"),
@@ -69,8 +88,23 @@ class TestClipOpMaxTensor(TestClipOp):
         return {"min": 0.0, "max": 1.0}
 
 
+class TestClipOpMinTensorInt32(TestClipOpMaxTensor):
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([2, 3, 4], "int32"),
+            'max_input': self.random([1], "int32")
+        }
+
+
+class TestClipOpMinTensorFloat64(TestClipOpMaxTensor):
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([2, 3, 4], "float64"),
+            'max_input': self.random([1], "float64")
+        }
+
+
 class TestClipOpMinTensor(TestClipOp):
-    
     def init_input_data(self):
         self.feed_data = {
             'x': self.random([2, 3, 4], "float32"),
@@ -92,23 +126,48 @@ class TestClipOpMinTensor(TestClipOp):
         return {"min": 0.0, "max": 1.0}
 
 
-# class TestClipOpInt32(TestClipOp):
-
-#     def init_input_data(self):
-#         self.feed_data = {
-#             'x': self.random([2, 3, 4], "int32", low=0, high=10),
-#         }
-
-#     def set_op_attrs(self):
-#         return {"min": 3, "max": 7}
-
-#     def set_op_outputs(self):
-#         return {'Out': [str(self.feed_data['x'].dtype)]}
-
-#     def test_check_results(self):
-#         self.check_outputs_and_grads()
+class TestClipOpMinTensorInt32(TestClipOpMinTensor):
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([2, 3, 4], "int32"),
+            'min_input': self.random([1], "int32")
+        }
 
 
+class TestClipOpMinTensorFloat64(TestClipOpMinTensor):
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([2, 3, 4], "float64"),
+            'min_input': self.random([1], "float64")
+        }
+
+
+class TestClipOpFloat64(TestClipOp):
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([2, 3, 4], "float64"),
+        }
+
+
+class TestClipOpInt32(TestClipOp):
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([2, 3, 4], "int32", low=0, high=10),
+        }
+
+    def set_op_attrs(self):
+        return {"min": 3.0, "max": 7.0}
+
+    def set_op_outputs(self):
+        return {'Out': [str(self.feed_data['x'].dtype)]}
+
+    def test_check_results(self):
+        self.check_outputs_and_grads()
+
+
+# nvcc compile error
+# error: more than one instance of overloaded function "max" matches the argument list
+#
 # class TestClipOpInt64(TestClipOpInt32):
 
 #     def init_input_data(self):
@@ -116,33 +175,20 @@ class TestClipOpMinTensor(TestClipOp):
 #             'x': self.random([2, 3, 4], "int64", low=0, high=10),
 #         }
 
-
-# class TestClipOpFloat64(TestClipOp):
-
-#     def init_input_data(self):
-#         self.feed_data = {
-#             'x': self.random([2, 3, 4], "float64"),
-#         }
-
-
 # class TestClipOpNoMax(TestClipOp):
-    
+
 #     def set_op_attrs(self):
 #         return {"min": -0.2}
 
-
 # class TestClipOpNoMin(TestClipOp):
-    
+
 #     def set_op_attrs(self):
 #         return {"max": 0.2}
 
-
 # class TestClipOpNoMaxmin(TestClipOp):
-    
+
 #     def set_op_attrs(self):
 #         return {}
 
-
 if __name__ == "__main__":
     unittest.main()
-
