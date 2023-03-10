@@ -23,7 +23,7 @@
 #endif
 
 namespace cinn {
-void SetRandInt(hlir::framework::Tensor tensor, const common::Target& target, int seed = -1);
+void SetRandInt(hlir::framework::Tensor tensor, const common::Target& target, int seed = -1, int low=0, int high=11);
 
 template <typename T>
 void SetRandData(hlir::framework::Tensor tensor, const common::Target& target, int seed = -1);
