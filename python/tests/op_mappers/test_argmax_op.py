@@ -24,8 +24,6 @@ from cinn.common import *
 
 paddle.enable_static()
 
-enable_gpu = sys.argv.pop()
-
 
 class TestArgmaxOp(OpMapperTest):
     def setUp(self):
