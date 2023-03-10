@@ -649,10 +649,6 @@ Variable NetBuilder::Sum(const std::vector<Variable>& inputs) {
   ;
 }
 
-Variable NetBuilder::Clip(const std::vector<Variable>& inputs, const float& max_val, const float& min_val) {
-  return CustomInstr("clip", inputs, {{"max_val", max_val}, {"min_val", min_val}}).front();
-}
-
 Variable NetBuilder::Arange(const float start, const float stop, const float step, const std::string& dtype) {
   return CustomInstr("arange", {}, {{"start", start}, {"stop", stop}, {"step", step}, {"dtype", dtype}}).front();
 }

@@ -280,15 +280,6 @@ class NetBuilder {
                         float dropout_prob                        = 0.5f,
                         const std::string& dropout_implementation = "downgrade_in_infer");
 
-  /**
-   * @brief The clip operator limits the value of given input within an interval `[min, max]`.
-   * @param x Input N-D variable of scale operator.
-   * @param max The minimum value to clip by.
-   * @param min The maximum value to clip by
-   * @return Output of clip with the same shape and data type as input.
-   */
-  Variable Clip(const std::vector<Variable>& x, const float& max, const float& min);
-
   Variable GatherNd(const Variable& x, const Variable& index);
 
   Variable Scatter(const Variable& src, const Variable& index, const Variable& out, const int& axis = 0);
