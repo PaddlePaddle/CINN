@@ -116,7 +116,11 @@ TEST(net_build, program_execute_fc) {
   auto add_out = builder.Add(mul_out, b);
   auto program = builder.Build();
 
+#ifdef CINN_WITH_CUDA
   Target target = common::DefaultNVGPUTarget();
+#else
+  Target target = common::DefaultHostTarget();
+#endif
 
   std::unordered_set<std::string> fetch_ids;
   auto graph = Optimize(&program, fetch_ids, target);
@@ -335,9 +339,11 @@ TEST(net_build, program_execute_gather) {
 
   auto input1_tensor = scope->GetTensor(std::string(input1.id()));
   SetRandData<float>(input1_tensor, target);
+  std::vector<float> input1_data = GetTensorData<float>(input1_tensor, target);
 
   auto input2_tensor = scope->GetTensor(std::string(input2.id()));
   SetRandInt(input2_tensor, target, -1, 0, H_IN1);
+  std::vector<int> input2_data = GetTensorData<int>(input2_tensor, target);
 
   runtime_program->Execute();
 
@@ -348,17 +354,13 @@ TEST(net_build, program_execute_gather) {
   EXPECT_EQ(output_shape[0], B);
   EXPECT_EQ(output_shape[1], H_IN2);
 
-  VLOG(6) << "Visualize output_data";
-  std::vector<float> input1_data = GetTensorData<float>(input1_tensor, target);
-  std::vector<int> input2_data   = GetTensorData<int>(input2_tensor, target);
   std::vector<float> output_data = GetTensorData<float>(output_tensor, target);
-
   VLOG(6) << "Visualize output_data";
-  for (int b = 0; b < 1; ++b) {
+  for (int b = 0; b < B; ++b) {
     for (int h = 0; h < H_IN2; ++h) {
       std::string line;
       int index      = h + H_IN2 * b;
-      float in_data  = input1_data[input2_data[index] + H_IN1 * b];
+      float in_data  = input1_data[input2_data[h] + H_IN1 * b];
       float out_data = output_data[index];
       line += (std::to_string(out_data) + ", ");
       EXPECT_EQ(in_data, out_data);
@@ -397,9 +399,11 @@ TEST(net_build, program_execute_gather_nd) {
 
   auto input1_tensor = scope->GetTensor(std::string(input1.id()));
   SetRandData<float>(input1_tensor, target);
+  std::vector<float> input1_data = GetTensorData<float>(input1_tensor, target);
 
   auto input2_tensor = scope->GetTensor(std::string(input2.id()));
   SetRandInt(input2_tensor, target, -1, 0, B);
+  std::vector<int> input2_data = GetTensorData<int>(input2_tensor, target);
 
   runtime_program->Execute();
 
@@ -409,11 +413,9 @@ TEST(net_build, program_execute_gather_nd) {
   EXPECT_EQ(output_shape.size(), 3UL);
   EXPECT_EQ(output_shape[0], B);
   EXPECT_EQ(output_shape[1], H_IN2);
+  EXPECT_EQ(output_shape[2], H_IN1);
 
-  std::vector<float> input1_data = GetTensorData<float>(input1_tensor, target);
-  std::vector<int> input2_data   = GetTensorData<int>(input2_tensor, target);
   std::vector<float> output_data = GetTensorData<float>(output_tensor, target);
-
   VLOG(6) << "Visualize output_data";
   for (int b = 0; b < B; ++b) {
     for (int h = 0; h < H_IN2; ++h) {
@@ -1615,6 +1617,7 @@ TEST(net_build, program_execute_one_hot) {
   Placeholder off_value_input = builder.CreateInput(Int(32), {1}, "OffValue");
   Variable output             = builder.OneHot(input, on_value_input, off_value_input, depth, axis, dtype);
   auto program                = builder.Build();
+
 #ifdef CINN_WITH_CUDA
   Target target = common::DefaultNVGPUTarget();
 #else
