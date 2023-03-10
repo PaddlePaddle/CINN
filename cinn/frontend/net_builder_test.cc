@@ -173,7 +173,7 @@ TEST(net_build, program_execute_pool2d) {
                                      data_format,
                                      adaptive,
                                      padding_algorithm);
-  auto program = builder.Build();
+  auto program                  = builder.Build();
 
 #ifdef CINN_WITH_CUDA
   Target target = common::DefaultNVGPUTarget();
@@ -239,7 +239,7 @@ TEST(net_build, program_execute_clip) {
   NetBuilder builder("net_builder");
   Placeholder input = builder.CreateInput(Float(32), {M, N, K}, "In");
   Variable output   = builder.Clip({input}, max_val, min_val);
-  auto program  = builder.Build();
+  auto program      = builder.Build();
 
 #ifdef CINN_WITH_CUDA
   Target target = common::DefaultNVGPUTarget();
@@ -320,7 +320,7 @@ TEST(net_build, program_execute_gather) {
 #ifdef CINN_WITH_CUDA
   Target target = common::DefaultNVGPUTarget();
 #else
-  Target target           = common::DefaultHostTarget();
+  Target target = common::DefaultHostTarget();
 #endif
   std::unordered_set<std::string> fetch_ids;
   auto graph = Optimize(&program, fetch_ids, target);
@@ -350,7 +350,7 @@ TEST(net_build, program_execute_gather) {
 
   VLOG(6) << "Visualize output_data";
   std::vector<float> input1_data = GetTensorData<float>(input1_tensor, target);
-  std::vector<int> input2_data = GetTensorData<int>(input2_tensor, target);
+  std::vector<int> input2_data   = GetTensorData<int>(input2_tensor, target);
   std::vector<float> output_data = GetTensorData<float>(output_tensor, target);
 
   VLOG(6) << "Visualize output_data";
@@ -411,7 +411,7 @@ TEST(net_build, program_execute_gather_nd) {
   EXPECT_EQ(output_shape[1], H_IN2);
 
   std::vector<float> input1_data = GetTensorData<float>(input1_tensor, target);
-  std::vector<int> input2_data = GetTensorData<int>(input2_tensor, target);
+  std::vector<int> input2_data   = GetTensorData<int>(input2_tensor, target);
   std::vector<float> output_data = GetTensorData<float>(output_tensor, target);
 
   VLOG(6) << "Visualize output_data";
@@ -419,7 +419,7 @@ TEST(net_build, program_execute_gather_nd) {
     for (int h = 0; h < H_IN2; ++h) {
       std::string line;
       for (int c = 0; c < H_IN1; ++c) {
-        float in_data  = input1_data[input2_data[b*H_IN2 + h] * H_IN1 + c];
+        float in_data  = input1_data[input2_data[b * H_IN2 + h] * H_IN1 + c];
         int out_index  = c + h * H_IN1 + H_IN1 * H_IN2 * b;
         float out_data = output_data[out_index];
         line += (std::to_string(out_data) + ", ");
@@ -662,7 +662,7 @@ TEST(net_build, program_execute_squeeze_case0) {
 
   runtime_program->Execute();
 
-  auto output_tensor = scope->GetTensor(std::string(output->id));
+  auto output_tensor                   = scope->GetTensor(std::string(output->id));
   const std::vector<int>& output_shape = output_tensor->shape().data();
   EXPECT_EQ(output_shape.size(), 3UL);
   EXPECT_EQ(output_shape[0], B);
@@ -1638,16 +1638,16 @@ TEST(net_build, program_execute_one_hot) {
   std::vector<int> input_data = GetTensorData<int>(input_tensor, target);
 
   auto on_value_tensor = scope->GetTensor(std::string(on_value_input.id()));
-  SetRandInt(on_value_tensor, target, -1, on_value, on_value+1);
+  SetRandInt(on_value_tensor, target, -1, on_value, on_value + 1);
 
   auto off_value_tensor = scope->GetTensor(std::string(off_value_input.id()));
-  SetRandInt(off_value_tensor, target, -1, off_value, off_value+1);
+  SetRandInt(off_value_tensor, target, -1, off_value, off_value + 1);
 
   runtime_program->Execute();
 
   auto output_tensor                   = scope->GetTensor(std::string(output->id));
   const std::vector<int>& output_shape = output_tensor->shape().data();
-  std::vector<int> output_data = GetTensorData<int>(output_tensor, target);
+  std::vector<int> output_data         = GetTensorData<int>(output_tensor, target);
 
   EXPECT_EQ(output_tensor->type(), Int(32));
   EXPECT_EQ(output_shape.size(), intput_shape.size() + 1);

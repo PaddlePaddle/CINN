@@ -24,7 +24,7 @@ void SetRandInt(hlir::framework::Tensor tensor, const common::Target& target, in
     seed = rd();
   }
   std::default_random_engine engine(seed);
-  std::uniform_int_distribution<int> dist(low, high-1);
+  std::uniform_int_distribution<int> dist(low, high - 1);
   size_t num_ele = tensor->shape().numel();
   std::vector<int> random_data(num_ele);
   for (size_t i = 0; i < num_ele; i++) {
@@ -122,8 +122,7 @@ std::vector<int> GetTensorData<int>(const hlir::framework::Tensor& tensor, const
   std::vector<int> data(size);
 #ifdef CINN_WITH_CUDA
   if (target == common::DefaultNVGPUTarget()) {
-    cudaMemcpy(
-        data.data(), static_cast<const void*>(tensor->data<int>()), size * sizeof(int), cudaMemcpyDeviceToHost);
+    cudaMemcpy(data.data(), static_cast<const void*>(tensor->data<int>()), size * sizeof(int), cudaMemcpyDeviceToHost);
   } else if (target == common::DefaultHostTarget()) {
     std::copy(tensor->data<int>(), tensor->data<int>() + size, data.begin());
   } else {
