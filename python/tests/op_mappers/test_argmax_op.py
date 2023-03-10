@@ -106,9 +106,7 @@ class TestArgmaxCase6(TestArgmaxOp):
     """
 
     def init_input_data(self):
-        self.feed_data = {
-            'x': self.random(self.shape, self.input_dtype),
-        }
+        super().init_input_data()
         self.input_dtype = "float64"
         self.feed_data = {
             'x': self.random(self.shape, self.input_dtype),
