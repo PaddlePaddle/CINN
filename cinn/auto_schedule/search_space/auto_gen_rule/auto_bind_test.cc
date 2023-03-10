@@ -37,8 +37,10 @@ class TestAutoBind : public TestAutoGenRuleBase {
   std::vector<std::string> default_output_names = {"temp_matmul_out"};
 
   void TestApplyOnElementWiseAdd(const std::vector<int>& shape, const std::string& block_name) {
+    Initialize(common::DefaultNVGPUTarget());
+    auto test_program = AddOpBuilder(shape, shape)();
     // construct input parameter
-    ir::IRSchedule ir_schedule = InitSchedule(AddOpBuilder(shape, shape)(), common::DefaultNVGPUTarget());
+    ir::IRSchedule ir_schedule = MakeIRSchedule(test_program);
     SearchState state(ir_schedule, 0, {});
     std::vector<ir::Expr> func_bodys = ir_schedule.GetModule().GetExprs();
     ASSERT_EQ(func_bodys.size(), 1UL);
@@ -81,18 +83,21 @@ class TestAutoBind : public TestAutoGenRuleBase {
     auto ir_module   = BuildIRModule(result->ir_schedule);
     auto source_code = GenSourceCode(ir_module);
     VLOG(6) << "Optimized source code:\n" << source_code;
-    // CheckResult(GenExecutableKernel(ir_module),
-    //             expected_func_add,
-    //             default_input_names,
-    //             {applied_block_name},
-    //             {shape, shape},
-    //             {shape},
-    //             target_);
+    auto manual_ir_module = BuildIRModule(MakeIRSchedule(test_program, /* apply_manual_schedule*/ true));
+    VLOG(6) << "Manual-schedule compiled source code:\n" << GenSourceCode(manual_ir_module);
+    CheckResult(GenExecutableKernel(ir_module),
+                GenExecutableKernel(manual_ir_module),
+                default_input_names,
+                {block_name},
+                {shape, shape},
+                {shape},
+                target_);
   }
 };
 
 TEST_F(TestAutoBind, AnalyseApplyType) {
-  ir::IRSchedule ir_schedule = InitSchedule(MatmulOpBuilder({32, 64}, {64, 32})(), common::DefaultNVGPUTarget());
+  Initialize(common::DefaultNVGPUTarget());
+  ir::IRSchedule ir_schedule = MakeIRSchedule(MatmulOpBuilder({32, 64}, {64, 32})());
   SearchState state(ir_schedule, 0, {});
   AutoBind auto_bind(target_);
   const std::string& applied_block_name = default_output_names.back();
