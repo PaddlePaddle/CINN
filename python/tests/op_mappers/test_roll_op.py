@@ -25,7 +25,7 @@ class TestRollOp(OpMapperTest):
         self.feed_data = {
             'x': np.array([1, 2, 3], dtype='float32'),
         }
-        self.axis = None
+        self.axis = []
         self.shifts = [1]
 
     def set_op_type(self):
