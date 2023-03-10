@@ -26,14 +26,6 @@ paddle.enable_static()
 
 
 class TestArgmaxOp(OpMapperTest):
-    def setUp(self):
-        if enable_gpu == "ON":
-            self.target = DefaultNVGPUTarget()
-            self.place = paddle.CUDAPlace(0)
-        else:
-            self.target = DefaultHostTarget()
-            self.place = paddle.CPUPlace()
-
     def init_input_data(self):
         self.shape = [2, 3, 4]
         self.axis = None
