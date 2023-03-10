@@ -32,6 +32,13 @@
 #include "cinn/runtime/flags.h"
 #include "cinn/utils/data_util.h"
 
+/* This test is used as a tool to evalute or compare performance of 3 schedules(no scheudle, manual schedule,
+ * auto-schedule). One can specify which schedules to be evaluated through `FLAGS_evaluate_knobs` and specify which
+ * operator or model through `--gtest_filter=PerformanceTester.xx`, for example, `FLAGS_evaluate_knobs=4
+ * --gtest_filter=PerformanceTester.Matmul` means it will evalute auto-schedule on Matmul operator. You can refer to
+ * explanation of following flags or parameters for more detail.
+ */
+
 DEFINE_string(resnet50_model_dir, "./ResNet50", "the path to paddle model resnet50.");
 // Flags that control which schedule tests will be run.
 // Bit with index 0 controls no schedule test, means options = 1 = "001" will run no schedule test.
@@ -58,7 +65,7 @@ class PerformanceTester : public ::testing::Test {
     // the num_tuning_rounds for auto tuning
     int num_tuning_rounds = 2;
     // knobs to control which schedules will be measured, refer to FLAGS_evaluate_knobs explanation
-    std::bitset<3> evaluate_knobs = 7UL;
+    std::bitset<3> evaluate_knobs = 0UL;
   };
 
   void SetUp() override { FLAGS_cinn_parallel_compile_size = 0; }
@@ -69,7 +76,8 @@ class PerformanceTester : public ::testing::Test {
     }
     VLOG(3) << "evaluate_knobs = " << options_.evaluate_knobs;
 
-    auto worker_fn = [this, &program](const std::string& schedule_name, BuildRuntimeProgramFn build_fn) {
+    auto worker_fn = [this, &program](
+                         const std::string& schedule_name, BuildRuntimeProgramFn build_fn, bool execute = true) {
       Context::Global().ResetNameId();
       VLOG(3) << "Initialize graph.";
       auto graph = std::make_shared<hlir::framework::Graph>(program, target_);
@@ -79,18 +87,26 @@ class PerformanceTester : public ::testing::Test {
       auto scope           = BuildScope(target_, graph);
       auto graph_compiler  = std::make_unique<GraphCompiler>(target_, scope, graph);
       auto runtime_program = (this->*build_fn)(graph.get(), graph_compiler.get());
-      VLOG(3) << "Execute " << schedule_name << " program.";
-      runtime_program->ExecuteTest(options_.repeat_times);
+      if (execute) {
+        VLOG(3) << "Execute " << schedule_name << " program.";
+        runtime_program->ExecuteTest(options_.repeat_times);
+      }
     };
 
-    if (options_.evaluate_knobs.test(0)) {
-      worker_fn("no schedule", &PerformanceTester::BuildNoScheduleProgram);
-    }
-    if (options_.evaluate_knobs.test(1)) {
-      worker_fn("manual schedule", &PerformanceTester::BuildManualScheduleProgram);
-    }
-    if (options_.evaluate_knobs.test(2)) {
-      worker_fn("auto schedule", &PerformanceTester::BuildAutoScheduleProgram);
+    // if no one is set, build no/manual schedule cases to ensure their build functions are valid
+    if (options_.evaluate_knobs.none()) {
+      worker_fn("no schedule", &PerformanceTester::BuildNoScheduleProgram, /* execute */ false);
+      worker_fn("manual schedule", &PerformanceTester::BuildManualScheduleProgram, /* execute */ false);
+    } else {
+      if (options_.evaluate_knobs.test(0)) {
+        worker_fn("no schedule", &PerformanceTester::BuildNoScheduleProgram);
+      }
+      if (options_.evaluate_knobs.test(1)) {
+        worker_fn("manual schedule", &PerformanceTester::BuildManualScheduleProgram);
+      }
+      if (options_.evaluate_knobs.test(2)) {
+        worker_fn("auto schedule", &PerformanceTester::BuildAutoScheduleProgram);
+      }
     }
   }
 
@@ -271,7 +287,6 @@ TEST_F(PerformanceTester, LookupTable) {
   std::vector<int32_t> table_shape{50001, 768};
   std::vector<int32_t> ids_shape{10, 128, 1};
 
-  options_.evaluate_knobs = 0UL;
   Evaluate(LookupTableOpBuilder(table_shape, ids_shape, -1)());
 }
 
@@ -279,7 +294,6 @@ TEST_F(PerformanceTester, Gather) {
   std::vector<int32_t> operand_shape{10, 12, 128, 512};
   std::vector<int32_t> index_shape{128};
 
-  options_.evaluate_knobs = 0UL;
   Evaluate(GatherOpBuilder(operand_shape, index_shape, 3)());
 }
 
@@ -289,7 +303,6 @@ TEST_F(PerformanceTester, ResNet50) {
   std::vector<std::vector<int>> input_shapes = {{batch_size, 3, 224, 224}};
   CHECK_NE(FLAGS_resnet50_model_dir, "");
 
-  options_.evaluate_knobs = 0UL;
   Evaluate(PaddleModelBuilder(FLAGS_resnet50_model_dir, input_names, input_shapes)());
 }
 
