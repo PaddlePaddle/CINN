@@ -72,11 +72,40 @@ class TestCumsumCase3(TestCumsumOp):
 
     def init_input_data(self):
         self.feed_data = {
-            'x': self.random([2, 3, 4], "int32"),
+            'x': self.random([2, 3, 4], "int32", -10, 10),
         }
 
     def set_op_attrs(self):
         return {"axis": 1, "flatten": False}
+
+
+class TestCumsumCase4(TestCumsumOp):
+    """
+    Test case with dtype int64
+    """
+
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([2, 3], "int64", -10, 10),
+        }
+
+
+class TestCumsumCase5(TestCumsumOp):
+    """
+    Test case with exclusive = True
+    """
+
+    def set_op_attrs(self):
+        return {"exclusive": True}
+
+
+class TestCumsumCase6(TestCumsumOp):
+    """
+    Test case with reverse = True
+    """
+
+    def set_op_attrs(self):
+        return {"reverse": True}
 
 
 if __name__ == "__main__":
