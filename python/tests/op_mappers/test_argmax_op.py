@@ -77,9 +77,13 @@ class TestArgmaxCase3(TestArgmaxOp):
     """
 
     def init_input_data(self):
+        super().init_input_data()
         self.shape = [2, 3, 4]
         self.axis = 1
         self.input_dtype = "int32"
+        self.feed_data = {
+            'x': self.random(self.shape, self.input_dtype),
+        }
 
 
 class TestArgmaxCase4(TestArgmaxOp):
@@ -88,10 +92,14 @@ class TestArgmaxCase4(TestArgmaxOp):
     """
 
     def init_input_data(self):
+        super().init_input_data()
         self.shape = [2, 3, 4]
         self.axis = 1
         self.input_dtype = "int16"
         self.keepdim = True
+        self.feed_data = {
+            'x': self.random(self.shape, self.input_dtype),
+        }
 
 
 class TestArgmaxCase5(TestArgmaxOp):
@@ -100,7 +108,11 @@ class TestArgmaxCase5(TestArgmaxOp):
     """
 
     def init_input_data(self):
+        super().init_input_data()
         self.input_dtype = "uint8"
+        self.feed_data = {
+            'x': self.random(self.shape, self.input_dtype),
+        }
 
 
 class TestArgmaxCase6(TestArgmaxOp):
@@ -109,7 +121,13 @@ class TestArgmaxCase6(TestArgmaxOp):
     """
 
     def init_input_data(self):
+        self.feed_data = {
+            'x': self.random(self.shape, self.input_dtype),
+        }
         self.input_dtype = "float64"
+        self.feed_data = {
+            'x': self.random(self.shape, self.input_dtype),
+        }
 
 
 if __name__ == "__main__":
