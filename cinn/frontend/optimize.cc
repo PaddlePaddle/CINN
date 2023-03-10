@@ -33,6 +33,7 @@ DECLARE_bool(cinn_use_cublas_gemm);
 DECLARE_bool(cinn_use_common_subexpression_elimination);
 DECLARE_bool(cinn_check_fusion_accuracy_pass);
 DECLARE_bool(cinn_use_custom_call);
+DECLARE_bool(use_reduce_split_pass);
 
 namespace cinn {
 namespace frontend {
@@ -72,6 +73,11 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
 
   if (FLAGS_cinn_use_common_subexpression_elimination) {
     options.graph_passes.emplace_back("CommonSubexpressionEliminationPass");
+  }
+
+  // this pass should be applied before merge
+  if (FLAGS_use_reduce_split_pass) {
+    options.graph_passes.emplace_back("ReduceSplit");
   }
 
   if (FLAGS_cinn_use_op_fusion) {

@@ -70,6 +70,8 @@ DEFINE_bool(cinn_ir_schedule,
             BoolFromEnv("FLAGS_cinn_ir_schedule", true),
             "Whether use reconstructed schedule primitives.");
 
+DEFINE_bool(use_reduce_split_pass, BoolFromEnv("FLAGS_use_reduce_split_pass", false), "Whether use reduce split pass.");
+
 // FLAGS for performance analysis and accuracy debug
 DEFINE_bool(cinn_sync_run,
             BoolFromEnv("FLAGS_cinn_sync_run", false),
