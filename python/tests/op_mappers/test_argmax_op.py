@@ -95,7 +95,7 @@ class TestArgmaxCase4(TestArgmaxOp):
         super().init_input_data()
         self.shape = [2, 3, 4]
         self.axis = 1
-        self.input_dtype = "int16"
+        self.input_dtype = "int32"
         self.keepdim = True
         self.feed_data = {
             'x': self.random(self.shape, self.input_dtype),
