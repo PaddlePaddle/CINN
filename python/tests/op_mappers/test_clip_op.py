@@ -165,15 +165,12 @@ class TestClipOpInt32(TestClipOp):
         self.check_outputs_and_grads()
 
 
-# nvcc compile error
-# error: more than one instance of overloaded function "max" matches the argument list
-#
-# class TestClipOpInt64(TestClipOpInt32):
+class TestClipOpInt64(TestClipOpInt32):
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([2, 3, 4], "int64", low=0, high=10),
+        }
 
-#     def init_input_data(self):
-#         self.feed_data = {
-#             'x': self.random([2, 3, 4], "int64", low=0, high=10),
-#         }
 
 # class TestClipOpNoMax(TestClipOp):
 
