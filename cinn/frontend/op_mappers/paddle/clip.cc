@@ -31,7 +31,7 @@ void ClipOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
     CHECK_EQ(op_desc.Input("Min").size(), 1) << "clip op should have only one input for Min";
     auto min_val_name   = op_desc.Input("Min").front();
     auto min_val_tensor = ctx.GetVar(min_val_name);
-    CHECK_EQ(x->type, min_val_tensor->type_info()) << "The input X and Min should have the same type";
+    CHECK_EQ(x->type, min_val_tensor->type) << "The input X and Min should have the same type";
     CHECK_EQ(min_val_tensor->shape.size(), 1UL);
     min_val_tensor = builder->BroadcastTo(min_val_tensor, x->shape);
     x              = builder->Max(x, min_val_tensor);
@@ -46,7 +46,7 @@ void ClipOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
     CHECK_EQ(op_desc.Input("Max").size(), 1) << "clip op should have only one input for Max";
     auto max_val_name   = op_desc.Input("Max").front();
     auto max_val_tensor = ctx.GetVar(max_val_name);
-    CHECK_EQ(x->type, max_val_tensor->type_info()) << "The input X and Max should have the same type";
+    CHECK_EQ(x->type, max_val_tensor->type) << "The input X and Max should have the same type";
     CHECK_EQ(max_val_tensor->shape.size(), 1UL);
     max_val_tensor = builder->BroadcastTo(max_val_tensor, x->shape);
     x              = builder->Min(x, max_val_tensor);
