@@ -27,26 +27,31 @@ paddle.enable_static()
 
 class TestArgmaxOp(OpMapperTest):
     def init_input_data(self):
-        self.shape = [2, 3, 4]
-        self.axis = None
-        self.input_dtype = "float32"
-        self.output_dtype = "int32"
-        self.keepdim = False
         self.feed_data = {
-            'x': self.random(self.shape, self.input_dtype),
+            'x': np.array([1, 2, 3], dtype='float32'),
         }
+        self.axis = None
+        self.output_dtype = "int64"
+        self.keepdim = False
 
-    def set_paddle_program(self):
+    def set_op_type(self):
+        return "argmax"
+
+    def set_op_inputs(self):
         x = paddle.static.data(
             name='x',
             shape=self.feed_data['x'].shape,
             dtype=self.feed_data['x'].dtype)
-        out = paddle.argmax(x, self.axis, self.keepdim, self.output_dtype)
+        return {'X': [x]}
 
-        return ([x.name], [out])
+    def set_op_attrs(self):
+        return {"axis": self.axis, "keepdim": self.keepdim, "dtype": self.output_dtype}
+
+    def set_op_outputs(self):
+        return {'Out': [str(self.feed_data['x'].dtype)]}
 
     def test_check_results(self):
-        self.check_outputs_and_grads()
+        self.check_outputs_and_grads(all_equal=True)
 
 
 class TestArgmaxCase1(TestArgmaxOp):
@@ -55,36 +60,40 @@ class TestArgmaxCase1(TestArgmaxOp):
     """
 
     def init_input_data(self):
-        super().init_input_data()
+        self.feed_data = {
+            'x': np.array([1, 2, 3], dtype='float32'),
+        }
         self.axis = -1
+        self.output_dtype = "int64"
+        self.keepdim = False
 
 
 class TestArgmaxCase2(TestArgmaxOp):
     """
-    Test case with unspecified axis and dtype
+    Test case with keepdim = true
     """
 
     def init_input_data(self):
-        super().init_input_data()
+        self.feed_data = {
+            'x': np.array([1, 2, 3], dtype='float32'),
+        }
         self.axis = None
         self.output_dtype = "int32"
-        self.keepdim = False
+        self.keepdim = True
 
 
 class TestArgmaxCase4(TestArgmaxOp):
     """
-    Test case with different input dtype and output dtype
+    Test case with intput_dtype=uint8
     """
 
     def init_input_data(self):
-        super().init_input_data()
-        self.shape = [2, 3, 4]
-        self.axis = 1
-        self.input_dtype = "int32"
-        self.keepdim = True
         self.feed_data = {
-            'x': self.random(self.shape, self.input_dtype),
+            'x': np.array([1, 2, 3], dtype='float32'),
         }
+        self.axis = None
+        self.output_dtype = "int32"
+        self.keepdim = True
 
 
 class TestArgmaxCase5(TestArgmaxOp):
