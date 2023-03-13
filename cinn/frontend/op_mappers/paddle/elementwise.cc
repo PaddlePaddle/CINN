@@ -229,5 +229,7 @@ CINN_REGISTER_HELPER(paddle_elementwise) {
   CINN_REGISTER_OP_MAPPER(sum, SumOpMapper)
   CINN_REGISTER_OP_MAPPER(cast, CastOpMapper)
   CINN_REGISTER_OP_MAPPER(pow, PowOpMapper)
+  CINN_REGISTER_OP_MAPPER(grad_add,
+                          ElementwiseOpMapper<EltwiseType::kAdd>)  // special elementwise_add for gradient accumulation
   return true;
 }
