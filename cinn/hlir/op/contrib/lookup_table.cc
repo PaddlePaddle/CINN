@@ -143,6 +143,6 @@ CINN_REGISTER_HELPER(lookup_table_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForLookupTable)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForLookupTable))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForLookupTable))
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kNonFusible);
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOutFusible);
   return true;
 }
