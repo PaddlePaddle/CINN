@@ -78,6 +78,20 @@ void LoopComputeAt(ir::IRSchedule& ir_sch,
                    const absl::flat_hash_map<std::string, shape_t>& shape_dict,
                    const std::unordered_map<std::string, ir::Tensor>& tensor_map);
 
+void SyncThreadWithShared(ir::IRSchedule& ir_sch,
+                          const std::unordered_set<Node*>& nodes_inline,
+                          const std::unordered_set<Node*>& nodes_set,
+                          const absl::flat_hash_map<std::string, shape_t>& shape_dict,
+                          const std::unordered_map<std::string, ir::Tensor>& tensor_map);
+
+void DoReduceInline(ir::IRSchedule& ir_sch,
+                    Node* node,
+                    bool caninline,
+                    std::unordered_set<Node*>& nodes_inline,
+                    const std::unordered_set<Node*>& nodes_set,
+                    const absl::flat_hash_map<std::string, shape_t>& shape_dict,
+                    const std::unordered_map<std::string, ir::Tensor>& tensor_map);
+
 }  // namespace framework
 }  // namespace hlir
 }  // namespace cinn

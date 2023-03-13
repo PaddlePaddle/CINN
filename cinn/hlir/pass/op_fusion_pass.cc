@@ -263,17 +263,13 @@ class OpFusionPassHelper : public FusionHelperBase {
     {
       FusionRelation relation;
       // producer -> consumer
-      relation.op_kind = {framework::kElementWise};
+      relation.op_kind = {framework::kElementWise, framework::kBroadcast};
       // producer -> fusion
       relation.fusion_op_kind = {
           // horizontal or vertical relation(Reduce + Elementwise*), check without last dimension in reduce.
           {framework::kElementWise, without_last_dimension_in_reduce},
           // must be horizontal relation, check with same output shape and without last dimension in reduce.
-          {framework::kBroadcast,
-           [](const FusionHelperBase* helper, const Node* producer, const GroupPtr& consumer) -> bool {
-             return is_same_size(helper, producer, consumer) &&
-                    without_last_dimension_in_reduce(helper, producer, consumer);
-           }},
+          {framework::kBroadcast, reduce_fuse_broadcast},
           // must be horizontal relation and with same reduce attr.
           {framework::kReduction, reduce_fuse_reduce},
           // no_fuse

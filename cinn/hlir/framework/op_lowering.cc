@@ -581,6 +581,8 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
     // do loop fuse.
     LoopComputeAt(ir_sch, node, master ? master : nodes_in_order.front(), group, this->shape_dict_, tensor_map);
   }
+
+  SyncThreadWithShared(ir_sch, nodes_inline, nodes_set, this->shape_dict_, tensor_map);
 }
 
 }  // namespace framework
