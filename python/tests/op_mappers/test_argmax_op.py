@@ -31,6 +31,7 @@ class TestArgmaxOp(OpMapperTest):
             'x': np.array([1, 2, 3], dtype='float32'),
         }
         self.axis = None
+        self.shape = [2, 3, 4]
         self.output_dtype = "int64"
         self.keepdim = False
 
