@@ -1057,14 +1057,6 @@ class NetBuilder {
       const Variable& input1, const Variable& input2, bool left_side, bool upper, bool transpose_a, bool unit_diagonal);
 
   /**
-   * @brief l2-Norm
-   * @param x The input operand to be normed.
-   * @param axis The axis on which to apply normalization.
-   * @param epsilon The epsilon value is used to avoid division by zero.
-   */
-  Variable Norm(const Variable& x, int axis = -1, float epsilon = 1e-12f);
-
-  /**
    * @brief Return values and indices of the k largest or smallest at the optional axis.
    * If the input is a 1-D Tensor, finds the k largest or smallest values and indices.
    * If the input is a Tensor with higher rank, this operator computes the top k values

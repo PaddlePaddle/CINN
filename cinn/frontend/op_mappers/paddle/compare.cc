@@ -19,19 +19,34 @@ namespace cinn {
 namespace frontend {
 namespace paddle_mappers {
 
-#define COMPARE_OPMAPPER_FUNCTION(OP_NAME)                                                 \
-  void OP_NAME##OpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) { \
-    CHECK_EQ(op_desc.Input("X").size(), 1UL);                                              \
-    auto x_name = op_desc.Input("X").front();                                              \
-    CHECK_EQ(op_desc.Input("Y").size(), 1UL);                                              \
-    auto y_name = op_desc.Input("Y").front();                                              \
-    CHECK_EQ(op_desc.Output("Out").size(), 1UL);                                           \
-    auto out_name = op_desc.Output("Out").front();                                         \
-    auto x        = ctx.GetVar(x_name);                                                    \
-    auto y        = ctx.GetVar(y_name);                                                    \
-    auto out      = ctx.Builder()->OP_NAME(x, y);                                          \
-    ctx.AddVar(out_name, out);                                                             \
-    ctx.AddVarModelToProgram(out_name, out->id);                                           \
+static std::string DebugCompare(const std::string& compare_op) {
+  static std::unordered_map<std::string, std::string> compare_debug_map = {
+      {"GreaterThan", " > "},
+      {"GreaterEqual", " >= "},
+      {"LessThan", " < "},
+      {"LessEqual", " <= "},
+      {"Equal", " == "},
+      {"NotEqual", " != "},
+  };
+  CHECK_GT(compare_debug_map.count(compare_op), 0) << "Unsupported compare op " << compare_op;
+  return compare_debug_map[compare_op];
+}
+
+#define COMPARE_OPMAPPER_FUNCTION(OP_NAME)                                                        \
+  void OP_NAME##OpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {        \
+    CHECK_EQ(op_desc.Input("X").size(), 1UL);                                                     \
+    auto x_name = op_desc.Input("X").front();                                                     \
+    CHECK_EQ(op_desc.Input("Y").size(), 1UL);                                                     \
+    auto y_name = op_desc.Input("Y").front();                                                     \
+    CHECK_EQ(op_desc.Output("Out").size(), 1UL);                                                  \
+    auto out_name = op_desc.Output("Out").front();                                                \
+    auto axis     = utils::GetAttrOrDefault<int>(op_desc, "axis", -1);                            \
+    VLOG(4) << out_name << " = " << x_name << DebugCompare(#OP_NAME) << y_name << " at " << axis; \
+    auto x   = ctx.GetVar(x_name);                                                                \
+    auto y   = ctx.GetVar(y_name);                                                                \
+    auto out = ctx.Builder()->OP_NAME(x, y, axis);                                                \
+    ctx.AddVar(out_name, out);                                                                    \
+    ctx.AddVarModelToProgram(out_name, out->id);                                                  \
   }
 
 COMPARE_OPMAPPER_FUNCTION(GreaterThan)

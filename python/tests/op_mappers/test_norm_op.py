@@ -20,70 +20,41 @@ from op_mapper_test import OpMapperTest, logger
 import paddle
 
 
-class TestCompareOp(OpMapperTest):
+class TestNormOp(OpMapperTest):
     def init_input_data(self):
-        self.feed_data = {
-            'x': self.random([32, 64], "float32", -10, 10),
-            'y': self.random([32, 64], "float32", -10, 10),
-        }
+        self.feed_data = {'x': self.random([32, 64], "float32")}
 
     def set_op_type(self):
-        return "equal"
+        return "norm"
 
     def set_op_inputs(self):
         x = paddle.static.data(
             name='x',
             shape=self.feed_data['x'].shape,
             dtype=self.feed_data['x'].dtype)
-        y = paddle.static.data(
-            name='y',
-            shape=self.feed_data['y'].shape,
-            dtype=self.feed_data['y'].dtype)
-        return {'X': [x], 'Y': [y]}
+        return {'X': [x]}
 
     def set_op_attrs(self):
-        return {"axis": -1}
+        return {"axis": -1, "epsilon": 1e-10, "is_test": False}
 
     def set_op_outputs(self):
-        return {'Out': ['bool']}
+        return {
+            'Out': [str(self.feed_data['x'].dtype)],
+            "Norm": [str(self.feed_data['x'].dtype)]
+        }
 
     def test_check_results(self):
         self.check_outputs_and_grads()
 
 
-class TestEqualOp(TestCompareOp):
-    def set_op_type(self):
-        return "equal"
-
-
-class TestNotEqualOp(TestCompareOp):
-    def set_op_type(self):
-        return "not_equal"
-
-
-class TestGreaterEqualOp(TestCompareOp):
-    def set_op_type(self):
-        return "greater_equal"
-
-
-class TestGreaterThanOp(TestCompareOp):
-    def set_op_type(self):
-        return "greater_than"
-
-
-class TestLessEqualOp(TestCompareOp):
-    def set_op_type(self):
-        return "less_equal"
-
-
-class TestLessThanOp(TestCompareOp):
-    def set_op_type(self):
-        return "less_than"
-
-
-class TestAxisCase(TestCompareOp):
+class TestNormAxis1(TestNormOp):
     def set_op_attrs(self):
-        return {"axis": 0}
+        return {"axis": 0, "epsilon": 1e-2, "is_test": False}
+
+
+class TestNormTestMode(TestNormOp):
+    def set_op_attrs(self):
+        return {"axis": -1, "epsilon": 1e-10, "is_test": True}
 
 
 if __name__ == "__main__":
