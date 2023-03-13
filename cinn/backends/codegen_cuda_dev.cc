@@ -153,29 +153,19 @@ void CodeGenCUDA_Dev::Visit(const ir::Alloc *op) {
 }
 
 void CodeGenCUDA_Dev::Visit(const ir::Min *op) {
-  // (((a) < (b)) ? (a) : (b))
-  os() << "(((";
+  os() << "min(";
   Print(op->a());
-  os() << ") < (";
+  os() << ", ";
   Print(op->b());
-  os() << ")) ? (";
-  Print(op->a());
-  os() << ") : (";
-  Print(op->b());
-  os() << "))";
+  os() << ")";
 }
 
 void CodeGenCUDA_Dev::Visit(const ir::Max *op) {
-  // (((a) > (b)) ? (a) : (b))
-  os() << "(((";
+  os() << "max(";
   Print(op->a());
-  os() << ") > (";
+  os() << ", ";
   Print(op->b());
-  os() << ")) ? (";
-  Print(op->a());
-  os() << ") : (";
-  Print(op->b());
-  os() << "))";
+  os() << ")";
 }
 
 void CodeGenCUDA_Dev::PrintFunctionDeclaration(const ir::_LoweredFunc_ *op) {
