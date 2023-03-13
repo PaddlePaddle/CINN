@@ -660,7 +660,7 @@ void LoopAssignReduce(ir::IRSchedule& ir_sch,
     }
   }
 
-  auto copy_loop_info = [](std::vector<ir::Expr>& rloops, std::vector<ir::Expr>& loops) {
+  auto copy_loop_info = [](std::vector<ir::Expr>& loops, std::vector<ir::Expr>& rloops) {
     for (int idx = 0; idx < std::min(rloops.size(), loops.size()); ++idx) {
       auto l0 = rloops[idx].As<ir::For>();
       auto l1 = loops[idx].As<ir::For>();
@@ -691,7 +691,7 @@ void LoopAssignReduce(ir::IRSchedule& ir_sch,
     ir_sch.Split(loops.back(), factors);
     loops = ir_sch.GetLoops(node_data->id());
     // copy loop info form rloops.
-    copy_loop_info(rloops, loops);
+    copy_loop_info(loops, rloops);
     return;
   }
 

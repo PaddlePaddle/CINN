@@ -54,52 +54,6 @@ void CodeGen(ir::LoweredFunc& func) {
 #endif
 }
 
-/*
-TEST(OpFusionPass, Reduce_Fuse_Reduce_TEST_00) {
-  int h = 32, w = 1024;
-  NetBuilder net_builder("Reduce_Fuse_Reduce_TEST_00");
-  // create model
-  {
-    auto A = net_builder.CreateInput(Float(32), {h, h, w}, "A");
-    auto B = net_builder.CreateInput(Float(32), {h, h, w}, "B");
-    auto C = net_builder.CreateInput(Float(32), {h, h, w}, "C");
-    auto D = net_builder.CreateInput(Float(32), {h, h, w}, "D");
-
-    auto E = net_builder.ReduceSum(A, {1, 2});
-    auto EE = net_builder.Exp(E);
-    auto EEE = net_builder.Add(EE, EE);
-    auto F = net_builder.ReduceSum(B, {1, 2});
-    auto FF = net_builder.Exp(F);
-    auto FFF = net_builder.Add(FF, FF);
-    auto G = net_builder.ReduceSum(C, {1, 2});
-    auto H = net_builder.ReduceSum(D, {1, 2});
-    auto I = net_builder.Add(EEE, FFF);
-    auto J = net_builder.Add(I, G);
-    auto K = net_builder.Add(J, H);
-  }
-
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-
-  CHECK_EQ(graph->fusion_groups.size(), 1);
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
-}
-*/
-
 TEST(OpFusionPass, Reduce_Fuse_Broadcast_Layernorm) {
   int h = 32, w = 1024;
   NetBuilder net_builder("Reduce_Fuse_Broadcast_Layernorm");
@@ -196,8 +150,6 @@ TEST(OpFusionPass, Reduce_Fuse_Broadcast_Softmax) {
     CHECK_EQ(lowered_func.size(), 1);
     CodeGen(lowered_func[0]);
   }
-
-  exit(0);
 }
 
 TEST(OpFusionPass, Reduce_Fuse_Broadcast_1) {
