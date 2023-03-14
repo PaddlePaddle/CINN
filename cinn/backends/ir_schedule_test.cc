@@ -1313,7 +1313,7 @@ void test_cache_read1(void* _args, int32_t num_args)
     };
     for (int32_t i = 0; i < 32; i += 1) {
       for (int32_t j = 0; j < 32; j += 1) {
-        B[((32 * i) + j)] = (2.00000f * A_local_temp_buffer[((64 * i) + j)]);
+        B[((32 * i) + j)] = (2.00000000f * A_local_temp_buffer[((64 * i) + j)]);
       };
     };
     for (int32_t cache_ax0_0 = 0; cache_ax0_0 < 16; cache_ax0_0 += 1) {
@@ -1323,7 +1323,7 @@ void test_cache_read1(void* _args, int32_t num_args)
     };
     for (int32_t i = 0; i < 16; i += 1) {
       for (int32_t j = 0; j < 16; j += 1) {
-        C[((16 * i) + j)] = (1.00000f + B_local_temp_buffer[((32 * i) + j)]);
+        C[((16 * i) + j)] = (1.00000000f + B_local_temp_buffer[((32 * i) + j)]);
       };
     };
   };
@@ -1391,7 +1391,7 @@ void test_cache_read2(void* _args, int32_t num_args)
   for (int32_t i = 0; i < 64; i += 1) {
     for (int32_t j = 0; j < 32; j += 1) {
       A_local_temp_buffer[((32 * i) + j)] = A[((32 * i) + j)];
-      B[((32 * i) + j)] = (2.00000f * A_local_temp_buffer[((32 * i) + j)]);
+      B[((32 * i) + j)] = (2.00000000f * A_local_temp_buffer[((32 * i) + j)]);
     };
   };
   cinn_buffer_free((void*)(0), _B);
@@ -1460,7 +1460,7 @@ void test_cache_write1(void* _args, int32_t num_args)
   {
     for (int32_t i = 0; i < 64; i += 1) {
       for (int32_t j = 0; j < 32; j += 1) {
-        B_local_temp_buffer[((32 * i) + j)] = (2.00000f * A[((32 * i) + j)]);
+        B_local_temp_buffer[((32 * i) + j)] = (2.00000000f * A[((32 * i) + j)]);
       };
     };
     for (int32_t cache_ax0 = 0; cache_ax0 < 64; cache_ax0 += 1) {
@@ -1470,7 +1470,7 @@ void test_cache_write1(void* _args, int32_t num_args)
     };
     for (int32_t i = 0; i < 64; i += 1) {
       for (int32_t j = 0; j < 32; j += 1) {
-        C_local_temp_buffer[((32 * i) + j)] = (1.00000f + B[((32 * i) + j)]);
+        C_local_temp_buffer[((32 * i) + j)] = (1.00000000f + B[((32 * i) + j)]);
       };
     };
     for (int32_t cache_ax0_0 = 0; cache_ax0_0 < 64; cache_ax0_0 += 1) {
@@ -1540,7 +1540,7 @@ void test_cache_write2(void* _args, int32_t num_args)
   float* B = ((float*)(_B->memory));
   for (int32_t cache_ax0 = 0; cache_ax0 < 64; cache_ax0 += 1) {
     for (int32_t cache_ax1 = 0; cache_ax1 < 32; cache_ax1 += 1) {
-      B_local_temp_buffer[((32 * cache_ax0) + cache_ax1)] = (2.00000f * A[((32 * cache_ax0) + cache_ax1)]);
+      B_local_temp_buffer[((32 * cache_ax0) + cache_ax1)] = (2.00000000f * A[((32 * cache_ax0) + cache_ax1)]);
       B[((32 * cache_ax0) + cache_ax1)] = B_local_temp_buffer[((32 * cache_ax0) + cache_ax1)];
     };
   };
@@ -1613,7 +1613,7 @@ void test_cache_read3(const float* __restrict__ A, float* __restrict__ C)
     };
     for (int32_t i = 0; i < 32; i += 1) {
       for (int32_t j = 0; j < 32; j += 1) {
-        B[((32 * i) + j)] = (2.00000f * A_local_temp_buffer[((64 * i) + j)]);
+        B[((32 * i) + j)] = (2.00000000f * A_local_temp_buffer[((64 * i) + j)]);
       };
       __syncthreads();
     };
@@ -1625,7 +1625,7 @@ void test_cache_read3(const float* __restrict__ A, float* __restrict__ C)
     for (int32_t i = 0; i < 16; i += 1) {
       __syncthreads();
       for (int32_t j = 0; j < 16; j += 1) {
-        C[((16 * i) + j)] = (1.00000f + B_local_temp_buffer[((32 * i) + j)]);
+        C[((16 * i) + j)] = (1.00000000f + B_local_temp_buffer[((32 * i) + j)]);
       };
     };
   };
@@ -1690,7 +1690,7 @@ void test_cache_write3(const float* __restrict__ A, float* __restrict__ C)
   {
     for (int32_t i = 0; i < 64; i += 1) {
       for (int32_t j = 0; j < 32; j += 1) {
-        B_local_temp_buffer[((32 * i) + j)] = (2.00000f * A[((32 * i) + j)]);
+        B_local_temp_buffer[((32 * i) + j)] = (2.00000000f * A[((32 * i) + j)]);
       };
     };
     for (int32_t cache_ax0 = 0; cache_ax0 < 64; cache_ax0 += 1) {
@@ -1701,7 +1701,7 @@ void test_cache_write3(const float* __restrict__ A, float* __restrict__ C)
     __syncthreads();
     for (int32_t i = 0; i < 64; i += 1) {
       for (int32_t j = 0; j < 32; j += 1) {
-        C_local_temp_buffer[((32 * i) + j)] = (1.00000f + B[((32 * i) + j)]);
+        C_local_temp_buffer[((32 * i) + j)] = (1.00000000f + B[((32 * i) + j)]);
       };
     };
     __syncthreads();
@@ -1772,7 +1772,7 @@ void test_sync_threads(const float* __restrict__ A, float* __restrict__ C)
   {
     for (int32_t i = 0; i < 64; i += 1) {
       for (int32_t j = 0; j < 32; j += 1) {
-        B_local_temp_buffer[((32 * i) + j)] = (2.00000f * A[((32 * i) + j)]);
+        B_local_temp_buffer[((32 * i) + j)] = (2.00000000f * A[((32 * i) + j)]);
       };
     };
     for (int32_t cache_ax0 = 0; cache_ax0 < 64; cache_ax0 += 1) {
@@ -1783,7 +1783,7 @@ void test_sync_threads(const float* __restrict__ A, float* __restrict__ C)
     };
     for (int32_t i = 0; i < 64; i += 1) {
       for (int32_t j = 0; j < 32; j += 1) {
-        C_local_temp_buffer[((32 * i) + j)] = (1.00000f + B[((32 * i) + j)]);
+        C_local_temp_buffer[((32 * i) + j)] = (1.00000000f + B[((32 * i) + j)]);
       };
     };
     for (int32_t cache_ax0_0 = 0; cache_ax0_0 < 64; cache_ax0_0 += 1) {
@@ -1855,7 +1855,7 @@ void test_cache_write4(void* _args, int32_t num_args)
   {
     for (int32_t i = 0; i < 64; i += 1) {
       for (int32_t j = 0; j < 32; j += 1) {
-        B__reduce_init[((32 * i) + j)] = 0.00000f;
+        B__reduce_init[((32 * i) + j)] = 0.00000000f;
         for (int32_t k0 = 0; k0 < 32; k0 += 1) {
           B_local_temp_buffer[((32 * i) + j)] = (B_local_temp_buffer[((32 * i) + j)] + A[((1024 * i) + ((32 * j) + k0))]);
         };
@@ -1921,7 +1921,7 @@ function test_rfactor (_A, _B)
           ScheduleBlock(rf_B__reduce_init)
           {
             i0, i1 = axis.bind(i, rf_k0)
-            rf_B__reduce_init[i1, i0] = 0.00000f
+            rf_B__reduce_init[i1, i0] = 0.00000000f
           }
           serial for (j0, 0, 2)
           {
@@ -1938,7 +1938,7 @@ function test_rfactor (_A, _B)
         ScheduleBlock(B__reduce_init)
         {
           i0 = axis.bind(i)
-          B__reduce_init[i0] = 0.00000f
+          B__reduce_init[i0] = 0.00000000f
         }
         serial for (k0, 0, 16)
         {
@@ -1983,14 +1983,14 @@ void test_rfactor(void* _args, int32_t num_args)
   {
     for (int32_t rf_k0 = 0; rf_k0 < 16; rf_k0 += 1) {
       for (int32_t i = 0; i < 32; i += 1) {
-        rf_B__reduce_init[((32 * rf_k0) + i)] = 0.00000f;
+        rf_B__reduce_init[((32 * rf_k0) + i)] = 0.00000000f;
         for (int32_t j0 = 0; j0 < 2; j0 += 1) {
           rf_B[((32 * rf_k0) + i)] = (rf_B[((32 * rf_k0) + i)] + A[((32 * i) + ((16 * j0) + rf_k0))]);
         };
       };
     };
     for (int32_t i = 0; i < 32; i += 1) {
-      B__reduce_init[i] = 0.00000f;
+      B__reduce_init[i] = 0.00000000f;
       for (int32_t k0 = 0; k0 < 16; k0 += 1) {
         B[i] = (B[i] + rf_B[((32 * k0) + i)]);
       };
@@ -2051,7 +2051,7 @@ function test_rfactor (_A, _B)
           ScheduleBlock(rf_B__reduce_init)
           {
             i0, i1 = axis.bind(i, rf_j0)
-            rf_B__reduce_init[i0, i1] = 0.00000f
+            rf_B__reduce_init[i0, i1] = 0.00000000f
           }
           serial for (k0, 0, 16)
           {
@@ -2068,7 +2068,7 @@ function test_rfactor (_A, _B)
         ScheduleBlock(B__reduce_init)
         {
           i0 = axis.bind(i)
-          B__reduce_init[i0] = 0.00000f
+          B__reduce_init[i0] = 0.00000000f
         }
         serial for (j0, 0, 2)
         {
@@ -2113,14 +2113,14 @@ void test_rfactor(void* _args, int32_t num_args)
   {
     for (int32_t i = 0; i < 32; i += 1) {
       for (int32_t rf_j0 = 0; rf_j0 < 2; rf_j0 += 1) {
-        rf_B__reduce_init[((2 * i) + rf_j0)] = 0.00000f;
+        rf_B__reduce_init[((2 * i) + rf_j0)] = 0.00000000f;
         for (int32_t k0 = 0; k0 < 16; k0 += 1) {
           rf_B[((2 * i) + rf_j0)] = (rf_B[((2 * i) + rf_j0)] + A[((32 * i) + ((16 * rf_j0) + k0))]);
         };
       };
     };
     for (int32_t i = 0; i < 32; i += 1) {
-      B__reduce_init[i] = 0.00000f;
+      B__reduce_init[i] = 0.00000000f;
       for (int32_t j0 = 0; j0 < 2; j0 += 1) {
         B[i] = (B[i] + rf_B[((2 * i) + j0)]);
       };
@@ -2179,7 +2179,7 @@ function test_rfactor (_A, _B, _C)
             ScheduleBlock(rf_C__reduce_init)
             {
               i0, i1, i2 = axis.bind(i, j, rf_k0)
-              rf_C__reduce_init[i2, i0, i1] = 0.00000f
+              rf_C__reduce_init[i2, i0, i1] = 0.00000000f
             }
             ScheduleBlock(rf_C)
             {
@@ -2196,7 +2196,7 @@ function test_rfactor (_A, _B, _C)
           ScheduleBlock(C__reduce_init)
           {
             i0, i1 = axis.bind(i, j)
-            C__reduce_init[i0, i1] = 0.00000f
+            C__reduce_init[i0, i1] = 0.00000000f
           }
           serial for (k0, 0, 16)
           {
@@ -2245,14 +2245,14 @@ void test_rfactor(void* _args, int32_t num_args)
     for (int32_t rf_k0 = 0; rf_k0 < 16; rf_k0 += 1) {
       for (int32_t i = 0; i < 32; i += 1) {
         for (int32_t j = 0; j < 2; j += 1) {
-          rf_C__reduce_init[((2 * i) + ((64 * rf_k0) + j))] = 0.00000f;
+          rf_C__reduce_init[((2 * i) + ((64 * rf_k0) + j))] = 0.00000000f;
           rf_C[((2 * i) + ((64 * rf_k0) + j))] = fma(A[((16 * i) + rf_k0)], B[((2 * rf_k0) + j)], rf_C[((2 * i) + ((64 * rf_k0) + j))]);
         };
       };
     };
     for (int32_t i = 0; i < 32; i += 1) {
       for (int32_t j = 0; j < 2; j += 1) {
-        C__reduce_init[((2 * i) + j)] = 0.00000f;
+        C__reduce_init[((2 * i) + j)] = 0.00000000f;
         for (int32_t k0 = 0; k0 < 16; k0 += 1) {
           C[((2 * i) + j)] = (C[((2 * i) + j)] + rf_C[((2 * i) + ((64 * k0) + j))]);
         };
@@ -2320,7 +2320,7 @@ void test_compute_inline1(void* _args, int32_t num_args)
   for (int32_t i = 0; i < 32; i += 1) {
     for (int32_t j = 0; j < 32; j += 1) {
       for (int32_t k = 0; k < 32; k += 1) {
-        C[((1024 * i) + ((32 * j) + k))] = (2.00000f * (1.00000f + A[((32 * i) + ((1024 * j) + k))]));
+        C[((1024 * i) + ((32 * j) + k))] = (2.00000000f * (1.00000000f + A[((32 * i) + ((1024 * j) + k))]));
       };
     };
   };
@@ -2388,7 +2388,7 @@ void test_compute_inline2(void* _args, int32_t num_args)
   for (int32_t i = 0; i < 32; i += 1) {
     for (int32_t j = 0; j < 32; j += 1) {
       for (int32_t k = 0; k < 32; k += 1) {
-        C[((1024 * i) + ((32 * j) + k))] = (2.00000f * (1.00000f + A[((1024 * i) + ((32 * j) + k))]));
+        C[((1024 * i) + ((32 * j) + k))] = (2.00000000f * (1.00000000f + A[((1024 * i) + ((32 * j) + k))]));
       };
     };
   };
@@ -2447,7 +2447,7 @@ void test_compute_inline3(const float* __restrict__ A, float* __restrict__ C)
   for (int32_t i = 0; i < 32; i += 1) {
     for (int32_t j = 0; j < 32; j += 1) {
       for (int32_t k = 0; k < 32; k += 1) {
-        C[((1024 * i) + ((32 * j) + k))] = (2.00000f * (1.00000f + A[((32 * i) + ((1024 * j) + k))]));
+        C[((1024 * i) + ((32 * j) + k))] = (2.00000000f * (1.00000000f + A[((32 * i) + ((1024 * j) + k))]));
       };
     };
   };
@@ -2505,7 +2505,7 @@ void test_compute_inline4(const float* __restrict__ A, float* __restrict__ C)
   for (int32_t i = 0; i < 32; i += 1) {
     for (int32_t j = 0; j < 32; j += 1) {
       for (int32_t k = 0; k < 32; k += 1) {
-        C[((1024 * i) + ((32 * j) + k))] = (2.00000f * (1.00000f + A[((1024 * i) + ((32 * j) + k))]));
+        C[((1024 * i) + ((32 * j) + k))] = (2.00000000f * (1.00000000f + A[((1024 * i) + ((32 * j) + k))]));
       };
     };
   };
@@ -2582,7 +2582,7 @@ void test_copytransform1(void* _args, int32_t num_args)
         for (int32_t j_0 = 0; j_0 < 8; j_0 += 1) {
           for (int32_t j_1 = 0; j_1 < 4; j_1 += 1) {
             for (int32_t k = 0; k < 32; k += 1) {
-              B[((8192 * i_0) + ((1024 * i_1) + ((128 * j_0) + ((32 * j_1) + k))))] = (1.00000f + A[((8192 * i_0) + ((1024 * i_1) + ((128 * j_0) + ((32 * j_1) + k))))]);
+              B[((8192 * i_0) + ((1024 * i_1) + ((128 * j_0) + ((32 * j_1) + k))))] = (1.00000000f + A[((8192 * i_0) + ((1024 * i_1) + ((128 * j_0) + ((32 * j_1) + k))))]);
             };
           };
         };
@@ -2593,7 +2593,7 @@ void test_copytransform1(void* _args, int32_t num_args)
         for (int32_t j_0 = 0; j_0 < 8; j_0 += 1) {
           for (int32_t j_1 = 0; j_1 < 4; j_1 += 1) {
             for (int32_t k = 0; k < 32; k += 1) {
-              C[((8192 * i_0) + ((1024 * i_1) + ((128 * j_0) + ((32 * j_1) + k))))] = (2.00000f * B[((256 * i_0) + ((32 * i_1) + ((4096 * j_0) + ((1024 * j_1) + k))))]);
+              C[((8192 * i_0) + ((1024 * i_1) + ((128 * j_0) + ((32 * j_1) + k))))] = (2.00000000f * B[((256 * i_0) + ((32 * i_1) + ((4096 * j_0) + ((1024 * j_1) + k))))]);
             };
           };
         };
@@ -2670,7 +2670,7 @@ void test_copytransform2(void* _args, int32_t num_args)
       for (int32_t i_1 = 0; i_1 < 8; i_1 += 1) {
         for (int32_t j = 0; j < 64; j += 1) {
           for (int32_t k = 0; k < 128; k += 1) {
-            B[((65536 * i_0) + ((8192 * i_1) + ((128 * j) + k)))] = (1.00000f + A[((65536 * i_0) + ((8192 * i_1) + ((128 * j) + k)))]);
+            B[((65536 * i_0) + ((8192 * i_1) + ((128 * j) + k)))] = (1.00000000f + A[((65536 * i_0) + ((8192 * i_1) + ((128 * j) + k)))]);
           };
         };
       };
@@ -2680,7 +2680,7 @@ void test_copytransform2(void* _args, int32_t num_args)
         for (int32_t j_0 = 0; j_0 < 8; j_0 += 1) {
           for (int32_t j_1 = 0; j_1 < 4; j_1 += 1) {
             for (int32_t k = 0; k < 128; k += 1) {
-              C[((32768 * i_0) + ((4096 * i_1) + ((512 * j_0) + ((128 * j_1) + k))))] = (2.00000f * B[((65536 * i_0) + ((8192 * i_1) + ((512 * j_0) + ((128 * j_1) + k))))]);
+              C[((32768 * i_0) + ((4096 * i_1) + ((512 * j_0) + ((128 * j_1) + k))))] = (2.00000000f * B[((65536 * i_0) + ((8192 * i_1) + ((512 * j_0) + ((128 * j_1) + k))))]);
             };
           };
         };
@@ -2844,7 +2844,7 @@ void TestIrSchedule_ReduceSum(void* _args, int32_t num_args)
   {
     for (int32_t i_0 = 0; i_0 < 8; i_0 += 1) {
       for (int32_t i_1 = 0; i_1 < 4; i_1 += 1) {
-        B__reduce_init[((4 * i_0) + i_1)] = 0.00000f;
+        B__reduce_init[((4 * i_0) + i_1)] = 0.00000000f;
       };
     };
     for (int32_t reduce_axis_k_0 = 0; reduce_axis_k_0 < 32; reduce_axis_k_0 += 1) {

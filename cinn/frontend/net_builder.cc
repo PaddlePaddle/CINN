@@ -241,6 +241,33 @@ Variable NetBuilder::FillConstant(
   return out;
 }
 
+Variable NetBuilder::FillConstant(const std::vector<int>& shape,
+                                  const std::string& str_value,
+                                  const std::string& name,
+                                  const std::string& dtype,
+                                  bool force_cpu) {
+  utils::Attribute value;
+  if (dtype == "float32") {
+    value = std::stof(str_value);
+  } else if (dtype == "float64") {
+    value = std::stod(str_value);
+  } else if (dtype == "int32") {
+    value = std::stoi(str_value);
+  } else if (dtype == "int64") {
+    value = static_cast<int64_t>(std::stoll(str_value));
+  } else if (dtype == "bool") {
+    static std::unordered_set<std::string> true_string = {"1", "t", "T", "true", "True", "TRUE"};
+    value                                              = static_cast<bool>(true_string.count(str_value));
+  } else {
+    LOG(FATAL) << "FillConstant only support int64, int32, float32, float64, bool, but here " << dtype;
+  }
+  auto out =
+      CustomInstr("fill_constant", {}, {{"shape", shape}, {"value", value}, {"dtype", dtype}, {"force_cpu", force_cpu}})
+          .front();
+  out.set_id(cinn::utils::TransValidVarName(name));
+  return out;
+}
+
 std::vector<Variable> NetBuilder::Split(const Variable& operand, const std::vector<int>& num_or_sections, int axis) {
   return CustomInstr("split", {operand}, {{"num_or_sections", num_or_sections}, {"axis", axis}});
 }

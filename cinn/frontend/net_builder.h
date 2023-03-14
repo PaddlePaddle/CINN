@@ -418,6 +418,21 @@ class NetBuilder {
                         bool force_cpu = false);
 
   /**
+   * @brief The op return a variable with the specific string value, shape and type.
+   * @param shape Shape of the variable to be created.
+   * @param str_value The constant string value used to initialize the variable to be created.
+   * @param name The name of the output variable.
+   * @param dtype Data type of the output variable.
+   * @param force_cpu Whether the variable should force placed in cpu, default in device memory. Default is false.
+   * @return The result variable.
+   */
+  Variable FillConstant(const cinn::utils::ShapeType& shape,
+                        const std::string& str_value,
+                        const std::string& name,
+                        const std::string& dtype,
+                        bool force_cpu = false);
+
+  /**
    * @brief The op return a variable with the specific value, shape and type, the type is infered from value.
    * @param shape Shape of the variable to be created.
    * @param value The constant value used to initialize the variable to be created.

@@ -32,8 +32,6 @@ namespace cinn {
 namespace hlir {
 namespace framework {
 
-std::string Attribute2String(const utils::Attribute& attr);
-
 inline void WriteToFile(const std::string& filepath, const std::string& content) {
   VLOG(4) << "Write to " << filepath;
   std::ofstream of(filepath);

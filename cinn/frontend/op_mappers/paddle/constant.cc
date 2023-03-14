@@ -68,21 +68,22 @@ void FillConstantOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperCont
   auto dtype_cinn = utils::CppVarType2CommonType(dtype_pd);
   auto dtype      = common::Type2Str(dtype_cinn);
 
-  if (!str_value.empty()) {
-    size_t end_pos = 0;
-    value          = std::stof(str_value, &end_pos);
-  }
-
-  VLOG(4) << "fill constant (" << value << ") with shape (" << cinn::utils::Join(shape, ",") << ") and dtype [" << dtype
-          << "]";
-
   const auto& cinn_name = cinn::utils::TransValidVarName(y_name);
   CheckVarNameValid(cinn_name);
 
-  auto out = ctx.Builder()->FillConstant(shape, value, cinn_name, dtype, force_cpu);
+  absl::optional<Variable> out;
+  if (!str_value.empty()) {
+    VLOG(4) << "fill constant (" << str_value << ") with shape (" << cinn::utils::Join(shape, ",") << ") and dtype ["
+            << dtype << "]";
+    out = ctx.Builder()->FillConstant(shape, str_value, cinn_name, dtype, force_cpu);
+  } else {
+    VLOG(4) << "fill constant (" << value << ") with shape (" << cinn::utils::Join(shape, ",") << ") and dtype ["
+            << dtype << "]";
+    out = ctx.Builder()->FillConstant(shape, value, cinn_name, dtype, force_cpu);
+  }
 
-  ctx.AddVar(y_name, out);
-  ctx.AddVarModelToProgram(y_name, out->id);
+  ctx.AddVar(y_name, out.value());
+  ctx.AddVarModelToProgram(y_name, out.value()->id);
 }
 
 void FillAnyLikeOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {

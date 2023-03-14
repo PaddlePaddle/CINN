@@ -69,7 +69,7 @@ TEST(IrSimplify, basic) {
   {
     serial for (j, 0, 20)
     {
-      B[i, j] = (125.000f + (X[i, j] + y[i, 0]))
+      B[i, j] = (125.000000f + (X[i, j] + y[i, 0]))
     }
   }
 }
@@ -103,7 +103,7 @@ TEST(IrSimplify, basic) {
   {
     serial for (j, 0, 20)
     {
-      B[i, j] = ((y[i, 0] / 3.00000f) + (125.000f + X[(1000 * i), 0]))
+      B[i, j] = ((y[i, 0] / 3.00000000f) + (125.000000f + X[(1000 * i), 0]))
     }
   }
 }
