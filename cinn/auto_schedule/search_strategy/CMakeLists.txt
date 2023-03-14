@@ -1,3 +1,5 @@
+add_subdirectory(mutate_rule)
+
 core_gather_headers()
 
 gather_srcs(cinnapi_src SRCS evolutionary_search.cc)

@@ -1,4 +1,4 @@
-// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+// Copyright (c) 2023 CINN Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,21 +14,20 @@
 
 #pragma once
 
-#include "cinn/common/macros.h"
+#include "cinn/auto_schedule/search_strategy/mutate_rule/mutate_rule.h"
 
-CINN_USE_REGISTER(InferShape)
-CINN_USE_REGISTER(OpFusion)
-CINN_USE_REGISTER(AlterLayout)
-CINN_USE_REGISTER(ConstPropagate)
+namespace cinn {
+namespace auto_schedule {
 
-CINN_USE_REGISTER(DCE)
-CINN_USE_REGISTER(DotMerger)
-CINN_USE_REGISTER(OpFusionPass)
-CINN_USE_REGISTER(FusionMergePass)
-CINN_USE_REGISTER(CheckFusionAccuracyPass)
+/**
+ * The rule to mutate tile size, witch will modify the factors of the Split primitive.
+ */
+class MutateTileSize : public MutateRule {
+ public:
+  MutateTileSize() = default;
 
-CINN_USE_REGISTER(CommonSubexpressionEliminationPass)
-CINN_USE_REGISTER(TransToCustomCallPass)
-CINN_USE_REGISTER(DenseMergePass)
-CINN_USE_REGISTER(ConstantFolding)
-CINN_USE_REGISTER(ReduceSplit)
+  ir::ScheduleDesc Apply(const ir::ScheduleDesc& trace, utils::LinearRandomEngine::StateType* rand_seed) override;
+};
+
+}  // namespace auto_schedule
+}  // namespace cinn

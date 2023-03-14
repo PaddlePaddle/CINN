@@ -36,7 +36,8 @@ class TestMixRules : public TestAutoGenRuleBase {
 };
 
 TEST_F(TestMixRules, 2DMatmulOnMultiTilingRelated) {
-  ir::IRSchedule ir_schedule       = InitSchedule(MatmulOpBuilder({32, 32}, {32, 32})(), common::DefaultNVGPUTarget());
+  Initialize(common::DefaultNVGPUTarget());
+  ir::IRSchedule ir_schedule       = MakeIRSchedule(MatmulOpBuilder({32, 32}, {32, 32})());
   std::vector<ir::Expr> func_bodys = ir_schedule.GetModule().GetExprs();
   ASSERT_EQ(func_bodys.size(), 1UL);
   VLOG(6) << "Original Expr:\n" << func_bodys[0];
@@ -68,7 +69,8 @@ TEST_F(TestMixRules, 2DMatmulOnMultiTilingRelated) {
   VLOG(6) << "scheduled source code:\n" << source_code;
   // execute and check precision
   CheckResult(GenExecutableKernel(ir_module),
-              expected_func_matmul,
+              GenExecutableKernel(BuildIRModule(
+                  MakeIRSchedule(MatmulOpBuilder({32, 32}, {32, 32})(), /* apply_manual_schedule*/ true))),
               default_input_names,
               default_output_names,
               {{32, 32}, {32, 32}},

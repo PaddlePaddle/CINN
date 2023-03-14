@@ -36,6 +36,9 @@ void UniformRandomOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperCon
   auto dtype_cinn = utils::CppVarType2CommonType(dtype_pd);
   auto dtype      = common::Type2Str(dtype_cinn);
 
+  VLOG(4) << out_name << "[" << cinn::utils::Join(shape, ", ") << "] = uniform_random(min=" << min << ", max=" << max
+          << ", seed=" << seed << ", dtype=" << dtype << ", shape=[" << cinn::utils::Join(shape, ", ") << "])";
+
   auto out = ctx.Builder()->UniformRandom(shape, min, max, seed, dtype);
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);
