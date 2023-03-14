@@ -30,7 +30,7 @@ void ArgMaxOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
   auto out_name = op_desc.Output("Out").front();
 
   auto x        = ctx.GetVar(x_name);
-  auto axis     = op_desc.GetAttr<int64_t>("axis");
+  auto axis     = op_desc.GetAttr<int32_t>("axis");
   auto keepdims = op_desc.GetAttr<bool>("keepdims");
   auto flatten  = op_desc.GetAttr<bool>("flatten");
   auto dtype_id =
