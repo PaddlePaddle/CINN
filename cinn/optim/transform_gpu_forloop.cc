@@ -448,6 +448,7 @@ void OptimizeExprGPU(Expr *expr) {
   std::reverse(tensor_traverse_order.begin(), tensor_traverse_order.end());
   forloop_infos_t forloop_infos;
 
+  // Add loops bound by gpu axis in for_loop_info.
   auto find_bind_forloops = ir::CollectIRNodesWithoutTensor(
       *expr, [&](const Expr *x) { return x->As<ir::For>() && x->As<ir::For>()->bind_info().valid(); });
   for (auto &for_loop : find_bind_forloops) {
@@ -466,6 +467,7 @@ void OptimizeExprGPU(Expr *expr) {
     });
   }
 
+  // Add loops not bound by gpu axis in for_loop_info, used for recalculating the size of cache buffer after ComputeAt.
   auto find_no_bind_forloops = ir::CollectIRNodesWithoutTensor(
       *expr, [&](const Expr *x) { return x->As<ir::For>() && !x->As<ir::For>()->bind_info().valid(); });
   for (auto &for_loop : find_no_bind_forloops) {
@@ -485,10 +487,14 @@ void OptimizeExprGPU(Expr *expr) {
         reverse_compute_at_extra_var_iter == schedule_block->attrs.end())
       continue;
     std::vector<std::string> compute_at_extra_var, reverse_compute_at_extra_var;
+    // Get the names of vars that cannot be simplified after ComputeAt.
+    // The loop corresponding to these axes is related to the size of the cache buffer.
     if (compute_at_extra_var_iter != schedule_block->attrs.end()) {
       compute_at_extra_var =
           utils::Split(absl::get<std::string>(schedule_block->attrs.at("compute_at_extra_var")), ",");
     }
+    // Get the names of vars that cannot be simplified after ReverseComputeAt.
+    // The loop corresponding to these axes is related to the size of the cache buffer.
     if (reverse_compute_at_extra_var_iter != schedule_block->attrs.end()) {
       reverse_compute_at_extra_var =
           utils::Split(absl::get<std::string>(schedule_block->attrs.at("reverse_compute_at_extra_var")), ",");
@@ -504,6 +510,7 @@ void OptimizeExprGPU(Expr *expr) {
 
     auto find_for_loop_info_func =
         [&](const std::set<ir::Expr> &temp_buffer_ops, const std::vector<std::string> &extra_var, bool is_load) {
+          // Traversing the operation nodes(Load or Store node) of the temp buffer.
           for (auto &buf_op : temp_buffer_ops) {
             std::vector<cinn::ir::Expr> indices;
             if (is_load) {
@@ -514,6 +521,12 @@ void OptimizeExprGPU(Expr *expr) {
               indices = buf_op.As<ir::Store>()->indices;
             }
 
+            // 'iter_vars' are stored in ScheduleBlock node, through it, we can find the corresponding iter_values in
+            // the information of ScheduleBlockRealize.
+            // 'indices' are stored in Load and Store node, means subscript for
+            // operating the temp buffer.
+            // For each indice that operates the temp buffer, we find an iter_var with the
+            // same name, then we can find the corresponding iter_values and loops.
             for (int i = 0; i < iter_vars.size(); ++i) {
               for (auto &ind : indices) {
                 if (ind.as_var_ref()->name == iter_vars[i]->name) {
@@ -523,12 +536,18 @@ void OptimizeExprGPU(Expr *expr) {
                     std::string var_name = var_in_indice.as_var_ref()->name;
 
                     bool is_in_extra_var = false;
+                    // Filter out vars that cannot be eliminated,
+                    // these vars are stored in schedule_block->attrs with name "[reverse_]compute_at_extra_var",
+                    // and are calculated and stored when calling the [Reverse]ComputeAt primitive.
                     for (const auto &ev : extra_var) {
                       if (var_name.find(ev) != std::string::npos) {
                         is_in_extra_var = true;
                         break;
                       }
                     }
+                    // find the loops that can be eliminated, which are the outer loops of caculation of the temp
+                    // buffer. These loops are in one thread and do not need to participate in the calculation of the
+                    // temp buffer.
                     auto find_loop_with_var_name = std::find_if(
                         find_no_bind_forloops.begin(), find_no_bind_forloops.end(), [&var_name](const ir::Expr &e) {
                           return e.As<ir::For>()->loop_var->name == var_name;
