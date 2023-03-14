@@ -51,8 +51,7 @@ std::vector<ir::Tensor> ArgSort(const ir::Tensor &A,
                                 poly::StageMap stages,
                                 const int &axis,
                                 const bool &is_ascend,
-                                const std::string &name,
-                                const std::string &name2) {
+                                const std::string &name) {
   std::string find_func_name;
   std::string index_func_name;
   if (target.arch == common::Target::Arch::NVGPU) {
@@ -93,7 +92,7 @@ std::vector<ir::Tensor> ArgSort(const ir::Tensor &A,
         auto A_shape_axis = A->shape[pos_axis];
         return lang::CallExtern(index_func_name, {A, A_shape_axis, A(indices), offset, stride});
       },
-      name2 + "cnt");
+      name + "_temp");
   auto res = Compute(
       A->shape,
       [=](const std::vector<Expr> &indices) {
@@ -116,7 +115,7 @@ std::vector<ir::Tensor> ArgSort(const ir::Tensor &A,
         auto idx = lang::CallExtern(find_func_name, {positions, A_shape_axis, indices[pos_axis], offset, stride});
         return idx;
       },
-      name + "idx");
+      name);
   stages->InsertLazily(positions);
   return {res, positions};
 }
@@ -249,15 +248,13 @@ std::shared_ptr<framework::OpStrategy> StrategyForArgSort(const framework::NodeA
     auto stages   = CreateStages({tensor_A});
     VLOG(3) << "A shape: " << utils::Join(tensor_A->shape, ", ")
             << ", output_shapes: " << utils::Join(output_shapes[0], ", ");
-    auto tensor_name  = UniqName("ArgSort_out");
-    auto tensor_name2 = UniqName("ArgSort_out2");
+    auto tensor_name = UniqName("ArgSort_out");
     if (FLAGS_cinn_ir_schedule) {
       CHECK_EQ(pack_args.size(), 3U);
       CHECK(pack_args[1].is_string());
-      tensor_name  = pack_args[1].operator std::string();
-      tensor_name2 = pack_args[2].operator std::string();
+      tensor_name = pack_args[1].operator std::string();
     }
-    auto out = ArgSort(tensor_A, target, stages, axis, is_ascend, tensor_name, tensor_name2);
+    auto out = ArgSort(tensor_A, target, stages, axis, is_ascend, tensor_name);
     std::vector<CINNValue> res;
     stages->InsertLazily(out.at(0));
     stages->InsertLazily(out.at(1));
