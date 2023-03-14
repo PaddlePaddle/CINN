@@ -220,9 +220,22 @@ std::unordered_map<Node*, Node*> BuildVirtualConsumer(const GroupPtr& group,
     return virtual_consumers;
   }
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
+  Node* g_node          = nullptr;
+  for (auto t_node : group->output_nodes) {
+    if (op_pattern_dict[t_node->op()] == framework::kReduction) {
+      continue;
+    }
+
+    g_node = t_node;
+    break;
+  }
+
   // try to find reducer with different shape.
   for (auto t_node : group->output_nodes) {
     if (op_pattern_dict[t_node->op()] == framework::kReduction) {
+      if (g_node) {
+        virtual_consumers[t_node] = g_node;
+      }
       continue;
     }
     if (FindNearestReducer(t_node, nodes_set)) {
