@@ -189,7 +189,7 @@ class OpMapperTest(OpTest):
         self.__check_valid()
 
     def debug_info(self, info_dict: dict, title: str):
-        if logger.isEnabledFor(10):
+        if logger.isEnabledFor(logging.DEBUG):
             debug_info = ""
             for k, v in info_dict.items():
                 debug_info += k + ", shape=" + str(v.shape) + ", dtype=" + str(

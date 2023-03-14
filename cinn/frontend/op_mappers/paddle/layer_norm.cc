@@ -53,14 +53,10 @@ void LayerNormOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
   absl::optional<Variable> scale;
   if (scale_name) {
     scale = ctx.GetVar(*scale_name);
-    CHECK(scale.value()->type.is_float(32))
-        << "The type of LayerNorm's input [Scale] should be float32. But here " << scale.value();
   }
   absl::optional<Variable> bias;
   if (bias_name) {
     bias = ctx.GetVar(*bias_name);
-    CHECK(bias.value()->type.is_float(32))
-        << "The type of LayerNorm's input [Bias] should be float32. But here " << bias.value();
   }
 
   VLOG(4) << "layer_norm X=" << x_name << "[" << x << "], Scale=" << scale_name.value() << "[" << scale.value()
@@ -116,12 +112,18 @@ void LayerNormOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
 
   // multiply scale
   if (scale) {
+    if (scale.value()->type.is_float(16)) {
+      scale = ctx.Builder()->Cast(scale.value(), "float32");
+    }
     auto scale_broadcast = builder->BroadcastTo(*scale, shape, {1});
     y_out                = builder->Multiply(y_out, scale_broadcast);
   }
 
   // add bias
   if (bias) {
+    if (bias.value()->type.is_float(16)) {
+      bias = ctx.Builder()->Cast(bias.value(), "float32");
+    }
     auto bias_broadcast = builder->BroadcastTo(*bias, shape, {1});
     y_out               = builder->Add(y_out, bias_broadcast);
   }
