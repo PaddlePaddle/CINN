@@ -26,12 +26,16 @@
 #include "cinn/auto_schedule/database/database.h"
 #include "cinn/auto_schedule/search_space/search_space.h"
 #include "cinn/auto_schedule/search_space/search_state.h"
+#include "cinn/auto_schedule/search_strategy/mutate_rule/mutate_tile_size.h"
 #include "cinn/auto_schedule/task/task_registry.h"
 #include "cinn/auto_schedule/task/tune_task.h"
 #include "cinn/auto_schedule/tuning.h"
 #include "cinn/optim/ir_copy.h"
+#include "cinn/utils/multi_threading.h"
 #include "cinn/utils/sized_multi_set.h"
 #include "cinn/utils/string.h"
+
+DECLARE_bool(auto_schedule_use_cost_model);
 
 namespace cinn {
 namespace auto_schedule {
@@ -39,12 +43,24 @@ namespace auto_schedule {
 EvolutionarySearch::EvolutionarySearch(const TuneTask& tune_task,
                                        const ExprCostModel& cost_model,
                                        Database* database,
-                                       utils::LinearRandomEngine::StateType rand_seed)
+                                       utils::LinearRandomEngine::StateType rand_seed,
+                                       const std::vector<std::tuple<std::string, double>>& mutate_rules)
     : tune_task_(tune_task),
       cost_model_(cost_model),
       database_(database),
-      rand_seed_(utils::LinearRandomEngine::NormalizeState(rand_seed)) {
+      rand_seed_(utils::LinearRandomEngine::NormalizeState(rand_seed)),
+      mutators_(mutate_rules) {
   search_space_ = std::make_unique<SearchSpace>(tune_task, utils::ForkRandomState(&rand_seed_));
+  if (mutators_.empty()) {
+    mutators_.push_back(std::make_tuple("mutate_tile_size", 1.0));
+  }
+  double accum_weight = 0.0;
+  for (const auto& mutator : mutators_) {
+    if (std::get<1>(mutator) > 0) {
+      accum_weight += std::get<1>(mutator);
+      weighted_mutators_.insert(std::make_pair(accum_weight, MutateRule::Make(std::get<0>(mutator))));
+    }
+  }
 }
 
 EvolutionarySearch::~EvolutionarySearch() {}
@@ -122,7 +138,34 @@ SearchState EvolutionarySearch::CrossOver(const SearchState& state1, const Searc
     }
   }
   auto res = SearchState(ir::IRSchedule(ir::ModuleExpr(cross_over_exprs), utils::ForkRandomState(&rand_seed_)));
+  if (FLAGS_auto_schedule_use_cost_model) {
+    res->predicted_cost = cost_model_.Predict(res->ir_schedule.GetModule(), tune_task_.target);
+  }
   VLOG(4) << JoinStatesDebugString("EvolutionarySearch::CrossOver", {state1, state2, res}, /*verbose=*/VLOG_IS_ON(5));
+  return res;
+}
+
+SearchState EvolutionarySearch::Mutate(const SearchState& state, utils::LinearRandomEngine::StateType* rand_seed) {
+  CHECK_GT(weighted_mutators_.size(), 0) << "There is no mutate rule can be applied.";
+  double accu_weight = (weighted_mutators_.rbegin())->first;
+  CHECK_GT(accu_weight, 0) << "The accumulate weight must be greater than 0.";
+  // sample a mutate rule
+  double sample_weight = utils::SampleUniformDouble(0, accu_weight, rand_seed);
+  auto sampled_iter    = weighted_mutators_.upper_bound(sample_weight);
+  MutateRule* mutator  = sampled_iter->second.get();
+  CHECK(mutator) << "mutator not defined";
+  // apply mutation on the trace of SearchState
+  auto trace     = state->ir_schedule.GetTraceDesc();
+  auto new_trace = mutator->Apply(trace, rand_seed);
+  // replay the mutated trace on original ModuleExpr to generate a new ir_schedule
+  const auto& task_key               = tune_task_.serialized_key;
+  InitialTaskRegistry* task_registry = InitialTaskRegistry::Global();
+  ir::IRSchedule new_ir_sch(optim::IRCopy(task_registry->Get(task_key)->module_expr),
+                            utils::ForkRandomState(rand_seed));
+  new_trace.Replay(&new_ir_sch);
+  auto res = SearchState(std::move(new_ir_sch));
+
+  VLOG(4) << JoinStatesDebugString("EvolutionarySearch::Mutate", {state, res}, /*verbose=*/VLOG_IS_ON(5));
   return res;
 }
 
@@ -135,8 +178,14 @@ std::vector<SearchState> EvolutionarySearch::Evolve(const std::vector<SearchStat
   if (generation_num == 0) {
     return std::vector<SearchState>();
   }
+  // init evolution
   std::vector<SearchState> evolution(population);
-
+  for (SearchState& search_state : evolution) {
+    if (search_state->predicted_cost == SearchState::NOT_INIT_COST && FLAGS_auto_schedule_use_cost_model) {
+      search_state->predicted_cost = cost_model_.Predict(search_state->ir_schedule.GetModule(), tune_task_.target);
+    }
+  }
+  // cross over
   for (int i = 0; i < cross_over_num; ++i) {
     int first_rand_idx  = utils::SampleUniformInt(0, generation_num, &rand_seed_);
     int second_rand_idx = utils::SampleUniformInt(0, generation_num, &rand_seed_);
@@ -145,10 +194,29 @@ std::vector<SearchState> EvolutionarySearch::Evolve(const std::vector<SearchStat
     }
     evolution.push_back(CrossOver(population[first_rand_idx], population[second_rand_idx]));
   }
-
+  // mutate
+  std::vector<SearchState> mutated_individuals(evolution.size());
+  std::vector<utils::LinearRandomEngine::StateType> rand_seeds(evolution.size());
+  for (int i = 0; i < rand_seeds.size(); ++i) {
+    rand_seeds[i] = utils::ForkRandomState(&rand_seed_);
+  }
+  auto mutate_fn = [this, &evolution, &mutated_individuals, &rand_seeds](int index) {
+    mutated_individuals[index] = Mutate(evolution[index], &rand_seeds[index]);
+  };
+  utils::parallel_run(mutate_fn, utils::SequenceDispatcher(0, evolution.size()), evolution.size());
+  // select top ret_num with predicted cost
+  if (FLAGS_auto_schedule_use_cost_model) {
+    for (size_t i = 0; i < mutated_individuals.size(); ++i) {
+      mutated_individuals[i]->predicted_cost =
+          cost_model_.Predict(mutated_individuals[i]->ir_schedule.GetModule(), tune_task_.target);
+    }
+  }
   utils::SizedMultiSet<SearchState> evolution_with_cost(ret_num);
   for (size_t i = 0; i < evolution.size(); ++i) {
-    evolution_with_cost.Push(search_space_->GetScheduleMutate(evolution[i], cost_model_));
+    evolution_with_cost.Push(evolution[i]);
+  }
+  for (size_t i = 0; i < mutated_individuals.size(); ++i) {
+    evolution_with_cost.Push(mutated_individuals[i]);
   }
 
   return evolution_with_cost.ReturnAsContainer<std::vector<SearchState>>();
