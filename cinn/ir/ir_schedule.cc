@@ -969,7 +969,7 @@ struct LoopReconstructor : public ir::IRMutator<> {
    *        - `index = -1` means inserted into the tail
    *        - otherwise, it should be a index between [0, stmts size)
    */
-  void MakeNewLoop(const std::vector<IterRange>& iter_ranges, int inserted_pos = -1) {
+  std::string MakeNewLoop(const std::vector<IterRange>& iter_ranges, int inserted_pos = -1) {
     int n_iters = iter_ranges.size();
     std::vector<Var> loop_vars;
     std::vector<Expr> loop_extents;
@@ -977,10 +977,13 @@ struct LoopReconstructor : public ir::IRMutator<> {
     loop_vars.reserve(n_iters);
     loop_extents.reserve(n_iters);
     iter_values.reserve(n_iters);
+    std::vector<std::string> new_var_names;
     for (int i = 0; i < n_iters; ++i) {
       const auto& range = iter_ranges[i];
       if (range.extent != Expr(1)) {
-        Var var(common::UniqName("ax" + std::to_string(loop_vars.size())), Int(32));
+        std::string var_name = common::UniqName("ax" + std::to_string(loop_vars.size()));
+        new_var_names.push_back(var_name);
+        Var var(var_name, Int(32));
         loop_vars.push_back(var);
         loop_extents.push_back(range.extent);
         iter_values.push_back(common::AutoSimplify(range.min) + var);
@@ -999,8 +1002,28 @@ struct LoopReconstructor : public ir::IRMutator<> {
           loop_var, Expr(0), loop_extent, ForType::Serial, loop_.As<ir::For>()->device_api, std::move(loop_body));
     }
     new_loop_ = optim::IRCopy(loop_);
+
+    // Replace the copied Tensor object with the original Tensor object,
+    // to ensure that the same Tensor in a AST is the same object.
+    std::unordered_map<std::string, ir::Expr> tensors_map;
+    ir::CollectIRNodesWithoutTensor(loop_, [&tensors_map](const Expr* x) {
+      if (x->as_tensor()) {
+        tensors_map.insert({x->as_tensor()->name, *x});
+        return true;
+      }
+      return false;
+    });
+    auto find_store = ir::CollectIRNodesWithoutTensor(new_loop_, [](const Expr* x) { return x->As<ir::Store>(); });
+    for (auto store : find_store) {
+      store.As<ir::Store>()->tensor = tensors_map.at(store.As<ir::Store>()->tensor.as_tensor()->name);
+    }
+    auto find_load = ir::CollectIRNodesWithoutTensor(new_loop_, [](const Expr* x) { return x->As<ir::Load>(); });
+    for (auto load : find_load) {
+      load.As<ir::Load>()->tensor = tensors_map.at(load.As<ir::Load>()->tensor.as_tensor()->name);
+    }
+
     InsertBlock(new_loop_, loop_body, inserted_pos);
-    return;
+    return utils::Join(new_var_names, ",");
   }
 
  private:
@@ -1121,8 +1144,10 @@ void ScheduleImpl::ComputeAt(const Expr& block, const Expr& loop) {
   LoopReconstructor reconstructor(root, block, loop);
   LeafBlockRemovalPlan remove_plan(block, &reconstructor.source_expr, &reconstructor.target_expr);
   remove_plan(&root);
-  auto iter_ranges = CalculateRequiredRegions(block, loop, root, consumers);
-  reconstructor.MakeNewLoop(iter_ranges, 0);
+  auto iter_ranges          = CalculateRequiredRegions(block, loop, root, consumers);
+  std::string new_var_names = reconstructor.MakeNewLoop(iter_ranges, 0);
+  auto sch_block_expr       = block.As<ir::ScheduleBlockRealize>()->schedule_block;
+  sch_block_expr.As<ir::ScheduleBlock>()->attrs.emplace(ir::attr::compute_at_extra_var, new_var_names);
   this->Replace(reconstructor.source_expr, reconstructor.target_expr);
   this->Replace(reconstructor.loop_, reconstructor.new_loop_);
   return;
@@ -1222,8 +1247,10 @@ void ScheduleImpl::ReverseComputeAt(const Expr& block, const Expr& loop) {
   LoopReconstructor reconstructor(root, block, loop);
   LeafBlockRemovalPlan remove_plan(block, &reconstructor.source_expr, &reconstructor.target_expr);
   remove_plan(&root);
-  auto iter_ranges = CalculateRequiredRegions(block, loop, root, producers, false);
-  reconstructor.MakeNewLoop(iter_ranges);
+  auto iter_ranges          = CalculateRequiredRegions(block, loop, root, producers, false);
+  std::string new_var_names = reconstructor.MakeNewLoop(iter_ranges);
+  auto sch_block_expr       = block.As<ir::ScheduleBlockRealize>()->schedule_block;
+  sch_block_expr.As<ir::ScheduleBlock>()->attrs.emplace(ir::attr::reverse_compute_at_extra_var, new_var_names);
   this->Replace(reconstructor.source_expr, reconstructor.target_expr);
   this->Replace(reconstructor.loop_, reconstructor.new_loop_);
   return;
