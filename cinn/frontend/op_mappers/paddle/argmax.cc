@@ -64,7 +64,7 @@ void ArgMaxOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
 }  // namespace frontend
 }  // namespace cinn
 
-CINN_REGISTER_HELPER(paddle_argmax) {
-  CINN_REGISTER_OP_MAPPER(argmax, cinn::frontend::paddle_mappers::ArgMaxOpMapper)
+CINN_REGISTER_HELPER(paddle_arg_max) {
+  CINN_REGISTER_OP_MAPPER(arg_max, cinn::frontend::paddle_mappers::ArgMaxOpMapper)
   return true;
 }
