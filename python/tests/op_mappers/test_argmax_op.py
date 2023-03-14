@@ -30,7 +30,7 @@ class TestArgmaxOp(OpMapperTest):
         self.feed_data = {
             'x': np.array([1, 2, 3], dtype='float32'),
         }
-        self.axis = None
+        self.axis = -1
         self.shape = [2, 3, 4]
         self.output_dtype = "int64"
         self.keepdim = False
@@ -49,7 +49,7 @@ class TestArgmaxOp(OpMapperTest):
         return {
             "axis": self.axis,
             "keepdim": self.keepdim,
-            "dtype": self.output_dtype
+            "dtype": self.nptype2paddledtype(self.output_dtype)
         }
 
     def set_op_outputs(self):
@@ -82,7 +82,6 @@ class TestArgmaxCase2(TestArgmaxOp):
         self.feed_data = {
             'x': np.array([1, 2, 3], dtype='float32'),
         }
-        self.axis = None
         self.output_dtype = "int32"
         self.keepdim = True
 
@@ -96,7 +95,6 @@ class TestArgmaxCase4(TestArgmaxOp):
         self.feed_data = {
             'x': np.array([1, 2, 3], dtype='float32'),
         }
-        self.axis = None
         self.output_dtype = "int32"
         self.keepdim = True
 
