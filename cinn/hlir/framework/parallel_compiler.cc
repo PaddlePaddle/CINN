@@ -132,7 +132,6 @@ void ParallelCompiler::Task::Lowering() {
     auto& group = graph->fusion_groups[idx];
     lowered_funcs.emplace_back(std::move(op_lowerer.Lower(group)));
     CHECK_EQ(lowered_funcs.back().size(), 1) << "Lowerd Function Is Not Equal 1!";
-    VLOG(3) << lowered_funcs.back()[0];
   }
 }
 

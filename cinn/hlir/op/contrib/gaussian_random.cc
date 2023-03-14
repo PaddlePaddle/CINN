@@ -87,6 +87,8 @@ std::vector<Type> InferDtypeForGaussianRandom(const std::vector<Type> &inputs_ty
     dtype = absl::get<std::string>(attrs.at("dtype"));
   }
   std::vector<Type> res{common::Str2Type(dtype)};
+  CHECK(res[0].is_float(32) || res[0].is_float(64))
+      << "gaussian_random only support float32 and float64, but here " << res[0] << "! Please check.";
   return res;
 }
 

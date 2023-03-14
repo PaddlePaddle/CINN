@@ -27,20 +27,13 @@ void CumsumOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
   auto out_name = op_desc.Output("Out").front();
 
-  auto input   = ctx.GetVar(x_name);
-  auto axis    = utils::GetAttrOrDefault<int>(op_desc, "axis", -1);
-  auto flatten = utils::GetAttrOrDefault<bool>(op_desc, "flatten", false);
+  auto input     = ctx.GetVar(x_name);
+  auto axis      = utils::GetAttrOrDefault<int>(op_desc, "axis", -1);
+  auto flatten   = utils::GetAttrOrDefault<bool>(op_desc, "flatten", false);
+  auto exclusive = utils::GetAttrOrDefault<bool>(op_desc, "exclusive", false);
+  auto reverse   = utils::GetAttrOrDefault<bool>(op_desc, "reverse", false);
 
-  // Used for output type cast, can be removed when cinn reduce op support other dtype.
-  auto dtype = common::Type2Str(input->type);
-
-  auto x = input;
-  // Reduce op in cinn only support fp32 and fp16, while cumsum needs to support fp32, fp64, int32, int64.
-  // When x dtype is not fp32, cast to fp32.
-  // When cinn reduce op support other dtype, we can remove this op.
-  if (!x->type.is_float(32)) {
-    x = ctx.Builder()->Cast(x, "float32");
-  }
+  auto x   = input;
   int ndim = x->shape.size();
   // If flatten = true, flatten x and do cumsum on axis 0.
   if (flatten) {
@@ -53,9 +46,14 @@ void CumsumOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
   if (axis < 0) {
     axis = ndim + axis;
   }
-  x         = ctx.Builder()->ExpandDims(x, {axis + 1});
-  auto rg   = ctx.Builder()->Arange(0.0f, static_cast<float>(x->shape[axis]), 1.0f, "int32");
-  auto mask = ctx.Builder()->LessEqual(ctx.Builder()->ExpandDims(rg, {1}), rg);
+  x       = ctx.Builder()->ExpandDims(x, {axis + 1});
+  auto rg = ctx.Builder()->Arange(0.0f, static_cast<float>(x->shape[axis]), 1.0f, "int32");
+  cinn::frontend::Variable mask;
+  if (reverse) {
+    mask = ctx.Builder()->GreaterEqual(ctx.Builder()->ExpandDims(rg, {1}), rg);
+  } else {
+    mask = ctx.Builder()->LessEqual(ctx.Builder()->ExpandDims(rg, {1}), rg);
+  }
   for (int i = 0; i < ndim - axis - 1; i++) {
     mask = ctx.Builder()->ExpandDims(mask, {-1});
   }
@@ -80,9 +78,10 @@ void CumsumOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
   auto selected_x = ctx.Builder()->Select(mask, x, false_value);
   // Do reduce sum
   auto output = ctx.Builder()->ReduceSum(selected_x, {axis});
-  // Output type cast, can be removed after cinn reduce op support other dtype.
-  output = ctx.Builder()->Cast(output, dtype);
-
+  // Exclusive
+  if (exclusive) {
+    output = ctx.Builder()->Subtract(output, input);
+  }
   ctx.AddVar(out_name, output);
   ctx.AddVarModelToProgram(out_name, output->id);
 }
