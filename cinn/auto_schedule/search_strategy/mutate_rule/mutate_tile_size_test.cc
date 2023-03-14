@@ -32,9 +32,10 @@ TEST(MutateTileSize, Basic) {
   Target target = common::DefaultHostTarget();
 #endif
 
-  Expr M(32);
-  Expr N(32);
-  Expr K(32);
+  const int kSize = 32;
+  Expr M(kSize);
+  Expr N(kSize);
+  Expr K(kSize);
 
   Placeholder<float> A("A", {M, K});
   Placeholder<float> B("B", {K, N});
@@ -58,7 +59,7 @@ TEST(MutateTileSize, Basic) {
 
   // apply schedule
   auto loops   = ir_schedule.GetLoops("C");
-  auto factors = ir_schedule.SamplePerfectTile(loops[0], 2, 32);
+  auto factors = ir_schedule.SamplePerfectTile(loops[0], 2, kSize);
   auto splited = ir_schedule.Split(loops[0], factors);
 
   // apply mutate
@@ -104,6 +105,21 @@ TEST(MutateTileSize, Basic) {
     return ss.str();
   };
   CHECK_EQ(get_ir_str(&new_ir_schedule), target_new_ir);
+
+  std::vector<int> last_tile_factors = {2, 16};
+  for (int i = 0; i < 10; ++i) {
+    sch_desc = mutator.Apply(sch_desc, &rand_seed);
+    for (auto&& step : sch_desc.Steps()) {
+      if (step.type == "SamplePerfectTile") {
+        std::vector<int> tile_factors = absl::get<std::vector<int>>(step.attrs.at("decision"));
+        CHECK_EQ(tile_factors.size(), last_tile_factors.size());
+        CHECK_NE(tile_factors[0], last_tile_factors[0]);
+        CHECK_NE(tile_factors[1], last_tile_factors[1]);
+        CHECK_EQ(tile_factors[0] * tile_factors[1], kSize);
+        last_tile_factors = tile_factors;
+      }
+    }
+  }
 }
 
 }  // namespace auto_schedule
