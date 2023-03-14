@@ -36,7 +36,7 @@ class TestArgmaxOp(OpMapperTest):
         self.keepdim = False
 
     def set_op_type(self):
-        return "argmax"
+        return "arg_max"
 
     def set_op_inputs(self):
         x = paddle.static.data(
