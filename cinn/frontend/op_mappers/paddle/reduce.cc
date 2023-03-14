@@ -117,13 +117,15 @@ void ReduceMeanOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContex
       sum->shape, num, cinn::common::UniqName(x->id + "_mean"), cinn::common::Type2Str(sum->type));
   auto out = ctx.Builder()->Divide(sum, size);
 
-  auto dtype_id =
-      utils::GetAttrOrDefault<int>(op_desc, "out_dtype", static_cast<int>(paddle::cpp::VarDescAPI::Type::FP32));
-  auto dtype_pd   = static_cast<paddle::cpp::VarDescAPI::Type>(dtype_id);
-  auto dtype_cinn = utils::CppVarType2CommonType(dtype_pd);
-  auto dtype      = common::Type2Str(dtype_cinn);
-  if (out->type != dtype_cinn) {
-    out = ctx.Builder()->Cast(out, dtype);
+  if (op_desc.HasAttr("out_dtype")) {
+    auto dtype_id =
+        utils::GetAttrOrDefault<int>(op_desc, "out_dtype", static_cast<int>(paddle::cpp::VarDescAPI::Type::FP32));
+    auto dtype_pd   = static_cast<paddle::cpp::VarDescAPI::Type>(dtype_id);
+    auto dtype_cinn = utils::CppVarType2CommonType(dtype_pd);
+    auto dtype      = common::Type2Str(dtype_cinn);
+    if (out->type != dtype_cinn) {
+      out = ctx.Builder()->Cast(out, dtype);
+    }
   }
 
   ctx.AddVar(out_name, out);
