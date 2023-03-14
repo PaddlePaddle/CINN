@@ -20,6 +20,7 @@
 
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/pe/broadcast.h"
+#include "cinn/utils/functional.h"
 
 namespace cinn {
 namespace frontend {
@@ -304,7 +305,7 @@ Variable NetBuilder::Reshape(const Variable& operand, const std::vector<int>& sh
 }
 
 Variable NetBuilder::Transpose(const Variable& operand, const std::vector<int>& axis) {
-  return CustomInstr("transpose", {operand}, {{"axis", axis}}).front();
+  return CustomInstr("transpose", {operand}, {{"axis", utils::GetPositiveAxes(axis, operand->shape.size())}}).front();
 }
 
 Variable NetBuilder::Slice(const Variable& operand,
@@ -338,7 +339,7 @@ Variable NetBuilder::SliceAssign(const Variable& input,
 }
 
 Variable NetBuilder::Reverse(const Variable& operand, const std::vector<int>& axis) {
-  return CustomInstr("reverse", {operand}, {{"axis", axis}}).front();
+  return CustomInstr("reverse", {operand}, {{"axis", utils::GetPositiveAxes(axis, operand->shape.size())}}).front();
 }
 
 Variable NetBuilder::Select(const Variable& condition, const Variable& true_value, const Variable& false_value) {
@@ -460,47 +461,23 @@ Variable NetBuilder::Conv(const Variable& lhs,
 }
 
 Variable NetBuilder::ArgSort(const Variable& operand, const int& axis, const bool& is_ascend) {
-  Instruction instr("argsort", {operand});
-  instr.SetAttr("axis", axis);
-  instr.SetAttr("is_ascend", is_ascend);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return CustomInstr("argsort", {operand}, {{"axis", axis}, {"is_ascend", is_ascend}}).front();
 }
 
 Variable NetBuilder::Sort(const Variable& operand, const int& axis, const bool& is_ascend) {
-  Instruction instr("sort", {operand});
-  instr.SetAttr("axis", axis);
-  instr.SetAttr("is_ascend", is_ascend);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return CustomInstr("sort", {operand}, {{"axis", axis}, {"is_ascend", is_ascend}}).front();
 }
 
 Variable NetBuilder::Argmax(const Variable& x, const int& axis, const bool& keep_dim) {
-  Instruction instr("argmax", {x});
-  instr.SetAttr("axis", axis);
-  instr.SetAttr("keep_dim", keep_dim);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return CustomInstr("argmax", {x}, {{"axis", axis}, {"keep_dim", keep_dim}}).front();
 }
 
 Variable NetBuilder::Argmin(const Variable& x, const int& axis, const bool& keep_dim) {
-  Instruction instr("argmin", {x});
-  instr.SetAttr("axis", axis);
-  instr.SetAttr("keep_dim", keep_dim);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return CustomInstr("argmin", {x}, {{"axis", axis}, {"keep_dim", keep_dim}}).front();
 }
 
 Variable NetBuilder::LookupTable(const Variable& table, const Variable& ids, int64_t padding_idx) {
-  Instruction instr("lookup_table", {table, ids});
-  instr.SetAttr<int32_t>("padding_idx", padding_idx);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return CustomInstr("lookup_table", {table, ids}, {{"padding_idx", static_cast<int>(padding_idx)}}).front();
 }
 
 Variable NetBuilder::Conv2d(const Variable& a,
