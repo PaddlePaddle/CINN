@@ -41,7 +41,7 @@ TEST(IrSimplify, basic) {
     // get (((C[(i * 20)] + 0) + 100) + 24.5)
     Simplify(&B);
     LOG(INFO) << "simplified: " << B;
-    auto out = "(124.500f + C[i, 0])";
+    auto out = "(124.500000f + C[i, 0])";
     EXPECT_EQ(out, utils::GetStreamCnt(B));
   }
 
