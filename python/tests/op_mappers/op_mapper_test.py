@@ -189,7 +189,6 @@ class OpMapperTest(OpTest):
         self.__check_valid()
 
     def build_paddle_program(self, target):
-        print("build_paddle_program begins")
         main_program = paddle.static.Program()
         startup_program = paddle.static.Program()
         with paddle.static.program_guard(main_program, startup_program):
@@ -243,13 +242,12 @@ class OpMapperTest(OpTest):
                 dtype=self.paddleddtype2nptype(var.dtype),
                 shape=var.shape,
                 name=var_name)
-        print("input has been fed")
         convertor.append_op(
             type=self.op_type,
             inputs=self.op_desc.inputs(),
             outputs=self.op_desc.outputs(),
             attrs=self.attrs)
-        print("op has been appended")
+
         prog = convertor()
 
         logger.debug("CINN Program:\n" + str(prog))
