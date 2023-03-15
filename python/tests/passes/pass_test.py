@@ -13,12 +13,10 @@
 # limitations under the License.
 
 import unittest
-from cinn.frontend import *
-from cinn.common import *
-import numpy as np
-import paddle
+from cinn.frontend import NetBuilder, Variable
+from cinn.frontend import get_default_program_pass, get_default_graph_pass
 import logging
-import os, copy
+import os
 from tests.ops.op_test import OpTest, OpTestTool
 
 logging.basicConfig(level=os.environ.get('LOG_LEVEL', 'INFO').upper())
@@ -30,31 +28,48 @@ class PassTest(OpTest):
         super(PassTest, self).__init__(*args, **kwargs)
         self.init_input_data()
 
-    def init_input_data(self):
-        self.feed_data = list()
+    def init_input_data(self) -> dict:
+        """Set feed data
+        """
+        self.feed_data = dict()
+        logger.warn("No Input Data")
 
     def build_program(self, builder, target):
+        """
+        """
         raise Exception("Not implemented.")
 
     def run_program(self):
         net_builder = NetBuilder("pass_test_netbuilder")
 
         inputs, outputs = self.build_program(net_builder, self.target)
-        self.assertEqual(
-            len(inputs), len(self.feed_data),
-            "The feed data size not equal to program input size!")
-        self.assertIsNotNone(outputs, "The program's output should not empty!")
+
+        self.assertIsNotNone(
+            outputs, msg="The program's output should not empty!")
+        self.assertGreater(
+            len(outputs), 0, msg="The program's output should not empty!")
         self.assertIsInstance(
-            outputs[0], Variable,
-            "The program's output should be list(cinn.frontend.Variable)")
+            outputs[0],
+            Variable,
+            msg="The program's output should be list(cinn.frontend.Variable)")
 
         pass_prog = net_builder.build()
         return pass_prog, inputs, outputs
 
     def get_pass_outputs(self, passes):
         pass_prog, inputs, outputs = self.run_program()
-        return self.get_cinn_output(pass_prog, self.target, inputs,
-                                    self.feed_data, outputs, passes)
+
+        feed_list = list()
+        for var in inputs:
+            self.assertIn(
+                var.name(),
+                self.feed_data,
+                msg="Cannot found input data {} in self.feed_data".format(
+                    var.name()))
+            feed_list.append(self.feed_data[var.name()])
+
+        return self.get_cinn_output(pass_prog, self.target, inputs, feed_list,
+                                    outputs, passes)
 
     def get_pass_size(self, passes):
         pass_prog, _, outputs = self.run_program()
@@ -68,7 +83,8 @@ class PassTest(OpTest):
                            pass_diff,
                            test_passes,
                            base_passes=[
-                               "AutoCast", "Decomposer", "OpFusionPass",
+                               "AutoCast", "Decomposer",
+                               "TransToCustomCallPass", "OpFusionPass",
                                "FusionMergePass"
                            ],
                            max_relative_error=1e-5,

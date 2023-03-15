@@ -34,6 +34,28 @@ class TransposeFoldingInputPass : public TransposeFoldingBase {
  protected:
   void set_target_instrs() override { TransposeFoldingBase::target_instrs_ = {"matmul"}; }
 
+  bool IsValidBroadCast(const Instruction& broadcast, const Instruction& dot, const int input_id) const {
+    if ("broadcast_to" != broadcast->op_type) {
+      return false;
+    }
+
+    // check whether the output shape can infer from another input, if not, cannot remove this broadcast
+    int next_id            = (input_id + 1) % dot->inputs.size();
+    const auto& next_shape = dot->inputs[next_id]->shape;
+    const auto& out_shape  = dot->outputs[0]->shape;
+
+    if (next_shape.size() != out_shape.size()) {
+      return false;
+    }
+
+    for (int i = 0; i < next_shape.size() - 2; ++i) {
+      if (next_shape[i] != out_shape[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   void DoMatmulFoldOptimize(Instruction* dot,
                             const Out2InstrType& out2instr,
                             const In2InstrType& in2instr,
@@ -63,6 +85,7 @@ class TransposeFoldingInputPass : public TransposeFoldingBase {
         VLOG(4) << "Fold Instruction: [" << debug_info(fold_instrs) << "]"
                 << " into " << (i == 0 ? "x" : "y") << " of matmul: " << *dot;
 
+        bool shape_has_changed = false;
         for (int j = fold_instrs.size() - 1; j >= 0; --j) {
           auto instr = fold_instrs[j];
 
@@ -77,6 +100,9 @@ class TransposeFoldingInputPass : public TransposeFoldingBase {
             } else {
               LOG(FATAL) << "The matmul should only have two inputs.";
             }
+
+            // shape has changed, the ignore op should update shape
+            shape_has_changed = true;
           } else if (IsValidScale(*instr)) {
             // assume C = alpha * A * B + beta * C
             // fold scale into alpha
@@ -84,9 +110,18 @@ class TransposeFoldingInputPass : public TransposeFoldingBase {
 
             float alpha = (*dot)->attrs.count("alpha") ? absl::get<float>((*dot)->attrs.at("alpha")) : 1.0f;
             dot->SetAttr("alpha", alpha * scale);
-          } else if (IsValidBroadCast(*instr)) {
+          } else if (IsValidBroadCast(*instr, *dot, i)) {
             // nothin to do, can fold directly
+            // the x's broadcast has removed, cannot removed the y's
+            shape_has_changed = true;
+          } else if (CanSkip(*instr)) {
+            if (shape_has_changed) {
+              // the transpose op may change the shape, need update
+              (*instr)->outputs[0]->shape = (*instr)->inputs[0]->shape;
+            }
+            continue;
           } else {
+            // invlid folding op, skip
             continue;
           }
 

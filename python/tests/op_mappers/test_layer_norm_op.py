@@ -54,12 +54,22 @@ class TestLayerNormOp(OpMapperTest):
     def set_op_outputs(self):
         return {
             'Y': [str(self.feed_data['x'].dtype)],
-            'Mean': [str(self.feed_data['x'].dtype)],
-            'Variance': [str(self.feed_data['x'].dtype)]
+            'Mean': [str(self.feed_data['scale'].dtype)],
+            'Variance': [str(self.feed_data['scale'].dtype)]
         }
 
     def test_check_results(self):
         self.check_outputs_and_grads()
+
+
+class TestLayerNormFp16(TestLayerNormOp):
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([2, 3, 4, 5], 'float16'),
+            'scale': self.random([60], 'float32', 1.0, 2.0),
+            'bias': self.random([60], 'float32', -10.0, 10.0),
+        }
+        self.beigin_norm_axis = 1
 
 
 if __name__ == "__main__":
