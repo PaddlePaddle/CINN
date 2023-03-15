@@ -101,5 +101,15 @@ class TestScaleWithScaleTensorCase1(TestScaleWithScaleTensor):
         self.bias_after_scale = True
 
 
+class TestScaleWithScaleTensorCase2(TestScaleWithScaleTensor):
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([32, 64], "int32"),
+            "scale": self.random([1], "float32", 2.0, 10.0)
+        }
+        self.bias = 0.0
+        self.bias_after_scale = True
+
+
 if __name__ == "__main__":
     unittest.main()
