@@ -98,13 +98,13 @@ class TestArgmaxCase2(TestArgmaxOp):
 
 class TestArgmaxCase3(TestArgmaxOp):
     """
-    Test case with flatten=True 
+    Test case with intput_dtype=uint8 
     """
 
     def init_input_data(self):
         self.axis = 2
         self.shape = [2, 3, 4]
-        self.input_dtype = "unint8"
+        self.input_dtype = "uint8"
         self.output_dtype = "int64"
         self.flatten = False
         self.keepdims = False
