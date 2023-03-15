@@ -27,7 +27,7 @@ Please describe this pull request.
 
 ### Broadcast
 
-- [ ] Does the input vector support broadcasting? 
+- [ ] Does the input tensor support broadcasting? 
 - [ ] Its Test
 
 ### Operator Attributes
