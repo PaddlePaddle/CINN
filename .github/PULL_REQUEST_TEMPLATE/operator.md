@@ -12,6 +12,8 @@ Please describe this pull request.
 - [ ] 4D Tensor
 - [ ] 5D Tensor
 
+#### special shape
+
 - [ ] One dimension of the tensor is 1.
 - [ ] One dimension of the tensor is less than 1024.
 - [ ] One dimension of the tensor is equal to 1024.
