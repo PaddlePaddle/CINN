@@ -147,8 +147,7 @@ for _ in range(loop_num):
 #
 exe = paddle.static.Executor(place)
 
-compiled_prog = paddle.static.CompiledProgram(main_program).with_data_parallel(
-    loss_name=loss.name)
+compiled_prog = paddle.static.CompiledProgram(main_program)
 scope = paddle.static.Scope()
 
 with paddle.static.scope_guard(scope):
@@ -159,4 +158,4 @@ with paddle.static.scope_guard(scope):
             feed=feed[step],
             fetch_list=[loss],
             return_numpy=True)
-        print("Train step: {} loss: {}".format(step, loss_v[0][0]))
+        print("Train step: {} loss: {}".format(step, loss_v), flush=True)

@@ -35,7 +35,7 @@ void RunModelTest(Program& program,
   std::unordered_map<std::string, std::pair<std::vector<float>, std::vector<float>>> outputs;
   {
     auto graph = std::make_shared<hlir::framework::Graph>(program, fetch_ids, target);
-    hlir::framework::ApplyPass(graph.get(), "MatmulToCublasCustomCallPass");
+    hlir::framework::ApplyPass(graph.get(), "TransToCustomCallPass");
     hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
     hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
 

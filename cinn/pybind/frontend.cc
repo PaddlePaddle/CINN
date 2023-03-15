@@ -99,6 +99,7 @@ void BindFrontend(pybind11::module *m) {
            py::arg("id") = "")
       .def("shape", &Placeholder::shape)
       .def("id", &Placeholder::id)
+      .def("name", &Placeholder::id)
       .def("__str__", [](const Placeholder &self) { return self.id(); });
 
   py::implicitly_convertible<Placeholder, Variable>();
@@ -120,6 +121,10 @@ void BindFrontend(pybind11::module *m) {
       .def("get_attr_fp32s", &Instruction::GetAttrs<std::vector<float>>)
       .def("get_attr_strs", &Instruction::GetAttrs<std::vector<std::string>>)
       .def("__str__", [](Instruction &self) { return utils::GetStreamCnt(self); });
+
+  m->def("get_default_program_pass", []() { return DefaultTrainingOptimizeOptions().program_passes; })
+      .def("get_default_graph_pass", []() { return DefaultTrainingOptimizeOptions().graph_passes; })
+      .def("get_default_opfusion_pass", []() { return DefaultOpFusionPasses(); });
 
   py::class_<Program>(*m, "Program")
       .def(py::init<>())
@@ -161,18 +166,19 @@ void BindFrontend(pybind11::module *m) {
 
             const auto &default_program_pass = DefaultTrainingOptimizeOptions().program_passes;
             const auto &default_graph_pass   = DefaultTrainingOptimizeOptions().graph_passes;
-            for (const auto &pass : default_program_pass) {
-              if (std::find(passes.begin(), passes.end(), pass) != passes.end()) {
-                program_passes.emplace_back(pass);
+            if (!passes.empty()) {
+              for (const auto &pass : passes) {
+                auto *p_pass = ProgramPassRegistry::Global()->Find(pass);
+                auto *g_pass = Registry<hlir::framework::PassFunctionRegister>::Global()->Find(pass);
+                if (p_pass) {
+                  program_passes.emplace_back(pass);
+                } else if (g_pass) {
+                  graph_passes.emplace_back(pass);
+                } else {
+                  LOG(FATAL) << "Pass " << pass << " unsupported in CINN! Please check.\n";
+                }
               }
             }
-            for (const auto &pass : default_graph_pass) {
-              if (std::find(passes.begin(), passes.end(), pass) != passes.end()) {
-                graph_passes.emplace_back(pass);
-              }
-            }
-            CHECK_EQ(passes.size(), program_passes.size() + graph_passes.size())
-                << "Cannot found some test pass in CINN! Please check.";
             if (program_passes.empty()) {
               program_passes = default_program_pass;
             }
@@ -234,18 +240,19 @@ void BindFrontend(pybind11::module *m) {
 
              const auto &default_program_pass = DefaultTrainingOptimizeOptions().program_passes;
              const auto &default_graph_pass   = DefaultTrainingOptimizeOptions().graph_passes;
-             for (const auto &pass : default_program_pass) {
-               if (std::find(passes.begin(), passes.end(), pass) != passes.end()) {
-                 program_passes.emplace_back(pass);
+             if (!passes.empty()) {
+               for (const auto &pass : passes) {
+                 auto *p_pass = ProgramPassRegistry::Global()->Find(pass);
+                 auto *g_pass = Registry<hlir::framework::PassFunctionRegister>::Global()->Find(pass);
+                 if (p_pass) {
+                   program_passes.emplace_back(pass);
+                 } else if (g_pass) {
+                   graph_passes.emplace_back(pass);
+                 } else {
+                   LOG(FATAL) << "Pass " << pass << " unsupported in CINN! Please check.\n";
+                 }
                }
              }
-             for (const auto &pass : default_graph_pass) {
-               if (std::find(passes.begin(), passes.end(), pass) != passes.end()) {
-                 graph_passes.emplace_back(pass);
-               }
-             }
-             CHECK_EQ(passes.size(), program_passes.size() + graph_passes.size())
-                 << "Cannot found some test pass in CINN! Please check.";
 
              if (program_passes.empty()) {
                program_passes = default_program_pass;
@@ -260,7 +267,17 @@ void BindFrontend(pybind11::module *m) {
              auto graph = std::make_shared<hlir::framework::Graph>(self, fetch_ids, target);
              hlir::framework::ApplyPasses(graph.get(), graph_passes);
 
-             return graph->nodes().size();
+             size_t node_num = 0;
+             for (auto *graph_node : graph->nodes()) {
+               auto node = graph_node->safe_as<hlir::framework::Node>();
+               // if node is NodeData or not op, continue.
+               if (!node || node->op() == nullptr) {
+                 continue;
+               }
+
+               node_num++;
+             }
+             return node_num;
            })
 
       /**
@@ -395,7 +412,7 @@ void BindFrontend(pybind11::module *m) {
       .def("get_program", &frontend::Interpreter::GetProgram)
       .def("get_scope", &frontend::Interpreter::GetScope);
 
-  py::class_<NetBuilder>(*m, "NetBuilder")
+  py::class_<NetBuilder, std::shared_ptr<NetBuilder>>(*m, "NetBuilder")
       .def(py::init<const std::string &>(), py::arg("name") = "")
   // clang-format off
 #define PY_REGISTER_CONSTANT_OP(TYPE__)                                              \
@@ -460,7 +477,15 @@ void BindFrontend(pybind11::module *m) {
               &NetBuilder::CreateInput),
           py::arg("type"),
           py::arg("shape"),
-          py::arg("id_hint") = "")
+          py::arg("id_hint"))
+      .def(
+          "create_input",
+          [](NetBuilder &self, const std::string &type, const std::vector<int> &shape, const std::string &id) {
+            return self.CreateInput(cinn::common::Str2Type(type), shape, id);
+          },
+          py::arg("type"),
+          py::arg("shape"),
+          py::arg("id_hint"))
       .def("create_input", static_cast<Placeholder (NetBuilder::*)(const Variable &)>(&NetBuilder::CreateInput))
       .def("build", &NetBuilder::Build, py::arg("in_reverse") = false)
       .def("name", &NetBuilder::name)
@@ -488,6 +513,8 @@ void BindFrontend(pybind11::module *m) {
       .def("concat", &NetBuilder::Concat, py::arg("xs"), py::arg("axis") = 0)
       .def("reshape", &NetBuilder::Reshape, py::arg("x"), py::arg("shape"))
       .def("transpose", &NetBuilder::Transpose, py::arg("x"), py::arg("axis"))
+      .def("top_k", &NetBuilder::TopK, py::arg("x"), py::arg("k"), py::arg("axis"), py::arg("largest"))
+      .def("sort", &NetBuilder::Sort, py::arg("operand"), py::arg("axis"), py::arg("is_ascend"))
       .def("slice",
            &NetBuilder::Slice,
            py::arg("x"),
@@ -580,13 +607,28 @@ void BindFrontend(pybind11::module *m) {
            &NetBuilder::Pool2d,
            py::arg("x"),
            py::arg("polling_type"),
-           py::arg("ksize"),
-           py::arg("strides")           = std::vector<int>{1, 1},
-           py::arg("paddings")          = std::vector<int>{0, 0},
+           py::arg("kernel_size"),
+           py::arg("stride")            = std::vector<int>{1, 1},
+           py::arg("padding")           = std::vector<int>{0, 0},
            py::arg("ceil_mode")         = false,
            py::arg("exclusive")         = true,
            py::arg("global_pooling")    = false,
-           py::arg("data_format")       = "HCHW",
+           py::arg("data_format")       = "NCHW",
+           py::arg("adaptive")          = false,
+           py::arg("padding_algorithm") = "EXPLICIT")
+      .def("pool2d_grad",
+           &NetBuilder::Pool2dGrad,
+           py::arg("x"),
+           py::arg("y"),
+           py::arg("dy"),
+           py::arg("polling_type"),
+           py::arg("kernel_size"),
+           py::arg("stride")            = std::vector<int>{1, 1},
+           py::arg("padding")           = std::vector<int>{0, 0},
+           py::arg("ceil_mode")         = false,
+           py::arg("exclusive")         = true,
+           py::arg("global_pooling")    = false,
+           py::arg("data_format")       = "NCHW",
            py::arg("adaptive")          = false,
            py::arg("padding_algorithm") = "EXPLICIT")
       .def("batchnorm",
@@ -627,17 +669,6 @@ void BindFrontend(pybind11::module *m) {
            py::arg("dropout_prob")           = 0.5f,
            py::arg("dropout_implementation") = "downgrade_in_infer")
       .def("relu_grad", &NetBuilder::ReluGrad, py::arg("dout"), py::arg("x"))
-      .def("conv2d_grad",
-           &NetBuilder::Conv2dGrad,
-           py::arg("dy"),
-           py::arg("x"),
-           py::arg("w"),
-           py::arg("strides")           = std::vector<int>{1, 1},
-           py::arg("paddings")          = std::vector<int>{0, 0},
-           py::arg("dilations")         = std::vector<int>{1, 1},
-           py::arg("groups")            = 1,
-           py::arg("data_format")       = "NCHW",
-           py::arg("padding_algorithm") = "EXPLICIT")
       .def("sum", &NetBuilder::Sum, py::arg("inputs"))
       .def("matmul",
            &NetBuilder::Matmul,
@@ -680,7 +711,16 @@ void BindFrontend(pybind11::module *m) {
            py::arg("max")   = 1.0f,
            py::arg("seed")  = 0,
            py::arg("dtype") = "float32")
-      .def("cholesky", &NetBuilder::Cholesky, py::arg("x"), py::arg("upper") = false);
+      .def("norm", &NetBuilder::Norm, py::arg("x"), py::arg("axis") = -1, py::arg("epsilon") = 1e-12f)
+      .def("cholesky", &NetBuilder::Cholesky, py::arg("x"), py::arg("upper") = false)
+      .def("triangular_solve",
+           &NetBuilder::TriangularSolve,
+           py::arg("input1"),
+           py::arg("input2"),
+           py::arg("left_side")     = true,
+           py::arg("upper")         = false,
+           py::arg("transpose_a")   = false,
+           py::arg("unit_diagonal") = false);
 
   auto computation = py::class_<CinnComputation, std::shared_ptr<CinnComputation>>(*m, "Computation");
   py::class_<CinnComputation::CompileOptions>(computation, "CompileOptions")
@@ -731,13 +771,26 @@ void BindFrontend(pybind11::module *m) {
 
   py::class_<PaddleModelConvertor>(*m, "PaddleModelConvertor")
       .def(py::init<>())
-      .def("__call__",
-           &PaddleModelConvertor::operator(),
+      .def(py::init<const common::Target &, std::shared_ptr<NetBuilder>, std::shared_ptr<hlir::framework::Scope>>(),
            py::arg("target"),
-           py::arg("model_path"),
-           py::arg("is_combined") = false,
-           py::arg("scope")       = nullptr)
-      .def("get_fetch_list", &PaddleModelConvertor::GetFetchList)
+           py::arg("builder") = nullptr,
+           py::arg("scope")   = nullptr)
+      .def("__call__", &PaddleModelConvertor::operator())
+      .def("load_model", &PaddleModelConvertor::LoadModel, py::arg("model_dir"), py::arg("is_combined") = false)
+      .def("create_input", &PaddleModelConvertor::CreateInput, py::arg("dtype"), py::arg("shape"), py::arg("name"))
+      .def("append_op",
+           static_cast<void (PaddleModelConvertor::*)(const std::string &,
+                                                      const std::map<std::string, std::vector<std::string>> &,
+                                                      const std::map<std::string, std::vector<std::string>> &,
+                                                      const std::map<std::string, cinn::utils::Attribute> &)>(
+               &PaddleModelConvertor::RunOp),
+           py::arg("type"),
+           py::arg("inputs"),
+           py::arg("outputs"),
+           py::arg("attrs"))
+      .def("get_fetch_list",
+           &PaddleModelConvertor::GetFetchList,
+           py::arg("fetch_list") = std::unordered_set<std::string>{})
       .def("get_cinn_name", [](PaddleModelConvertor &self, const std::string &paddle_name) {
         CHECK(self.var_model_to_program_map().count(paddle_name))
             << "Cannot find variabel " << paddle_name << " in CINN! Please check.";

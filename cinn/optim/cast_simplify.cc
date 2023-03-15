@@ -66,10 +66,22 @@ struct Mutator : ir::IRMutator<> {
   }
 
     if (op->v().is_constant()) {
-      if (op->type() == type_of<int32_t>()) {
+      if (op->type() == type_of<int8_t>()) {
+        __CAST_TO_TYPE(int8_t)
+      } else if (op->type() == type_of<int16_t>()) {
+        __CAST_TO_TYPE(int16_t)
+      } else if (op->type() == type_of<int32_t>()) {
         __CAST_TO_TYPE(int32_t)
       } else if (op->type() == type_of<int64_t>()) {
         __CAST_TO_TYPE(int64_t)
+      } else if (op->type() == type_of<uint8_t>()) {
+        __CAST_TO_TYPE(uint8_t)
+      } else if (op->type() == type_of<uint16_t>()) {
+        __CAST_TO_TYPE(uint16_t)
+      } else if (op->type() == type_of<uint32_t>()) {
+        __CAST_TO_TYPE(uint32_t)
+      } else if (op->type() == type_of<uint64_t>()) {
+        __CAST_TO_TYPE(uint64_t)
       } else if (op->type() == type_of<float>()) {
         __CAST_TO_TYPE(float)
       } else if (op->type() == type_of<double>()) {

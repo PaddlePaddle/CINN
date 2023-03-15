@@ -30,7 +30,7 @@ __device__ inline float FN_FP32(log2)(float x) { return log2(x); }
 __device__ inline float FN_FP32(log10)(float x) { return log10(x); }
 __device__ inline float FN_FP32(exp)(float x) { return exp(x); }
 __device__ inline float FN_FP32(erf)(float x) { return erf(x); }
-__device__ inline float FN_FP32(sigmoid)(float x) { return 1. / (1 + exp(-x)); }
+__device__ inline float FN_FP32(sigmoid)(float x) { return 1.0f / (1.0f + exp(-x)); }
 __device__ inline float FN_FP32(sqrt)(float x) { return sqrt(x); }
 __device__ inline float FN_FP32(rsqrt)(float x) { return rsqrt(x); }
 __device__ inline float FN_FP32(cbrt)(float x) { return cbrt(x); }
@@ -42,13 +42,56 @@ __device__ inline bool FN_FP32(isnan)(float x) { return isnan(x); }
 __device__ inline float FN_FP32(pow)(float a, float b) { return powf(a, b); }
 
 __device__ inline float FN_FP32(remainder)(float a, float b) { return remainderf(a, b); }
+__device__ inline float FN_FP32(mod)(float a, float b) {
+  float res = fmodf(a, b);
+  if ((res != 0.0f) && ((res < 0.0f) != (b < 0.0f))) res += b;
+  return res;
+}
 
 // *************************************************************** //
 // float64 unary and binary operator
 #define FN_FP64(func) cinn_nvgpu_##func##_fp64
 
-__device__ inline double FN_FP64(pow)(double a, double b) { return pow(a, b); }
+__device__ inline double FN_FP64(sin)(double x) { return sin(x); }
+__device__ inline double FN_FP64(cos)(double x) { return cos(x); }
+__device__ inline double FN_FP64(tan)(double x) { return tan(x); }
+__device__ inline double FN_FP64(sinh)(double x) { return sinh(x); }
+__device__ inline double FN_FP64(cosh)(double x) { return cosh(x); }
+__device__ inline double FN_FP64(tanh)(double x) { return tanh(x); }
+
+__device__ inline double FN_FP64(asin)(double x) { return asin(x); }
+__device__ inline double FN_FP64(acos)(double x) { return acos(x); }
+__device__ inline double FN_FP64(atan)(double x) { return atan(x); }
+__device__ inline double FN_FP64(asinh)(double x) { return asinh(x); }
+__device__ inline double FN_FP64(acosh)(double x) { return acosh(x); }
+__device__ inline double FN_FP64(atanh)(double x) { return atanh(x); }
+
+__device__ inline double FN_FP64(ceil)(double x) { return ceil(x); }
+__device__ inline double FN_FP64(round)(double x) { return round(x); }
+__device__ inline double FN_FP64(trunc)(double x) { return trunc(x); }
+__device__ inline double FN_FP64(abs)(double x) { return abs(x); }
+__device__ inline double FN_FP64(floor)(double x) { return floor(x); }
+__device__ inline double FN_FP64(log)(double x) { return log(x); }
+__device__ inline double FN_FP64(log2)(double x) { return log2(x); }
+__device__ inline double FN_FP64(log10)(double x) { return log10(x); }
+__device__ inline double FN_FP64(exp)(double x) { return exp(x); }
+__device__ inline double FN_FP64(erf)(double x) { return erf(x); }
+__device__ inline double FN_FP64(sigmoid)(double x) { return 1.0 / (1.0 + exp(-x)); }
+__device__ inline double FN_FP64(sqrt)(double x) { return sqrt(x); }
+__device__ inline double FN_FP64(rsqrt)(double x) { return rsqrt(x); }
 __device__ inline double FN_FP64(cbrt)(double x) { return cbrt(x); }
+
+__device__ inline bool FN_FP64(isfinite)(double x) { return isfinite(x); }
+__device__ inline bool FN_FP64(isinf)(double x) { return isinf(x); }
+__device__ inline bool FN_FP64(isnan)(double x) { return isnan(x); }
+
+__device__ inline double FN_FP64(pow)(double a, double b) { return pow(a, b); }
+__device__ inline double FN_FP64(remainder)(double a, double b) { return remainder(a, b); }
+__device__ inline double FN_FP64(mod)(double a, double b) {
+  double res = fmod(a, b);
+  if ((res != 0.0) && ((res < 0.0) != (b < 0.0))) res += b;
+  return res;
+}
 
 // *************************************************************** //
 // int32 unary and binary operator
@@ -72,6 +115,13 @@ __device__ inline int FN_INT32(clz)(int a) { return __clz(a); }
 __device__ inline int FN_INT32(popc)(int a) { return __popc(a); }
 __device__ inline int FN_INT32(logical_right_shift)(int a, int b) { return ((unsigned int)a >> b); }
 
+
+__device__ inline int FN_INT32(mod)(int a, int b) {
+  int res = a % b;
+  if ((res != 0) && ((b ^ res) < 0)) res += b;
+  return res;
+}
+
 // *************************************************************** //
 
 // int64 unary and binary operator
@@ -79,6 +129,19 @@ __device__ inline int FN_INT32(logical_right_shift)(int a, int b) { return ((uns
 
 __device__ inline long long int FN_INT64(clz)(long long int a) { return __clzll(a); }
 __device__ inline long long int FN_INT64(popc)(long long int a) { return __popcll(a); }
+__device__ inline long long int FN_INT64(mod)(long long int a, long long int b) {
+  long long int res = a % b;
+  if ((res != 0) && ((b ^ res) < 0)) res += b;
+  return res;
+}
+
+__device__ inline long long int FN_INT64(pow)(long long int a, long long int b) {
+  long long int res = 1;
+  for (int i = 0; i < b; ++i) {
+    res *= a;
+  }
+  return res;
+}
 
 // *************************************************************** //
 // float16 unary and binary operator
@@ -127,6 +190,9 @@ __device__ inline float16 FN_FP16(sigmoid)(float16 x) { return float16(FN_FP32(s
 __device__ inline float16 FN_FP16(remainder)(float16 a, float16 b) {
   return float16(FN_FP32(remainder)(static_cast<float>(a), static_cast<float>(b)));
 }
+__device__ inline float16 FN_FP16(mod)(float16 a, float16 b) {
+  return float16(FN_FP32(mod)(static_cast<float>(a), static_cast<float>(b)));
+}
 __device__ inline float16 FN_FP16(pow)(float16 a, float16 b) {
   return float16(FN_FP32(pow)(static_cast<float>(a), static_cast<float>(b)));
 }
@@ -135,11 +201,33 @@ __device__ inline float16 FN_FP16(pow)(float16 a, float16 b) {
 
 // *************************************************************** //
 // reduce operator, need `--expt-relaxed-constexpr` option to call std function in device kernel
+#define EXPAND_REDUCE_INT32_MARCO(MARCO, ...)       \
+  MARCO(sum_int32, 0, int, ##__VA_ARGS__)           \
+  MARCO(prod_int32, 1, int, ##__VA_ARGS__)          \
+  MARCO(max_int32, -2147483648, int, ##__VA_ARGS__) \
+  MARCO(min_int32, 2147483647, int, ##__VA_ARGS__)
+
+__device__ inline int cinn_sum_int32(const int left, const int right) { return left + right; }
+__device__ inline int cinn_prod_int32(const int left, const int right) { return left * right; }
+__device__ inline int cinn_max_int32(const int left, const int right) { return max(left, right); }
+__device__ inline int cinn_min_int32(const int left, const int right) { return min(left, right); }
+
+#define EXPAND_REDUCE_INT64_MARCO(MARCO, ...)                          \
+  MARCO(sum_int64, 0, long long int, ##__VA_ARGS__)                    \
+  MARCO(prod_int64, 1, long long int, ##__VA_ARGS__)                   \
+  MARCO(max_int64, -9223372036854775808, long long int, ##__VA_ARGS__) \
+  MARCO(min_int64, 9223372036854775807, long long int, ##__VA_ARGS__)
+
+__device__ inline long long int cinn_sum_int64(const long long int left, const long long int right) { return left + right; }
+__device__ inline long long int cinn_prod_int64(const long long int left, const long long int right) { return left * right; }
+__device__ inline long long int cinn_max_int64(const long long int left, const long long int right) { return max(left, right); }
+__device__ inline long long int cinn_min_int64(const long long int left, const long long int right) { return min(left, right); }
+
 #define EXPAND_REDUCE_FP32_MACRO(MACRO, ...)          \
   MACRO(sum_fp32, 0.0f, float, ##__VA_ARGS__)         \
   MACRO(prod_fp32, 1.0f, float, ##__VA_ARGS__)        \
-  MACRO(max_fp32, -3.40282e+38, float, ##__VA_ARGS__) \
-  MACRO(min_fp32, 3.40282e+38, float, ##__VA_ARGS__)
+  MACRO(max_fp32, -3.40282e+38f, float, ##__VA_ARGS__) \
+  MACRO(min_fp32, 3.40282e+38f, float, ##__VA_ARGS__)
 
 __device__ inline float cinn_sum_fp32(const float left, const float right) { return left + right; }
 __device__ inline float cinn_prod_fp32(const float left, const float right) { return left * right; }
@@ -160,6 +248,18 @@ __device__ inline float16 cinn_max_fp16(const float16 left, const float16 right)
 __device__ inline float16 cinn_min_fp16(const float16 left, const float16 right) { return min(left, right); }
 #endif
 
+#define EXPAND_REDUCE_FP64_MACRO(MACRO, ...)          \
+  MACRO(sum_fp64, 0.0, double, ##__VA_ARGS__)         \
+  MACRO(prod_fp64, 1.0, double, ##__VA_ARGS__)        \
+  MACRO(max_fp64, -1.79769e+308, double, ##__VA_ARGS__) \
+  MACRO(min_fp64, 1.79769e+308, double, ##__VA_ARGS__)
+
+__device__ inline double cinn_sum_fp64(const double left, const double right) { return left + right; }
+__device__ inline double cinn_prod_fp64(const double left, const double right) { return left * right; }
+__device__ inline double cinn_max_fp64(const double left, const double right) { return max(left, right); }
+__device__ inline double cinn_min_fp64(const double left, const double right) { return min(left, right); }
+
+
 #define EXPAND_REDUCE_BOOL_MACRO(MACRO, ...) \
   MACRO(all, true, bool, ##__VA_ARGS__)      \
   MACRO(any, false, bool, ##__VA_ARGS__)
@@ -177,11 +277,11 @@ __device__ inline bool cinn_any(const bool left, const bool right) { return left
     unsigned int mask = __activemask();                                                   \
     unsigned int lane = __popc(mask);                                                     \
     if (lane < 32) {                                                                      \
-      CINN_SHUFFLE_FUNCTION(16, cinn_##REDUCE_TYPE, DTYPE(INITIAL_VALUE))                 \
-      CINN_SHUFFLE_FUNCTION(8, cinn_##REDUCE_TYPE, DTYPE(INITIAL_VALUE))                  \
-      CINN_SHUFFLE_FUNCTION(4, cinn_##REDUCE_TYPE, DTYPE(INITIAL_VALUE))                  \
-      CINN_SHUFFLE_FUNCTION(2, cinn_##REDUCE_TYPE, DTYPE(INITIAL_VALUE))                  \
-      CINN_SHUFFLE_FUNCTION(1, cinn_##REDUCE_TYPE, DTYPE(INITIAL_VALUE))                  \
+      CINN_SHUFFLE_FUNCTION(16, cinn_##REDUCE_TYPE, (DTYPE)(INITIAL_VALUE))               \
+      CINN_SHUFFLE_FUNCTION(8, cinn_##REDUCE_TYPE, (DTYPE)(INITIAL_VALUE))                \
+      CINN_SHUFFLE_FUNCTION(4, cinn_##REDUCE_TYPE, (DTYPE)(INITIAL_VALUE))                \
+      CINN_SHUFFLE_FUNCTION(2, cinn_##REDUCE_TYPE, (DTYPE)(INITIAL_VALUE))                \
+      CINN_SHUFFLE_FUNCTION(1, cinn_##REDUCE_TYPE, (DTYPE)(INITIAL_VALUE))                \
       tmp_val = __shfl_sync(mask, tmp_val, 0, 32);                                        \
       return tmp_val;                                                                     \
     } else {                                                                              \
@@ -194,7 +294,10 @@ __device__ inline bool cinn_any(const bool left, const bool right) { return left
     }                                                                                     \
   }
 
+EXPAND_REDUCE_INT32_MARCO(CINN_WARP_SHUFFLE_INTERNAL_IMPL)
+EXPAND_REDUCE_INT64_MARCO(CINN_WARP_SHUFFLE_INTERNAL_IMPL)
 EXPAND_REDUCE_FP32_MACRO(CINN_WARP_SHUFFLE_INTERNAL_IMPL)
+EXPAND_REDUCE_FP64_MACRO(CINN_WARP_SHUFFLE_INTERNAL_IMPL)
 EXPAND_REDUCE_BOOL_MACRO(CINN_WARP_SHUFFLE_INTERNAL_IMPL)
 
 #ifdef CINN_CUDA_FP16
@@ -205,14 +308,17 @@ EXPAND_REDUCE_FP16_MACRO(CINN_WARP_SHUFFLE_INTERNAL_IMPL)
 
 #define CINN_WARP_REDUCE_IMPL(REDUCE_TYPE, INITIAL_VALUE, DTYPE)                                     \
   __device__ inline DTYPE cinn_warp_reduce_##REDUCE_TYPE(const DTYPE *buf, int offset, int extend) { \
-    DTYPE tmp_val = DTYPE(INITIAL_VALUE);                                                            \
+    DTYPE tmp_val = (DTYPE)(INITIAL_VALUE);                                                          \
     for (int i = threadIdx.x; i < extend; i += 32) {                                                 \
       tmp_val = cinn_##REDUCE_TYPE(tmp_val, buf[offset + i]);                                        \
     }                                                                                                \
     return cinn_warp_shuffle_##REDUCE_TYPE##_internal(tmp_val);                                      \
   }
 
+EXPAND_REDUCE_INT32_MARCO(CINN_WARP_REDUCE_IMPL)
+EXPAND_REDUCE_INT64_MARCO(CINN_WARP_REDUCE_IMPL)
 EXPAND_REDUCE_FP32_MACRO(CINN_WARP_REDUCE_IMPL)
+EXPAND_REDUCE_FP64_MACRO(CINN_WARP_REDUCE_IMPL)
 EXPAND_REDUCE_BOOL_MACRO(CINN_WARP_REDUCE_IMPL)
 
 #ifdef CINN_CUDA_FP16
@@ -252,10 +358,13 @@ __device__ inline float cinn_warp_reduce_avg_fp32(const float *buf, int offset, 
 
 #define CINN_BLOCK_REDUCE_INTERNAL_MACRO(REDUCE_TYPE, INITIAL_VALUE, DTYPE)                                          \
   __device__ inline DTYPE cinn_block_reduce_##REDUCE_TYPE##_internal(const DTYPE value) {                            \
-    CINN_BLOCK_REDUCE_INTERNAL_IMPL(DTYPE, value, DTYPE(INITIAL_VALUE), cinn_warp_shuffle_##REDUCE_TYPE##_internal); \
+    CINN_BLOCK_REDUCE_INTERNAL_IMPL(DTYPE, value, (DTYPE)(INITIAL_VALUE), cinn_warp_shuffle_##REDUCE_TYPE##_internal); \
   }
 
+EXPAND_REDUCE_INT32_MARCO(CINN_BLOCK_REDUCE_INTERNAL_MACRO)
+EXPAND_REDUCE_INT64_MARCO(CINN_BLOCK_REDUCE_INTERNAL_MACRO)
 EXPAND_REDUCE_FP32_MACRO(CINN_BLOCK_REDUCE_INTERNAL_MACRO)
+EXPAND_REDUCE_FP64_MACRO(CINN_BLOCK_REDUCE_INTERNAL_MACRO)
 EXPAND_REDUCE_BOOL_MACRO(CINN_BLOCK_REDUCE_INTERNAL_MACRO)
 
 #ifdef CINN_CUDA_FP16
@@ -267,14 +376,17 @@ EXPAND_REDUCE_FP16_MACRO(CINN_BLOCK_REDUCE_INTERNAL_MACRO)
 
 #define CINN_BLOCK_REDUCE_IMPL(REDUCE_TYPE, INITIAL_VALUE, DTYPE)                                     \
   __device__ inline DTYPE cinn_block_reduce_##REDUCE_TYPE(const DTYPE *buf, int offset, int extend) { \
-    DTYPE tmp_val = DTYPE(INITIAL_VALUE);                                                             \
+    DTYPE tmp_val = (DTYPE)(INITIAL_VALUE);                                                           \
     for (int i = threadIdx.x; i < extend; i += blockDim.x) {                                          \
       tmp_val = cinn_##REDUCE_TYPE(tmp_val, buf[offset + i]);                                         \
     }                                                                                                 \
     return cinn_block_reduce_##REDUCE_TYPE##_internal(tmp_val);                                       \
   }
 
+EXPAND_REDUCE_INT32_MARCO(CINN_BLOCK_REDUCE_IMPL)
+EXPAND_REDUCE_INT64_MARCO(CINN_BLOCK_REDUCE_IMPL)
 EXPAND_REDUCE_FP32_MACRO(CINN_BLOCK_REDUCE_IMPL)
+EXPAND_REDUCE_FP64_MACRO(CINN_BLOCK_REDUCE_IMPL)
 EXPAND_REDUCE_BOOL_MACRO(CINN_BLOCK_REDUCE_IMPL)
 
 #ifdef CINN_CUDA_FP16
@@ -285,14 +397,17 @@ EXPAND_REDUCE_FP16_MACRO(CINN_BLOCK_REDUCE_IMPL)
 
 #define BLOCK_SHUFFLE_IMPL(REDUCE_TYPE, INITIAL_VALUE, DTYPE)                                   \
   __device__ inline DTYPE block_shuffle_##REDUCE_TYPE(const DTYPE *buf, int line, int stride) { \
-    DTYPE val = DTYPE(INITIAL_VALUE);                                                           \
+    DTYPE val = (DTYPE)(INITIAL_VALUE);                                                         \
     for (int idx = threadIdx.x; idx < line; idx += stride) {                                    \
       val = cinn_##REDUCE_TYPE(val, buf[idx]);                                                  \
     }                                                                                           \
     return val;                                                                                 \
   }
 
+EXPAND_REDUCE_INT32_MARCO(BLOCK_SHUFFLE_IMPL)
+EXPAND_REDUCE_INT64_MARCO(BLOCK_SHUFFLE_IMPL)
 EXPAND_REDUCE_FP32_MACRO(BLOCK_SHUFFLE_IMPL)
+EXPAND_REDUCE_FP64_MACRO(BLOCK_SHUFFLE_IMPL)
 EXPAND_REDUCE_BOOL_MACRO(BLOCK_SHUFFLE_IMPL)
 
 #ifdef CINN_CUDA_FP16
@@ -301,7 +416,10 @@ EXPAND_REDUCE_FP16_MACRO(BLOCK_SHUFFLE_IMPL)
 
 #undef BLOCK_SHUFFLE_IMPL
 
+#undef EXPAND_REDUCE_INT32_MARCO
+#undef EXPAND_REDUCE_INT64_MARCO
 #undef EXPAND_REDUCE_FP32_MACRO
+#undef EXPAND_REDUCE_FP64_MACRO
 #undef EXPAND_REDUCE_BOOL_MACRO
 
 #ifdef CINN_CUDA_FP16

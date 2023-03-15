@@ -72,8 +72,10 @@ class ScheduleImpl {
   std::vector<Expr> GetChildBlocks(const Expr& expr) const;
   Expr GetBlock(const std::string& block_name) const;
   std::vector<Expr> Split(const Expr& loop, const std::vector<int>& factors);
-  std::vector<Expr> Split(const std::string& block_name, int loop_index, const std::vector<int>& factors);
-  std::vector<Expr> SamplePerfectTile(const uint32_t seed, const Expr& loop, int n, int max_innermost_factor);
+  std::vector<Expr> SamplePerfectTile(utils::LinearRandomEngine::StateType* rand_seed,
+                                      const Expr& loop,
+                                      int n,
+                                      int max_innermost_factor);
   Expr Fuse(const std::vector<Expr>& loops);
   Expr Fuse(const std::string& block_name, const std::vector<int>& loops_index);
   Expr Fuse(const Expr& block, const std::vector<int>& loops_index);
@@ -142,16 +144,6 @@ std::vector<Expr> ScheduleImpl::Split(const Expr& loop, const std::vector<int>& 
 
   this->Replace(loop, new_node);
   return splited_loops;
-}
-
-std::vector<Expr> ScheduleImpl::Split(const std::string& block_name, int loop_index, const std::vector<int>& factors) {
-  std::vector<Expr> all_loops = this->GetLoops(block_name);
-  Expr loop_expr;
-  CHECK_LT(loop_index, (int)all_loops.size()) << "The loop index in Split should be less than total loop's number.";
-  CHECK_GE(loop_index, 0) << "The loop index in Split should be >= 0.";
-  loop_expr = all_loops[loop_index];
-
-  return this->Split(loop_expr, factors);
 }
 
 Expr ScheduleImpl::Fuse(const std::vector<Expr>& loops) {
@@ -977,7 +969,7 @@ struct LoopReconstructor : public ir::IRMutator<> {
    *        - `index = -1` means inserted into the tail
    *        - otherwise, it should be a index between [0, stmts size)
    */
-  void MakeNewLoop(const std::vector<IterRange>& iter_ranges, int inserted_pos = -1) {
+  std::string MakeNewLoop(const std::vector<IterRange>& iter_ranges, int inserted_pos = -1) {
     int n_iters = iter_ranges.size();
     std::vector<Var> loop_vars;
     std::vector<Expr> loop_extents;
@@ -985,10 +977,13 @@ struct LoopReconstructor : public ir::IRMutator<> {
     loop_vars.reserve(n_iters);
     loop_extents.reserve(n_iters);
     iter_values.reserve(n_iters);
+    std::vector<std::string> new_var_names;
     for (int i = 0; i < n_iters; ++i) {
       const auto& range = iter_ranges[i];
       if (range.extent != Expr(1)) {
-        Var var(common::UniqName("ax" + std::to_string(loop_vars.size())), Int(32));
+        std::string var_name = common::UniqName("ax" + std::to_string(loop_vars.size()));
+        new_var_names.push_back(var_name);
+        Var var(var_name, Int(32));
         loop_vars.push_back(var);
         loop_extents.push_back(range.extent);
         iter_values.push_back(common::AutoSimplify(range.min) + var);
@@ -1007,8 +1002,28 @@ struct LoopReconstructor : public ir::IRMutator<> {
           loop_var, Expr(0), loop_extent, ForType::Serial, loop_.As<ir::For>()->device_api, std::move(loop_body));
     }
     new_loop_ = optim::IRCopy(loop_);
+
+    // Replace the copied Tensor object with the original Tensor object,
+    // to ensure that the same Tensor in a AST is the same object.
+    std::unordered_map<std::string, ir::Expr> tensors_map;
+    ir::CollectIRNodesWithoutTensor(loop_, [&tensors_map](const Expr* x) {
+      if (x->as_tensor()) {
+        tensors_map.insert({x->as_tensor()->name, *x});
+        return true;
+      }
+      return false;
+    });
+    auto find_store = ir::CollectIRNodesWithoutTensor(new_loop_, [](const Expr* x) { return x->As<ir::Store>(); });
+    for (auto store : find_store) {
+      store.As<ir::Store>()->tensor = tensors_map.at(store.As<ir::Store>()->tensor.as_tensor()->name);
+    }
+    auto find_load = ir::CollectIRNodesWithoutTensor(new_loop_, [](const Expr* x) { return x->As<ir::Load>(); });
+    for (auto load : find_load) {
+      load.As<ir::Load>()->tensor = tensors_map.at(load.As<ir::Load>()->tensor.as_tensor()->name);
+    }
+
     InsertBlock(new_loop_, loop_body, inserted_pos);
-    return;
+    return utils::Join(new_var_names, ",");
   }
 
  private:
@@ -1129,8 +1144,10 @@ void ScheduleImpl::ComputeAt(const Expr& block, const Expr& loop) {
   LoopReconstructor reconstructor(root, block, loop);
   LeafBlockRemovalPlan remove_plan(block, &reconstructor.source_expr, &reconstructor.target_expr);
   remove_plan(&root);
-  auto iter_ranges = CalculateRequiredRegions(block, loop, root, consumers);
-  reconstructor.MakeNewLoop(iter_ranges, 0);
+  auto iter_ranges          = CalculateRequiredRegions(block, loop, root, consumers);
+  std::string new_var_names = reconstructor.MakeNewLoop(iter_ranges, 0);
+  auto sch_block_expr       = block.As<ir::ScheduleBlockRealize>()->schedule_block;
+  sch_block_expr.As<ir::ScheduleBlock>()->attrs.emplace(ir::attr::compute_at_extra_var, new_var_names);
   this->Replace(reconstructor.source_expr, reconstructor.target_expr);
   this->Replace(reconstructor.loop_, reconstructor.new_loop_);
   return;
@@ -1230,8 +1247,10 @@ void ScheduleImpl::ReverseComputeAt(const Expr& block, const Expr& loop) {
   LoopReconstructor reconstructor(root, block, loop);
   LeafBlockRemovalPlan remove_plan(block, &reconstructor.source_expr, &reconstructor.target_expr);
   remove_plan(&root);
-  auto iter_ranges = CalculateRequiredRegions(block, loop, root, producers, false);
-  reconstructor.MakeNewLoop(iter_ranges);
+  auto iter_ranges          = CalculateRequiredRegions(block, loop, root, producers, false);
+  std::string new_var_names = reconstructor.MakeNewLoop(iter_ranges);
+  auto sch_block_expr       = block.As<ir::ScheduleBlockRealize>()->schedule_block;
+  sch_block_expr.As<ir::ScheduleBlock>()->attrs.emplace(ir::attr::reverse_compute_at_extra_var, new_var_names);
   this->Replace(reconstructor.source_expr, reconstructor.target_expr);
   this->Replace(reconstructor.loop_, reconstructor.new_loop_);
   return;
@@ -1801,7 +1820,7 @@ void ScheduleImpl::CopyTransformAndLoopInfo(const Expr& block, const Expr& block
   this->Replace(all_loops[0], res);
 }
 
-std::vector<Expr> ScheduleImpl::SamplePerfectTile(const uint32_t seed,
+std::vector<Expr> ScheduleImpl::SamplePerfectTile(utils::LinearRandomEngine::StateType* rand_seed,
                                                   const Expr& loop,
                                                   int n,
                                                   int max_innermost_factor) {
@@ -1817,8 +1836,8 @@ std::vector<Expr> ScheduleImpl::SamplePerfectTile(const uint32_t seed,
     }
   }
   CHECK(!innermost_factors.empty()) << "No innermost factor found";
-  int innermost_factor = innermost_factors[ir::SampleInt(0, innermost_factors.size() - 1, seed)];
-  auto result          = SampleTile(seed, n - 1, loop_extent / innermost_factor);
+  int innermost_factor = innermost_factors[utils::SampleUniformInt(0, innermost_factors.size(), rand_seed)];
+  auto result          = SampleTile(rand_seed, n - 1, loop_extent / innermost_factor);
   std::vector<Expr> result_expr;
   for (auto& factor : result) {
     result_expr.push_back(Expr(factor));
@@ -1829,31 +1848,46 @@ std::vector<Expr> ScheduleImpl::SamplePerfectTile(const uint32_t seed,
 
 IRSchedule::IRSchedule() {}
 
-IRSchedule::IRSchedule(const ModuleExpr& module_expr, bool debug_flag) {
+IRSchedule::IRSchedule(const ModuleExpr& module_expr, utils::LinearRandomEngine::StateType rand_seed, bool debug_flag) {
   impl_ = std::make_unique<ScheduleImpl>(module_expr, debug_flag);
+  this->InitSeed(rand_seed);
 }
 
-IRSchedule::IRSchedule(ir::ModuleExpr&& mod_expr, ScheduleDesc&& trace)
-    : impl_(std::make_unique<ScheduleImpl>(std::move(mod_expr))), trace_(std::move(trace)) {}
+IRSchedule::IRSchedule(ir::ModuleExpr&& mod_expr, ScheduleDesc&& trace, utils::LinearRandomEngine::StateType rand_seed)
+    : impl_(std::make_unique<ScheduleImpl>(std::move(mod_expr))), trace_(std::move(trace)) {
+  this->InitSeed(rand_seed);
+}
 
 IRSchedule::IRSchedule(const IRSchedule& other)
-    : impl_(std::make_unique<ScheduleImpl>(optim::IRCopy(other.GetModule()))), trace_(other.trace_) {}
+    : impl_(std::make_unique<ScheduleImpl>(optim::IRCopy(other.GetModule()))), trace_(other.trace_) {
+  this->InitSeed(other.ForkSeed());
+}
 
 IRSchedule& IRSchedule::operator=(const IRSchedule& src) {
   impl_  = std::make_unique<ScheduleImpl>(optim::IRCopy(src.GetModule()));
   trace_ = src.trace_;
+  this->InitSeed(src.ForkSeed());
   return *this;
 }
 
-IRSchedule::IRSchedule(IRSchedule&& other) : impl_(std::move(other.impl_)), trace_(std::move(other.trace_)) {}
+IRSchedule::IRSchedule(IRSchedule&& other) : impl_(std::move(other.impl_)), trace_(std::move(other.trace_)) {
+  this->InitSeed(other.ForkSeed());
+}
 
 IRSchedule& IRSchedule::operator=(IRSchedule&& src) {
   impl_  = std::move(src.impl_);
   trace_ = std::move(src.trace_);
+  this->InitSeed(src.ForkSeed());
   return *this;
 }
 
 IRSchedule::~IRSchedule() {}
+
+void IRSchedule::InitSeed(utils::LinearRandomEngine::StateType rand_seed) {
+  this->rand_seed_ = utils::LinearRandomEngine::NormalizeState(rand_seed);
+}
+
+utils::LinearRandomEngine::StateType IRSchedule::ForkSeed() const { return utils::ForkRandomState(&rand_seed_); }
 
 void IRSchedule::SetExprs(const std::vector<Expr>& exprs) {
   return impl_->SetExprs(exprs);
@@ -1906,15 +1940,26 @@ Expr IRSchedule::GetBlock(const std::string& block_name) const {
 }
 
 std::vector<Expr> IRSchedule::Split(const Expr& loop, const std::vector<int>& factors) {
-  auto results = impl_->Split(loop, factors);
-  trace_.Append(ScheduleDesc::Step("Split", {{"loop", std::vector<Expr>({loop})}}, {{"factors", factors}}, results));
+  std::vector<Expr> decision = SamplePerfectTile(loop, factors.size(), loop.As<ir::For>()->extent.as_int32(), factors);
+  auto results               = Split(loop, decision);
   return results;
 }
 
 std::vector<Expr> IRSchedule::Split(const std::string& block_name, int loop_index, const std::vector<int>& factors) {
-  auto results = impl_->Split(block_name, loop_index, factors);
-  trace_.Append(ScheduleDesc::Step(
-      "SplitWithName", {}, {{"block_name", block_name}, {"loop_index", loop_index}, {"factors", factors}}, results));
+  std::vector<Expr> all_loops = this->GetLoops(block_name);
+  Expr loop_expr;
+  CHECK_LT(loop_index, (int)all_loops.size()) << "The loop index in Split should be less than total loop's number.";
+  CHECK_GE(loop_index, 0) << "The loop index in Split should be >= 0.";
+  loop_expr = all_loops[loop_index];
+
+  return this->Split(loop_expr, factors);
+}
+
+std::vector<Expr> IRSchedule::Split(const Expr& loop, const std::vector<Expr>& factors) {
+  std::vector<int> int_factors;
+  std::transform(factors.begin(), factors.end(), std::back_inserter(int_factors), [](Expr x) { return x.as_int32(); });
+  auto results = impl_->Split(loop, int_factors);
+  trace_.Append(ScheduleDesc::Step("Split", {{"loop", std::vector<Expr>({loop})}, {"factors", factors}}, {}, results));
   return results;
 }
 
@@ -2085,13 +2130,26 @@ void IRSchedule::CopyTransformAndLoopInfo(const std::string& block_name, const s
   // don't support to trace, because we can't ensure both blocks are from the same ModuleExpr
 }
 
-std::vector<Expr> IRSchedule::SamplePerfectTile(const Expr& loop, int n, int max_innermost_factor) {
-  auto result = impl_->SamplePerfectTile(ir::RandomSeedController::seed, loop, n, max_innermost_factor);
-  trace_.Append(ScheduleDesc::Step("SamplePerfectTile",
-                                   {{"loop", std::vector<Expr>({loop})}},
-                                   {{"n", n}, {"max_innermost_factor", max_innermost_factor}},
-                                   {result}));
-  return result;
+std::vector<Expr> IRSchedule::SamplePerfectTile(const Expr& loop,
+                                                int n,
+                                                int max_innermost_factor,
+                                                const std::vector<int>& decision) {
+  std::vector<Expr> factors;
+  std::vector<int> new_decision;
+  if (decision.empty()) {
+    factors = impl_->SamplePerfectTile(&rand_seed_, loop, n, max_innermost_factor);
+    std::transform(
+        factors.begin(), factors.end(), std::back_inserter(new_decision), [](Expr x) { return x.as_int32(); });
+  } else {
+    new_decision = decision;
+    std::transform(decision.begin(), decision.end(), std::back_inserter(factors), [](int x) { return Expr(x); });
+  }
+  trace_.Append(
+      ScheduleDesc::Step("SamplePerfectTile",
+                         {{"loop", std::vector<Expr>({loop})}},
+                         {{"n", n}, {"max_innermost_factor", max_innermost_factor}, {"decision", new_decision}},
+                         factors));
+  return factors;
 }
 
 }  // namespace ir

@@ -86,12 +86,17 @@ EXTERN_CALL_IMP(Popc, popc);
 #undef EXTERN_CALL_IMP
 #undef EXTERN_CALL_IMP_NO_VEC
 
-#define EXTERN_BINARY_CALL_IMP(name__, target__) \
-  Expr name__(Expr a, Expr b) { return ir::Call::Make(a->type(), #target__, {a, b}, {}, ir::CallType::Extern); }
+#define EXTERN_BINARY_CALL_IMP(name__, target__)                                                \
+  Expr name__(Expr a, Expr b) {                                                                 \
+    CHECK_EQ(a.type(), b.type()) << #name__ << "'s inputs type not equal, where a:" << a.type() \
+                                 << " but b:" << b.type();                                      \
+    return ir::Call::Make(a->type(), #target__, {a, b}, {}, ir::CallType::Extern);              \
+  }
 
 EXTERN_BINARY_CALL_IMP(Remainder, remainder)
 EXTERN_BINARY_CALL_IMP(LogicalRightShift, logical_right_shift)
 EXTERN_BINARY_CALL_IMP(Pow, pow)
+EXTERN_BINARY_CALL_IMP(Mod, mod)
 
 #undef EXTERN_BINARY_CALL_IMP
 
@@ -104,25 +109,18 @@ Expr FloorDivide(Expr a, Expr b) {
   return a.type().is_float() ? Floor(a / b) : a / b;
 }
 
-Expr Mod(Expr a, Expr b) {
-  CHECK_EQ(a.type(), b.type()) << "Mod's inputs type not equal, where a:" << a.type() << " but b:" << b.type();
-  auto quotient = lang::FloorDivide(a, b);
-  if (a.type().is_int()) {
-    auto zero = Zero(a->type());
-    auto one  = One(a->type());
-    quotient  = ir::Select::Make(a > zero && b < zero, lang::FloorDivide(a - one, b) - one, lang::FloorDivide(a, b));
-  }
-  return a - quotient * b;
-}
-
 Expr min_value(const Type& type) {
   CHECK_EQ(type.lanes(), 1);
-#define FOR_CASE(type__)                                \
-  if (type == type_of<type__>()) {                      \
-    return Expr(std::numeric_limits<type__>::lowest()); \
+#define FOR_CASE(type__)                                                     \
+  if (type == type_of<type__>()) {                                           \
+    return Expr(static_cast<type__>(std::numeric_limits<type__>::lowest())); \
   }
+  FOR_CASE(int8_t)
+  FOR_CASE(int16_t)
   FOR_CASE(int32_t)
   FOR_CASE(int64_t)
+  FOR_CASE(uint8_t)
+  FOR_CASE(uint16_t)
   FOR_CASE(uint32_t)
   FOR_CASE(uint64_t)
   FOR_CASE(float16)
@@ -135,12 +133,16 @@ Expr min_value(const Type& type) {
 Expr max_value(const Type& type) {
   CHECK_EQ(type.lanes(), 1);
 
-#define FOR_CASE(type__)                             \
-  if (type == type_of<type__>()) {                   \
-    return Expr(std::numeric_limits<type__>::max()); \
+#define FOR_CASE(type__)                                                  \
+  if (type == type_of<type__>()) {                                        \
+    return Expr(static_cast<type__>(std::numeric_limits<type__>::max())); \
   }
+  FOR_CASE(int8_t)
+  FOR_CASE(int16_t)
   FOR_CASE(int32_t)
   FOR_CASE(int64_t)
+  FOR_CASE(uint8_t)
+  FOR_CASE(uint16_t)
   FOR_CASE(uint32_t)
   FOR_CASE(uint64_t)
   FOR_CASE(float16)
@@ -155,12 +157,16 @@ Expr max_value(const Type& type) {
 Expr Epsilon(const Type& type) {
   CHECK_EQ(type.lanes(), 1);
 
-#define FOR_CASE(type__)                                 \
-  if (type == type_of<type__>()) {                       \
-    return Expr(std::numeric_limits<type__>::epsilon()); \
+#define FOR_CASE(type__)                                                      \
+  if (type == type_of<type__>()) {                                            \
+    return Expr(static_cast<type__>(std::numeric_limits<type__>::epsilon())); \
   }
+  FOR_CASE(int8_t)
+  FOR_CASE(int16_t)
   FOR_CASE(int32_t)
   FOR_CASE(int64_t)
+  FOR_CASE(uint8_t)
+  FOR_CASE(uint16_t)
   FOR_CASE(uint32_t)
   FOR_CASE(uint64_t)
   FOR_CASE(float16)

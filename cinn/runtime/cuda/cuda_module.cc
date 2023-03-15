@@ -76,7 +76,7 @@ CUfunction CUDAModule::GetFunction(int device_id, const std::string& func_name) 
   if (!module_per_card_[device_id]) {
     std::lock_guard<std::mutex> lock(mutex_);
     // Compilation with parameters
-    const size_t jit_num_options = 2;
+    const size_t jit_num_options = 5;
     std::vector<CUjit_option> jit_options(jit_num_options);
     std::vector<void*> jit_opt_vals(jit_num_options);
 
@@ -89,6 +89,19 @@ CUfunction CUDAModule::GetFunction(int device_id, const std::string& func_name) 
     jit_options[1] = CU_JIT_ERROR_LOG_BUFFER;
     std::vector<char> log_buffer(log_buffer_size, '\0');
     jit_opt_vals[1] = log_buffer.data();
+
+    int value = 1;
+    // Specifies whether to create debug information in output (-g)
+    jit_options[2]  = CU_JIT_GENERATE_DEBUG_INFO;
+    jit_opt_vals[2] = reinterpret_cast<void*>(value);
+
+    // Generate verbose log messages
+    jit_options[3]  = CU_JIT_LOG_VERBOSE;
+    jit_opt_vals[3] = reinterpret_cast<void*>(value);
+
+    // Generate line number information (-lineinfo)
+    jit_options[4]  = CU_JIT_GENERATE_LINE_INFO;
+    jit_opt_vals[4] = reinterpret_cast<void*>(value);
 
     CUresult status = cuModuleLoadDataEx(
         &module_per_card_[device_id], data_.c_str(), jit_num_options, jit_options.data(), jit_opt_vals.data());

@@ -80,18 +80,20 @@ void Reshape2OpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext&
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);
 
-  // Reshape2 adds an intermediate output(XShape) based on
-  // Reshape, the XShape is used to carry the shape and lod of X which
-  // will be used in Reshape_grad, in this way, the framework can reuse
-  // the memory of X immediately the Reshape2_op is finished.
-  // Considering compatibility issues, we could not fix Reshape2_op
-  CHECK_EQ(op_desc.Output("XShape").size(), 1UL);
-  auto xshape_name = op_desc.Output("XShape").front();
+  if (op_desc.HasOutput("XShape")) {
+    // Reshape2 adds an intermediate output(XShape) based on
+    // Reshape, the XShape is used to carry the shape and lod of X which
+    // will be used in Reshape_grad, in this way, the framework can reuse
+    // the memory of X immediately the Reshape2_op is finished.
+    // Considering compatibility issues, we could not fix Reshape2_op
+    CHECK_EQ(op_desc.Output("XShape").size(), 1UL);
+    auto xshape_name = op_desc.Output("XShape").front();
 
-  auto xshape = ctx.Builder()->Identity(x);
+    auto xshape = ctx.Builder()->Identity(x);
 
-  ctx.AddVar(xshape_name, xshape);
-  ctx.AddVarModelToProgram(xshape_name, xshape->id);
+    ctx.AddVar(xshape_name, xshape);
+    ctx.AddVarModelToProgram(xshape_name, xshape->id);
+  }
 }
 
 void Reshape2GradOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {

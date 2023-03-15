@@ -310,10 +310,22 @@ void _LoweredFunc_::PrepareArgumentExprs() {
 
     if (arg.is_buffer()) {
       pod_cast_expr = ir::intrinsics::PodValueToX::Make(load_expr, type_of<cinn_buffer_t*>());
+    } else if (arg.type() == type_of<int8_t>()) {
+      pod_cast_expr = ir::intrinsics::PodValueToX::Make(load_expr, type_of<int8_t>());
+    } else if (arg.type() == type_of<int16_t>()) {
+      pod_cast_expr = ir::intrinsics::PodValueToX::Make(load_expr, type_of<int16_t>());
     } else if (arg.type() == type_of<int32_t>()) {
       pod_cast_expr = ir::intrinsics::PodValueToX::Make(load_expr, type_of<int32_t>());
     } else if (arg.type() == type_of<int64_t>()) {
       pod_cast_expr = ir::intrinsics::PodValueToX::Make(load_expr, type_of<int64_t>());
+    } else if (arg.type() == type_of<uint8_t>()) {
+      pod_cast_expr = ir::intrinsics::PodValueToX::Make(load_expr, type_of<uint8_t>());
+    } else if (arg.type() == type_of<uint16_t>()) {
+      pod_cast_expr = ir::intrinsics::PodValueToX::Make(load_expr, type_of<uint16_t>());
+    } else if (arg.type() == type_of<uint32_t>()) {
+      pod_cast_expr = ir::intrinsics::PodValueToX::Make(load_expr, type_of<uint32_t>());
+    } else if (arg.type() == type_of<uint64_t>()) {
+      pod_cast_expr = ir::intrinsics::PodValueToX::Make(load_expr, type_of<uint64_t>());
     } else if (arg.type() == type_of<float16>()) {
       pod_cast_expr = ir::intrinsics::PodValueToX::Make(load_expr, type_of<float16>());
     } else if (arg.type() == type_of<float>()) {

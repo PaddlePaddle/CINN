@@ -14,44 +14,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
 import unittest
 import numpy as np
-from op_mapper_test import OpMapperTest
+from op_mapper_test import OpMapperTest, logger
 import paddle
-from cinn.frontend import *
-from cinn.common import *
-
-paddle.enable_static()
-
-enable_gpu = sys.argv.pop()
 
 
 class TestReduceOp(OpMapperTest):
-    def setUp(self):
-        if enable_gpu == "ON":
-            self.target = DefaultNVGPUTarget()
-            self.place = paddle.CUDAPlace(0)
-        else:
-            self.target = DefaultHostTarget()
-            self.place = paddle.CPUPlace()
-
     def init_input_data(self):
         self.feed_data = {'x': self.random([32, 64], "float32")}
-        self.axis = None
+        self.dim = [0, 1]
         self.keepdim = False
 
-    def set_reduce_func(self, x):
-        return paddle.sum(x, axis=self.axis, keepdim=self.keepdim)
+    def set_op_type(self):
+        return "reduce_sum"
 
-    def set_paddle_program(self):
+    def set_op_inputs(self):
         x = paddle.static.data(
             name='x',
             shape=self.feed_data['x'].shape,
             dtype=self.feed_data['x'].dtype)
-        out = self.set_reduce_func(x)
+        return {'X': [x]}
 
-        return ([x.name], [out])
+    def set_op_attrs(self):
+        return {"dim": self.dim, "keep_dim": self.keepdim}
+
+    def set_op_outputs(self):
+        return {'Out': [str(self.feed_data['x'].dtype)]}
 
     def test_check_results(self):
         self.check_outputs_and_grads()
@@ -60,74 +49,74 @@ class TestReduceOp(OpMapperTest):
 class TestReduceSum(TestReduceOp):
     def init_input_data(self):
         self.feed_data = {'x': self.random([32, 64], "float32")}
-        self.axis = 0
+        self.dim = [0]
         self.keepdim = False
 
 
 class TestReduceSumCase1(TestReduceOp):
     def init_input_data(self):
         self.feed_data = {'x': self.random([32, 64], "float32")}
-        self.axis = 0
+        self.dim = [0]
         self.keepdim = True
 
 
 class TestReduceMax(TestReduceOp):
-    def set_reduce_func(self, x):
-        return paddle.max(x, axis=self.axis, keepdim=self.keepdim)
+    def set_op_type(self):
+        return "reduce_max"
 
 
 class TestReduceMin(TestReduceOp):
-    def set_reduce_func(self, x):
-        return paddle.min(x, axis=self.axis, keepdim=self.keepdim)
+    def set_op_type(self):
+        return "reduce_min"
 
 
 class TestReduceProd(TestReduceOp):
     def init_input_data(self):
-        self.feed_data = {'x': self.random([32, 64], "float32", 1.0, 2.0)}
-        self.axis = None
+        self.feed_data = {'x': self.random([2, 3], "float32", 1.0, 2.0)}
+        self.dim = [0, 1]
         self.keepdim = False
 
-    def set_reduce_func(self, x):
-        return paddle.prod(x, axis=self.axis, keepdim=self.keepdim)
+    def set_op_type(self):
+        return "reduce_prod"
 
 
 class TestReduceMean(TestReduceOp):
-    def set_reduce_func(self, x):
-        return paddle.mean(x, axis=self.axis, keepdim=self.keepdim)
+    def set_op_type(self):
+        return "reduce_mean"
 
 
 class TestReduceMeanCase1(TestReduceMean):
     def init_input_data(self):
         self.feed_data = {'x': self.random([32, 64], "float32", 1.0, 2.0)}
-        self.axis = [1]
+        self.dim = [1]
         self.keepdim = False
 
 
 class TestReduceMeanCase2(TestReduceMean):
     def init_input_data(self):
         self.feed_data = {'x': self.random([16, 32, 64], "float32", 1.0, 2.0)}
-        self.axis = [0, 1]
+        self.dim = [0, 1]
         self.keepdim = True
 
 
 class TestReduceAll(TestReduceOp):
     def init_input_data(self):
         self.feed_data = {'x': self.random([32, 64], "bool")}
-        self.axis = None
+        self.dim = [0, 1]
         self.keepdim = False
 
-    def set_reduce_func(self, x):
-        return paddle.all(x, axis=self.axis, keepdim=self.keepdim)
+    def set_op_type(self):
+        return "reduce_all"
 
 
 class TestReduceAny(TestReduceOp):
     def init_input_data(self):
         self.feed_data = {'x': self.random([32, 64], "bool")}
-        self.axis = None
+        self.dim = [0, 1]
         self.keepdim = False
 
-    def set_reduce_func(self, x):
-        return paddle.any(x, axis=self.axis, keepdim=self.keepdim)
+    def set_op_type(self):
+        return "reduce_any"
 
 
 if __name__ == "__main__":

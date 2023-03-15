@@ -39,7 +39,10 @@ class EvolutionarySearch {
    * @param tune_task: the TuneTask this class works on. This class doesn't
    *     take ownership of the pointer.
    */
-  EvolutionarySearch(const TuneTask& tune_task, const ExprCostModel& cost_model, Database* database);
+  EvolutionarySearch(const TuneTask& tune_task,
+                     const ExprCostModel& cost_model,
+                     Database* database,
+                     utils::LinearRandomEngine::StateType rand_seed = -1);
 
   /**
    * Destructor
@@ -117,6 +120,7 @@ class EvolutionarySearch {
   Database* database_;               // not owned
   // used to depuplicate states with the same structural IR
   std::unordered_set<SearchState, SearchStateHash, SearchStateEqual> visited_candidates_;
+  utils::LinearRandomEngine::StateType rand_seed_;
 };
 
 }  // namespace auto_schedule

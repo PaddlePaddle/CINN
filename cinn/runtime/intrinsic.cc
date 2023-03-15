@@ -29,14 +29,21 @@ cinn_type_t ToRuntimeType(Type type) {
   }
 
   SET_TYPE_CASE_ITEM(Bool, cinn_bool_t)
+
   SET_TYPE_CASE_ITEM(I8, cinn_int8_t)
+  SET_TYPE_CASE_ITEM(I16, cinn_int16_t)
   SET_TYPE_CASE_ITEM(I32, cinn_int32_t)
   SET_TYPE_CASE_ITEM(I64, cinn_int64_t)
+
+  SET_TYPE_CASE_ITEM(UI8, cinn_uint8_t)
+  SET_TYPE_CASE_ITEM(UI16, cinn_uint16_t)
   SET_TYPE_CASE_ITEM(UI32, cinn_uint32_t)
   SET_TYPE_CASE_ITEM(UI64, cinn_uint64_t)
+
   SET_TYPE_CASE_ITEM(F16, cinn_float16_t)
   SET_TYPE_CASE_ITEM(F32, cinn_float32_t)
   SET_TYPE_CASE_ITEM(F64, cinn_float64_t)
+
   SET_TYPE_CASE_ITEM(Float(32).PointerOf, cinn_type_of<float*>);
   SET_TYPE_CASE_ITEM(Float(64).PointerOf, cinn_type_of<double*>);
   SET_TYPE_CASE_ITEM(Float(16).PointerOf, cinn_type_of<float16*>);

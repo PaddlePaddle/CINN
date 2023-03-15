@@ -60,12 +60,18 @@ void FillConstantOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperCont
 
   auto shape     = utils::ToShapeType(utils::GetAttrOrDefault<std::vector<int64_t>>(op_desc, "shape"));
   auto value     = utils::GetAttrOrDefault<float>(op_desc, "value", 0.0f);
+  auto str_value = utils::GetAttrOrDefault<std::string>(op_desc, "str_value", "");
   auto force_cpu = utils::GetAttrOrDefault<bool>(op_desc, "force_cpu", false);
 
   auto dtype_id = utils::GetAttrOrDefault<int>(op_desc, "dtype", static_cast<int>(paddle::cpp::VarDescAPI::Type::FP32));
   auto dtype_pd = static_cast<paddle::cpp::VarDescAPI::Type>(dtype_id);
   auto dtype_cinn = utils::CppVarType2CommonType(dtype_pd);
   auto dtype      = common::Type2Str(dtype_cinn);
+
+  if (!str_value.empty()) {
+    size_t end_pos = 0;
+    value          = std::stof(str_value, &end_pos);
+  }
 
   VLOG(4) << "fill constant (" << value << ") with shape (" << cinn::utils::Join(shape, ",") << ") and dtype [" << dtype
           << "]";

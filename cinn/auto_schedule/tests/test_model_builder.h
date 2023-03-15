@@ -20,11 +20,11 @@
 namespace cinn {
 namespace auto_schedule {
 
-class PaddleModelProgramBuilder : public TestProgramBuilder {
+class PaddleModelBuilder : public TestProgramBuilder {
  public:
-  PaddleModelProgramBuilder(const std::string& model_path,
-                            const std::vector<std::string>& input_names,
-                            const std::vector<std::vector<int>>& input_shapes)
+  PaddleModelBuilder(const std::string& model_path,
+                     const std::vector<std::string>& input_names,
+                     const std::vector<std::vector<int>>& input_shapes)
       : model_path_(model_path), input_names_(input_names), input_shapes_(input_shapes) {}
 
   frontend::Program operator()() override {

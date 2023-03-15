@@ -14,161 +14,150 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
 import unittest
 import numpy as np
-from op_mapper_test import OpMapperTest
+from op_mapper_test import OpMapperTest, logger
 import paddle
-from cinn.frontend import *
-from cinn.common import *
-
-paddle.enable_static()
-
-enable_gpu = sys.argv.pop()
 
 
 class TestUnaryOp(OpMapperTest):
-    def setUp(self):
-        if enable_gpu == "ON":
-            self.target = DefaultNVGPUTarget()
-            self.place = paddle.CUDAPlace(0)
-        else:
-            self.target = DefaultHostTarget()
-            self.place = paddle.CPUPlace()
-
     def init_input_data(self):
         self.feed_data = {'x': self.random([32, 64], "float32")}
 
-    def set_unary_func(self, x):
-        return paddle.sqrt(x)
+    def set_op_type(self):
+        return "sqrt"
 
-    def set_paddle_program(self):
+    def set_op_inputs(self):
         x = paddle.static.data(
             name='x',
             shape=self.feed_data['x'].shape,
             dtype=self.feed_data['x'].dtype)
-        out = self.set_unary_func(x)
+        return {'X': [x]}
 
-        return ([x.name], [out])
+    def set_op_attrs(self):
+        return {}
+
+    def set_op_outputs(self):
+        return {'Out': [str(self.feed_data['x'].dtype)]}
 
     def test_check_results(self):
         self.check_outputs_and_grads()
 
 
 class TestSqrtOp(TestUnaryOp):
-    def set_unary_func(self, x):
-        return paddle.sqrt(x)
+    def set_op_type(self):
+        return "sqrt"
 
 
 class TestGeluOp(TestUnaryOp):
-    def set_unary_func(self, x):
-        return paddle.nn.functional.gelu(x)
+    def set_op_type(self):
+        return "gelu"
 
 
 class TestSigmoidOp(TestUnaryOp):
-    def set_unary_func(self, x):
-        return paddle.nn.functional.sigmoid(x)
+    def set_op_type(self):
+        return "sigmoid"
 
 
 class TestExpOp(TestUnaryOp):
-    def set_unary_func(self, x):
-        return paddle.exp(x)
+    def set_op_type(self):
+        return "exp"
 
 
 class TestErfOp(TestUnaryOp):
-    def set_unary_func(self, x):
-        return paddle.erf(x)
+    def set_op_type(self):
+        return "erf"
 
 
 class TestRsqrtOp(TestUnaryOp):
-    def set_unary_func(self, x):
-        return paddle.rsqrt(x)
+    def set_op_type(self):
+        return "rsqrt"
 
 
 class TestSinOp(TestUnaryOp):
-    def set_unary_func(self, x):
-        return paddle.sin(x)
+    def set_op_type(self):
+        return "sin"
 
 
 class TestCosOp(TestUnaryOp):
-    def set_unary_func(self, x):
-        return paddle.cos(x)
+    def set_op_type(self):
+        return "cos"
 
 
 class TestTanOp(TestUnaryOp):
-    def set_unary_func(self, x):
-        return paddle.tan(x)
+    def set_op_type(self):
+        return "tan"
 
 
 class TestSinhOp(TestUnaryOp):
-    def set_unary_func(self, x):
-        return paddle.sinh(x)
+    def set_op_type(self):
+        return "sinh"
 
 
 class TestCoshOp(TestUnaryOp):
-    def set_unary_func(self, x):
-        return paddle.cosh(x)
+    def set_op_type(self):
+        return "cosh"
 
 
 class TestTanhOp(TestUnaryOp):
-    def set_unary_func(self, x):
-        return paddle.tanh(x)
+    def set_op_type(self):
+        return "tanh"
 
 
 class TestAsinOp(TestUnaryOp):
-    def set_unary_func(self, x):
-        return paddle.asin(x)
+    def set_op_type(self):
+        return "asin"
 
 
 class TestAcosOp(TestUnaryOp):
-    def set_unary_func(self, x):
-        return paddle.acos(x)
+    def set_op_type(self):
+        return "acos"
 
 
 class TestAtanOp(TestUnaryOp):
-    def set_unary_func(self, x):
-        return paddle.atan(x)
+    def set_op_type(self):
+        return "atan"
 
 
 class TestAsinhOp(TestUnaryOp):
-    def set_unary_func(self, x):
-        return paddle.asinh(x)
+    def set_op_type(self):
+        return "asinh"
 
 
 class TestAcoshOp(TestUnaryOp):
     def init_input_data(self):
         self.feed_data = {'x': self.random([32, 64], "float32", 1.0, 10.0)}
 
-    def set_unary_func(self, x):
-        return paddle.acosh(x)
+    def set_op_type(self):
+        return "acosh"
 
 
 class TestAtanhOp(TestUnaryOp):
-    def set_unary_func(self, x):
-        return paddle.atanh(x)
+    def set_op_type(self):
+        return "atanh"
 
 
 class TestSignOp(TestUnaryOp):
-    def set_unary_func(self, x):
-        return paddle.sign(x)
+    def set_op_type(self):
+        return "sign"
 
 
 class TestAbsOp(TestUnaryOp):
-    def set_unary_func(self, x):
-        return paddle.abs(x)
+    def set_op_type(self):
+        return "abs"
 
 
 class TestReciprocalOp(TestUnaryOp):
-    def set_unary_func(self, x):
-        return paddle.reciprocal(x)
+    def set_op_type(self):
+        return "reciprocal"
 
 
 class TestFloorOp(TestUnaryOp):
     def init_input_data(self):
         self.feed_data = {'x': self.random([32, 64], "float32", -2.0, 2.0)}
 
-    def set_unary_func(self, x):
-        return paddle.floor(x)
+    def set_op_type(self):
+        return "floor"
 
     def test_check_results(self):
         self.check_outputs_and_grads(all_equal=True)
@@ -178,8 +167,8 @@ class TestCeilOp(TestUnaryOp):
     def init_input_data(self):
         self.feed_data = {'x': self.random([32, 64], "float32", -2.0, 2.0)}
 
-    def set_unary_func(self, x):
-        return paddle.ceil(x)
+    def set_op_type(self):
+        return "ceil"
 
     def test_check_results(self):
         self.check_outputs_and_grads(all_equal=True)
@@ -189,8 +178,8 @@ class TestRoundOp(TestUnaryOp):
     def init_input_data(self):
         self.feed_data = {'x': self.random([32, 64], "float32", -2.0, 2.0)}
 
-    def set_unary_func(self, x):
-        return paddle.round(x)
+    def set_op_type(self):
+        return "round"
 
     def test_check_results(self):
         self.check_outputs_and_grads(all_equal=True)
@@ -200,16 +189,16 @@ class TestTruncOp(TestUnaryOp):
     def init_input_data(self):
         self.feed_data = {'x': self.random([32, 64], "float32", -2.0, 2.0)}
 
-    def set_unary_func(self, x):
-        return paddle.trunc(x)
+    def set_op_type(self):
+        return "trunc"
 
     def test_check_results(self):
         self.check_outputs_and_grads(all_equal=True)
 
 
 class TestIsNanOp(TestUnaryOp):
-    def set_unary_func(self, x):
-        return paddle.isnan(x)
+    def set_op_type(self):
+        return "isnan_v2"
 
     def test_check_results(self):
         self.check_outputs_and_grads(all_equal=True)
@@ -222,8 +211,8 @@ class TestIsNanCase1(TestIsNanOp):
 
 
 class TestIsFiniteOp(TestUnaryOp):
-    def set_unary_func(self, x):
-        return paddle.isfinite(x)
+    def set_op_type(self):
+        return "isfinite_v2"
 
     def test_check_results(self):
         self.check_outputs_and_grads(all_equal=True)
@@ -236,8 +225,8 @@ class TestIsFiniteCase1(TestIsFiniteOp):
 
 
 class TestIsInfOp(TestUnaryOp):
-    def set_unary_func(self, x):
-        return paddle.isinf(x)
+    def set_op_type(self):
+        return "isinf_v2"
 
     def test_check_results(self):
         self.check_outputs_and_grads(all_equal=True)

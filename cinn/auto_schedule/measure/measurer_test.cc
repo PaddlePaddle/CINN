@@ -75,14 +75,10 @@ class TestMeasurer : public ::testing::Test {
     inputs.reserve(tasks.size());
     for (int i = 0; i < tasks.size(); ++i) {
       auto* task = &tasks[i];
-      task->SetOpLowerer(op_lowerer.get());
-      task->TaskGraphToUnoptLoweredFunc();
+      task->Initialize(shape_dict, dtype_dict, op_lowerer.get());
       MeasureInput input;
-      input.task = task;
-      // TODO(CtfGo): currently FusedGraphToLoweredFunc doesn't work well on NVGPU target,
-      // this setting of lowered_funcs will be enabled once we fix the bug
-      // input.lowered_funcs = graph_compiler->FusedGraphToLoweredFunc(task->task_graph);
-      input.lowered_funcs.push_back(task->lowered_funcs);
+      input.task          = task;
+      input.lowered_funcs = task->lowered_funcs;
       inputs.emplace_back(input);
     }
   }

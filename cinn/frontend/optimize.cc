@@ -29,9 +29,11 @@
 
 DECLARE_bool(cinn_use_fill_constant_folding);
 DECLARE_bool(cinn_use_op_fusion);
-DECLARE_bool(cinn_use_cudnn_conv);
 DECLARE_bool(cinn_use_cublas_gemm);
+DECLARE_bool(cinn_use_common_subexpression_elimination);
 DECLARE_bool(cinn_check_fusion_accuracy_pass);
+DECLARE_bool(cinn_use_custom_call);
+DECLARE_bool(use_reduce_split_pass);
 
 namespace cinn {
 namespace frontend {
@@ -62,27 +64,27 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
   options.program_passes.emplace_back("RemoveIdentity");
   options.program_passes.emplace_back("DeadCodeEliminate");
 
-  options.graph_passes = {};
-#ifdef CINN_WITH_CUDA
-  if (FLAGS_cinn_use_cublas_gemm) {
-    options.graph_passes.push_back("DenseMergePass");
-    options.graph_passes.push_back("MatmulToCublasCustomCallPass");
+  options.graph_passes = {"ConstantFolding"};
+  // options.graph_passes.push_back("DenseMergePass");
+
+  if (FLAGS_cinn_use_custom_call) {
+    options.graph_passes.emplace_back("TransToCustomCallPass");
   }
-  options.graph_passes.emplace_back("GaussianRandomToCustomCallPass");
-  options.graph_passes.emplace_back("UniformRandomToCustomCallPass");
-  options.graph_passes.emplace_back("CholeskyToCustomCallPass");
-#ifdef CINN_WITH_CUDNN
-  if (FLAGS_cinn_use_cudnn_conv) {
-    options.graph_passes.push_back("ConvToCudnnCustomCallPass");
+
+  if (FLAGS_cinn_use_common_subexpression_elimination) {
+    options.graph_passes.emplace_back("CommonSubexpressionEliminationPass");
   }
-#endif
-#endif
+
+  // this pass should be applied before merge
+  if (FLAGS_use_reduce_split_pass) {
+    options.graph_passes.emplace_back("ReduceSplit");
+  }
 
   if (FLAGS_cinn_use_op_fusion) {
-    options.graph_passes.push_back("OpFusionPass");
-    options.graph_passes.push_back("FusionMergePass");
+    options.graph_passes.emplace_back("OpFusionPass");
+    options.graph_passes.emplace_back("FusionMergePass");
   } else {
-    options.graph_passes.push_back("BuildNonFusedGroupsPass");
+    options.graph_passes.emplace_back("BuildNonFusedGroupsPass");
   }
 
   // WARNING: the pass must be the last pass !!!
@@ -91,7 +93,6 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
     // error and exited.
     options.graph_passes.emplace_back("CheckFusionAccuracyPass");
   }
-
   return options;
 }
 
@@ -112,7 +113,7 @@ std::shared_ptr<hlir::framework::Graph> Optimize(frontend::Program* program,
   frontend::ProgramPass::Apply(program, fetch_ids, target, options.program_passes);
   // Apply graph passes
   auto graph = std::make_shared<hlir::framework::Graph>(*program, fetch_ids, target);
-  //
+
   VLOG(3) << "Before hlir::framework::ApplyPasses";
   hlir::framework::ApplyPasses(graph.get(), options.graph_passes);
   return graph;

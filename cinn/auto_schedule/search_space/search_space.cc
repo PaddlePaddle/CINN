@@ -41,7 +41,8 @@ DECLARE_bool(auto_schedule_use_cost_model);
 namespace cinn {
 namespace auto_schedule {
 
-SearchSpace::SearchSpace(const TuneTask& tune_task) : tune_task_(tune_task) {
+SearchSpace::SearchSpace(const TuneTask& tune_task, utils::LinearRandomEngine::StateType rand_seed)
+    : tune_task_(tune_task), rand_seed_(utils::LinearRandomEngine::NormalizeState(rand_seed)) {
   const auto& target = tune_task_.target;
   // initialize a set of rules and they are commonly used by all states
   // TODO(zhhsplendid): pass correct output names to AutoInline
@@ -95,7 +96,7 @@ SearchState SearchSpace::RandomScheduleMutate(const SearchState& state) {
   }
 
   // 3. Sample a schedule on the distribution
-  int sample_weighted_index = rand() % cur_weight;
+  int sample_weighted_index = utils::SampleUniformInt(0, cur_weight, &rand_seed_);
 
   auto iter = weight_to_rule_index.upper_bound(sample_weighted_index);
   --iter;
@@ -117,7 +118,8 @@ SearchState SearchSpace::RandomScheduleMutate(const SearchState& state) {
 
 std::vector<SearchState> SearchSpace::InitSketchWithRandomStrategy(int num) {
   VLOG(5) << "SearchSpace::GetRandomInitialSketch with num=" << num;
-  ir::IRSchedule init_schedule(ir::ModuleExpr(tune_task_.GetLoweredFuncBodyExprs()));
+  ir::IRSchedule init_schedule(ir::ModuleExpr(tune_task_.GetLoweredFuncBodyExprs()),
+                               utils::ForkRandomState(&rand_seed_));
   std::vector<AutoGenRule*> init_rules;
   std::transform(sketch_rules_.begin(), sketch_rules_.end(), std::back_inserter(init_rules), [](const auto& rule) {
     return rule.get();
@@ -142,9 +144,10 @@ std::vector<SearchState> SearchSpace::InitSketchWithRandomStrategy(int num) {
 
 std::vector<SearchState> SearchSpace::InitSketchWithRandomPrunedStrategy() {
   VLOG(5) << "SearchSpace::InitSketchWithRandomPrunedStrategy";
-  ir::IRSchedule init_schedule(ir::ModuleExpr(tune_task_.GetLoweredFuncBodyExprs()));
+  ir::IRSchedule init_schedule(ir::ModuleExpr(tune_task_.GetLoweredFuncBodyExprs()),
+                               utils::ForkRandomState(&rand_seed_));
   auto all_blocks    = init_schedule.GetAllBlocks();
-  auto block_sampler = BlockSampler::Make(all_blocks, true, "probabilistic");
+  auto block_sampler = BlockSampler::Make(all_blocks, true, "probabilistic", utils::ForkRandomState(&rand_seed_));
 
   std::vector<AutoGenRule*> init_rules;
   std::transform(sketch_rules_.begin(), sketch_rules_.end() - 1, std::back_inserter(init_rules), [](const auto& rule) {
@@ -156,20 +159,17 @@ std::vector<SearchState> SearchSpace::InitSketchWithRandomPrunedStrategy() {
   std::vector<SearchState> states_buf1{init_state}, states_buf2;
   std::vector<SearchState>* p_states_cur  = &states_buf1;
   std::vector<SearchState>* p_states_next = &states_buf2;
-  std::mt19937 rng;
-  rng.seed(std::random_device()());
-  std::uniform_int_distribution<> distribution(0, init_rules.size());
-  int total_steps = 0, steps;
+  int total_steps                         = 0, steps;
   std::string block_name;
   while ("" != (block_name = block_sampler->NextBlock()) && total_steps < init_sketch_random_depth_) {
-    steps = distribution(rng);
+    steps = utils::SampleUniformInt(1, init_rules.size() + 1, &rand_seed_);
     if (total_steps + steps > init_sketch_random_depth_) {
       steps = init_sketch_random_depth_ - total_steps;
     }
     total_steps += steps;
     p_states_next->clear();
     for (const auto& state : *p_states_cur) {
-      auto rule_sampler = RuleSampler::Make(init_rules, true, "probabilistic");
+      auto rule_sampler = RuleSampler::Make(init_rules, true, "probabilistic", utils::ForkRandomState(&rand_seed_));
       auto new_states   = ApplySketchRule(state, block_name, rule_sampler.get(), steps, false, 1);
       p_states_next->insert(p_states_next->end(), new_states.begin(), new_states.end());
     }
@@ -180,9 +180,10 @@ std::vector<SearchState> SearchSpace::InitSketchWithRandomPrunedStrategy() {
   return *p_states_cur;
 }
 
-std::vector<SearchState> SearchSpace::InitiSketchWithRulePrunedStrategy() {
-  VLOG(5) << "SearchSpace::InitiSketchWithRulePrunedStrategy";
-  ir::IRSchedule init_schedule(ir::ModuleExpr(tune_task_.GetLoweredFuncBodyExprs()));
+std::vector<SearchState> SearchSpace::InitSketchWithRulePrunedStrategy() {
+  VLOG(5) << "SearchSpace::InitSketchWithRulePrunedStrategy";
+  ir::IRSchedule init_schedule(ir::ModuleExpr(tune_task_.GetLoweredFuncBodyExprs()),
+                               utils::ForkRandomState(&rand_seed_));
   auto all_blocks = init_schedule.GetAllBlocks();
   std::reverse(all_blocks.begin(), all_blocks.end());
   auto block_sampler = BlockSampler::Make(all_blocks, true, "traversal");
@@ -223,7 +224,7 @@ std::vector<SearchState> SearchSpace::GenerateSketches(int num, const std::strin
   while (result.size() < num) {
     std::vector<SearchState> sketchs;
     if (strategy == "rule_prune") {
-      sketchs = InitiSketchWithRulePrunedStrategy();
+      sketchs = InitSketchWithRulePrunedStrategy();
     } else if (strategy == "random_prune") {
       sketchs = InitSketchWithRandomPrunedStrategy();
     } else {
@@ -283,10 +284,7 @@ std::vector<SearchState> SearchSpace::ApplySketchRule(const SearchState& state,
       if (prune_by_rule) {
         need_prune = (type == RuleApplyType::kApplyAndPruneOtherRules);
       } else {
-        std::mt19937 rng;
-        rng.seed(std::random_device()());
-        std::uniform_real_distribution<double> distribution(0, 1);
-        need_prune = (distribution(rng) < prune_probability);
+        need_prune = (utils::SampleUniformDouble(0, 1, &rand_seed_) < prune_probability);
       }
       if (need_prune) {
         iter = layer.erase(iter);

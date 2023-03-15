@@ -312,10 +312,22 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFuncWithIRSchedule(
       input = lang::Placeholder<float16>(id, shape);
     } else if (dtype.is_bool()) {
       input = lang::Placeholder<bool>(id, shape);
+    } else if (dtype.is_int(8)) {
+      input = lang::Placeholder<int8_t>(id, shape);
+    } else if (dtype.is_int(16)) {
+      input = lang::Placeholder<int16_t>(id, shape);
     } else if (dtype.is_int(32)) {
       input = lang::Placeholder<int32_t>(id, shape);
     } else if (dtype.is_int(64)) {
       input = lang::Placeholder<int64_t>(id, shape);
+    } else if (dtype.is_uint(8)) {
+      input = lang::Placeholder<uint8_t>(id, shape);
+    } else if (dtype.is_uint(16)) {
+      input = lang::Placeholder<uint16_t>(id, shape);
+    } else if (dtype.is_uint(32)) {
+      input = lang::Placeholder<uint32_t>(id, shape);
+    } else if (dtype.is_uint(64)) {
+      input = lang::Placeholder<uint64_t>(id, shape);
     }
     tensor_inputs.push_back(input);
     cinn_inputs.push_back(common::CINNValue(input));
@@ -366,10 +378,22 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
       temp = lang::Placeholder<float16>(input_id, in_shape);
     } else if (dtype.is_bool()) {
       temp = lang::Placeholder<bool>(input_id, in_shape);
+    } else if (dtype.is_int(8)) {
+      temp = lang::Placeholder<int8_t>(input_id, in_shape);
+    } else if (dtype.is_int(16)) {
+      temp = lang::Placeholder<int16_t>(input_id, in_shape);
     } else if (dtype.is_int(32)) {
       temp = lang::Placeholder<int32_t>(input_id, in_shape);
     } else if (dtype.is_int(64)) {
       temp = lang::Placeholder<int64_t>(input_id, in_shape);
+    } else if (dtype.is_uint(8)) {
+      temp = lang::Placeholder<uint8_t>(input_id, in_shape);
+    } else if (dtype.is_uint(16)) {
+      temp = lang::Placeholder<uint16_t>(input_id, in_shape);
+    } else if (dtype.is_uint(32)) {
+      temp = lang::Placeholder<uint32_t>(input_id, in_shape);
+    } else if (dtype.is_uint(64)) {
+      temp = lang::Placeholder<uint64_t>(input_id, in_shape);
     }
     inputs.push_back(temp);
     cinn_inputs.push_back(common::CINNValue(temp));
@@ -474,10 +498,22 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
           temp_in = lang::Placeholder<float16>(input_id, in_shape);
         } else if (dtype.is_bool()) {
           temp_in = lang::Placeholder<bool>(input_id, in_shape);
+        } else if (dtype.is_int(8)) {
+          temp_in = lang::Placeholder<int8_t>(input_id, in_shape);
+        } else if (dtype.is_int(16)) {
+          temp_in = lang::Placeholder<int16_t>(input_id, in_shape);
         } else if (dtype.is_int(32)) {
           temp_in = lang::Placeholder<int32_t>(input_id, in_shape);
         } else if (dtype.is_int(64)) {
           temp_in = lang::Placeholder<int64_t>(input_id, in_shape);
+        } else if (dtype.is_uint(8)) {
+          temp_in = lang::Placeholder<uint8_t>(input_id, in_shape);
+        } else if (dtype.is_uint(16)) {
+          temp_in = lang::Placeholder<uint16_t>(input_id, in_shape);
+        } else if (dtype.is_uint(32)) {
+          temp_in = lang::Placeholder<uint32_t>(input_id, in_shape);
+        } else if (dtype.is_uint(64)) {
+          temp_in = lang::Placeholder<uint64_t>(input_id, in_shape);
         }
         inputs.push_back(temp_in);
         temp_inputs.push_back(temp_in);
@@ -692,15 +728,9 @@ std::unique_ptr<Program> GraphCompiler::Build(const std::string& code) {
 }
 
 void GraphCompiler::CompileOptions::Apply(const auto_schedule::TuningResult& tuning_result) {
-  // joint all sub_graph into a whole graph
-  for (auto&& sub_graph : tuning_result.tuned_graph) {
-    groups.insert(groups.end(), sub_graph.groups.begin(), sub_graph.groups.end());
-  }
-
-  // joint all lowered_funcs together
-  for (auto&& expr : tuning_result.optimized_exprs) {
-    lowered_funcs.insert(lowered_funcs.end(), expr.lowered_funcs.begin(), expr.lowered_funcs.end());
-  }
+  // assign options with TuningResult directly
+  groups.assign(tuning_result.subgraphs.begin(), tuning_result.subgraphs.end());
+  lowered_funcs.assign(tuning_result.function_groups.begin(), tuning_result.function_groups.end());
 }
 
 GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::CompileOptions& options,
@@ -752,6 +782,8 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   auto topo_order  = graph_->topological_order();
   auto& nodes      = std::get<0>(topo_order);
   VLOG(3) << "Begin GraphCompiler::Build";
+  function2input_args_.clear();
+  function2output_args_.clear();
   m_builder_.Clear();
   // if there are no avaiable groups, we will take each node as a group
   if (options.groups.empty() && graph_->groups.empty() && graph_->fusion_groups.empty()) {
@@ -1057,8 +1089,8 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions(
           if (node->attrs.attr_store.find("padding_size") != node->attrs.attr_store.end()) {
             if (global_pooling == false) {
               auto padding = absl::get<std::vector<int>>(node->attrs.attr_store.at("padding_size"));
-              CHECK_EQ(padding.size(), 4UL);
               instr->attrs.insert(instr->attrs.end(), padding.begin(), padding.end());
+              if (padding.size() == 2) instr->attrs.insert(instr->attrs.end(), padding.begin(), padding.end());
             } else {
               instr->attrs.push_back(0);
               instr->attrs.push_back(0);

@@ -32,6 +32,38 @@ namespace cinn {
 namespace hlir {
 namespace framework {
 
+std::string Attribute2String(const utils::Attribute& attr) {
+  std::stringstream ss;
+  if (absl::get_if<bool>(&attr)) {
+    ss << std::boolalpha << absl::get<bool>(attr);
+  } else if (absl::get_if<float>(&attr)) {
+    ss << absl::get<float>(attr) << "f";
+  } else if (absl::get_if<double>(&attr)) {
+    ss << absl::get<double>(attr);
+  } else if (absl::get_if<int>(&attr)) {
+    ss << absl::get<int>(attr);
+  } else if (absl::get_if<int64_t>(&attr)) {
+    ss << absl::get<int64_t>(attr);
+  } else if (absl::get_if<std::string>(&attr)) {
+    ss << absl::get<std::string>(attr);
+  } else if (absl::get_if<std::vector<bool>>(&attr)) {
+    ss << "[" + cinn::utils::Join(absl::get<std::vector<bool>>(attr), ", ") + "]";
+  } else if (absl::get_if<std::vector<int>>(&attr)) {
+    ss << "[" + cinn::utils::Join(absl::get<std::vector<int>>(attr), ", ") + "]";
+  } else if (absl::get_if<std::vector<int64_t>>(&attr)) {
+    ss << "[" + cinn::utils::Join(absl::get<std::vector<int64_t>>(attr), ", ") + "]";
+  } else if (absl::get_if<std::vector<float>>(&attr)) {
+    ss << "[" + cinn::utils::Join(absl::get<std::vector<float>>(attr), ", ") + "]";
+  } else if (absl::get_if<std::vector<double>>(&attr)) {
+    ss << "[" + cinn::utils::Join(absl::get<std::vector<double>>(attr), ", ") + "]";
+  } else if (absl::get_if<std::vector<std::string>>(&attr)) {
+    ss << "[" + cinn::utils::Join(absl::get<std::vector<std::string>>(attr), ", ") + "]";
+  } else {
+    LOG(FATAL) << "Unkown attribute data type! Please check.";
+  }
+  return ss.str();
+}
+
 bool MakeDirectory(const std::string& dirname, mode_t mode) {
   auto len = dirname.length();
   std::vector<char> dir_path(len + 1, '\0');
@@ -96,22 +128,27 @@ std::string GetFilePathForGroup(const std::vector<std::vector<Node*>>& groups,
 
 std::string GenNodeDataLabel(const NodeData* node,
                              const absl::flat_hash_map<std::string, shape_t>& shape_dict,
+                             const absl::flat_hash_map<std::string, common::Type>& dtype_dict,
                              const std::string dot_nodedata_id) {
+  std::stringstream ss;
+  ss << dot_nodedata_id;
   if (shape_dict.count(node->id())) {
     shape_t node_shape = shape_dict.at(node->id());
-    std::stringstream ss;
-    ss << dot_nodedata_id << "\\n{";
+    ss << "\\n[";
     for (size_t i = 0; i < node_shape.size(); ++i) {
       if (i > 0) {
         ss << "x";
       }
       ss << node_shape[i];
     }
-    ss << "}";
-    return ss.str();
-  } else {
-    return dot_nodedata_id;
+    ss << "]";
   }
+  if (dtype_dict.count(node->id())) {
+    ss << "\\n";
+    ss << common::Type2Str(dtype_dict.at(node->id()));
+  }
+
+  return ss.str();
 }
 
 void Summary(const std::vector<std::vector<Node*>>& groups, const std::string& viz_path) {
@@ -198,7 +235,7 @@ std::string DebugString(const Node* node) {
   std::stringstream ss;
   ss << "{";
   bool first = true;
-  for (auto& outlink : node->outlinks()) {
+  for (auto& outlink : node->outlinks_in_order()) {
     auto* outnode = outlink->sink()->safe_as<NodeData>();
     if (outnode) {
       if (!first) {
@@ -212,7 +249,7 @@ std::string DebugString(const Node* node) {
 
   ss << "} = " << node->op()->name << "{";
   first = true;
-  for (auto& inlink : node->inlinks()) {
+  for (auto& inlink : node->inlinks_in_order()) {
     auto* innode = inlink->source()->safe_as<NodeData>();
     if (innode) {
       if (!first) {
@@ -225,40 +262,8 @@ std::string DebugString(const Node* node) {
   }
   ss << ", id=" << node->id() << ", ";
 
-  auto get_attr_value = [](const utils::Attribute& attr) -> std::string {
-    std::stringstream ss;
-    if (absl::get_if<bool>(&attr)) {
-      ss << std::boolalpha << absl::get<bool>(attr);
-    } else if (absl::get_if<float>(&attr)) {
-      ss << std::scientific << absl::get<float>(attr);
-    } else if (absl::get_if<double>(&attr)) {
-      ss << std::scientific << absl::get<double>(attr);
-    } else if (absl::get_if<int>(&attr)) {
-      ss << absl::get<int>(attr);
-    } else if (absl::get_if<int64_t>(&attr)) {
-      ss << absl::get<int64_t>(attr);
-    } else if (absl::get_if<std::string>(&attr)) {
-      ss << absl::get<std::string>(attr);
-    } else if (absl::get_if<std::vector<bool>>(&attr)) {
-      ss << "[" + cinn::utils::Join(absl::get<std::vector<bool>>(attr), ", ") + "]";
-    } else if (absl::get_if<std::vector<int>>(&attr)) {
-      ss << "[" + cinn::utils::Join(absl::get<std::vector<int>>(attr), ", ") + "]";
-    } else if (absl::get_if<std::vector<int64_t>>(&attr)) {
-      ss << "[" + cinn::utils::Join(absl::get<std::vector<int64_t>>(attr), ", ") + "]";
-    } else if (absl::get_if<std::vector<float>>(&attr)) {
-      ss << "[" + cinn::utils::Join(absl::get<std::vector<float>>(attr), ", ") + "]";
-    } else if (absl::get_if<std::vector<double>>(&attr)) {
-      ss << "[" + cinn::utils::Join(absl::get<std::vector<double>>(attr), ", ") + "]";
-    } else if (absl::get_if<std::vector<std::string>>(&attr)) {
-      ss << "[" + cinn::utils::Join(absl::get<std::vector<std::string>>(attr), ", ") + "]";
-    } else {
-      LOG(FATAL) << "Unkown attribute data type! Please check.";
-    }
-    return ss.str();
-  };
-
   for (const auto& attr_pair : node->attrs.attr_store) {
-    ss << attr_pair.first << "=" << get_attr_value(attr_pair.second) << ", ";
+    ss << attr_pair.first << "=" << Attribute2String(attr_pair.second) << ", ";
   }
   ss << "}";
   return ss.str();
@@ -283,6 +288,7 @@ void AddGroupNode(const Node* node,
                   const std::string& dot_cluster_id,
                   const std::unordered_set<std::string>& fetch_var_ids,
                   const absl::flat_hash_map<std::string, shape_t>& shape_dict,
+                  const absl::flat_hash_map<std::string, common::Type>& dtype_dict,
                   std::unordered_map<std::string, int>* recompute_nodes,
                   std::unordered_map<std::string, std::string>* outnode2dot_id,
                   std::unordered_set<std::string>* nodedatas_set,
@@ -301,7 +307,7 @@ void AddGroupNode(const Node* node,
       }
       std::string dot_innode_id = outnode2dot_id->at(innode->id());
       if (!nodedatas_set || !nodedatas_set->count(dot_innode_id)) {
-        std::string label = GenNodeDataLabel(innode, shape_dict, dot_innode_id);
+        std::string label = GenNodeDataLabel(innode, shape_dict, dtype_dict, dot_innode_id);
         dot->AddNode(dot_innode_id, GetGroupVarAttrs(false), label, dot_cluster_id, true);
         if (nodedatas_set) {
           nodedatas_set->insert(dot_innode_id);
@@ -318,7 +324,7 @@ void AddGroupNode(const Node* node,
       (*outnode2dot_id)[outnode->id()] = dot_outnode_id;
       if (!nodedatas_set || !nodedatas_set->count(dot_outnode_id)) {
         bool is_fetched   = fetch_var_ids.count(outnode->id());
-        std::string label = GenNodeDataLabel(outnode, shape_dict, dot_outnode_id);
+        std::string label = GenNodeDataLabel(outnode, shape_dict, dtype_dict, dot_outnode_id);
         dot->AddNode(dot_outnode_id, GetGroupVarAttrs(is_fetched), label, dot_cluster_id, true);
         if (nodedatas_set) {
           nodedatas_set->insert(dot_outnode_id);

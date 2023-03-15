@@ -31,7 +31,6 @@ void OneHotV2OpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext&
 
   auto on_value  = ctx.Builder()->FillConstant({1}, 1, cinn::UniqName(x_name + "_on_value"), "int32");
   auto off_value = ctx.Builder()->FillConstant({1}, 0, cinn::UniqName(x_name + "_off_value"), "int32");
-  //   auto data_format = utils::GetAttrOrDefault<std::string>(op_desc, "data_format", "AnyLayout");
 
   auto dtype_id = utils::GetAttrOrDefault<int>(op_desc, "dtype", static_cast<int>(paddle::cpp::VarDescAPI::Type::FP32));
   auto dtype_pd = static_cast<paddle::cpp::VarDescAPI::Type>(dtype_id);

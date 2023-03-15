@@ -52,7 +52,9 @@ void IRElementwiseSchedule(ir::IRSchedule &ir_sch, const std::vector<int> &outpu
       ir_sch.Bind(splited[1], "threadIdx.x");
     }
   } else {
-    IRScheduleInjectiveCPU(ir_sch, output_shape, target, false);
+    // IRScheduleInjectiveCPU(ir_sch, output_shape, target, false);
+    auto blocks = ir_sch.GetAllBlocks();
+    ir_sch.FlattenLoops(ir_sch.GetLoops(blocks[0]), true);
   }
   VLOG(3) << "After IRElementwiseSchedule, new ir is : " << ir_sch.GetModule().GetExprs().at(0);
 }
@@ -73,7 +75,9 @@ void IRInjectiveSchedule(ir::IRSchedule &ir_sch, const std::vector<int> &output_
       ir_sch.Bind(splited[1], "threadIdx.x");
     }
   } else {
-    IRScheduleInjectiveCPU(ir_sch, output_shape, target, false);
+    // IRScheduleInjectiveCPU(ir_sch, output_shape, target, false);
+    auto blocks = ir_sch.GetAllBlocks();
+    ir_sch.FlattenLoops(ir_sch.GetLoops(blocks[0]), false);
   }
   VLOG(3) << "After IRInjectiveSchedule, new ir is : " << ir_sch.GetModule().GetExprs().at(0);
 }
@@ -82,7 +86,7 @@ void IRScheduleInjectiveCPU(ir::IRSchedule &ir_sch,
                             const std::vector<int> &output_shape,
                             const common::Target &target,
                             bool vectorizable) {
-  VLOG(3) << "Begin IRScheduleInjectiveCPU";
+  VLOG(3) << "Begin IRScheduleInjectiveCPU" << ir_sch.GetModule().GetExprs().at(0);
   auto all_blocks = ir_sch.GetAllBlocks();
   auto loops      = ir_sch.GetLoops(all_blocks[0]);
   int dims        = output_shape.size();
@@ -450,7 +454,9 @@ void IRCudaScheduleBlockReduce(ir::IRSchedule &ir_sch,
     for (auto &tensor : {reduce_tmp_out, tmp_out, out}) {
       auto loops      = ir_sch.GetLoops(tensor->name);
       int reduce_axis = tensor->reduce_axis.size();
-      if (loops.size() >= 2 + reduce_axis) ir_sch.Fuse({loops[0], loops[1]});
+      if (loops.size() >= 2 + reduce_axis) {
+        ir_sch.Fuse({loops[0], loops[1]});
+      }
     }
   }
 
@@ -490,12 +496,23 @@ void IRCudaScheduleBlockReduce(ir::IRSchedule &ir_sch,
     }
   }
 
-  for (auto &tensor : {reduce_tmp_out, tmp_out, out}) {
+  for (auto &tensor : {reduce_tmp_out, tmp_out}) {
     auto loops = ir_sch.GetLoops(tensor->name);
-    if (loops.empty()) continue;
-    ir_sch.Bind(loops[0], "blockIdx.x");
-    if (loops.size() > 1U) {
+    if (loops.size() == 1U) {
+      ir_sch.Bind(loops[0], "threadIdx.x");
+    } else if (loops.size() > 1U) {
+      ir_sch.Bind(loops[0], "blockIdx.x");
       ir_sch.Bind(loops[1], "threadIdx.x");
+    }
+  }
+
+  {
+    auto loops = ir_sch.GetLoops(out->name);
+    if (!loops.empty()) {
+      ir_sch.Bind(loops[0], "blockIdx.x");
+      if (loops.size() > 1U) {
+        ir_sch.Bind(loops[1], "threadIdx.x");
+      }
     }
   }
 

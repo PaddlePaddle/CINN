@@ -76,13 +76,11 @@ TEST(TuneTask, GraphToUnoptLoweredFunc_NoPass) {
 
   const auto& shape_dict = graph->GetAttrs<absl::flat_hash_map<std::string, hlir::framework::shape_t>>("infershape");
   const auto& dtype_dict = graph->GetAttrs<absl::flat_hash_map<std::string, common::Type>>("inferdtype");
-
   OpLowerer op_lowerer(dtype_dict, shape_dict, target);
 
   std::stringstream ss;
   for (TuneTask& task : tasks) {
-    task.SetOpLowerer(&op_lowerer);
-    task.TaskGraphToUnoptLoweredFunc();
+    task.Initialize(shape_dict, dtype_dict, &op_lowerer);
 
     std::vector<ir::Expr> exprs = task.GetLoweredFuncBodyExprs();
     VLOG(6) << "ir:Expr is: ";
@@ -193,8 +191,7 @@ TEST(TuneTask, GraphToUnoptLoweredFunc_ApplyPass) {
 
   std::stringstream ss;
   for (TuneTask& task : tasks) {
-    task.SetOpLowerer(&op_lowerer);
-    task.TaskGraphToUnoptLoweredFunc();
+    task.Initialize(shape_dict, dtype_dict, &op_lowerer);
 
     std::vector<ir::Expr> exprs = task.GetLoweredFuncBodyExprs();
     VLOG(6) << "ir:Expr is: ";
@@ -287,23 +284,26 @@ TEST(TuneTask, SerializeToString) {
 
   TaskCreator task_creator;
   std::vector<TuneTask> single_tasks = task_creator.CreateTuneTaskOpLevel(graph.get());
+
+  const auto& shape_dict = graph->GetAttrs<absl::flat_hash_map<std::string, hlir::framework::shape_t>>("infershape");
+  const auto& dtype_dict = graph->GetAttrs<absl::flat_hash_map<std::string, common::Type>>("inferdtype");
+  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
   ASSERT_EQ(single_tasks.size(), 2UL);
   for (auto&& task : single_tasks) {
-    task.SerializeToString(graph->GetAttrs<absl::flat_hash_map<std::string, hlir::framework::shape_t>>("infershape"),
-                           graph->GetAttrs<absl::flat_hash_map<std::string, common::Type>>("inferdtype"));
+    task.Initialize(shape_dict, dtype_dict, &op_lowerer);
   }
 
 #ifdef CINN_WITH_CUDA
   std::string single_add_str = R"ROC(Target<linux,nvgpu,64>
 
-Group 0 {
+Group {
   (var_1->float32[32,24]) = elementwise_add(A->float32[32,24], B->float32[32,24])
 }
 )ROC";
 #else
   std::string single_add_str     = R"ROC(Target<linux,x86,64>
 
-Group 0 {
+Group {
   (var_1->float32[32,24]) = elementwise_add(A->float32[32,24], B->float32[32,24])
 }
 )ROC";
@@ -313,14 +313,12 @@ Group 0 {
   ApplyPass(graph.get(), "OpFusionPass");
   std::vector<TuneTask> fused_tasks = task_creator.CreateTuneTaskOpLevel(graph.get());
   ASSERT_EQ(fused_tasks.size(), 1UL);
-  fused_tasks[0].SerializeToString(
-      graph->GetAttrs<absl::flat_hash_map<std::string, hlir::framework::shape_t>>("infershape"),
-      graph->GetAttrs<absl::flat_hash_map<std::string, common::Type>>("inferdtype"));
+  fused_tasks[0].Initialize(shape_dict, dtype_dict, &op_lowerer);
 
 #ifdef CINN_WITH_CUDA
   std::string fused_expected_str = R"ROC(Target<linux,nvgpu,64>
 
-Group 0 {
+Group {
   (var_1->float32[32,24]) = elementwise_add(A->float32[32,24], B->float32[32,24])
   (var_2->float32[32,24]) = elementwise_add(A->float32[32,24], var_1->float32[32,24])
 }
@@ -328,7 +326,7 @@ Group 0 {
 #else
   std::string fused_expected_str = R"ROC(Target<linux,x86,64>
 
-Group 0 {
+Group {
   (var_1->float32[32,24]) = elementwise_add(A->float32[32,24], B->float32[32,24])
   (var_2->float32[32,24]) = elementwise_add(A->float32[32,24], var_1->float32[32,24])
 }

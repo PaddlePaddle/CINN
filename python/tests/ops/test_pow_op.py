@@ -83,5 +83,14 @@ class TestPowCase2(TestPowOp):
         self.axis = -1
 
 
+class TestPowFP64(TestPowOp):
+    def init_case(self):
+        self.inputs = {
+            "x": self.random([8, 16, 32, 32], "float64", 2, 10),
+            "y": self.random([8, 16, 32, 32], "float64", 0, 5)
+        }
+        self.axis = -1
+
+
 if __name__ == "__main__":
     unittest.main()
