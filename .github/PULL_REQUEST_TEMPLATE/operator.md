@@ -37,5 +37,3 @@ Please describe this pull request.
 ### Operator Attributes
 
 - [ ] Add the attributes to be tested on the operator here.
-
-
