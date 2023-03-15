@@ -65,6 +65,12 @@ class OpTest(unittest.TestCase):
         """
         raise Exception("Not implemented.")
 
+    def prepare_inputs(self):
+        """
+        使用numpy初始化输入数据
+        """
+        raise Exception("Not implemented.")
+
     def _flatten_tuple(self, cur_tuple):
         """
         将tuple中嵌套的字典展开
@@ -80,18 +86,21 @@ class OpTest(unittest.TestCase):
         生成所有的测试用例
         """
         self.all_cases = []
-        attrs_cases = (dict(zip(self.attrs.keys(), values)) for values in itertools.product(*self.attrs.values()))
-        for case in itertools.product(*[self.inputs, self.dtypes, attrs_cases]):
+        attrs_cases = (dict(zip(self.attrs.keys(), values))
+                       for values in itertools.product(*self.attrs.values()))
+        for case in itertools.product(self.inputs, self.dtypes, attrs_cases):
             self.all_cases.append(self._flatten_tuple(case))
 
-    def run_test_cases(self):
+    def run_all_cases(self):
         """
         运行所有测试用例
         """
         self._init_cases()
         for i, case in enumerate(self.all_cases):
-            print(f'Case {i}: {case}')
-
+            print(f'Running case {i} with args: {case}')
+            self.case = case
+            self.prepare_inputs()
+            self.check_outputs_and_grads()
 
     def build_cinn_program(self, target):
         raise Exception("Not implemented.")
