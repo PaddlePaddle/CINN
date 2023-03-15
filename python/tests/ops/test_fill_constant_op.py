@@ -95,6 +95,20 @@ class TestFillConstantStringValue(TestFillConstantOp):
         self.dtype = "float64"
 
 
+class TestFillConstantStringValueCase1(TestFillConstantStringValue):
+    def init_case(self):
+        self.shape = [32]
+        self.value = "0.12345678987654321"
+        self.dtype = "float16"
+
+
+class TestFillConstantStringValueCase2(TestFillConstantStringValue):
+    def init_case(self):
+        self.shape = [32]
+        self.value = "123456789"
+        self.dtype = "int64"
+
+
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
                     "x86 test will be skipped due to timeout.")
 class TestFillConstantByValueOp(OpTest):

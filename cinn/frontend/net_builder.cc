@@ -246,20 +246,18 @@ Variable NetBuilder::FillConstant(const std::vector<int>& shape,
                                   const std::string& name,
                                   const std::string& dtype,
                                   bool force_cpu) {
+  const auto& type = common::Str2Type(dtype);
+
   utils::Attribute value;
-  if (dtype == "float32") {
-    value = std::stof(str_value);
-  } else if (dtype == "float64") {
+  if (type.is_float()) {
     value = std::stod(str_value);
-  } else if (dtype == "int32") {
-    value = std::stoi(str_value);
-  } else if (dtype == "int64") {
+  } else if (type.is_int() || type.is_uint()) {
     value = static_cast<int64_t>(std::stoll(str_value));
-  } else if (dtype == "bool") {
+  } else if (type.is_bool()) {
     static std::unordered_set<std::string> true_string = {"1", "t", "T", "true", "True", "TRUE"};
     value                                              = static_cast<bool>(true_string.count(str_value));
   } else {
-    LOG(FATAL) << "FillConstant only support int64, int32, float32, float64, bool, but here " << dtype;
+    LOG(FATAL) << "FillConstant only support int/float/bool, but here " << dtype;
   }
   auto out =
       CustomInstr("fill_constant", {}, {{"shape", shape}, {"value", value}, {"dtype", dtype}, {"force_cpu", force_cpu}})
