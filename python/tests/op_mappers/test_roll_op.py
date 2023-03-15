@@ -24,8 +24,9 @@ class TestRollOp(OpMapperTest):
     def init_input_data(self):
         self.feed_data = {
             'x': np.array([1, 2, 3], dtype='float32'),
+            'shiftstensor': np.array([[1]], dtype='int32'),
         }
-        self.axis = [2]
+        self.axis = [0]
         self.shifts = [1]
 
     def set_op_type(self):
@@ -36,7 +37,11 @@ class TestRollOp(OpMapperTest):
             name='x',
             shape=self.feed_data['x'].shape,
             dtype=self.feed_data['x'].dtype)
-        return {'X': [x]}
+        shiftstensor = paddle.static.data(
+            name='shiftstensor',
+            shape=self.feed_data['shiftstensor'].shape,
+            dtype=self.feed_data['shiftstensor'].dtype)
+        return {'X': [x], "ShiftsTensor": [shiftstensor]}
 
     def set_op_attrs(self):
         return {"shifts": self.shifts, "axis": self.axis}
@@ -51,7 +56,8 @@ class TestRollOp(OpMapperTest):
 class TestRollCase1(TestRollOp):
     def init_input_data(self):
         self.feed_data = {
-            'x': self.random([2, 3, 4], 'float32'),
+            'x': self.random([1, 2, 3], 'float32'),
+            'shiftstensor': None,
         }
         self.axis = [0]
         self.shifts = [2]
@@ -60,7 +66,8 @@ class TestRollCase1(TestRollOp):
 class TestRollCase2(TestRollOp):
     def init_input_data(self):
         self.feed_data = {
-            'x': self.random([2, 10, 5], 'float32'),
+            'x': self.random([1, 2, 3], 'float32'),
+            'shiftstensor': None,
         }
         self.axis = [1]
         self.shifts = [3]
@@ -69,7 +76,8 @@ class TestRollCase2(TestRollOp):
 class TestRollCase3(TestRollOp):
     def init_input_data(self):
         self.feed_data = {
-            'x': self.random([2, 4, 15], 'float32'),
+            'x': self.random([1, 2, 3], 'float32'),
+            'shiftstensor': None,
         }
         self.axis = [0, 1, 2]
         self.shifts = [3, 4, 10]
@@ -78,7 +86,8 @@ class TestRollCase3(TestRollOp):
 class TestRollCase4(TestRollOp):
     def init_input_data(self):
         self.feed_data = {
-            'x': self.random([12, 14], 'float32'),
+            'x': self.random([1, 2, 3], 'float32'),
+            'shiftstensor': None,
         }
         self.axis = [0, 1]
         self.shifts = [3, -8]
@@ -87,7 +96,8 @@ class TestRollCase4(TestRollOp):
 class TestRollCase5(TestRollOp):
     def init_input_data(self):
         self.feed_data = {
-            'x': self.random([120], 'float32'),
+            'x': self.random([1, 2, 3], 'float32'),
+            'shiftstensor': None,
         }
         self.axis = [0]
         self.shifts = [121]

@@ -24,6 +24,8 @@ void RollOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
   // input
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
   auto x_name = op_desc.Input("X").front();
+  CHECK_EQ(op_desc.Input("ShiftsTensor").size(), 0UL);
+  // auto shifts_name = op_desc.Input("ShiftsTensor").front();
   // output
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
   auto out_name = op_desc.Output("Out").front();
@@ -32,7 +34,8 @@ void RollOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
   std::vector<int> shifts = op_desc.GetAttr<std::vector<int>>("shifts");
   std::vector<int> axis   = op_desc.GetAttr<std::vector<int>>("axis");
 
-  auto x                        = ctx.GetVar(x_name);
+  auto x = ctx.GetVar(x_name);
+  // auto shifts_tensor          = ctx.GetVar(shifts_name);
   auto vec_x_dims               = std::vector<int>(x->shape);
   std::vector<int> output_shape = vec_x_dims;
 
