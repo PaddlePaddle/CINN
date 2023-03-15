@@ -132,7 +132,7 @@ function fn1 (_A, _B, _C)
       {
         serial for (j_inner, 0, 4)
         {
-          C__reduce_init[((4 * i_outer) + i_inner), ((4 * j_outer) + j_inner)] = 0.00000000f;
+          C__reduce_init[((4 * i_outer) + i_inner), ((4 * j_outer) + j_inner)] = 0.00000000f
           serial for (k0, 0, 50)
           {
             C[((4 * i_outer) + i_inner), ((4 * j_outer) + j_inner)] = (C[((4 * i_outer) + i_inner), ((4 * j_outer) + j_inner)] + (A[((4 * i_outer) + i_inner), k0] * B[k0, ((4 * j_outer) + j_inner)]))
