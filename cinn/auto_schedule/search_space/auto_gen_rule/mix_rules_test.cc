@@ -22,39 +22,22 @@
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
 #include "cinn/auto_schedule/search_space/auto_gen_rule/multi_level_tiling.h"
 #include "cinn/auto_schedule/search_space/auto_gen_rule/test_helper.h"
+#include "cinn/auto_schedule/tests/test_op_builder.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_schedule.h"
 
 namespace cinn {
 namespace auto_schedule {
 
-class Test2DMatmulApplyRules : public TestAutoGenRuleBase {
+class TestMixRules : public TestAutoGenRuleBase {
  public:
-  void SetUp() override {
-    srand(0);
-    Context::Global().ResetNameId();
-  }
-
-  std::vector<ir::LoweredFunc> GenLoweredFuncs() override {
-    CHECK_EQ(input_shapes_.size(), 2);
-    CHECK_EQ(output_shapes_.size(), 1);
-    const int M = input_shapes_[0][0];
-    const int K = input_shapes_[0][1];
-    const int N = input_shapes_[1][1];
-    return Lower2DMatmul(M, K, N);
-  }
-
-  void CheckPrecision(const ir::Module& ir_module) override {
-    // Compile to machine code
-    backend_compier_->Build(ir_module);
-    auto test_func_ptr = reinterpret_cast<void (*)(void**, int32_t)>(backend_compier_->Lookup(func_name_));
-    // check result in precision
-    CheckResult(test_func_ptr, expected_func_matmul, {"A", "B"}, {"C"}, input_shapes_, output_shapes_, target_);
-  }
+  std::vector<std::string> default_input_names  = {"X", "Y"};
+  std::vector<std::string> default_output_names = {"temp_matmul_out"};
 };
 
-TEST_F(Test2DMatmulApplyRules, CrucialRules) {
-  ir::IRSchedule ir_schedule       = Initialize("matmul_apply_crucial_rules", {{32, 32}, {32, 32}}, {{32, 32}});
+TEST_F(TestMixRules, 2DMatmulOnMultiTilingRelated) {
+  Initialize(common::DefaultNVGPUTarget());
+  ir::IRSchedule ir_schedule       = MakeIRSchedule(MatmulOpBuilder({32, 32}, {32, 32})());
   std::vector<ir::Expr> func_bodys = ir_schedule.GetModule().GetExprs();
   ASSERT_EQ(func_bodys.size(), 1UL);
   VLOG(6) << "Original Expr:\n" << func_bodys[0];
@@ -81,11 +64,18 @@ TEST_F(Test2DMatmulApplyRules, CrucialRules) {
   VLOG(6) << "after AddCacheRead Expr:\n" << func_bodys[0];
 
   // build ir::Module and debug source code
-  auto build_module = BuildIRModule(func_bodys);
-  auto source_code  = GenSourceCode(build_module);
+  auto ir_module   = BuildIRModule(ir_schedule);
+  auto source_code = GenSourceCode(ir_module);
   VLOG(6) << "scheduled source code:\n" << source_code;
   // execute and check precision
-  CheckPrecision(build_module);
+  CheckResult(GenExecutableKernel(ir_module),
+              GenExecutableKernel(BuildIRModule(
+                  MakeIRSchedule(MatmulOpBuilder({32, 32}, {32, 32})(), /* apply_manual_schedule*/ true))),
+              default_input_names,
+              default_output_names,
+              {{32, 32}, {32, 32}},
+              {{32, 32}},
+              target_);
 }
 
 }  // namespace auto_schedule
