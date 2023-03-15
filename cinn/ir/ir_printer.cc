@@ -40,7 +40,6 @@ void IrPrinter::Print(const std::vector<Expr> &exprs, const std::string &splitte
 
 void IrPrinter::Visit(const IntImm *x) {
   if (x->type().is_int(64)) {
-    LOG(WARNING) << "x is int64: " << x->type();
     os_ << x->value << "ll";
   } else {
     os_ << x->value;
@@ -48,7 +47,6 @@ void IrPrinter::Visit(const IntImm *x) {
 }
 void IrPrinter::Visit(const UIntImm *x) {
   if (x->type().is_uint(64)) {
-    LOG(WARNING) << "x is uint64: " << x->type();
     os_ << x->value << "ull";
   } else {
     os_ << x->value;
