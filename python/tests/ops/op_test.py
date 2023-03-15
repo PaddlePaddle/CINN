@@ -17,6 +17,7 @@ from cinn import Target
 from cinn.frontend import *
 from cinn.common import *
 import copy
+import itertools
 import numpy as np
 import paddle
 import logging
@@ -64,43 +65,32 @@ class OpTest(unittest.TestCase):
         """
         raise Exception("Not implemented.")
 
-    def _dfs(self, cur_case, cur):
-        if cur == len(self.attrs_index):
-            self.attr_cases.append(copy.deepcopy(cur_case))
-            return
-        for attr_x in self.attrs[self.attrs_index[cur]]:
-            cur_case[self.attrs_index[cur]] = attr_x
-            self._dfs(cur_case, cur + 1)
+    def _flatten_tuple(self, cur_tuple):
+        """
+        将tuple中嵌套的字典展开
+        """
+        new_dict = []
+        for cur_dict in cur_tuple:
+            for k, v in cur_dict.items():
+                new_dict.append((k, v))
+        return dict(new_dict)
 
     def _init_cases(self):
         """
         生成所有的测试用例
         """
-        self.attr_cases = []
-        self.attrs_index = list(self.attrs.keys())
-        self._dfs({}, 0)
+        self.all_cases = []
+        attrs_cases = (dict(zip(self.attrs.keys(), values)) for values in itertools.product(*self.attrs.values()))
+        for case in itertools.product(*[self.inputs, self.dtypes, attrs_cases]):
+            self.all_cases.append(self._flatten_tuple(case))
 
     def run_test_cases(self):
         """
         运行所有测试用例
         """
-        self.init_attrs()
         self._init_cases()
-        if hasattr(self, 'y_shapes'):
-            for x_shape, y_shape in zip(self.x_shapes, self.y_shapes):
-                for dtype in self.dtypes:
-                    for attr in self.attr_cases:
-                        print(f'X shape: {x_shape}, Y shape: {y_shape}, dtype: {dtype} attrs: {attr}')
-        else:
-            for x_shape in self.x_shapes:
-                for dtype in self.dtypes:
-                    for attr in self.attr_cases:
-                        print(f'X shape: {x_shape}, dtype: {dtype} attrs: {attr}')
-
-        # for case in self.cases:
-        #     self.build_paddle()
-        #     self.build_cinn()
-        #     self.check_output()
+        for i, case in enumerate(self.all_cases):
+            print(f'Case {i}: {case}')
 
 
     def build_cinn_program(self, target):

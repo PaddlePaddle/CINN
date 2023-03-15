@@ -7,12 +7,18 @@ class Test(OpTest):
         self.init_attrs()
 
     def init_attrs(self):
-        self.x_shapes = [{1}, {1, 2}, {1, 2, 3}]
-        self.y_shapes = [{3}, {3, 4}, {3, 3, 3}]
-        self.dtypes = ["float32", "float64", "int32", "int64"]
+        self.inputs = [
+            {"x": {1}, "y": {3}},
+            {"x": {1, 2}, "y": {3, 4}},
+        ]
+        self.dtypes = [
+            {"x_dtype": "int32", "y_dtype": "int32"},
+            {"x_dtype": "fp32", "y_dtype": "fp32"},
+        ]
         self.attrs = {
             "attr1": ["xxx", "yyy"],
-            "attrx": ["aaa", "bbb"],
+            "attr2": ["aaa", "bbb"],
+            "attr3": ["ccc", "ddd"],
         }
 
     def test_all(self):
