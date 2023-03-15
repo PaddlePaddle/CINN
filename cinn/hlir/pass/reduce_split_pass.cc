@@ -101,13 +101,17 @@ class ReduceSplitPass {
             all_preceding_dim_reduced = false;
           }
         }
+        bool reduce_all =
+            all_preceding_dim_reduced && std::find(dims.begin(), dims.end(), in_shape.size() - 1) != dims.end();
         int numel        = std::accumulate(in_shape.begin(), in_shape.end(), 1, std::multiplies<int>());
         int reduce_numel = std::accumulate(in_shape.begin(), in_shape.end() - 1, 1, std::multiplies<int>());
         CHECK(reduce_numel > 0);
+        VLOG(4) << n->id();
         VLOG(4) << "numel: " << numel << ", reduce_numel: " << reduce_numel << ", MAX_NUM_THREADS: " << MAX_NUM_THREADS
                 << ", MAX_ITER_PER_THREAD: " << MAX_ITER_PER_THREAD;
+        VLOG(4) << "all_preceding_dim_reduced: " << all_preceding_dim_reduced << ", reduce_all: " << reduce_all;
         // if the numel is not large enough, it is no need to split
-        if ((!all_preceding_dim_reduced) || numel <= MAX_NUM_THREADS * MAX_ITER_PER_THREAD) {
+        if ((!all_preceding_dim_reduced) || numel <= MAX_NUM_THREADS * MAX_ITER_PER_THREAD || reduce_all) {
           continue;
         }
 
