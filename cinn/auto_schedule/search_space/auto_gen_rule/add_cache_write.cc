@@ -136,9 +136,15 @@ void AddCacheWrite::Apply(ir::IRSchedule* ir_schedule, ir::Expr& block_expr) {
   VLOG(6) << "cache block: " << cache_block;
   ir::Expr target_loop = GetFirstSpatialLoopOutofOutermostReduce(ir_schedule, cache_block);
   VLOG(6) << "target_loop: " << target_loop;
-  const std::string block_name =
+  const std::string& original_block_name =
       block_expr.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->name;
-  ir_schedule->ReverseComputeAt(ir_schedule->GetBlock(block_name), target_loop);
+  ir_schedule->ReverseComputeAt(ir_schedule->GetBlock(original_block_name), target_loop);
+
+  target_loop                              = GetFirstSpatialLoopOutofOutermostReduce(ir_schedule, cache_block);
+  const std::string reduce_init_block_name = original_block_name + "__reduce_init";
+  if (ir_schedule->HasBlock(reduce_init_block_name)) {
+    ir_schedule->SimpleComputeAt(ir_schedule->GetBlock(reduce_init_block_name), target_loop);
+  }
 }
 
 const std::unordered_map<common::Target::Arch, std::string> AddCacheWrite::kMemoryTypes{

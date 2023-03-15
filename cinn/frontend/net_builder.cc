@@ -485,8 +485,8 @@ Variable NetBuilder::Conv(const Variable& lhs,
       .front();
 }
 
-Variable NetBuilder::ArgSort(const Variable& operand, const int& axis, const bool& is_ascend) {
-  return CustomInstr("argsort", {operand}, {{"axis", axis}, {"is_ascend", is_ascend}}).front();
+std::vector<Variable> NetBuilder::ArgSort(const Variable& operand, const int& axis, const bool& is_ascend) {
+  return CustomInstr("argsort", {operand}, {{"axis", axis}, {"is_ascend", is_ascend}});
 }
 
 Variable NetBuilder::Sort(const Variable& operand, const int& axis, const bool& is_ascend) {

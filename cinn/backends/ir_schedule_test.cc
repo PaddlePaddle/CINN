@@ -2912,6 +2912,7 @@ TEST(IrSchedule, GetChildBlocks) {
   std::string expected_expr = R"ROC(ScheduleBlock(B)
 {
   i0, i1, i2 = axis.bind(i, j, (0 + ax0))
+  attrs(compute_at_extra_var:ax0)
   B[i0, i1, i2] = A[i0, i1, i2]
 }, ScheduleBlock(C)
 {

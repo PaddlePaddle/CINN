@@ -979,6 +979,10 @@ namespace attr {
 
 // max permitted steps for auto_unroll, used in unroll_loop pass
 constexpr const char* auto_unroll_max_step = "auto_unroll_max_step";
+// record the extra loop built during ComputeAt, used for calculate the size of temp buffer in post-processing
+constexpr const char* compute_at_extra_var = "compute_at_extra_var";
+// record the extra loop built during ReverseComputeAt, used for calculate the size of temp buffer in post-processing
+constexpr const char* reverse_compute_at_extra_var = "reverse_compute_at_extra_var";
 
 }  // namespace attr
 
