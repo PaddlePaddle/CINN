@@ -24,7 +24,7 @@ void RollOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
   // input
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
   auto x_name = op_desc.Input("X").front();
-  CHECK_EQ(op_desc.Input("ShiftsTensor").size(), 0UL);
+  // CHECK_EQ(op_desc.Input("ShiftsTensor").size(), 0UL);
   // auto shifts_name = op_desc.Input("ShiftsTensor").front();
   // output
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
