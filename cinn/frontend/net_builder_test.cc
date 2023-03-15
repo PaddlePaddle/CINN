@@ -65,6 +65,7 @@ std::ostream& operator<<(std::ostream& os, const std::vector<T, Alloc>& vec) {
 }  // namespace
 
 TEST(net_build, basic) {
+  Context::Global().ResetNameId();
   LOG(INFO) << "The size of registered operators: " << OpRegistry::Global()->ListAllNames().size();
   LOG(INFO) << "Registered operators:\n" << OpRegistry::Global()->ListAllNames();
   auto program = CreateAddProgram();
@@ -75,6 +76,7 @@ TEST(net_build, basic) {
 }
 
 TEST(net_build, program_execute_multi_elementwise_add) {
+  Context::Global().ResetNameId();
   auto program = CreateAddProgram();
 #ifdef CINN_WITH_CUDA
   Target target = common::DefaultNVGPUTarget();
@@ -102,6 +104,7 @@ TEST(net_build, program_execute_multi_elementwise_add) {
 }
 #ifdef CINN_WITH_CUDA
 TEST(net_build, program_execute_fc) {
+  Context::Global().ResetNameId();
   constexpr int B = 10;  // batch size
   constexpr int M = 32;
   constexpr int K = 18;
@@ -149,6 +152,7 @@ TEST(net_build, program_execute_fc) {
 #endif
 
 TEST(net_build, program_execute_pool2d) {
+  Context::Global().ResetNameId();
   const int B = 16;
   const int C = 64;
   const int H = 112;
@@ -200,6 +204,7 @@ TEST(net_build, program_execute_pool2d) {
 }
 
 TEST(net_build, program_execute_reverse) {
+  Context::Global().ResetNameId();
   const int B = 16;
   const int C = 3;
   const int H = 224;
@@ -233,6 +238,7 @@ TEST(net_build, program_execute_reverse) {
 }
 
 TEST(net_build, program_execute_clip) {
+  Context::Global().ResetNameId();
   const int M = 4;
   const int N = 3;
   const int K = 7;
@@ -311,6 +317,7 @@ TEST(net_build, program_execute_clip) {
 }
 
 TEST(net_build, program_execute_gather) {
+  Context::Global().ResetNameId();
   const int B     = 4;
   const int H_IN1 = 18;
   const int H_IN2 = 14;
@@ -370,6 +377,7 @@ TEST(net_build, program_execute_gather) {
 }
 
 TEST(net_build, program_execute_gather_nd) {
+  Context::Global().ResetNameId();
   const int B     = 4;
   const int H_IN1 = 11;
   const int H_IN2 = 14;
@@ -432,8 +440,8 @@ TEST(net_build, program_execute_gather_nd) {
   }
 }
 
-/*
 TEST(net_build, program_execute_scatter) {
+  Context::Global().ResetNameId();
   const float default_value = 3.14;
   const int B               = 3;
   const int H_IN            = 4;
@@ -445,7 +453,11 @@ TEST(net_build, program_execute_scatter) {
   Variable output    = builder.Scatter(input1, input2, {B, H_OUT}, default_value, 1);
   auto program       = builder.Build();
 
+#ifdef CINN_WITH_CUDA
+  Target target = common::DefaultNVGPUTarget();
+#else
   Target target = common::DefaultHostTarget();
+#endif
   std::unordered_set<std::string> fetch_ids;
   auto graph = Optimize(&program, fetch_ids, target);
 
@@ -459,12 +471,12 @@ TEST(net_build, program_execute_scatter) {
 
   auto input1_tensor = scope->GetTensor(std::string(input1.id()));
   SetRandData<float>(input1_tensor, target);
-  float* input1_data = input1_tensor->mutable_data<float>(target);
+  std::vector<float> input1_data = GetTensorData<float>(input1_tensor, target);
 
   auto input2_tensor = scope->GetTensor(std::string(input2.id()));
-  SetRandInt(input2_tensor, target);
-  int* input2_data = input2_tensor->mutable_data<int>(target);
-  memset(input2_data, 0, sizeof(int) * B * H_IN);
+  SetRandInt(input2_tensor, target, -1, 0, H_IN);
+
+  std::vector<int> input2_data = GetTensorData<int>(input2_tensor, target);
 
   runtime_program->Execute();
 
@@ -486,11 +498,10 @@ TEST(net_build, program_execute_scatter) {
     for (int h = 0; h < H_IN; ++h) {
       int index                                 = h + H_IN * b;
       true_data[input2_data[index] + H_OUT * b] = input1_data[index];
-      std::cout << index << " " << input2_data[index] + H_OUT * b << " " << true_data[input2_data[index] + H_OUT * b];
     }
   }
 
-  float* output_data = output_tensor->mutable_data<float>(target);
+  std::vector<float> output_data = GetTensorData<float>(output_tensor, target);
   VLOG(6) << "Visualize output_data";
   for (int b = 0; b < B; ++b) {
     for (int h = 0; h < H_OUT; ++h) {
@@ -505,8 +516,8 @@ TEST(net_build, program_execute_scatter) {
   }
 }
 
-
 TEST(net_build, program_execute_scatter_nd) {
+  Context::Global().ResetNameId();
   const float default_value = 3.14;
   const int B               = 3;
   const int H_IN            = 4;
@@ -518,7 +529,11 @@ TEST(net_build, program_execute_scatter_nd) {
   Variable output    = builder.ScatterNd(input1, input2, {B, H_OUT}, default_value, {1});
   auto program       = builder.Build();
 
+#ifdef CINN_WITH_CUDA
+  Target target = common::DefaultNVGPUTarget();
+#else
   Target target = common::DefaultHostTarget();
+#endif
   std::unordered_set<std::string> fetch_ids;
   auto graph = Optimize(&program, fetch_ids, target);
 
@@ -538,10 +553,8 @@ TEST(net_build, program_execute_scatter_nd) {
 
   runtime_program->Execute();
 
-  int* input2_data;
-  float* input1_data;
-  input2_data = input2_tensor->mutable_data<int>(target);
-  input1_data = input1_tensor->mutable_data<float>(target);
+  std::vector<float> input1_data = GetTensorData<float>(input1_tensor, target);
+  std::vector<int> input2_data   = GetTensorData<int>(input2_tensor, target);
 
   auto output_tensor                   = scope->GetTensor(std::string(output->id));
   const std::vector<int>& output_shape = output_tensor->shape().data();
@@ -564,7 +577,7 @@ TEST(net_build, program_execute_scatter_nd) {
     }
   }
 
-  float* output_data = output_tensor->mutable_data<float>(target);
+  std::vector<float> output_data = GetTensorData<float>(output_tensor, target);
   VLOG(6) << "Visualize output_data";
   for (int b = 0; b < B; ++b) {
     for (int h = 0; h < H_OUT; ++h) {
@@ -578,9 +591,9 @@ TEST(net_build, program_execute_scatter_nd) {
     }
   }
 }
-*/
 
 TEST(net_build, program_execute_cast) {
+  Context::Global().ResetNameId();
   const int B = 4;
   const int H = 7;
 
@@ -633,6 +646,7 @@ TEST(net_build, program_execute_cast) {
 }
 
 TEST(net_build, program_execute_squeeze_case0) {
+  Context::Global().ResetNameId();
   const int B = 4;
   const int C = 1;
   const int H = 7;
@@ -692,6 +706,7 @@ TEST(net_build, program_execute_squeeze_case0) {
 }
 
 TEST(net_build, program_execute_squeeze_case1) {
+  Context::Global().ResetNameId();
   const int B = 4;
   const int C = 1;
   const int H = 7;
@@ -751,6 +766,7 @@ TEST(net_build, program_execute_squeeze_case1) {
 }
 
 TEST(net_build, program_execute_squeeze_case2) {
+  Context::Global().ResetNameId();
   const int B = 4;
   const int C = 1;
   const int H = 7;
@@ -809,6 +825,7 @@ TEST(net_build, program_execute_squeeze_case2) {
 }
 
 TEST(net_build, program_execute_squeeze_case3) {
+  Context::Global().ResetNameId();
   const int B = 4;
   const int C = 1;
   const int H = 7;
@@ -867,6 +884,7 @@ TEST(net_build, program_execute_squeeze_case3) {
 }
 
 TEST(net_build, program_execute_squeeze_case4) {
+  Context::Global().ResetNameId();
   const int B = 4;
   const int C = 1;
   const int H = 7;
@@ -925,6 +943,7 @@ TEST(net_build, program_execute_squeeze_case4) {
 }
 
 TEST(net_build, program_execute_argsort) {
+  Context::Global().ResetNameId();
   const int B = 4;
   const int H = 7;
 
@@ -986,6 +1005,7 @@ TEST(net_build, program_execute_argsort) {
 }
 
 TEST(net_build, program_execute_sort) {
+  Context::Global().ResetNameId();
   const int B = 4;
   const int H = 7;
 
@@ -1045,6 +1065,7 @@ TEST(net_build, program_execute_sort) {
 }
 
 TEST(net_build, program_execute_arange_float) {
+  Context::Global().ResetNameId();
   const float start       = 1.5F;
   const float stop        = 31.5F;
   const float step        = 2.0F;
@@ -1086,6 +1107,7 @@ TEST(net_build, program_execute_arange_float) {
 }
 
 TEST(net_build, program_execute_arange_int) {
+  Context::Global().ResetNameId();
   const float start       = 1.5F;
   const float stop        = 31.5F;
   const float step        = 1.6F;
@@ -1127,6 +1149,7 @@ TEST(net_build, program_execute_arange_int) {
 }
 
 TEST(net_build, program_execute_flip) {
+  Context::Global().ResetNameId();
   const int C = 2;
   const int H = 2;
   const int W = 2;
@@ -1196,8 +1219,8 @@ TEST(net_build, program_execute_flip) {
   }
 }
 
-/*
 TEST(net_build, program_argmax_case1) {
+  Context::Global().ResetNameId();
   const int N     = 4;
   const int IN_C  = 3;
   const int OUT_C = 1;
@@ -1273,6 +1296,7 @@ TEST(net_build, program_argmax_case1) {
 }
 
 TEST(net_build, program_argmax_case2) {
+  Context::Global().ResetNameId();
   const int N    = 4;
   const int IN_C = 3;
   const int H    = 7;
@@ -1346,6 +1370,7 @@ TEST(net_build, program_argmax_case2) {
 }
 
 TEST(net_build, program_argmin_case1) {
+  Context::Global().ResetNameId();
   const int N     = 4;
   const int IN_C  = 3;
   const int OUT_C = 1;
@@ -1421,6 +1446,7 @@ TEST(net_build, program_argmin_case1) {
 }
 
 TEST(net_build, program_argmin_case2) {
+  Context::Global().ResetNameId();
   const int N    = 4;
   const int IN_C = 3;
   const int H    = 7;
@@ -1492,9 +1518,9 @@ TEST(net_build, program_argmin_case2) {
     }
   }
 }
-*/
 
 TEST(net_build, program_execute_repeat_axis_0) {
+  Context::Global().ResetNameId();
   const int M       = 4;
   const int N       = 4;
   const int repeats = 3;
@@ -1549,6 +1575,7 @@ TEST(net_build, program_execute_repeat_axis_0) {
 }
 
 TEST(net_build, program_execute_repeat_axis_1) {
+  Context::Global().ResetNameId();
   const int M       = 4;
   const int N       = 4;
   const int repeats = 3;
@@ -1603,6 +1630,7 @@ TEST(net_build, program_execute_repeat_axis_1) {
 }
 
 TEST(net_build, program_execute_one_hot) {
+  Context::Global().ResetNameId();
   const int M             = 4;
   const int N             = 4;
   const int on_value      = 1;
