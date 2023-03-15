@@ -930,7 +930,7 @@ TEST(net_build, program_execute_argsort) {
 
   NetBuilder builder("net_builder");
   Placeholder input = builder.CreateInput(Float(32), {B, H}, "In");
-  Variable output   = builder.ArgSort(input, 0, true);
+  Variable output   = builder.ArgSort(input, 0, true).at(0);
   auto program      = builder.Build();
 
 #ifdef CINN_WITH_CUDA

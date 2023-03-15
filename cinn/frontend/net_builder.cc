@@ -459,13 +459,13 @@ Variable NetBuilder::Conv(const Variable& lhs,
       .front();
 }
 
-Variable NetBuilder::ArgSort(const Variable& operand, const int& axis, const bool& is_ascend) {
+std::vector<Variable> NetBuilder::ArgSort(const Variable& operand, const int& axis, const bool& is_ascend) {
   Instruction instr("argsort", {operand});
   instr.SetAttr("axis", axis);
   instr.SetAttr("is_ascend", is_ascend);
   InferShape(instr);
   AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return instr.GetOutputs();
 }
 
 Variable NetBuilder::Sort(const Variable& operand, const int& axis, const bool& is_ascend) {
