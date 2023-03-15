@@ -1196,7 +1196,6 @@ TEST(net_build, program_execute_flip) {
   }
 }
 
-/*
 TEST(net_build, program_argmax_case1) {
   const int N     = 4;
   const int IN_C  = 3;
@@ -1209,7 +1208,11 @@ TEST(net_build, program_argmax_case1) {
   Variable output   = builder.Argmax(input, 1, true);
   auto program      = builder.Build();
 
+#ifdef CINN_WITH_CUDA
+  Target target = common::DefaultNVGPUTarget();
+#else
   Target target = common::DefaultHostTarget();
+#endif
   std::unordered_set<std::string> fetch_ids;
   auto graph = Optimize(&program, fetch_ids, target);
 
@@ -1222,7 +1225,7 @@ TEST(net_build, program_argmax_case1) {
 
   auto input_tensor = scope->GetTensor(std::string(input.id()));
   SetRandData<float>(input_tensor, target);
-  float* input_data = input_tensor->mutable_data<float>(target);
+  std::vector<float> input_data = GetTensorData<float>(input_tensor, target);
   VLOG(6) << "Visualize input_data";
   for (int n = 0; n < N; ++n) {
     for (int c = 0; c < IN_C; ++c) {
@@ -1247,7 +1250,7 @@ TEST(net_build, program_argmax_case1) {
   EXPECT_EQ(output_shape[2], H);
   EXPECT_EQ(output_shape[3], W);
 
-  int* output_data = output_tensor->mutable_data<int>(target);
+  std::vector<int> output_data = GetTensorData<int>(output_tensor, target);
   VLOG(6) << "Visualize output_data";
   for (int n = 0; n < N; ++n) {
     for (int c = 0; c < IN_C; ++c) {
@@ -1356,8 +1359,12 @@ TEST(net_build, program_argmin_case1) {
   Placeholder input = builder.CreateInput(Float(32), {N, IN_C, H, W}, "In");
   Variable output   = builder.Argmin(input, 1, true);
   auto program      = builder.Build();
-
+#ifdef CINN_WITH_CUDA
+  Target target = common::DefaultNVGPUTarget();
+#else
   Target target = common::DefaultHostTarget();
+#endif
+
   std::unordered_set<std::string> fetch_ids;
   auto graph = Optimize(&program, fetch_ids, target);
 
@@ -1370,7 +1377,7 @@ TEST(net_build, program_argmin_case1) {
 
   auto input_tensor = scope->GetTensor(std::string(input.id()));
   SetRandData<float>(input_tensor, target);
-  float* input_data = input_tensor->mutable_data<float>(target);
+  std::vector<float> input_data = GetTensorData<float>(input_tensor, target);
   VLOG(6) << "Visualize input_data";
   for (int n = 0; n < N; ++n) {
     for (int c = 0; c < IN_C; ++c) {
@@ -1395,7 +1402,7 @@ TEST(net_build, program_argmin_case1) {
   EXPECT_EQ(output_shape[2], H);
   EXPECT_EQ(output_shape[3], W);
 
-  int* output_data = output_tensor->mutable_data<int>(target);
+  std::vector<int> output_data = GetTensorData<int>(output_tensor, target);
   VLOG(6) << "Visualize output_data";
   for (int n = 0; n < N; ++n) {
     for (int c = 0; c < IN_C; ++c) {
@@ -1430,8 +1437,11 @@ TEST(net_build, program_argmin_case2) {
   Placeholder input = builder.CreateInput(Float(32), {N, IN_C, H, W}, "In");
   Variable output   = builder.Argmin(input, 1, false);
   auto program      = builder.Build();
-
+#ifdef CINN_WITH_CUDA
+  Target target = common::DefaultNVGPUTarget();
+#else
   Target target = common::DefaultHostTarget();
+#endif
   std::unordered_set<std::string> fetch_ids;
   auto graph = Optimize(&program, fetch_ids, target);
 
@@ -1444,7 +1454,7 @@ TEST(net_build, program_argmin_case2) {
 
   auto input_tensor = scope->GetTensor(std::string(input.id()));
   SetRandData<float>(input_tensor, target);
-  float* input_data = input_tensor->mutable_data<float>(target);
+  std::vector<float> input_data = GetTensorData<float>(input_tensor, target);
   VLOG(6) << "Visualize input_data";
   for (int n = 0; n < N; ++n) {
     for (int c = 0; c < IN_C; ++c) {
@@ -1468,7 +1478,7 @@ TEST(net_build, program_argmin_case2) {
   EXPECT_EQ(output_shape[1], H);
   EXPECT_EQ(output_shape[2], W);
 
-  int* output_data = output_tensor->mutable_data<int>(target);
+  std::vector<int> output_data = GetTensorData<int>(output_tensor, target);
   VLOG(6) << "Visualize output_data";
   for (int n = 0; n < N; ++n) {
     for (int c = 0; c < IN_C; ++c) {
@@ -1492,7 +1502,6 @@ TEST(net_build, program_argmin_case2) {
     }
   }
 }
-*/
 
 TEST(net_build, program_execute_repeat_axis_0) {
   const int M       = 4;
