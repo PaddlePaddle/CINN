@@ -23,6 +23,7 @@
 #include <thrust/device_vector.h>
 
 #include <algorithm>
+#include <string>
 #ifdef CINN_WITH_CUDNN
 #include <cudnn.h>
 #endif
@@ -1158,6 +1159,22 @@ void GemmStridedBatched(const cublasHandle_t &cublas,
 
 }  // namespace details
 
+class CusolverHandle {
+ public:
+  CusolverHandle(const CusolverHandle &) = delete;
+  CusolverHandle &operator=(const CusolverHandle &) = delete;
+  ~CusolverHandle() { CUSOLVER_CALL(cusolverDnDestroy(handle_)); }
+  static CusolverHandle &GetInstance() {
+    static CusolverHandle instance;
+    return instance;
+  }
+  cusolverDnHandle_t &GetHandle() { return handle_; }
+
+ private:
+  CusolverHandle() { CUSOLVER_CALL(cusolverDnCreate(&handle_)); }
+  cusolverDnHandle_t handle_;
+};
+
 void cinn_call_cholesky_nvgpu(void *v_args, int num_args, int batch_size, int m, bool upper, void *stream) {
   cinn_pod_value_t *args = static_cast<cinn_pod_value_t *>(v_args);
   cinn_buffer_t *x       = args[0].operator cinn_buffer_t *();
@@ -1166,10 +1183,13 @@ void cinn_call_cholesky_nvgpu(void *v_args, int num_args, int batch_size, int m,
   // See also: https://docs.nvidia.com/cuda/cusolver/index.html#matrix-dense-format
   cublasFillMode_t uplo = upper ? CUBLAS_FILL_MODE_LOWER : CUBLAS_FILL_MODE_UPPER;
   size_t numel          = x->num_elements();
+
+  auto cuda_stream = static_cast<cudaStream_t>(stream);
+
   // Copy data from x to out
   void *x_ptr   = reinterpret_cast<void *>(x->memory);
   void *out_ptr = reinterpret_cast<void *>(out->memory);
-  CUDA_CALL(cudaMemcpy(out_ptr, x_ptr, numel * sizeof(float), cudaMemcpyDeviceToDevice));
+  CUDA_CALL(cudaMemcpyAsync(out_ptr, x_ptr, numel * sizeof(float), cudaMemcpyDeviceToDevice, cuda_stream));
   // Generate pointer array
   std::vector<float *> host_out_ptr(batch_size, nullptr);
   for (int i = 0; i < batch_size; ++i) {
@@ -1180,8 +1200,8 @@ void cinn_call_cholesky_nvgpu(void *v_args, int num_args, int batch_size, int m,
   std::vector<int> host_info(batch_size, 0);
   thrust::device_vector<int> dev_info(host_info.begin(), host_info.end());
 
-  cusolverDnHandle_t handler;
-  CUSOLVER_CALL(cusolverDnCreate(&handler));
+  cusolverDnHandle_t handler = CusolverHandle::GetInstance().GetHandle();
+  CUSOLVER_CALL(cusolverDnSetStream(handler, cuda_stream));
   CUSOLVER_CALL(cusolverDnSpotrfBatched(handler,
                                         uplo,
                                         m,
@@ -1193,7 +1213,9 @@ void cinn_call_cholesky_nvgpu(void *v_args, int num_args, int batch_size, int m,
   // Set upper/lower triangle of matrices to 0.
   std::vector<float> matrix(m * m, 0);
   for (int i = 0; i < batch_size; ++i) {
-    CUDA_CALL(cudaMemcpy(matrix.data(), host_out_ptr[i], m * m * sizeof(float), cudaMemcpyDeviceToHost));
+    CUDA_CALL(
+        cudaMemcpyAsync(matrix.data(), host_out_ptr[i], m * m * sizeof(float), cudaMemcpyDeviceToHost, cuda_stream));
+    CUDA_CALL(cudaStreamSynchronize(cuda_stream));
     if (upper) {
       for (int j = 0; j < m; j++) {
         for (int k = 0; k < j; k++) {
@@ -1207,11 +1229,104 @@ void cinn_call_cholesky_nvgpu(void *v_args, int num_args, int batch_size, int m,
         }
       }
     }
-    CUDA_CALL(cudaMemcpy(host_out_ptr[i], matrix.data(), m * m * sizeof(float), cudaMemcpyHostToDevice));
+    CUDA_CALL(
+        cudaMemcpyAsync(host_out_ptr[i], matrix.data(), m * m * sizeof(float), cudaMemcpyHostToDevice, cuda_stream));
   }
+}
 
-  // Clean
-  CUSOLVER_CALL(cusolverDnDestroy(handler));
+void cinn_call_triangular_solve_nvgpu(void *v_args,
+                                      int num_args,
+                                      int batch_size,
+                                      int m,
+                                      int k,
+                                      bool left_side,
+                                      bool upper,
+                                      bool transpose_a,
+                                      bool unit_diagonal,
+                                      void *stream) {
+  cublasHandle_t &handle = CublasHandle::GetInstance().GetCublasHandle();
+  cudaStream_t custream  = static_cast<cudaStream_t>(stream);
+  CUBLAS_CALL(cublasSetStream(handle, custream));
+
+  int b_rows               = left_side ? k : m;
+  int b_cols               = left_side ? m : k;
+  int lda                  = m;
+  int ldb                  = b_rows;
+  cublasSideMode_t side    = left_side ? CUBLAS_SIDE_RIGHT : CUBLAS_SIDE_LEFT;
+  cublasFillMode_t uplo    = upper ? CUBLAS_FILL_MODE_LOWER : CUBLAS_FILL_MODE_UPPER;
+  cublasOperation_t transa = transpose_a ? CUBLAS_OP_T : CUBLAS_OP_N;
+  cublasDiagType_t diag    = unit_diagonal ? CUBLAS_DIAG_UNIT : CUBLAS_DIAG_NON_UNIT;
+
+  cinn_pod_value_t *args = static_cast<cinn_pod_value_t *>(v_args);
+  cinn_buffer_t *input1  = args[0].operator cinn_buffer_t *();
+  cinn_buffer_t *input2  = args[1].operator cinn_buffer_t *();
+  cinn_buffer_t *output  = args[2].operator cinn_buffer_t *();
+
+  CHECK_EQ(input1->type.code, cinn_type_code_t::cinn_type_float);
+  CHECK_EQ(input2->type.code, cinn_type_code_t::cinn_type_float);
+  CHECK_EQ(input1->type.bits, input2->type.bits);
+  uint8_t bits  = input1->type.bits;
+  uint8_t bytes = bits / 8;
+  CHECK(bits == 32 || bits == 64) << "unsupported bits = " << bits << " float data type for triangular solve";
+
+  std::string debug_info =
+      "triangular solve op: left_side=" + std::to_string(left_side) + ", upper=" + std::to_string(uplo) +
+      ", transpose_a=" + std::to_string(transa) + ", unit_diagonal=" + std::to_string(unit_diagonal) +
+      ", batch_size=" + std::to_string(batch_size) + ", m=" + std::to_string(m) + ", k=" + std::to_string(k) +
+      ", input1_dtype={code: " + std::to_string(input1->type.code) + ", bits: " + std::to_string(input1->type.bits) +
+      "}" + ", input2_dtype={code: " + std::to_string(input2->type.code) +
+      ", bits: " + std::to_string(input2->type.bits) + "}";
+  VLOG(4) << debug_info;
+
+  void *a_ptr = reinterpret_cast<void *>(input1->memory);
+  void *b_ptr = reinterpret_cast<void *>(input2->memory);
+  void *x_ptr = reinterpret_cast<void *>(output->memory);
+
+  // The API cublasStrsmBatched overwrites the right-hand sides, so the right-hand sides should be copied to the output.
+  // The output can then be used directly for the calculation.
+  size_t numel = input2->num_elements();
+  CUDA_CALL(cudaMemcpyAsync(x_ptr, b_ptr, numel * bytes, cudaMemcpyDeviceToDevice, custream));
+
+  std::vector<void *> a_array(batch_size, nullptr);
+  std::vector<void *> x_array(batch_size, nullptr);
+  for (int i = 0; i < batch_size; ++i) {
+    a_array[i] = reinterpret_cast<char *>(a_ptr) + i * m * m * bytes;
+    x_array[i] = reinterpret_cast<char *>(x_ptr) + i * m * k * bytes;
+  }
+  thrust::device_vector<void *> dev_a_array(a_array.begin(), a_array.end());
+  thrust::device_vector<void *> dev_x_array(x_array.begin(), x_array.end());
+
+  if (bits == 32) {
+    std::vector<float> alpha(batch_size, 1.0f);
+    CUBLAS_CALL(cublasStrsmBatched(handle,
+                                   side,
+                                   uplo,
+                                   transa,
+                                   diag,
+                                   b_rows,
+                                   b_cols,
+                                   alpha.data(),
+                                   reinterpret_cast<float **>(dev_a_array.data().get()),
+                                   lda,
+                                   reinterpret_cast<float **>(dev_x_array.data().get()),
+                                   ldb,
+                                   batch_size));
+  } else if (bits == 64) {
+    std::vector<double> alpha(batch_size, 1.0);
+    CUBLAS_CALL(cublasDtrsmBatched(handle,
+                                   side,
+                                   uplo,
+                                   transa,
+                                   diag,
+                                   b_rows,
+                                   b_cols,
+                                   alpha.data(),
+                                   reinterpret_cast<double **>(dev_a_array.data().get()),
+                                   lda,
+                                   reinterpret_cast<double **>(dev_x_array.data().get()),
+                                   ldb,
+                                   batch_size));
+  }
 }
 
 void cinn_gpu_cublas_mul(const std::vector<int> &attrs,
@@ -1328,22 +1443,45 @@ void cinn_gpu_cublas_gemm(const std::vector<int> &attrs,
   }
 }
 
+class CurandGenerator {
+ public:
+  CurandGenerator(const CurandGenerator &) = delete;
+  CurandGenerator &operator=(const CurandGenerator &) = delete;
+  ~CurandGenerator() { CURAND_CALL(curandDestroyGenerator(generator_)); }
+  static CurandGenerator &GetInstance() {
+    static CurandGenerator instance;
+    return instance;
+  }
+  curandGenerator_t &GetGenerator() { return generator_; }
+
+ private:
+  CurandGenerator() { CURAND_CALL(curandCreateGenerator(&generator_, CURAND_RNG_PSEUDO_PHILOX4_32_10)); }
+  curandGenerator_t generator_;
+};
+
 void cinn_call_gaussian_random(void *v_args, int num_args, float mean, float std, int seed, void *stream) {
   cinn_pod_value_t *args = static_cast<cinn_pod_value_t *>(v_args);
   cinn_buffer_t *output  = args[0].operator cinn_buffer_t *();
   cinn_type_t dtype      = output->type;
   size_t numel           = output->num_elements();
-  curandGenerator_t generator;
-  CURAND_CALL(curandCreateGenerator(&generator, CURAND_RNG_PSEUDO_PHILOX4_32_10));
+
+  curandGenerator_t generator = CurandGenerator::GetInstance().GetGenerator();
+  CURAND_CALL(curandSetStream(generator, static_cast<cudaStream_t>(stream)));
   if (seed != 0) {
     CURAND_CALL(curandSetPseudoRandomGeneratorSeed(generator, static_cast<unsigned long long>(seed)));
   }
+
+  VLOG(4) << "cinn_call_gaussian_random: output_size=" << numel << ", mean=" << mean << ", std=" << std
+          << ", seed=" << seed;
+
   if (dtype == cinn_float32_t()) {
     float *ptr = reinterpret_cast<float *>(output->memory);
     CURAND_CALL(curandGenerateNormal(generator, ptr, numel, mean, std));
   } else if (dtype == cinn_float64_t()) {
     double *ptr = reinterpret_cast<double *>(output->memory);
     CURAND_CALL(curandGenerateNormalDouble(generator, ptr, numel, mean, std));
+  } else {
+    LOG(FATAL) << "gaussian_random only support float32 and float64! Please check.";
   }
 }
 
@@ -1352,17 +1490,24 @@ void cinn_call_uniform_random(void *v_args, int num_args, float min, float max, 
   cinn_buffer_t *output  = args[0].operator cinn_buffer_t *();
   cinn_type_t dtype      = output->type;
   size_t numel           = output->num_elements();
-  curandGenerator_t generator;
-  CURAND_CALL(curandCreateGenerator(&generator, CURAND_RNG_PSEUDO_PHILOX4_32_10));
+
+  curandGenerator_t generator = CurandGenerator::GetInstance().GetGenerator();
+  CURAND_CALL(curandSetStream(generator, static_cast<cudaStream_t>(stream)));
   if (seed != 0) {
     CURAND_CALL(curandSetPseudoRandomGeneratorSeed(generator, static_cast<unsigned long long>(seed)));
   }
+
+  VLOG(4) << "cinn_call_uniform_random: output_size=" << numel << ", min=" << min << ", max=" << max
+          << ", seed=" << seed;
+
   if (dtype == cinn_float32_t()) {
     float *ptr = reinterpret_cast<float *>(output->memory);
     CURAND_CALL(curandGenerateUniform(generator, ptr, numel));
   } else if (dtype == cinn_float64_t()) {
     double *ptr = reinterpret_cast<double *>(output->memory);
     CURAND_CALL(curandGenerateUniformDouble(generator, ptr, numel));
+  } else {
+    LOG(FATAL) << "uniform_random only support float32 and float64! Please check.";
   }
 }
 

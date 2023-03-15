@@ -34,7 +34,7 @@ DEFINE_string(cinn_x86_builtin_code_root, StringFromEnv("FLAGS_cinn_x86_builtin_
 
 DEFINE_int32(cinn_parallel_compile_size,
              // Revert changes in PR #990 to pass the model unittests
-             Int32FromEnv("FLAGS_cinn_parallel_compile_size", 0),
+             Int32FromEnv("FLAGS_cinn_parallel_compile_size", 8),
              "When use parallel compile, set the number of group compiled by each thread.");
 
 DEFINE_bool(cinn_use_op_fusion, BoolFromEnv("FLAGS_cinn_use_op_fusion", true), "Whether to use op fusion pass.");
@@ -69,6 +69,8 @@ DEFINE_bool(cinn_use_cuda_vectorize,
 DEFINE_bool(cinn_ir_schedule,
             BoolFromEnv("FLAGS_cinn_ir_schedule", true),
             "Whether use reconstructed schedule primitives.");
+
+DEFINE_bool(use_reduce_split_pass, BoolFromEnv("FLAGS_use_reduce_split_pass", false), "Whether use reduce split pass.");
 
 // FLAGS for performance analysis and accuracy debug
 DEFINE_bool(cinn_sync_run,

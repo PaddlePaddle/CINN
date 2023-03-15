@@ -14,45 +14,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
 import unittest
 import numpy as np
-from op_mapper_test import OpMapperTest
+from op_mapper_test import OpMapperTest, logger
 import paddle
-from cinn.frontend import *
-from cinn.common import *
-
-paddle.enable_static()
-
-enable_gpu = sys.argv.pop()
 
 
 class TestCumsumOp(OpMapperTest):
-    def setUp(self):
-        if enable_gpu == "ON":
-            self.target = DefaultNVGPUTarget()
-            self.place = paddle.CUDAPlace(0)
-        else:
-            self.target = DefaultHostTarget()
-            self.place = paddle.CPUPlace()
-
     def init_input_data(self):
-        self.shape = [2, 3, 4]
-        self.axis = 1
-        self.input_dtype = "float32"
-        self.output_dtype = "float32"
         self.feed_data = {
-            'x': self.random(self.shape, self.input_dtype),
+            'x': self.random([2, 3, 4], "float32"),
         }
 
-    def set_paddle_program(self):
+    def set_op_type(self):
+        return "cumsum"
+
+    def set_op_inputs(self):
         x = paddle.static.data(
             name='x',
             shape=self.feed_data['x'].shape,
             dtype=self.feed_data['x'].dtype)
-        out = paddle.cumsum(x, self.axis, self.output_dtype)
+        return {'X': [x]}
 
-        return ([x.name], [out])
+    def set_op_attrs(self):
+        return {"axis": -1, "flatten": False}
+
+    def set_op_outputs(self):
+        return {'Out': [str(self.feed_data['x'].dtype)]}
 
     def test_check_results(self):
         self.check_outputs_and_grads()
@@ -63,20 +51,18 @@ class TestCumsumCase1(TestCumsumOp):
     Test case with negative axis
     """
 
-    def init_input_data(self):
-        super().init_input_data()
-        self.axis = -3
+    def set_op_attrs(self):
+        return {"axis": -3, "flatten": False}
 
 
 class TestCumsumCase2(TestCumsumOp):
     """
     Test case with unspecified axis and dtype
+    flatten = True if axis is None, and axis can ignore
     """
 
-    def init_input_data(self):
-        super().init_input_data()
-        self.axis = None
-        self.output_dtype = None
+    def set_op_attrs(self):
+        return {"flatten": True}
 
 
 class TestCumsumCase3(TestCumsumOp):
@@ -85,28 +71,41 @@ class TestCumsumCase3(TestCumsumOp):
     """
 
     def init_input_data(self):
-        self.shape = [2, 3, 4]
-        self.axis = 1
-        self.input_dtype = "int32"
-        self.output_dtype = None
         self.feed_data = {
-            'x': self.random(self.shape, self.input_dtype),
+            'x': self.random([2, 3, 4], "int32", -10, 10),
+        }
+
+    def set_op_attrs(self):
+        return {"axis": 1, "flatten": False}
+
+
+class TestCumsumCase4(TestCumsumOp):
+    """
+    Test case with dtype int64
+    """
+
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([2, 3], "int64", -10, 10),
         }
 
 
-class CumsumTestCase4(TestCumsumOp):
+class TestCumsumCase5(TestCumsumOp):
     """
-    Test case with different input dtype and output dtype
+    Test case with exclusive = True
     """
 
-    def init_case(self):
-        self.shape = [2, 3, 4]
-        self.axis = 1
-        self.input_dtype = "int32"
-        self.output_dtype = "float32"
-        self.feed_data = {
-            'x': self.random(self.shape, self.input_dtype),
-        }
+    def set_op_attrs(self):
+        return {"exclusive": True}
+
+
+class TestCumsumCase6(TestCumsumOp):
+    """
+    Test case with reverse = True
+    """
+
+    def set_op_attrs(self):
+        return {"reverse": True}
 
 
 if __name__ == "__main__":

@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "cinn/frontend/syntax.h"
+#include "cinn/hlir/pe/broadcast.h"
 
 namespace cinn {
 namespace frontend {
@@ -212,7 +213,7 @@ NETBUILDER_REDUCE_OP_DEF(ReduceAny, reduce_any)
 
 Placeholder NetBuilder::CreateInput(const Type& type, const std::vector<int>& shape, const std::string& id_hint) {
   if (!id_hint.empty()) {
-    CheckVarNameValid(id_hint);
+    cinn::utils::TransValidVarName(id_hint);
   }
   std::string id = id_hint.empty() ? Context::Global().NewName("placeholder") : id_hint;
 
@@ -690,6 +691,42 @@ Variable NetBuilder::UniformRandom(
 
 Variable NetBuilder::Cholesky(const Variable& x, bool upper) {
   return CustomInstr("cholesky", {x}, {{"upper", upper}}).front();
+}
+
+Variable NetBuilder::TriangularSolve(
+    const Variable& input1, const Variable& input2, bool left_side, bool upper, bool transpose_a, bool unit_diagonal) {
+  // broadcast
+  std::vector<Variable> inputs{input1, input2};
+  {
+    auto a_ndim = input1->shape.size();
+    auto b_ndim = input2->shape.size();
+    CHECK_GE(a_ndim, 2) << "The input matrix A shape size should >= 2! Please check again.";
+    CHECK_GE(b_ndim, 2) << "The input matrix B shape size should >= 2! Please check again.";
+    std::vector<int> input1_shape_cut(input1->shape.begin(), input1->shape.end() - 2);
+    std::vector<int> input2_shape_cut(input2->shape.begin(), input2->shape.end() - 2);
+    std::vector<int> common_shape;
+    hlir::pe::GetBroadcastOutShape(input1_shape_cut, input2_shape_cut, &common_shape);
+
+    // broadcast input1
+    std::vector<int> input1_shape(common_shape.begin(), common_shape.end());
+    input1_shape.push_back(input1->shape[a_ndim - 2]);
+    input1_shape.push_back(input1->shape[a_ndim - 1]);
+    inputs[0] = BroadcastTo(input1, input1_shape);
+
+    // broadcast input2
+    std::vector<int> input2_shape(common_shape.begin(), common_shape.end());
+    input2_shape.push_back(input2->shape[b_ndim - 2]);
+    input2_shape.push_back(input2->shape[b_ndim - 1]);
+    inputs[1] = BroadcastTo(input2, input2_shape);
+  }
+
+  return CustomInstr("triangular_solve",
+                     inputs,
+                     {{"left_side", left_side},
+                      {"upper", upper},
+                      {"transpose_a", transpose_a},
+                      {"unit_diagonal", unit_diagonal}})
+      .front();
 }
 
 Variable NetBuilder::Norm(const Variable& x, int axis, float epsilon) {

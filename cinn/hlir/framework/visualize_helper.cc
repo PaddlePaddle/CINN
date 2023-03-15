@@ -235,7 +235,7 @@ std::string DebugString(const Node* node) {
   std::stringstream ss;
   ss << "{";
   bool first = true;
-  for (auto& outlink : node->outlinks()) {
+  for (auto& outlink : node->outlinks_in_order()) {
     auto* outnode = outlink->sink()->safe_as<NodeData>();
     if (outnode) {
       if (!first) {
@@ -249,7 +249,7 @@ std::string DebugString(const Node* node) {
 
   ss << "} = " << node->op()->name << "{";
   first = true;
-  for (auto& inlink : node->inlinks()) {
+  for (auto& inlink : node->inlinks_in_order()) {
     auto* innode = inlink->source()->safe_as<NodeData>();
     if (innode) {
       if (!first) {

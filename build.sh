@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 
 # Copyright (c) 2021 CINN Authors. All Rights Reserved.
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #     http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -104,12 +104,12 @@ function prepare_ci {
     python${py_version} -m venv $build_dir/ci-env
   fi
   source $build_dir/ci-env/bin/activate
-  pip install --no-cache-dir -U pip
-  pip install --no-cache-dir pre-commit
-  pip install --no-cache-dir clang-format==9.0
-  pip install --no-cache-dir wheel
-  pip install --no-cache-dir sphinx==3.3.1 sphinx_gallery==0.8.1 recommonmark==0.6.0 exhale scipy breathe==4.24.0 matplotlib sphinx_rtd_theme
-  pip install paddlepaddle-gpu==2.3.1.post101 -f https://www.paddlepaddle.org.cn/whl/linux/mkl/avx/stable.html --no-cache-dir
+  pip install -U --no-cache-dir pip
+  pip install pre-commit
+  pip install clang-format==9.0
+  pip install wheel
+  pip install sphinx==3.3.1 sphinx_gallery==0.8.1 recommonmark==0.6.0 exhale scipy breathe==4.24.0 matplotlib sphinx_rtd_theme
+  pip install paddlepaddle-gpu==2.3.1.post101 -f https://www.paddlepaddle.org.cn/whl/linux/mkl/avx/stable.html
 }
 
 function prepare_doc_model_file {

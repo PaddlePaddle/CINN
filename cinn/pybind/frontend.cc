@@ -99,6 +99,7 @@ void BindFrontend(pybind11::module *m) {
            py::arg("id") = "")
       .def("shape", &Placeholder::shape)
       .def("id", &Placeholder::id)
+      .def("name", &Placeholder::id)
       .def("__str__", [](const Placeholder &self) { return self.id(); });
 
   py::implicitly_convertible<Placeholder, Variable>();
@@ -120,6 +121,10 @@ void BindFrontend(pybind11::module *m) {
       .def("get_attr_fp32s", &Instruction::GetAttrs<std::vector<float>>)
       .def("get_attr_strs", &Instruction::GetAttrs<std::vector<std::string>>)
       .def("__str__", [](Instruction &self) { return utils::GetStreamCnt(self); });
+
+  m->def("get_default_program_pass", []() { return DefaultTrainingOptimizeOptions().program_passes; })
+      .def("get_default_graph_pass", []() { return DefaultTrainingOptimizeOptions().graph_passes; })
+      .def("get_default_opfusion_pass", []() { return DefaultOpFusionPasses(); });
 
   py::class_<Program>(*m, "Program")
       .def(py::init<>())
@@ -161,18 +166,19 @@ void BindFrontend(pybind11::module *m) {
 
             const auto &default_program_pass = DefaultTrainingOptimizeOptions().program_passes;
             const auto &default_graph_pass   = DefaultTrainingOptimizeOptions().graph_passes;
-            for (const auto &pass : default_program_pass) {
-              if (std::find(passes.begin(), passes.end(), pass) != passes.end()) {
-                program_passes.emplace_back(pass);
+            if (!passes.empty()) {
+              for (const auto &pass : passes) {
+                auto *p_pass = ProgramPassRegistry::Global()->Find(pass);
+                auto *g_pass = Registry<hlir::framework::PassFunctionRegister>::Global()->Find(pass);
+                if (p_pass) {
+                  program_passes.emplace_back(pass);
+                } else if (g_pass) {
+                  graph_passes.emplace_back(pass);
+                } else {
+                  LOG(FATAL) << "Pass " << pass << " unsupported in CINN! Please check.\n";
+                }
               }
             }
-            for (const auto &pass : default_graph_pass) {
-              if (std::find(passes.begin(), passes.end(), pass) != passes.end()) {
-                graph_passes.emplace_back(pass);
-              }
-            }
-            CHECK_EQ(passes.size(), program_passes.size() + graph_passes.size())
-                << "Cannot found some test pass in CINN! Please check.";
             if (program_passes.empty()) {
               program_passes = default_program_pass;
             }
@@ -234,18 +240,19 @@ void BindFrontend(pybind11::module *m) {
 
              const auto &default_program_pass = DefaultTrainingOptimizeOptions().program_passes;
              const auto &default_graph_pass   = DefaultTrainingOptimizeOptions().graph_passes;
-             for (const auto &pass : default_program_pass) {
-               if (std::find(passes.begin(), passes.end(), pass) != passes.end()) {
-                 program_passes.emplace_back(pass);
+             if (!passes.empty()) {
+               for (const auto &pass : passes) {
+                 auto *p_pass = ProgramPassRegistry::Global()->Find(pass);
+                 auto *g_pass = Registry<hlir::framework::PassFunctionRegister>::Global()->Find(pass);
+                 if (p_pass) {
+                   program_passes.emplace_back(pass);
+                 } else if (g_pass) {
+                   graph_passes.emplace_back(pass);
+                 } else {
+                   LOG(FATAL) << "Pass " << pass << " unsupported in CINN! Please check.\n";
+                 }
                }
              }
-             for (const auto &pass : default_graph_pass) {
-               if (std::find(passes.begin(), passes.end(), pass) != passes.end()) {
-                 graph_passes.emplace_back(pass);
-               }
-             }
-             CHECK_EQ(passes.size(), program_passes.size() + graph_passes.size())
-                 << "Cannot found some test pass in CINN! Please check.";
 
              if (program_passes.empty()) {
                program_passes = default_program_pass;
@@ -405,7 +412,7 @@ void BindFrontend(pybind11::module *m) {
       .def("get_program", &frontend::Interpreter::GetProgram)
       .def("get_scope", &frontend::Interpreter::GetScope);
 
-  py::class_<NetBuilder>(*m, "NetBuilder")
+  py::class_<NetBuilder, std::shared_ptr<NetBuilder>>(*m, "NetBuilder")
       .def(py::init<const std::string &>(), py::arg("name") = "")
   // clang-format off
 #define PY_REGISTER_CONSTANT_OP(TYPE__)                                              \
@@ -470,7 +477,15 @@ void BindFrontend(pybind11::module *m) {
               &NetBuilder::CreateInput),
           py::arg("type"),
           py::arg("shape"),
-          py::arg("id_hint") = "")
+          py::arg("id_hint"))
+      .def(
+          "create_input",
+          [](NetBuilder &self, const std::string &type, const std::vector<int> &shape, const std::string &id) {
+            return self.CreateInput(cinn::common::Str2Type(type), shape, id);
+          },
+          py::arg("type"),
+          py::arg("shape"),
+          py::arg("id_hint"))
       .def("create_input", static_cast<Placeholder (NetBuilder::*)(const Variable &)>(&NetBuilder::CreateInput))
       .def("build", &NetBuilder::Build, py::arg("in_reverse") = false)
       .def("name", &NetBuilder::name)
@@ -697,7 +712,15 @@ void BindFrontend(pybind11::module *m) {
            py::arg("seed")  = 0,
            py::arg("dtype") = "float32")
       .def("norm", &NetBuilder::Norm, py::arg("x"), py::arg("axis") = -1, py::arg("epsilon") = 1e-12f)
-      .def("cholesky", &NetBuilder::Cholesky, py::arg("x"), py::arg("upper") = false);
+      .def("cholesky", &NetBuilder::Cholesky, py::arg("x"), py::arg("upper") = false)
+      .def("triangular_solve",
+           &NetBuilder::TriangularSolve,
+           py::arg("input1"),
+           py::arg("input2"),
+           py::arg("left_side")     = true,
+           py::arg("upper")         = false,
+           py::arg("transpose_a")   = false,
+           py::arg("unit_diagonal") = false);
 
   auto computation = py::class_<CinnComputation, std::shared_ptr<CinnComputation>>(*m, "Computation");
   py::class_<CinnComputation::CompileOptions>(computation, "CompileOptions")
@@ -748,13 +771,26 @@ void BindFrontend(pybind11::module *m) {
 
   py::class_<PaddleModelConvertor>(*m, "PaddleModelConvertor")
       .def(py::init<>())
-      .def("__call__",
-           &PaddleModelConvertor::operator(),
+      .def(py::init<const common::Target &, std::shared_ptr<NetBuilder>, std::shared_ptr<hlir::framework::Scope>>(),
            py::arg("target"),
-           py::arg("model_path"),
-           py::arg("is_combined") = false,
-           py::arg("scope")       = nullptr)
-      .def("get_fetch_list", &PaddleModelConvertor::GetFetchList)
+           py::arg("builder") = nullptr,
+           py::arg("scope")   = nullptr)
+      .def("__call__", &PaddleModelConvertor::operator())
+      .def("load_model", &PaddleModelConvertor::LoadModel, py::arg("model_dir"), py::arg("is_combined") = false)
+      .def("create_input", &PaddleModelConvertor::CreateInput, py::arg("dtype"), py::arg("shape"), py::arg("name"))
+      .def("append_op",
+           static_cast<void (PaddleModelConvertor::*)(const std::string &,
+                                                      const std::map<std::string, std::vector<std::string>> &,
+                                                      const std::map<std::string, std::vector<std::string>> &,
+                                                      const std::map<std::string, cinn::utils::Attribute> &)>(
+               &PaddleModelConvertor::RunOp),
+           py::arg("type"),
+           py::arg("inputs"),
+           py::arg("outputs"),
+           py::arg("attrs"))
+      .def("get_fetch_list",
+           &PaddleModelConvertor::GetFetchList,
+           py::arg("fetch_list") = std::unordered_set<std::string>{})
       .def("get_cinn_name", [](PaddleModelConvertor &self, const std::string &paddle_name) {
         CHECK(self.var_model_to_program_map().count(paddle_name))
             << "Cannot find variabel " << paddle_name << " in CINN! Please check.";

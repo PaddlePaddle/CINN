@@ -148,17 +148,25 @@ TEST_F(TestScheduleDesc, Append_Replay) {
   auto fused = ir_sch.Fuse("B", {0, 1});
   trace.Append(ScheduleDesc::Step(
       "FuseWithName", {}, {{"block_name", std::string("B")}, {"loops_index", std::vector<int>({0, 1})}}, {fused}));
-  auto splited = ir_sch.Split(fused, {4, -1});
-  trace.Append(ScheduleDesc::Step(
-      "Split", {{"loop", std::vector<Expr>({fused})}}, {{"factors", std::vector<int>({4, -1})}}, splited));
+  auto sample = ir_sch.SamplePerfectTile(fused, 2, 1, {4, -1});
+  trace.Append(ScheduleDesc::Step("SamplePerfectTile",
+                                  {{"loop", std::vector<Expr>({fused})}},
+                                  {{"n", 2}, {"max_innermost_factor", 1}, {"decision", std::vector<int>{4, -1}}},
+                                  sample));
+  auto splited = ir_sch.Split(fused, sample);
+  trace.Append(ScheduleDesc::Step("Split", {{"loop", std::vector<Expr>({fused})}, {"factors", sample}}, {}, splited));
 
   auto loops = ir_sch.GetLoops("B");
   trace.Append(ScheduleDesc::Step("GetLoopsWithName", {}, {{"block_name", std::string("B")}}, loops));
   fused = ir_sch.Fuse(loops);
   trace.Append(ScheduleDesc::Step("Fuse", {{"loops", loops}}, {}, {fused}));
-  splited = ir_sch.Split(fused, {256, -1});
-  trace.Append(ScheduleDesc::Step(
-      "Split", {{"loop", std::vector<Expr>({fused})}}, {{"factors", std::vector<int>({256, -1})}}, splited));
+  sample = ir_sch.SamplePerfectTile(fused, 2, 1, {256, -1});
+  trace.Append(ScheduleDesc::Step("SamplePerfectTile",
+                                  {{"loop", std::vector<Expr>({fused})}},
+                                  {{"n", 2}, {"max_innermost_factor", 1}, {"decision", std::vector<int>{256, -1}}},
+                                  sample));
+  splited = ir_sch.Split(fused, sample);
+  trace.Append(ScheduleDesc::Step("Split", {{"loop", std::vector<Expr>({fused})}, {"factors", sample}}, {}, splited));
 
   // check the equality of results between the ir_sch and replaying of trace
   CheckTracingOutputs(splited, trace);
@@ -233,30 +241,35 @@ TEST_F(TestScheduleDesc, StepKind_GetBlock) {
 }
 
 TEST_F(TestScheduleDesc, StepKind_Split) {
-  lowered_funcs         = LowerCompute({32, 32, 32}, target);
-  ir::IRSchedule ir_sch = MakeIRSchedule(lowered_funcs);
+  lowered_funcs                         = LowerCompute({32, 32, 32}, target);
+  ir::IRSchedule ir_sch_split_base      = MakeIRSchedule(lowered_funcs);
+  ir::IRSchedule ir_sch_split           = MakeIRSchedule(lowered_funcs);
+  ir::IRSchedule ir_sch_split_with_name = MakeIRSchedule(lowered_funcs);
 
-  auto loops = ir_sch.GetLoops("B");
+  // test split with inputs of Expr
+  auto loops = ir_sch_split_base.GetLoops("B");
   trace.Append(ScheduleDesc::Step("GetLoopsWithName", {}, {{"block_name", std::string("B")}}, loops));
-  auto splited = ir_sch.Split(loops.front(), {4, -1});
-  trace.Append(ScheduleDesc::Step(
-      "Split", {{"loop", std::vector<Expr>({loops.front()})}}, {{"factors", std::vector<int>({4, -1})}}, splited));
-  CheckTracingOutputs(splited, trace);
-  CheckTracingOutputs(splited, ir_sch.GetTraceDesc());
-}
-
-TEST_F(TestScheduleDesc, StepKind_SplitWithName) {
-  lowered_funcs         = LowerCompute({32, 32, 32}, target);
-  ir::IRSchedule ir_sch = MakeIRSchedule(lowered_funcs);
-
-  auto splited = ir_sch.Split("B", 1, {4, -1});
+  auto sample = ir_sch_split_base.SamplePerfectTile(loops.front(), 2, 1, {4, -1});
+  trace.Append(ScheduleDesc::Step("SamplePerfectTile",
+                                  {{"loop", std::vector<Expr>({loops.front()})}},
+                                  {{"n", 2}, {"max_innermost_factor", 1}, {"decision", std::vector<int>{4, -1}}},
+                                  sample));
+  auto splited = ir_sch_split_base.Split(loops.front(), sample);
   trace.Append(
-      ScheduleDesc::Step("SplitWithName",
-                         {},
-                         {{"block_name", std::string("B")}, {"loop_index", 1}, {"factors", std::vector<int>({4, -1})}},
-                         splited));
+      ScheduleDesc::Step("Split", {{"loop", std::vector<Expr>({loops.front()})}, {"factors", sample}}, {}, splited));
   CheckTracingOutputs(splited, trace);
-  CheckTracingOutputs(splited, ir_sch.GetTraceDesc());
+  CheckTracingOutputs(splited, ir_sch_split_base.GetTraceDesc());
+
+  // test split with inputs of int
+  loops   = ir_sch_split.GetLoops("B");
+  splited = ir_sch_split.Split(loops.front(), {4, -1});
+  CheckTracingOutputs(splited, trace);
+  CheckTracingOutputs(splited, ir_sch_split.GetTraceDesc());
+
+  // test split with block name and inputs of int
+  splited = ir_sch_split_with_name.Split("B", 0, {4, -1});
+  CheckTracingOutputs(splited, trace);
+  CheckTracingOutputs(splited, ir_sch_split_with_name.GetTraceDesc());
 }
 
 TEST_F(TestScheduleDesc, StepKind_Fuse) {
@@ -712,9 +725,11 @@ TEST_F(TestScheduleDesc, StepKind_SamplePerfectTile) {
   auto loops            = ir_sch.GetLoops("B");
   trace.Append(ScheduleDesc::Step("GetLoopsWithName", {}, {{"block_name", std::string("B")}}, loops));
   auto result = ir_sch.SamplePerfectTile(loops[0], 2, 64);
+  std::vector<int> decision;
+  std::transform(result.begin(), result.end(), std::back_inserter(decision), [](Expr x) { return x.as_int32(); });
   trace.Append(ScheduleDesc::Step("SamplePerfectTile",
                                   {{"loop", std::vector<Expr>({loops[0]})}},
-                                  {{"n", 2}, {"max_innermost_factor", 64}},
+                                  {{"n", 2}, {"max_innermost_factor", 64}, {"decision", decision}},
                                   result));
   CheckTracingOutputs(result, trace);
   CheckTracingOutputs(result, ir_sch.GetTraceDesc());

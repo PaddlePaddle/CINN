@@ -23,7 +23,18 @@
 #endif
 
 namespace cinn {
-void SetRandInt(hlir::framework::Tensor tensor, const common::Target& target, int seed = -1);
+
+/**
+ * @brief  Fill an int Tensor with random data, which is going to be [low, high).
+ *
+ * @param tensor  A Tensor that needs to be filled with data has to be of type Int.
+ * @param target  The type of device that tensor need.
+ * @param seed    Random number seed. Default setting is -1.
+ * @param low     Set the lower bound of the data range, which is represented as [low, high).
+ * @param high    Set the upper bound of the data range, which is represented as [low, high).
+ */
+void SetRandInt(
+    hlir::framework::Tensor tensor, const common::Target& target, int seed = -1, int low = 0, int high = 11);
 
 template <typename T>
 void SetRandData(hlir::framework::Tensor tensor, const common::Target& target, int seed = -1);

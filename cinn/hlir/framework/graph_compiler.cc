@@ -782,6 +782,8 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   auto topo_order  = graph_->topological_order();
   auto& nodes      = std::get<0>(topo_order);
   VLOG(3) << "Begin GraphCompiler::Build";
+  function2input_args_.clear();
+  function2output_args_.clear();
   m_builder_.Clear();
   // if there are no avaiable groups, we will take each node as a group
   if (options.groups.empty() && graph_->groups.empty() && graph_->fusion_groups.empty()) {
@@ -1087,8 +1089,8 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions(
           if (node->attrs.attr_store.find("padding_size") != node->attrs.attr_store.end()) {
             if (global_pooling == false) {
               auto padding = absl::get<std::vector<int>>(node->attrs.attr_store.at("padding_size"));
-              CHECK_EQ(padding.size(), 4UL);
               instr->attrs.insert(instr->attrs.end(), padding.begin(), padding.end());
+              if (padding.size() == 2) instr->attrs.insert(instr->attrs.end(), padding.begin(), padding.end());
             } else {
               instr->attrs.push_back(0);
               instr->attrs.push_back(0);

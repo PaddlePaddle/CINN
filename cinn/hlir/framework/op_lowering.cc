@@ -107,6 +107,8 @@ std::vector<ir::LoweredFunc> OpLowerer::LowerWithoutSchedule(GroupPtr& group) {
 
 std::vector<ir::LoweredFunc> OpLowerer::Lower(GroupPtr& group) {
   VLOG(3) << "Lowering Group : " << group->group_id << " , Op Pattern : " << group->op_pattern_kind;
+  group->input_names.clear();
+  group->output_names.clear();
   if (FLAGS_cinn_ir_schedule) {
     switch (group->op_pattern_kind) {
       case framework::kElementWise:
@@ -669,9 +671,15 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
     }
 
     auto loops = ir_sch.GetLoops(block_name);
-
-    if (ir::GetLoopExtent(loops[index]) > this->target_.max_num_threads()) {
-      ir_sch.Split(block_name, index, {-1, this->target_.max_num_threads()});
+    auto psize = ir::GetLoopExtent(loops[index]);
+    if (psize > this->target_.max_num_threads()) {
+      for (int idx = this->target_.max_num_threads(); idx > 0; --idx) {
+        if (psize % idx == 0) {
+          ir_sch.Split(loops[index], {-1, idx});
+          break;
+        }
+        CHECK_GT(idx, 1);
+      }
     }
 
     // fuse index - 1 times
