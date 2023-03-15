@@ -481,8 +481,8 @@ void OptimizeExprGPU(Expr *expr) {
     auto schedule_block                    = schedule_block_realize->schedule_block.As<ir::ScheduleBlock>();
     auto iter_vars                         = schedule_block->iter_vars;
     auto iter_values                       = schedule_block_realize->iter_values;
-    auto compute_at_extra_var_iter         = schedule_block->attrs.find("compute_at_extra_var");
-    auto reverse_compute_at_extra_var_iter = schedule_block->attrs.find("reverse_compute_at_extra_var");
+    auto compute_at_extra_var_iter         = schedule_block->attrs.find(ir::attr::compute_at_extra_var);
+    auto reverse_compute_at_extra_var_iter = schedule_block->attrs.find(ir::attr::reverse_compute_at_extra_var);
     if (compute_at_extra_var_iter == schedule_block->attrs.end() &&
         reverse_compute_at_extra_var_iter == schedule_block->attrs.end())
       continue;
@@ -491,13 +491,13 @@ void OptimizeExprGPU(Expr *expr) {
     // The loop corresponding to these axes is related to the size of the cache buffer.
     if (compute_at_extra_var_iter != schedule_block->attrs.end()) {
       compute_at_extra_var =
-          utils::Split(absl::get<std::string>(schedule_block->attrs.at("compute_at_extra_var")), ",");
+          utils::Split(absl::get<std::string>(schedule_block->attrs.at(ir::attr::compute_at_extra_var)), ",");
     }
     // Get the names of vars that cannot be simplified after ReverseComputeAt.
     // The loop corresponding to these axes is related to the size of the cache buffer.
     if (reverse_compute_at_extra_var_iter != schedule_block->attrs.end()) {
       reverse_compute_at_extra_var =
-          utils::Split(absl::get<std::string>(schedule_block->attrs.at("reverse_compute_at_extra_var")), ",");
+          utils::Split(absl::get<std::string>(schedule_block->attrs.at(ir::attr::reverse_compute_at_extra_var)), ",");
     }
 
     auto temp_buffer_store = ir::CollectIRNodesWithoutTensor(schedule_block_expr, [&](const Expr *x) {
