@@ -243,6 +243,92 @@ struct ReplaceFracWithDivMutator : public ir::IRMutator<> {
   }
 };
 
+struct SimplifyForLoopsAndBlock : public ir::IRMutator<> {
+  absl::flat_hash_map<std::string, common::CasInterval> var_intervals;
+  explicit SimplifyForLoopsAndBlock() {}
+
+  void operator()(Expr* x) { ir::IRMutator<ir::Expr*>::Visit(x, x); }
+
+  using ir::IRMutator<>::Visit;
+
+  void Visit(const For* op, Expr* expr) override {
+    auto* node = expr->As<ir::For>();
+    Visit(&node->min, &node->min);
+    Visit(&node->extent, &node->extent);
+    auto* min_i    = node->min.As<IntImm>();
+    auto* extent_i = node->extent.As<IntImm>();
+    if (min_i && extent_i && extent_i->value > min_i->value && extent_i->value - min_i->value == 1) {
+      std::string var_name = node->loop_var->name;
+      var_intervals.emplace(var_name, common::CasInterval{min_i->value, extent_i->value - 1});
+      if (node->body.As<ir::Block>() && node->body.As<ir::Block>()->stmts.size() == 1) {
+        *expr = node->body.As<ir::Block>()->stmts[0];
+      } else {
+        *expr = node->body;
+      }
+      Visit(expr, expr);
+      var_intervals.erase(var_name);
+    } else {
+      Visit(&node->body, &node->body);
+    }
+  }
+
+  void Visit(const Block* op, Expr* expr) override {
+    auto* node = expr->As<ir::Block>();
+
+    if (node->stmts.size() == 1 && node->stmts[0].As<ir::Block>()) {
+      *expr = node->stmts[0];
+      Visit(expr, expr);
+    } else {
+      for (auto& s : node->stmts) {
+        Visit(&s, &s);
+      }
+      bool all_is_block = true;
+      std::vector<Expr> stmts;
+      for (auto& s : node->stmts) {
+        if (s.As<ir::Block>()) {
+          auto inner_block = s.As<ir::Block>();
+          for (auto inner_stmt : inner_block->stmts) {
+            stmts.push_back(inner_stmt);
+          }
+        } else {
+          stmts.push_back(s);
+        }
+      }
+      expr->As<ir::Block>()->stmts = stmts;
+    }
+  }
+
+  void Visit(const IfThenElse* op, Expr* expr) override {
+    if (op->condition.As<ir::UIntImm>()) {
+      if (op->condition.as_bool() == false) {
+        if (expr->As<IfThenElse>()->false_case.defined()) {
+          *expr = expr->As<IfThenElse>()->false_case;
+        } else {
+          *expr = ir::Block::Make({});
+        }
+      } else {
+        if (expr->As<IfThenElse>()->true_case.defined()) {
+          *expr = expr->As<IfThenElse>()->true_case;
+        } else {
+          *expr = ir::Block::Make({});
+        }
+      }
+      ir::IRMutator<ir::Expr*>::Visit(expr, expr);
+      return;
+    }
+    ir::IRMutator<ir::Expr*>::Visit(op, expr);
+  }
+
+  void Visit(const _Var_* op, Expr* expr) override {
+    auto* node = expr->As<ir::_Var_>();
+
+    if (var_intervals.count(node->name)) {
+      auto loop_range = var_intervals.at(node->name);
+      *expr           = Expr(loop_range.l);
+    }
+  }
+};
+
 }  // namespace
 
 void Simplify(Expr* expr) {
@@ -258,6 +344,8 @@ void Simplify(Expr* expr) {
   mutator(expr);
 
   ReplaceFracWithDivMutator()(expr);
+  SimplifyForLoopsAndBlock()(expr);
 }
+
 }  // namespace optim
 }  // namespace cinn
