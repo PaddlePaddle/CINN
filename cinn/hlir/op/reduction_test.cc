@@ -317,8 +317,9 @@ void TestCaseForReduce(
     grid  = {n * c, 1, 1};
     block = {h * w, 1, 1};
   } else {
-    grid  = {w, 1, 1};
-    block = {n * c, 1, 1};
+    grid            = {c, 1, 1};
+    int block_dim_x = n * w * h > 1024 ? 1024 : n * w * h;
+    block           = {block_dim_x, 1, 1};
   }
 
   void* args[]              = {&dev_x, &dev_z};
@@ -345,18 +346,16 @@ void TestCaseForReduce(
 TEST(Operator, Operator_Reduction_Case_6_1) {
   TestCaseForReduce<SumOp>(0.0f, 32, 32, 32, 32, "Operator_Reduction_Case_6_1", "reduce_sum");
 }
-// Temporarily turn off Operator_Reduction_Case_6_2 test
-/* TEST(Operator, Operator_Reduction_Case_6_2) {
+TEST(Operator, Operator_Reduction_Case_6_2) {
   TestCaseForReduce<ProdOp>(1.0f, 1, 1, 1, 32, "Operator_Reduction_Case_6_2", "reduce_prod");
-} */
+}
 TEST(Operator, Operator_Reduction_Case_6_3) {
   TestCaseForReduce<MaxOp>(-1e38f, 32, 32, 32, 32, "Operator_Reduction_Case_6_3", "reduce_max");
 }
 TEST(Operator, Operator_Reduction_Case_6_4) {
   TestCaseForReduce<MinOp>(1e38f, 32, 32, 32, 32, "Operator_Reduction_Case_6_4", "reduce_min");
 }
-// Temporarily turn off Operator_Reduction_Case_7 test
-/* TEST(Operator, Operator_Reduction_Case_7) {
+TEST(Operator, Operator_Reduction_Case_7) {
   int n = 32, c = 32, h = 16, w = 16;
   std::vector<int> shape = {n, c, h, w};
   std::vector<int> dim   = {0, 1};
@@ -373,19 +372,21 @@ TEST(Operator, Operator_Reduction_Case_6_4) {
   // load ptx
   CUDA_CALL(cudaSetDevice(0));
   runtime::cuda::CUDAModule cuda_module(ptx, runtime::cuda::CUDAModule::Kind::PTX);
-  void* reduce_sum_kernel = cuda_module.GetFunction(0, func_name);
+  std::string new_func_name = func_name;
+  if (FLAGS_cinn_ir_schedule) new_func_name = "fn_" + new_func_name;
+  void* reduce_sum_kernel = cuda_module.GetFunction(0, new_func_name + "_kernel");
   CHECK(reduce_sum_kernel);
 
   // register cufunction and stream
   void* stream = nullptr;
-  backends::GlobalSymbolRegistry::Global().RegisterFn(func_name + "_kernel_ptr_",
+  backends::GlobalSymbolRegistry::Global().RegisterFn(new_func_name + "_kernel_ptr_",
                                                       reinterpret_cast<void*>(&reduce_sum_kernel));
 
   // gen host code
   auto jit = backends::SimpleJIT::Create();
   jit->Link<backends::CodeGenCUDA_Host>(host_source.first);
 
-  auto fn_reduce_sum = jit->Lookup(func_name);
+  auto fn_reduce_sum = jit->Lookup(new_func_name);
   CHECK(fn_reduce_sum);
 
   auto func_0 = reinterpret_cast<void (*)(void*, int, void*)>(fn_reduce_sum);
@@ -417,7 +418,7 @@ TEST(Operator, Operator_Reduction_Case_6_4) {
 
   CUDA_CALL(cudaFree(dev_x));
   CUDA_CALL(cudaFree(dev_y));
-} */
+}
 
 TEST(Operator, Operator_Reduction_Case_8) {
   std::vector<int> shape = {128, 1};
