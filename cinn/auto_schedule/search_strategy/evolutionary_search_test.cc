@@ -141,7 +141,7 @@ TEST(EvolutionarySearch, GetEpsGreedy) {
 }
 
 TEST(EvolutionarySearch, Evolve) {
-  auto target = common::DefaultTarget();
+  auto target = common::DefaultNVGPUTarget();
   auto tasks  = CreateTasks(MatmulOpBuilder({32, 32}, {32, 32})(), target);
   CHECK_EQ(tasks.size(), 1);
   ExprCostModel cost_model;
