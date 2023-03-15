@@ -233,7 +233,6 @@ class OpMapperTest(OpTest):
                      } for i in range(len(self.fetch_targets))]))
 
     def build_cinn_program(self, target):
-        print("build_cinn_program begins")
         scope = Scope()
         convertor = PaddleModelConvertor(target=self.target, scope=scope)
 
@@ -242,6 +241,7 @@ class OpMapperTest(OpTest):
                 dtype=self.paddleddtype2nptype(var.dtype),
                 shape=var.shape,
                 name=var_name)
+
         convertor.append_op(
             type=self.op_type,
             inputs=self.op_desc.inputs(),
