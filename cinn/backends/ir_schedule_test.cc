@@ -2921,5 +2921,23 @@ TEST(IrSchedule, GetChildBlocks) {
   ASSERT_EQ(utils::GetStreamCnt(ir_sch.GetChildBlocks(root_block)), expected_expr);
 }
 
+TEST(IrSchedule, SampleCategorical) {
+  Context::Global().ResetNameId();
+  Expr M(32);
+  Expr N(32);
+  Placeholder<int> A("A", {M, N});
+  auto B = Compute(
+      {M, N}, [&](Var i, Var j) { return A(i, j); }, "B");
+  poly::StageMap stages = CreateStages({A, B});
+
+  auto funcs = cinn::lang::LowerVec(
+      "test_samplecategorical", stages, {A, B}, {}, {}, nullptr, common::DefaultHostTarget(), true);
+
+  ir::IRSchedule ir_sch(ir::ModuleExpr({funcs[0]->body}));
+  Expr result = ir_sch.SampleCategorical({1, 2, 3}, {1.0, 2.0, 3.0});
+  LOG(INFO) << "SampleCategorical result: " << result;
+  ASSERT_EQ(result.type(), Int(32));
+}
+
 }  // namespace backends
 }  // namespace cinn

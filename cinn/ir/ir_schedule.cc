@@ -104,6 +104,9 @@ class ScheduleImpl {
   void FlattenLoops(const std::vector<Expr>& loops, const bool force_flat = false);
   void CopyTransformAndLoopInfo(const Expr& block, const Expr& block_target);
   void CopyTransformAndLoopInfo(const std::string& block_name, const std::string& block_target_name);
+  Expr SampleCategorical(utils::LinearRandomEngine::StateType* rand_seed,
+                         const std::vector<int>& candidates,
+                         const std::vector<float>& probs);
 
  private:
   void Replace(const Expr& src_sref, const Expr& tgt_stmt);
@@ -1819,6 +1822,22 @@ std::vector<Expr> ScheduleImpl::SamplePerfectTile(utils::LinearRandomEngine::Sta
   return result_expr;
 }
 
+Expr ScheduleImpl::SampleCategorical(utils::LinearRandomEngine::StateType* rand_seed,
+                                     const std::vector<int>& candidates,
+                                     const std::vector<float>& probs) {
+  // check two sizes
+  CHECK_EQ(candidates.size(), probs.size()) << "candidates and probs must have same size.";
+  // generate
+  std::vector<double> weights;
+  for (auto p : probs) {
+    weights.push_back(p);
+  }
+  auto prob_int = utils::SampleDiscreteFromDistribution(weights, rand_seed);
+  auto result   = candidates[prob_int];
+  Expr result_Expr(result);
+  return result_Expr;
+}
+
 IRSchedule::IRSchedule() {}
 
 IRSchedule::IRSchedule(const ModuleExpr& module_expr, utils::LinearRandomEngine::StateType rand_seed, bool debug_flag) {
@@ -2123,6 +2142,12 @@ std::vector<Expr> IRSchedule::SamplePerfectTile(const Expr& loop,
                          {{"n", n}, {"max_innermost_factor", max_innermost_factor}, {"decision", new_decision}},
                          factors));
   return factors;
+}
+
+Expr IRSchedule::SampleCategorical(const std::vector<int>& candidates, const std::vector<float>& probs) {
+  auto result = impl_->SampleCategorical(&rand_seed_, candidates, probs);
+  trace_.Append(ScheduleDesc::Step("SampleCategorical", {}, {{"candidates", candidates}, {"probs", probs}}, {result}));
+  return result;
 }
 
 }  // namespace ir
