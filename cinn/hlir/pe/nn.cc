@@ -1259,7 +1259,8 @@ Tensor DropoutInfer(const ir::Tensor &tensor,
         [=](const std::vector<Expr> &indice) { return tensor(indice) * (1 - dropout_prob); },
         output_name);
   } else if (dropout_implementation == "upscale_in_train") {
-    return Identity(tensor).front();
+    // The name here must be consistent, otherwise it cannot participate in the fusion schedule.
+    return Identity(tensor, output_name).front();
   } else {
     LOG(FATAL) << "dropout_implementation attr must be 'downgrade_in_infer' or 'upscale_in_train'\n";
   }
