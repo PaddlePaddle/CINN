@@ -22,6 +22,8 @@
 #include <vector>
 
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
+#include "cinn/auto_schedule/search_space/auto_gen_rule/test_helper.h"
+#include "cinn/auto_schedule/tests/test_op_builder.h"
 #include "cinn/cinn.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_base.h"
@@ -179,6 +181,47 @@ TEST(MulitLevelTile, MatrixMultiply) {
 
   test_func(&ir_schedule);
   test_func(&new_states[0]->ir_schedule);
+}
+
+class TestMultiLevelTiling : public TestAutoGenRuleBase {
+ public:
+  std::vector<std::string> default_input_names;
+  std::vector<std::string> default_output_names;
+};
+
+TEST_F(TestMultiLevelTiling, Matmul) {
+  default_input_names        = {"X", "Y"};
+  default_output_names       = {"temp_matmul_out"};
+  std::vector<int> X_shape   = {32, 32};
+  std::vector<int> Y_shape   = {32, 32};
+  std::vector<int> out_shape = {32, 32};
+
+  Initialize(common::DefaultNVGPUTarget());
+  ir::IRSchedule ir_schedule = MakeIRSchedule(MatmulOpBuilder(X_shape, Y_shape)());
+  SearchState state(ir_schedule);
+  VLOG(6) << "Original state:\n" << state->DebugString();
+
+  // Apply MultiLevelTiling
+  MultiLevelTiling multi_level_tiling(target_);
+  EXPECT_EQ(multi_level_tiling.AnalyseApplyType(state, default_output_names[0]),
+            RuleApplyType::kApplyAndPruneOtherRules);
+  auto new_states = multi_level_tiling.ApplyOnBlock(state, default_output_names[0]);
+  VLOG(6) << "After MultiLevelTiling, state:\n" << state->DebugString();
+
+  // build ir::Module and debug source code
+  auto ir_module   = BuildIRModule(new_states[0]->ir_schedule);
+  auto source_code = GenSourceCode(ir_module);
+  VLOG(6) << "scheduled source code:\n" << source_code;
+
+  // execute and check precision
+  CheckResult(GenExecutableKernel(ir_module),
+              GenExecutableKernel(
+                  BuildIRModule(MakeIRSchedule(MatmulOpBuilder(X_shape, Y_shape)(), /* apply_manual_schedule*/ true))),
+              default_input_names,
+              default_output_names,
+              {X_shape, Y_shape},
+              {out_shape},
+              target_);
 }
 
 }  // namespace auto_schedule

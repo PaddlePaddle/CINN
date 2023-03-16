@@ -78,27 +78,5 @@ TEST_F(TestMixRules, 2DMatmulOnMultiTilingRelated) {
               target_);
 }
 
-TEST_F(Test2DMatmulApplyRules, CrucialRulesOnBlock) {
-  ir::IRSchedule ir_schedule = Initialize("matmul_apply_crucial_rules_on_block", {{32, 32}, {32, 32}}, {{32, 32}});
-  std::vector<ir::Expr> func_bodys = ir_schedule.GetModule().GetExprs();
-  ASSERT_EQ(func_bodys.size(), 1UL);
-  VLOG(6) << "Original Expr:\n" << func_bodys[0];
-
-  // Apply MultiLevelTiling
-  MultiLevelTiling multi_level_tiling(target_);
-  SearchState state(ir_schedule, 0, {});
-  EXPECT_EQ(multi_level_tiling.AnalyseApplyType(state, "C"), RuleApplyType::kApplyAndPruneOtherRules);
-  auto new_states = multi_level_tiling.ApplyOnBlock(state, "C");
-  func_bodys      = new_states[0]->ir_schedule.GetModule().GetExprs();
-  VLOG(6) << "after MultiLevelTiling Expr:\n" << func_bodys[0];
-
-  // build ir::Module and debug source code
-  auto build_module = BuildIRModule(func_bodys);
-  auto source_code  = GenSourceCode(build_module);
-  VLOG(6) << "scheduled source code:\n" << source_code;
-  // execute and check precision
-  CheckPrecision(build_module);
-}
-
 }  // namespace auto_schedule
 }  // namespace cinn
