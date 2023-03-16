@@ -15,6 +15,7 @@
 import unittest
 import numpy as np
 from op_test import OpTest, OpTestTool
+from op_test_helper import TestCaseHelper
 import paddle
 import cinn
 from cinn.frontend import *
@@ -25,41 +26,7 @@ from cinn.common import *
                     "x86 test will be skipped due to timeout.")
 class TestElementwiseAddOp(OpTest):
     def setUp(self):
-        self.init_attrs()
-
-    def init_attrs(self):
-        self.inputs = [
-            {
-                "x_shape": [3],
-                "y_shape": [3],
-                "dout_shape": [3]
-            },
-            {
-                "x_shape": [3, 3],
-                "y_shape": [3, 3],
-                "dout_shape": [3, 3]
-            },
-            {
-                "x_shape": [3, 3, 3],
-                "y_shape": [3, 3, 3],
-                "dout_shape": [3, 3, 3]
-            },
-        ]
-        self.dtypes = [
-            {
-                "x_dtype": "int32",
-                "y_dtype": "int32",
-                "dout_dtype": "int32"
-            },
-            {
-                "x_dtype": "float32",
-                "y_dtype": "float32",
-                "dout_dtype": "float32"
-            },
-        ]
-        self.attrs = {
-            "axis": [-1, 0],
-        }
+        self.prepare_inputs()
 
     def prepare_inputs(self):
         self.x_np = np.random.random(self.case["x_shape"]).astype(
@@ -117,8 +84,46 @@ class TestElementwiseAddOp(OpTest):
         self.cinn_grads = [res[1], res[2]]
 
     def test_check_results(self):
-        self.run_all_cases()
+        self.check_outputs_and_grads()
+
+
+class TestAddAll(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestElementwiseAddOpCase"
+        self.cls = TestElementwiseAddOp
+        self.inputs = [
+            {
+                "x_shape": [3],
+                "y_shape": [3],
+                "dout_shape": [3]
+            },
+            {
+                "x_shape": [3, 3],
+                "y_shape": [3, 3],
+                "dout_shape": [3, 3]
+            },
+            {
+                "x_shape": [3, 3, 3],
+                "y_shape": [3, 3, 3],
+                "dout_shape": [3, 3, 3]
+            },
+        ]
+        self.dtypes = [
+            {
+                "x_dtype": "int32",
+                "y_dtype": "int32",
+                "dout_dtype": "int32"
+            },
+            {
+                "x_dtype": "float32",
+                "y_dtype": "float32",
+                "dout_dtype": "float32"
+            },
+        ]
+        self.attrs = {
+            "axis": [-1, 0],
+        }
 
 
 if __name__ == "__main__":
-    unittest.main()
+    TestAddAll().run()
