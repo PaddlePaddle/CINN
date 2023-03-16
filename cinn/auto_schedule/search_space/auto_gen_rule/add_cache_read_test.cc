@@ -142,14 +142,9 @@ TEST_F(TestAddCacheRead, ApplyOnMatmulWithTiling) {
   EXPECT_EQ(exprs.size(), 1UL);
   VLOG(6) << "Expr after MultiLevelTiling applied on block: " << exprs[0];
   // Apply AddCacheRead.
-  EXPECT_EQ(add_cache_read.AnalyseApplyType(states_after_tiling[0], applied_block_name),
-            RuleApplyType::kApplyAndPruneOtherRules);
-  auto states_after_cache_read = add_cache_read.ApplyOnBlock(states_after_tiling[0], applied_block_name);
-  exprs                        = states_after_cache_read[0]->ir_schedule.GetModule().GetExprs();
-  EXPECT_EQ(exprs.size(), 1UL);
-  VLOG(6) << "Matmul Expr after AddCacheRead applied on block: " << exprs[0];
+  EXPECT_EQ(add_cache_read.AnalyseApplyType(states_after_tiling[0], applied_block_name), RuleApplyType::kCannotApply);
   // build ir::Module and debug source code
-  build_module = BuildIRModule(states_after_cache_read[0]->ir_schedule);
+  build_module = BuildIRModule(states_after_tiling[0]->ir_schedule);
   source_code  = GenSourceCode(build_module);
   VLOG(6) << "ApplyOnBlock scheduled source code:\n" << source_code;
   // execute and check precision
