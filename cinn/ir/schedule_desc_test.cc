@@ -737,5 +737,18 @@ TEST_F(TestScheduleDesc, StepKind_SamplePerfectTile) {
   CheckReplayResult(ir_sch, ir_sch.GetTraceDesc());
 }
 
+TEST_F(TestScheduleDesc, StepKind_SampleCategorical) {
+  lowered_funcs         = LowerCompute({32, 128}, target);
+  ir::IRSchedule ir_sch = MakeIRSchedule(lowered_funcs);
+  Expr ret              = ir_sch.SampleCategorical({1, 2, 3}, {1.0, 2.0, 3.0});
+  trace.Append(
+      ScheduleDesc::Step("SampleCategorical",
+                         {},
+                         {{"candidates", std::vector<int>({1, 2, 3})}, {"probs", std::vector<float>({1.0, 2.0, 3.0})}},
+                         ret));
+  CheckReplayResult(ir_sch, trace);
+  CheckReplayResult(ir_sch, ir_sch.GetTraceDesc());
+}
+
 }  // namespace ir
 }  // namespace cinn

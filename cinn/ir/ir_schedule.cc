@@ -1834,8 +1834,8 @@ Expr ScheduleImpl::SampleCategorical(utils::LinearRandomEngine::StateType* rand_
   }
   auto prob_int = utils::SampleDiscreteFromDistribution(weights, rand_seed);
   auto result   = candidates[prob_int];
-  Expr result_Expr(result);
-  return result_Expr;
+  Expr result_expr(result);
+  return result_expr;
 }
 
 IRSchedule::IRSchedule() {}
