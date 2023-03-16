@@ -416,6 +416,8 @@ std::vector<IterRange> CalculateRequiredRegions(const Expr& block,
 
 Expr CheckComputeInlineValidationAndGetStore(const Expr& schedule_block, const Expr& root);
 
+Expr CheckReverseComputeInlineValidationAndGetStore(const Expr& schedule_block, const Expr& root);
+
 /*!
  * \brief Get the prime factors of a number.
  * For example, 12 = 2^2 * 3^1, then the return value is {2: 2, 3: 1}.

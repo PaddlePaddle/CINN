@@ -297,6 +297,12 @@ class IRSchedule {
   void ComputeInline(const Expr& schedule_block);
 
   /**
+   * \brief Mark an schedule block as inlined.
+   * @param schedule_block the schedule block to be inlined.
+   */
+  void ReverseComputeInline(const Expr& schedule_block);
+
+  /**
    * \brief Bind the loop to the given thread axis.
    * @param loop the loop to Bind.
    * @param thread_axis the name of the thread axis to be bound to the loop.
@@ -471,6 +477,31 @@ class ComputeInliner : public BaseInliner {
   void Visit(const ir::Load* expr, Expr* op) override;
 
   //! Replace the 'Load' node on the tensor to 'Load' node of its producers.
+  Expr ReplaceInlinedTensor(Expr* load);
+};
+
+/*!
+ * \brief Helper to inline its producer(s) block into the consumer
+ * The derived class implements the following functionalities:
+ * 1) Substitute `Load` on the tensor to be inlined
+ * to its value calculation in the producer block
+ * 2) Analyze the producer block to determine the remapping of index variables
+ */
+class ReverseComputeInliner : public BaseInliner {
+ public:
+  explicit ReverseComputeInliner(const Tensor& inlined_tensor, const Expr& inlined_store, const Expr& target_store)
+      : BaseInliner(inlined_tensor, inlined_store), target_store_(target_store) {}
+
+  bool BodyPatternAllowInline();
+
+ protected:
+  Expr target_store_{nullptr};
+
+ private:
+  void Visit(const ir::Load* expr, Expr* op) override;
+  void Visit(const ir::Store* expr, Expr* op) override;
+
+  //! Replace the 'Load' node on the tensor to 'Store' node of its consumers.
   Expr ReplaceInlinedTensor(Expr* load);
 };
 

@@ -691,6 +691,7 @@ function test_bind (_A, _B)
 }
 )ROC"));
 }
+
 TEST(IrSchedule, simple_compute_at) {
   Context::Global().ResetNameId();
   Expr M(128);
@@ -2496,6 +2497,70 @@ void test_compute_inline4(const float* __restrict__ A, float* __restrict__ C)
   ASSERT_EQ(utils::Trim(target_code), utils::Trim(source_code));
 }
 #endif
+
+TEST(IrSchedule, reverse_compute_inline1) {
+  Context::Global().ResetNameId();
+  Expr M(32);
+  Expr N(32);
+  Expr P(32);
+
+  Target target = common::DefaultHostTarget();
+
+  Placeholder<float> A("A", {M, N, P});
+  auto B = Compute(
+      {M, N, P}, [&](Var i, Var j, Var k) { return A(i, j, k) + Expr(1.f); }, "B");
+  auto C = Compute(
+      {M, N, P}, [&](Var i, Var j, Var k) { return B(j, i, k) * Expr(2.f); }, "C");
+
+  auto stages = CreateStages({A, B, C});
+
+  auto func = cinn::lang::LowerVec("test_compute_inline1", stages, {A, C}, {}, {}, nullptr, target, true);
+
+  auto ast_expr = func[0]->body;
+  std::vector<Expr> vec_ast{ast_expr};
+  ir::ModuleExpr mod_expr(vec_ast);
+  ir::IRSchedule ir_sch(mod_expr);
+
+  auto block_c = ir_sch.GetBlock("C");
+  ir_sch.ReverseComputeInline(block_c);
+  Module::Builder builder("module1", target);
+  for (auto& i : func) {
+    builder.AddFunction(i);
+  }
+  auto module = builder.Build();
+  CodeGenC codegen(target);
+  codegen.SetInlineBuiltinCodes(false);
+  auto source_code = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
+
+  VLOG(1) << "compute_inline1 source code is :\n" << source_code;
+
+  std::string target_code = R"ROC(
+#include <cinn_runtime.h>
+#include <stdio.h>
+
+void test_compute_inline1(void* _args, int32_t num_args)
+{
+  const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
+  cinn_buffer_t* _C = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[1]));
+  cinn_buffer_t* _B = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 32, 32, 32 });
+  cinn_buffer_malloc((void*)(0), _C);
+  cinn_buffer_malloc((void*)(0), _B);
+  const float* A = ((const float*)(_A->memory));
+  float* B = ((float*)(_B->memory));
+  float* C = ((float*)(_C->memory));
+  for (int32_t i = 0; i < 32; i += 1) {
+    for (int32_t j = 0; j < 32; j += 1) {
+      for (int32_t k = 0; k < 32; k += 1) {
+        C[((1024 * i) + ((32 * j) + k))] = fma(2.00000000f, A[((32 * i) + ((1024 * j) + k))], 2.00000000f);
+      };
+    };
+  };
+  cinn_buffer_free((void*)(0), _B);
+  cinn_buffer_free((void*)(0), _C);
+}
+)ROC";
+  ASSERT_EQ(utils::Trim(target_code), utils::Trim(source_code));
+}
 
 TEST(IrSchedule, copytransform1) {
   Context::Global().ResetNameId();
