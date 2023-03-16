@@ -34,7 +34,7 @@ class TestStridedSliceOp(OpMapperTest):
         return "strided_slice"
 
     def set_op_inputs(self):
-        x = paddle.static.data(
+        inputs = paddle.static.data(
             name='inputs',
             shape=self.feed_data['inputs'].shape,
             dtype=self.feed_data['inputs'].dtype)
@@ -49,7 +49,7 @@ class TestStridedSliceOp(OpMapperTest):
         }
 
     def set_op_outputs(self):
-        return {'Out': [str(self.feed_data['x'].dtype)]}
+        return {'Out': [str(self.feed_data['inputs'].dtype)]}
 
     def test_check_results(self):
         self.check_outputs_and_grads(all_equal=True)
@@ -62,7 +62,7 @@ class TestTileCase1(TestStridedSliceOp):
         }
         self.axes = [0, 1]
         self.starts = [1, 2]
-        self.ends = [6, 1000]
+        self.ends = [6, 10]
         self.strides = [1, 2]
 
 
