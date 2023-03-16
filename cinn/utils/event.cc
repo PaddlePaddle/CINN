@@ -14,6 +14,8 @@
 
 #include "cinn/utils/event.h"
 
+#include <glog/logging.h>  // for GLog
+
 namespace cinn {
 namespace utils {
 inline std::string EventTypeToString(const EventType &type) {
@@ -37,7 +39,7 @@ inline std::string EventTypeToString(const EventType &type) {
     case EventType::kInstruction:
       return "Instruction";
     default:
-      return "";
+      LOG(FATAL) << "Unknown event type";
   }
 }
 
@@ -50,11 +52,13 @@ std::string Summary::Format(const std::vector<HostEvent> &events) {
   std::vector<Item> items;
   std::unordered_map<EventType, double> category_cost;
 
-  double total_cost = 0.0;
+  double total_cost     = 0.0;
+  size_t max_annot_size = 20;
   for (auto &e : events) {
     items.emplace_back(e);
     category_cost[e.type_] += e.duration_;
     total_cost += e.duration_;
+    max_annot_size = std::max(max_annot_size, e.annotation_.size());
   }
   // Calculate Ratio
   for (auto &item : items) {
@@ -64,23 +68,37 @@ std::string Summary::Format(const std::vector<HostEvent> &events) {
 
   std::sort(items.begin(), items.end());
 
-  return AsStr(items);
+  return AsStr(items, /*data_width=*/max_annot_size);
 }
 
-std::string Summary::AsStr(const std::vector<Item> &items) {
+std::string Summary::AsStr(const std::vector<Item> &items, int data_width) {
   std::ostringstream os;
-  os << "\n";
-  os << "Category\t\t"
-     << "Name\t\t"
-     << "CostTime(ms)\t\t"
-     << "Ratio in Category(%)\t\t"
-     << "Ratio in Total(%)\n";
+
+  os << "\n\n------------------------->     Profiling Report     <-------------------------\n\n";
+
+  std::vector<std::string> titles = {"Category", "Name", "CostTime(ms)", "Ratio in Category(%)", "Ratio in Total(%)"};
+
+  size_t pad_size = 0;
+  for (auto &t : titles) {
+    pad_size = data_width > t.size() ? data_width - t.size() : 1;
+    os << ' ' << t << std::string(pad_size, ' ');
+  }
+
+  os << "\n\n";
 
   for (auto &item : items) {
-    os << item.event->type_ << "\t" << item.event->annotation_.c_str() << "\t" << item.event->duration_ << "\t"
-       << item.sub_raito.value << "\t" << item.total_raito.value;
+    std::vector<std::string> infos = {EventTypeToString(item.event->type_),
+                                      item.event->annotation_,
+                                      std::to_string(item.event->duration_),
+                                      item.sub_raito.ToStr(),
+                                      item.total_raito.ToStr()};
+    for (auto &info : infos) {
+      pad_size = data_width > info.size() ? data_width - info.size() : 1;
+      os << ' ' << info << std::string(pad_size, ' ');
+    }
     os << "\n";
   }
+  os << "\n";
   return os.str();
 }
 

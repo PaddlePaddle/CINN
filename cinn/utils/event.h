@@ -77,7 +77,7 @@ class Summary {
 
   static std::string Format(const std::vector<HostEvent>& events);
 
-  static std::string AsStr(const std::vector<Item>& items);
+  static std::string AsStr(const std::vector<Item>& itemsm, int data_width);
 };
 
 class HostEventRecorder {
