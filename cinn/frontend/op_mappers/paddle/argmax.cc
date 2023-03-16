@@ -40,6 +40,7 @@ void ArgMaxOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
   auto dtype_cinn = utils::CppVarType2CommonType(dtype_pd);
   auto dtype      = common::Type2Str(dtype_cinn);
 
+  std::cout << "get arg max all attr" << std::endl;
   int ndim = x->shape.size();
   // If flatten = true, flatten x and do argmax on axis 0.
   if (flatten) {
@@ -47,12 +48,15 @@ void ArgMaxOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
     axis = 0;
     ndim = x->shape.size();
   }
-
+  std::cout << "after flatten all attr" << std::endl;
   auto out = ctx.Builder()->Argmax(x, axis, keepdims);
-  out      = ctx.Builder()->Cast(out, dtype);
-
+  std::cout << "after build.argmax" << std::endl;
+  out = ctx.Builder()->Cast(out, dtype);
+  std::cout << "after build.cast" << std::endl;
   ctx.AddVar(out_name, out);
+  std::cout << "after add var" << std::endl;
   ctx.AddVarModelToProgram(out_name, out->id);
+  std::cout << "argmax end" << std::endl;
 }
 
 }  // namespace paddle_mappers

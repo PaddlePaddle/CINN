@@ -54,12 +54,6 @@ Tensor _Tensor_::Make(const std::string &name,
   return Tensor(n);
 }
 
-void print(std::vector<Expr> const &input) {
-  for (int i = 0; i < input.size(); i++) {
-    std::cout << input.at(i) << ' || ' << std::endl;
-  }
-}
-
 size_t Tensor::ndims() const { return operator->()->shape.size(); }
 
 std::set<std::string> _Tensor_::GetDependTensorNames() const {
@@ -91,9 +85,6 @@ std::set<std::string> _Tensor_::GetDependTensorNames() const {
 Expr Tensor::operator()(const std::vector<Expr> &indices) const {
   CHECK(!self()->is_tuple()) << "should extract a specific value from the tuple and operate on that instead";
   auto *node = operator->();
-
-  std::cout << "indices" << std::endl;
-  print(indices);
 
   std::cout << "indices size//" << std::endl;
   std::cout << indices.size() << std::endl;
