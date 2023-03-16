@@ -56,7 +56,7 @@ Tensor _Tensor_::Make(const std::string &name,
 
 void print(std::vector<Expr> const &input) {
   for (int i = 0; i < input.size(); i++) {
-    std::cout << input.at(i) << ' ' << std::endl;
+    std::cout << input.at(i) << ' || ' << std::endl;
   }
 }
 
@@ -94,6 +94,9 @@ Expr Tensor::operator()(const std::vector<Expr> &indices) const {
 
   std::cout << "indices" << std::endl;
   print(indices);
+
+  std::cout << "indices size//" << std::endl;
+  std::cout << indices.size() << std::endl;
   std::cout << "ndims()" << std::endl;
   std::cout << ndims() << std::endl;
 
