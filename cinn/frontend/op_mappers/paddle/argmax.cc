@@ -51,6 +51,8 @@ void ArgMaxOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
   std::cout << "after flatten all attr" << std::endl;
   auto out = ctx.Builder()->Argmax(x, axis, keepdims);
   std::cout << "after build.argmax" << std::endl;
+  std::cout << "out:" << std::endl;
+  std::cout << out << std::endl;
   out = ctx.Builder()->Cast(out, dtype);
   std::cout << "after build.cast" << std::endl;
   ctx.AddVar(out_name, out);
