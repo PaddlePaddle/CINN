@@ -23,7 +23,7 @@ import paddle
 class TestStridedSliceOp(OpMapperTest):
     def init_input_data(self):
         self.feed_data = {
-            'x': np.array([1, 2, 3], dtype='float32'),
+            'inputs': np.array([1, 2, 3], dtype='float32'),
         }
         self.axes = [0, 1]
         self.starts = [2, 2]
@@ -35,10 +35,10 @@ class TestStridedSliceOp(OpMapperTest):
 
     def set_op_inputs(self):
         x = paddle.static.data(
-            name='x',
-            shape=self.feed_data['x'].shape,
-            dtype=self.feed_data['x'].dtype)
-        return {'X': [x]}
+            name='inputs',
+            shape=self.feed_data['inputs'].shape,
+            dtype=self.feed_data['inputs'].dtype)
+        return {'Input': [inputs]}
 
     def set_op_attrs(self):
         return {
@@ -58,7 +58,7 @@ class TestStridedSliceOp(OpMapperTest):
 class TestTileCase1(TestStridedSliceOp):
     def init_input_data(self):
         self.feed_data = {
-            'x': self.random([10, 12], 'float32'),
+            'inputs': self.random([10, 12], 'float32'),
         }
         self.axes = [0, 1]
         self.starts = [1, 2]
