@@ -56,7 +56,7 @@ class TestArgmaxOp(OpMapperTest):
         }
 
     def set_op_outputs(self):
-        return {'Out': [str(self.feed_data['x'].dtype)]}
+        return {'Out': [str(self.output_dtype)]}
 
     def test_check_results(self):
         self.check_outputs_and_grads(all_equal=True)

@@ -47,11 +47,6 @@ void ArgMaxOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
     axis = 0;
     ndim = x->shape.size();
   }
-  CHECK(-ndim <= axis && axis < ndim) << "Axis expected to be in range of [" << -ndim << "," << ndim << "]. But got "
-                                      << axis << ".";
-  if (axis < 0) {
-    axis = ndim + axis;
-  }
 
   auto out = ctx.Builder()->Argmax(x, axis, keepdims);
   out      = ctx.Builder()->Cast(out, dtype);
