@@ -20,12 +20,15 @@ from op_mapper_test import OpMapperTest, logger
 import paddle
 
 
-class TestTileOp(OpMapperTest):
+class TestStridedSliceOp(OpMapperTest):
     def init_input_data(self):
         self.feed_data = {
             'x': np.array([1, 2, 3], dtype='float32'),
         }
-        self.repeat_times = [2, 2]
+        self.axes = [0, 1]
+        self.starts = [2, 2]
+        self.ends = [5, 5]
+        self.strides = [1, 1]
 
     def set_op_type(self):
         return "stried_slice"
@@ -38,7 +41,12 @@ class TestTileOp(OpMapperTest):
         return {'X': [x]}
 
     def set_op_attrs(self):
-        return {"repeat_times": self.repeat_times}
+        return {
+            "axes": self.axes,
+            "starts": self.starts,
+            "ends": self.ends,
+            "strides": self.strides
+        }
 
     def set_op_outputs(self):
         return {'Out': [str(self.feed_data['x'].dtype)]}
@@ -47,45 +55,44 @@ class TestTileOp(OpMapperTest):
         self.check_outputs_and_grads(all_equal=True)
 
 
-class TestTileCase1(TestTileOp):
+class TestTileCase1(TestStridedSliceOp):
     def init_input_data(self):
         self.feed_data = {
-            'x': self.random([2, 3, 4], 'float32'),
+            'x': self.random([10, 12], 'float32'),
         }
-        self.repeat_times = [1, 2, 3]
+        self.axes = [0, 1]
+        self.starts = [1, 2]
+        self.ends = [6, 1000]
+        self.strides = [1, 2]
 
 
-class TestTileCase2(TestTileOp):
-    def init_input_data(self):
-        self.feed_data = {
-            'x': self.random([2, 10, 5], 'float32'),
-        }
-        self.repeat_times = [2, 2]
+# class TestTileCase2(TestStridedSliceOp):
+#     def init_input_data(self):
+#         self.feed_data = {
+#             'x': self.random([2, 10, 5], 'float32'),
+#         }
+#         self.repeat_times = [2, 2]
 
+# class TestTileCase3(TestStridedSliceOp):
+#     def init_input_data(self):
+#         self.feed_data = {
+#             'x': self.random([2, 4, 15], 'float32'),
+#         }
+#         self.repeat_times = [2, 1, 4]
 
-class TestTileCase3(TestTileOp):
-    def init_input_data(self):
-        self.feed_data = {
-            'x': self.random([2, 4, 15], 'float32'),
-        }
-        self.repeat_times = [2, 1, 4]
+# class TestTileCase4(TestStridedSliceOp):
+#     def init_input_data(self):
+#         self.feed_data = {
+#             'x': self.random([12, 14], 'float32'),
+#         }
+#         self.repeat_times = [2, 3]
 
-
-class TestTileCase4(TestTileOp):
-    def init_input_data(self):
-        self.feed_data = {
-            'x': self.random([12, 14], 'float32'),
-        }
-        self.repeat_times = [2, 3]
-
-
-class TestTileCase5(TestTileOp):
-    def init_input_data(self):
-        self.feed_data = {
-            'x': self.random([120], 'float32'),
-        }
-        self.repeat_times = [2, 2]
-
+# class TestTileCase5(TestStridedSliceOp):
+#     def init_input_data(self):
+#         self.feed_data = {
+#             'x': self.random([120], 'float32'),
+#         }
+#         self.repeat_times = [2, 2]
 
 if __name__ == "__main__":
     unittest.main()
