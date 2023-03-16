@@ -16,8 +16,6 @@ import unittest
 from cinn import Target
 from cinn.frontend import *
 from cinn.common import *
-import copy
-import itertools
 import numpy as np
 import paddle
 import logging
