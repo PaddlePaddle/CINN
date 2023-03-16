@@ -21,71 +21,27 @@ namespace frontend {
 namespace paddle_mappers {
 
 void StridedSliceOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
-  // input
-  CHECK_EQ(op_desc.Input("X").size(), 1UL);
-  auto x_name = op_desc.Input("X").front();
-  // output
+  CHECK_EQ(op_desc.Input("Input").size(), 1UL);
+  auto x_name = op_desc.Input("Input").front();
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
   auto out_name = op_desc.Output("Out").front();
 
-  // attr repeat_times
-  std::vector<int> repeat_times = op_desc.GetAttr<std::vector<int>>("repeat_times");
+  CHECK(op_desc.HasAttr("starts"));
+  auto starts = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "starts");
+  CHECK(op_desc.HasAttr("ends"));
+  auto ends = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "ends");
+  CHECK(op_desc.HasAttr("axes"));
+  auto axes = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "axes");
 
-  for (auto i : repeat_times) {
-    CHECK_GT(i, 0) << "repeat_times's element must be greater than 0";
-  }
+  auto infer_flags   = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "infer_flags");
+  auto strides       = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "strides");
+  auto decrease_axis = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "decrease_axis");
+  auto x             = ctx.GetVar(x_name);
+  auto out           = ctx.Builder()->Slice(x, axes, starts, ends, infer_flags, strides, decrease_axis);
 
-  auto x = ctx.GetVar(x_name);
+  ctx.AddVar(out_name, out);
+  ctx.AddVarModelToProgram(out_name, out->id);
 
-  // promotion
-  auto vec_x_dims = std::vector<int>(x->shape);
-  if (repeat_times.size() < vec_x_dims.size()) {
-    int diff = vec_x_dims.size() - repeat_times.size();
-    repeat_times.insert(repeat_times.begin(), diff, 1);
-  } else {
-    int diff = repeat_times.size() - vec_x_dims.size();
-    vec_x_dims.insert(vec_x_dims.begin(), diff, 1);
-  }
-
-  CHECK_EQ(vec_x_dims.size(), repeat_times.size())
-      << "vec_x_dims's size must be equal to repeat_times's size after promotion";
-
-  // output's shape
-  std::vector<int> output_shape = vec_x_dims;
-
-  // calucate output's shape
-  for (size_t i = 0; i < repeat_times.size(); ++i) {
-    output_shape[i] *= repeat_times[i];
-  }
-
-  VLOG(4) << "output_shape: " << cinn::utils::Join(output_shape, ",");
-
-  // NOTE(wuweilong): Paddle's tile is implemented by Eigen's broadcast directly, but CINN's tile can not be implemented
-  // by BroadcastTo directly, because it is different from Eigen's broadcast. The semantics of Eigen's broadcast is same
-  // as tile, but CINN can not use Eigen's broadcast. So we need to Combine Reshape and BroadcastTo to implement tile.
-
-  // make a copy of vec_x_dims
-  std::vector<int> vec_x_dims_copy = vec_x_dims;
-  // recontruct vec_x_dims_copy by inserting 1 before every element
-  for (size_t i = 0; i < vec_x_dims_copy.size(); ++i) {
-    vec_x_dims_copy.insert(vec_x_dims_copy.begin() + i, 1);
-    i++;
-  }
-
-  x = ctx.Builder()->Reshape(x, vec_x_dims_copy);
-
-  // recontruct vec_x_dims_copy for BroadaCast
-  for (size_t i = 0; i < vec_x_dims_copy.size(); ++i) {
-    if (i % 2 == 0) {
-      vec_x_dims_copy[i] = output_shape[i / 2] / vec_x_dims_copy[i + 1];
-    }
-  }
-
-  auto tmp    = ctx.Builder()->BroadcastTo(x, vec_x_dims_copy);
-  auto output = ctx.Builder()->Reshape(tmp, output_shape);
-
-  ctx.AddVar(out_name, output);
-  ctx.AddVarModelToProgram(out_name, output->id);
 }
 
 }  // namespace paddle_mappers
