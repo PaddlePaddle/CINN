@@ -731,15 +731,6 @@ Variable NetBuilder::TriangularSolve(
       .front();
 }
 
-Variable NetBuilder::Norm(const Variable& x, int axis, float epsilon) {
-  Instruction instr("norm", {x});
-  instr.SetAttr<int32_t>("axis", axis);
-  instr.SetAttr<float>("epsilon", epsilon);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
-}
-
 std::vector<Variable> NetBuilder::TopK(const Variable& x, int k, int axis, bool largest) {
   return CustomInstr("top_k", {x}, {{"k", k}, {"axis", axis}, {"largest", largest}});
 }
