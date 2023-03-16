@@ -31,7 +31,7 @@ class TestStridedSliceOp(OpMapperTest):
         self.strides = [1, 1]
 
     def set_op_type(self):
-        return "stried_slice"
+        return "strided_slice"
 
     def set_op_inputs(self):
         x = paddle.static.data(
