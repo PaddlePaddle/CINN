@@ -26,9 +26,11 @@ TEST(RecordEvent, HOST) {
   ProfilerHelper::Enable_CPU();
 
   LOG(INFO) << "Usage 1: RecordEvent for HOST";
+  std::vector<EventType> types = {
+      EventType::kOrdinary, EventType::kCompile, EventType::kCompile, EventType::kInstruction};
   for (int i = 0; i < 4; ++i) {
     std::string name = "evs_op_" + std::to_string(i);
-    RecordEvent record_event(name);
+    RecordEvent record_event(name, types[i]);
     int counter = 1;
     while (counter != i * 1000) counter++;
   }
@@ -40,9 +42,11 @@ TEST(RecordEvent, HOST) {
     std::string name = "evs_op_" + std::to_string(i);
     EXPECT_EQ(event.annotation_, name);
     EXPECT_GT(event.duration_, 0.0);
-    EXPECT_EQ(event.type_, EventType::kOrdinary);
+    EXPECT_EQ(event.type_, types[i]);
     LOG(INFO) << name << " cost :" << event.duration_ << " ms.";
   }
+
+  LOG(INFO) << HostEventRecorder::Table();
 
   LOG(INFO) << "Usage 2: Nested RecordEvent for HOST";
   HostEventRecorder::GetInstance().Clear();

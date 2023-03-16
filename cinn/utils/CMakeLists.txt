@@ -10,6 +10,7 @@ gather_srcs(cinnapi_src SRCS
   string.cc
   timer.cc
   profiler.cc
+  event.cc
   multi_threading.cc
   data_util.cc
   random_engine.cc

@@ -14,8 +14,11 @@
 
 #pragma once
 
+#include <algorithm>
 #include <iostream>
+#include <sstream>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace cinn {
@@ -42,28 +45,56 @@ enum class EventType {
   kInstruction
 };
 
+inline std::string EventTypeToString(const EventType& type);
+
+std::ostream& operator<<(std::ostream& os, const EventType& type);
+
 struct HostEvent {
   std::string annotation_;
   double duration_;  // ms
   EventType type_;
 
-  HostEvent(const std::string &annotation, double duration, EventType type)
+  HostEvent(const std::string& annotation, double duration, EventType type)
       : annotation_(annotation), duration_(duration), type_(type) {}
+};
+
+class Summary {
+ public:
+  struct Raito {
+    double value;
+    Raito(double val) : value(val){};
+    std::string ToStr() const { return std::to_string(value); }
+  };
+
+  struct Item {
+    const HostEvent* event;
+    Raito sub_raito{0.0};    // percentage of EventType
+    Raito total_raito{0.0};  // precentage of total process
+
+    Item(const HostEvent& e) : event(&e) {}
+    bool operator<(const Item& other) const { return total_raito.value > other.total_raito.value; }
+  };
+
+  static std::string Format(const std::vector<HostEvent>& events);
+
+  static std::string AsStr(const std::vector<Item>& items);
 };
 
 class HostEventRecorder {
  public:
   // singleton
-  static HostEventRecorder &GetInstance() {
+  static HostEventRecorder& GetInstance() {
     static HostEventRecorder instance;
     return instance;
   }
 
+  static std::string Table() { return Summary::Format(GetInstance().Events()); }
+
   void Clear() { events_.clear(); }
 
-  std::vector<HostEvent> &Events() { return events_; }
+  std::vector<HostEvent>& Events() { return events_; }
 
-  void RecordEvent(const std::string &annotation, double duration, EventType type) {
+  void RecordEvent(const std::string& annotation, double duration, EventType type) {
     GetInstance().Events().emplace_back(annotation, duration, type);
   }
 
