@@ -1986,6 +1986,13 @@ Expr CasSimplifyMutator::SimplifyFracOp(Expr expr) {
 
           avs1.push_back(make_const(a.type(), a_d));
           if (b_d != 1) bvs1.push_back(make_const(b.type(), b_d));
+        } else if (af || bf) {
+          double value      = af->value / bf->value;
+          const auto& ftype = af ? af->type() : bf->type();
+          avs1.push_back(make_const(ftype, value));
+        } else {
+          avs1.push_back(a);
+          bvs1.push_back(b);
         }
 
         // CHECK(!af) << a << " " << b;

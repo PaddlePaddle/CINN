@@ -167,23 +167,6 @@ function fn (_A, _B, _cache, _C)
 }
 
 TEST(ComputeAt, simple) {
-  /*
-  {
-    Expr n(64);
-    auto A = Placeholder<float>("A", {n, n});
-
-    auto A1 = Compute(
-        {n, n}, [&](Expr i, Expr j) { return A(i, j); }, "A1");
-    auto B = Compute(
-        {n / 2, n / 2}, [&](Expr i, Expr j) { return A1(i, j); }, "B");
-
-    B->stage()->Split(0, 16);
-
-    auto fn = Lower("fn", {A, A1, B});
-    LOG(INFO) << "fn:\n" << fn;
-  }
-   */
-
   {
     Expr n(64);
     auto A = Placeholder<float>("A", {n, n});

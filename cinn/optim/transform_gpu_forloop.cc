@@ -448,10 +448,11 @@ void OptimizeExprGPU(Expr *expr) {
   std::reverse(tensor_traverse_order.begin(), tensor_traverse_order.end());
   forloop_infos_t forloop_infos;
 
+  // Add loops bound by gpu axis in for_loop_info.
   auto find_bind_forloops = ir::CollectIRNodesWithoutTensor(
       *expr, [&](const Expr *x) { return x->As<ir::For>() && x->As<ir::For>()->bind_info().valid(); });
   for (auto &for_loop : find_bind_forloops) {
-    VLOG(3) << "format loop:\n" << for_loop;
+    VLOG(3) << "format bind loop:\n" << for_loop;
     std::string for_iter = for_loop.As<ir::For>()->loop_var->name;
     poly::StageForloopInfo for_loop_info;
     for_loop_info.for_type = for_loop.As<ir::For>()->bind_info().for_type;
@@ -465,6 +466,114 @@ void OptimizeExprGPU(Expr *expr) {
       return x->As<ir::Store>();
     });
   }
+
+  // Add loops not bound by gpu axis in for_loop_info, used for recalculating the size of cache buffer after ComputeAt.
+  auto find_no_bind_forloops = ir::CollectIRNodesWithoutTensor(
+      *expr, [&](const Expr *x) { return x->As<ir::For>() && !x->As<ir::For>()->bind_info().valid(); });
+  for (auto &for_loop : find_no_bind_forloops) {
+    VLOG(3) << "format no bind loop:\n" << for_loop;
+  }
+
+  auto find_schedule_block_realize =
+      ir::CollectIRNodesWithoutTensor(*expr, [&](const Expr *x) { return x->As<ir::ScheduleBlockRealize>(); });
+  for (auto &schedule_block_expr : find_schedule_block_realize) {
+    auto schedule_block_realize            = schedule_block_expr.As<ir::ScheduleBlockRealize>();
+    auto schedule_block                    = schedule_block_realize->schedule_block.As<ir::ScheduleBlock>();
+    auto iter_vars                         = schedule_block->iter_vars;
+    auto iter_values                       = schedule_block_realize->iter_values;
+    auto compute_at_extra_var_iter         = schedule_block->attrs.find("compute_at_extra_var");
+    auto reverse_compute_at_extra_var_iter = schedule_block->attrs.find("reverse_compute_at_extra_var");
+    if (compute_at_extra_var_iter == schedule_block->attrs.end() &&
+        reverse_compute_at_extra_var_iter == schedule_block->attrs.end())
+      continue;
+    std::vector<std::string> compute_at_extra_var, reverse_compute_at_extra_var;
+    // Get the names of vars that cannot be simplified after ComputeAt.
+    // The loop corresponding to these axes is related to the size of the cache buffer.
+    if (compute_at_extra_var_iter != schedule_block->attrs.end()) {
+      compute_at_extra_var =
+          utils::Split(absl::get<std::string>(schedule_block->attrs.at("compute_at_extra_var")), ",");
+    }
+    // Get the names of vars that cannot be simplified after ReverseComputeAt.
+    // The loop corresponding to these axes is related to the size of the cache buffer.
+    if (reverse_compute_at_extra_var_iter != schedule_block->attrs.end()) {
+      reverse_compute_at_extra_var =
+          utils::Split(absl::get<std::string>(schedule_block->attrs.at("reverse_compute_at_extra_var")), ",");
+    }
+
+    auto temp_buffer_store = ir::CollectIRNodesWithoutTensor(schedule_block_expr, [&](const Expr *x) {
+      return (x->As<ir::Store>() &&
+              utils::Endswith(x->As<ir::Store>()->tensor.as_tensor()->buffer->name, "temp_buffer"));
+    });
+    auto temp_buffer_load  = ir::CollectIRNodesWithoutTensor(schedule_block_expr, [&](const Expr *x) {
+      return (x->As<ir::Load>() && utils::Endswith(x->As<ir::Load>()->tensor.as_tensor()->buffer->name, "temp_buffer"));
+    });
+
+    auto find_for_loop_info_func =
+        [&](const std::set<ir::Expr> &temp_buffer_ops, const std::vector<std::string> &extra_var, bool is_load) {
+          // Traversing the operation nodes(Load or Store node) of the temp buffer.
+          for (auto &buf_op : temp_buffer_ops) {
+            std::vector<cinn::ir::Expr> indices;
+            if (is_load) {
+              CHECK(buf_op.As<ir::Load>());
+              indices = buf_op.As<ir::Load>()->indices;
+            } else {
+              CHECK(buf_op.As<ir::Store>());
+              indices = buf_op.As<ir::Store>()->indices;
+            }
+
+            // 'iter_vars' are stored in ScheduleBlock node, through it, we can find the corresponding iter_values in
+            // the information of ScheduleBlockRealize.
+            // 'indices' are stored in Load and Store node, means subscript for
+            // operating the temp buffer.
+            // For each indice that operates the temp buffer, we find an iter_var with the
+            // same name, then we can find the corresponding iter_values and loops.
+            for (int i = 0; i < iter_vars.size(); ++i) {
+              for (auto &ind : indices) {
+                if (ind.as_var_ref()->name == iter_vars[i]->name) {
+                  auto iter_value     = iter_values.at(i);
+                  auto vars_in_indice = ir::CollectIRNodes(iter_value, [&](const Expr *x) { return x->as_var(); });
+                  for (auto &var_in_indice : vars_in_indice) {
+                    std::string var_name = var_in_indice.as_var_ref()->name;
+
+                    bool is_in_extra_var = false;
+                    // Filter out vars that cannot be eliminated,
+                    // these vars are stored in schedule_block->attrs with name "[reverse_]compute_at_extra_var",
+                    // and are calculated and stored when calling the [Reverse]ComputeAt primitive.
+                    for (const auto &ev : extra_var) {
+                      if (var_name.find(ev) != std::string::npos) {
+                        is_in_extra_var = true;
+                        break;
+                      }
+                    }
+                    // find the loops that can be eliminated, which are the outer loops of caculation of the temp
+                    // buffer. These loops are in one thread and do not need to participate in the calculation of the
+                    // temp buffer.
+                    auto find_loop_with_var_name = std::find_if(
+                        find_no_bind_forloops.begin(), find_no_bind_forloops.end(), [&var_name](const ir::Expr &e) {
+                          return e.As<ir::For>()->loop_var->name == var_name;
+                        });
+                    if (!is_in_extra_var && find_loop_with_var_name != find_no_bind_forloops.end()) {
+                      poly::StageForloopInfo for_loop_info;
+                      for_loop_info.for_type = find_loop_with_var_name->As<ir::For>()->bind_info().for_type;
+                      for_loop_info.offset   = find_loop_with_var_name->As<ir::For>()->bind_info().offset;
+                      for_loop_info.device   = find_loop_with_var_name->As<ir::For>()->bind_info().device;
+                      if (is_load) {
+                        forloop_infos[buf_op.As<ir::Load>()->tensor.as_tensor_ref()->name][var_name] = for_loop_info;
+                      } else {
+                        forloop_infos[buf_op.As<ir::Store>()->tensor.as_tensor_ref()->name][var_name] = for_loop_info;
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        };
+
+    find_for_loop_info_func(temp_buffer_store, compute_at_extra_var, false);
+    find_for_loop_info_func(temp_buffer_load, reverse_compute_at_extra_var, true);
+  }
+
   std::unordered_map<std::string, std::vector<Expr>> resized_buffer_cache;
   TransformGpuForloops(forloop_infos, tensor_traverse_order, &global_tensor_map, resized_buffer_cache, expr);
   VLOG(3) << "After TransformGpuForloops Expr: \n" << *expr;

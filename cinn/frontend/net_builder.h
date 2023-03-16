@@ -980,7 +980,7 @@ class NetBuilder {
    * Defalut “NCHW”.
    * @return `Sorted variable index`.
    */
-  Variable ArgSort(const Variable& operand, const int& axis, const bool& is_ascend = true);
+  std::vector<Variable> ArgSort(const Variable& operand, const int& axis, const bool& is_ascend = true);
 
   /**
    * @brief Sort Variable x along the given axis and return sorted variable. The original Variable x will not be
