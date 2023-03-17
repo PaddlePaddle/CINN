@@ -96,6 +96,7 @@ std::vector<ir::Tensor> Argmax(const Tensor &in_tensor,
         return sort_index.at(0)(eval_indices);
       },
       name);
+  std::cout << "res: " << res << std::endl;
   stages->InsertLazily(sort_index.at(0));
   return {res, sort_index.at(0), sort_index.at(1)};
 }
