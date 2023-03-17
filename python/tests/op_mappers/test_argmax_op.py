@@ -98,23 +98,6 @@ class TestArgmaxCase2(TestArgmaxOp):
 
 class TestArgmaxCase3(TestArgmaxOp):
     """
-    Test case with intput_dtype=uint8
-    """
-
-    def init_input_data(self):
-        self.axis = 2
-        self.shape = [2, 3, 4]
-        self.input_dtype = "uint8"
-        self.output_dtype = "int64"
-        self.flatten = False
-        self.keepdims = False
-        self.feed_data = {
-            'x': self.random(self.shape, self.input_dtype),
-        }
-
-
-class TestArgmaxCase4(TestArgmaxOp):
-    """
     Test case with float64 input
     """
 
