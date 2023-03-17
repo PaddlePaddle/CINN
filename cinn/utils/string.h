@@ -18,6 +18,8 @@
 #include <string>
 #include <vector>
 
+#include "cinn/utils/type_defs.h"
+
 namespace cinn {
 namespace utils {
 
@@ -85,6 +87,8 @@ std::string GetStreamCnt(const T& x) {
 }
 
 std::string TransValidVarName(std::string name);
+
+std::string Attribute2String(const utils::Attribute& attr);
 
 }  // namespace utils
 }  // namespace cinn

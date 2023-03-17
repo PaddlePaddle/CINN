@@ -46,7 +46,7 @@ TEST(GenerateCode_Cpu, Argmin_Keep) {
 
   lang::Placeholder<float> in("in", {n, in_c, h, w});
   poly::StageMap stages = poly::CreateStages({in});
-  ir::Tensor res        = Argmin(in, target, stages, axis, true, "test_argmin_in");
+  ir::Tensor res        = Argmin(in, target, stages, axis, true, "test_argmin_in").at(0);
   stages->InsertLazily(res);
 
   std::vector<ir::LoweredFunc> funcs =
