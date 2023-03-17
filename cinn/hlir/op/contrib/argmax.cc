@@ -68,18 +68,18 @@ Tensor Argmax(const Tensor &in_tensor,
     std::cout << i << std::endl;
   }
   std::cout << "axis: " << axis << std::endl;
-  std::cout << "keep_dim: " << keep_dims << std::endl;
   std::vector<Expr> output_shape;
   for (int i = 0; i < shape.size(); ++i) {
+    CHECK(shape[i].is_constant()) << "Input tensor's shape should be constant value.";
+    if (axis == i) {
+      if (keep_dims) {
+        output_shape.push_back(Expr(1));
+      }
+    } else {
+      output_shape.push_back(shape[i]);
+    }
     std::cout << "circle index: " << i << std::endl;
     std::cout << "for range output_shape: " << output_shape.size() << std::endl;
-    CHECK(shape[i].is_constant()) << "Input tensor's shape should be constant value.";
-    // if (axis == i && keep_dims) {
-    //   output_shape.push_back(Expr(1));
-    // }
-    // else {
-    //   output_shape.push_back(shape[i]);
-    // }
   }
   if (output_shape.empty()) {
     output_shape.push_back(Expr(1));
