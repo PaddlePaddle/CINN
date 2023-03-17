@@ -27,7 +27,7 @@ paddle.enable_static()
 
 class TestArgmaxOp(OpMapperTest):
     def init_input_data(self):
-        self.axis = -1
+        self.axis = 1
         self.shape = [2, 3, 4]
         self.input_dtype = "float32"
         self.output_dtype = "int64"
