@@ -500,6 +500,15 @@ void BindFrontend(pybind11::module *m) {
            py::arg("name"),
            py::arg("dtype"),
            py::arg("force_cpu") = false)
+      .def("fill_constant",
+           static_cast<Variable (NetBuilder::*)(
+               const std::vector<int> &, const std::string &, const std::string &, const std::string &, bool)>(
+               &NetBuilder::FillConstant),
+           py::arg("shape"),
+           py::arg("value"),
+           py::arg("name"),
+           py::arg("dtype"),
+           py::arg("force_cpu") = false)
       .def("broadcast_to",
            static_cast<Variable (NetBuilder::*)(const Variable &, const std::vector<int> &)>(&NetBuilder::BroadcastTo),
            py::arg("x"),

@@ -67,7 +67,7 @@ ir::Tensor GatherNd(const ir::Tensor &x, const ir::Tensor &index, const std::str
         std::vector<Expr> real_indices;
         for (size_t i = 0; i < index_shape.back().as_int32(); ++i) {
           indices_position[indices_position_size - 1] = ir::Cast::Make(common::Int(32), Expr(i));
-          real_indices.push_back(index(indices_position));
+          real_indices.push_back(ir::Cast::Make(common::Int(32), index(indices_position)));
         }
         if (real_indices.size() == x_shape_size) {
           return x(real_indices);

@@ -80,6 +80,8 @@ void FillConstantOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperCont
     VLOG(4) << "fill constant " << value_name << "=" << value_tensor << " with shape (" << cinn::utils::Join(shape, ",")
             << ") and dtype [" << dtype << "]";
 
+    CHECK(value_tensor->shape == cinn::utils::ShapeType{1}) << "The shape of [ValueTensor] should be [1], but here ["
+                                                            << cinn::utils::Join(value_tensor->shape, ", ") << "]";
     if (value_tensor->type != dtype_cinn) {
       value_tensor = ctx.Builder()->Cast(value_tensor, dtype);
     }
@@ -87,13 +89,14 @@ void FillConstantOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperCont
     out.value().set_id(cinn_name);
   } else {
     if (!str_value.empty()) {
-      size_t end_pos = 0;
-      value          = std::stof(str_value, &end_pos);
+      VLOG(4) << "fill constant (" << str_value << ") with shape (" << cinn::utils::Join(shape, ",") << ") and dtype ["
+              << dtype << "]";
+      out = ctx.Builder()->FillConstant(shape, str_value, cinn_name, dtype, force_cpu);
+    } else {
+      VLOG(4) << "fill constant (" << value << ") with shape (" << cinn::utils::Join(shape, ",") << ") and dtype ["
+              << dtype << "]";
+      out = ctx.Builder()->FillConstant(shape, value, cinn_name, dtype, force_cpu);
     }
-
-    VLOG(4) << "fill constant (" << value << ") with shape (" << cinn::utils::Join(shape, ",") << ") and dtype ["
-            << dtype << "]";
-    out = ctx.Builder()->FillConstant(shape, value, cinn_name, dtype, force_cpu);
   }
 
   ctx.AddVar(y_name, out.value());

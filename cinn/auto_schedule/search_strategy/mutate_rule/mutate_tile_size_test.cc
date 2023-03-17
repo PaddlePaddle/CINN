@@ -80,7 +80,7 @@ TEST(MutateTileSize, Basic) {
           ScheduleBlock(C__reduce_init)
           {
             i0, i1 = axis.bind(((16 * i_0) + i_1), j)
-            C__reduce_init[i0, i1] = 0.00000f
+            C__reduce_init[i0, i1] = 0.00000000f
           }
           serial for (reduce_axis_k, 0, 32)
           {
