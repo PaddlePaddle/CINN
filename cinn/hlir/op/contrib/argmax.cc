@@ -92,6 +92,7 @@ std::vector<ir::Tensor> Argmax(const Tensor &in_tensor,
         } else {
           eval_indices[pos_axis] = Expr(0);
         }
+        std::cout << "eval_indices.size(): " << eval_indices.size() << std::endl;
         return sort_index.at(0)(eval_indices);
       },
       name);
