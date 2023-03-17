@@ -18,13 +18,13 @@
 
 namespace cinn {
 
-void SetRandInt(hlir::framework::Tensor tensor, const common::Target& target, int seed) {
+void SetRandInt(hlir::framework::Tensor tensor, const common::Target& target, int seed, int low, int high) {
   if (seed == -1) {
     std::random_device rd;
     seed = rd();
   }
   std::default_random_engine engine(seed);
-  std::uniform_int_distribution<int> dist(0, 10);
+  std::uniform_int_distribution<int> dist(low, high - 1);
   size_t num_ele = tensor->shape().numel();
   std::vector<int> random_data(num_ele);
   for (size_t i = 0; i < num_ele; i++) {
@@ -96,24 +96,26 @@ void SetRandData<float>(hlir::framework::Tensor tensor, const common::Target& ta
 #endif
 }
 
-template <>
-std::vector<float> GetTensorData<float>(const hlir::framework::Tensor& tensor, const common::Target& target) {
+template <typename T>
+std::vector<T> GetTensorData(const hlir::framework::Tensor& tensor, const common::Target& target) {
   auto size = tensor->shape().numel();
-  std::vector<float> data(size);
+  std::vector<T> data(size);
 #ifdef CINN_WITH_CUDA
   if (target == common::DefaultNVGPUTarget()) {
-    cudaMemcpy(
-        data.data(), static_cast<const void*>(tensor->data<float>()), size * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(data.data(), static_cast<const void*>(tensor->data<T>()), size * sizeof(T), cudaMemcpyDeviceToHost);
   } else if (target == common::DefaultHostTarget()) {
-    std::copy(tensor->data<float>(), tensor->data<float>() + size, data.begin());
+    std::copy(tensor->data<T>(), tensor->data<T>() + size, data.begin());
   } else {
     CINN_NOT_IMPLEMENTED
   }
 #else
   CHECK(target == common::DefaultHostTarget());
-  std::copy(tensor->data<float>(), tensor->data<float>() + size, data.begin());
+  std::copy(tensor->data<T>(), tensor->data<T>() + size, data.begin());
 #endif
   return data;
 }
+
+template std::vector<float> GetTensorData<float>(const hlir::framework::Tensor& tensor, const common::Target& target);
+template std::vector<int> GetTensorData<int>(const hlir::framework::Tensor& tensor, const common::Target& target);
 
 }  // namespace cinn

@@ -21,6 +21,7 @@
 #include "cinn/backends/codegen_cuda_dev.h"
 #include "cinn/backends/codegen_cuda_host.h"
 #include "cinn/backends/codegen_cuda_util.h"
+#include "cinn/backends/compiler.h"
 #include "cinn/backends/llvm/codegen_x86.h"
 #include "cinn/backends/llvm/runtime_symbol_registry.h"
 #include "cinn/backends/nvrtc/nvrtc_util.h"
@@ -29,7 +30,6 @@
 #include "cinn/ir/module.h"
 
 DECLARE_int32(cinn_parallel_compile_size);
-DECLARE_string(cinn_source_code_save_path);
 
 namespace cinn {
 namespace hlir {
@@ -156,22 +156,7 @@ void ParallelCompiler::Task::CodegenAndJit() {
     backends::CodeGenCUDA_Dev codegen(target);
     auto cuda_c = codegen.Compile(dmodule);
 
-    if (FLAGS_cinn_source_code_save_path.empty()) {
-      if (cuda_c.size() > DebugLogMaxLen) {
-        VLOG(3) << "[CUDA] source code-0:\n" << cuda_c.substr(0, DebugLogMaxLen);
-        for (int i = 1; i * DebugLogMaxLen < cuda_c.size(); ++i) {
-          VLOG(3) << "[CUDA] source code-" << i << ":\n" << cuda_c.substr(DebugLogMaxLen * i, DebugLogMaxLen);
-        }
-      } else {
-        VLOG(3) << "[CUDA] source code:\n" << cuda_c;
-      }
-    } else {
-      VLOG(4) << "Write to " << FLAGS_cinn_source_code_save_path;
-      std::ofstream of(FLAGS_cinn_source_code_save_path, std::ofstream::out | std::ofstream::app);
-      CHECK(of.is_open()) << "Failed to open " << FLAGS_cinn_source_code_save_path;
-      of << cuda_c << std::endl;
-      of.close();
-    }
+    cinn::backends::SourceCodePrint::GetInstance()->write(cuda_c);
 
     using runtime::cuda::CUDAModule;
     backends::nvrtc::Compiler compiler;

@@ -188,7 +188,19 @@ class OpMapperTest(OpTest):
         self.__set_paddle_op()
         self.__check_valid()
 
+    def debug_info(self, info_dict: dict, title: str):
+        if logger.isEnabledFor(logging.DEBUG):
+            debug_info = ""
+            for k, v in info_dict.items():
+                debug_info += k + ", shape=" + str(v.shape) + ", dtype=" + str(
+                    v.dtype) + ":\n"
+                debug_info += str(v) + "\n"
+
+            logger.debug(title + ":\n" + debug_info)
+
     def build_paddle_program(self, target):
+        self.debug_info(self.feed_data, "Feed Data")
+
         main_program = paddle.static.Program()
         startup_program = paddle.static.Program()
         with paddle.static.program_guard(main_program, startup_program):
@@ -222,15 +234,13 @@ class OpMapperTest(OpTest):
         exe = paddle.static.Executor(self.place)
         exe.run(startup_program)
 
-        logger.debug("Feed list:\n" + str(self.feed_data))
-
         self.paddle_outputs = exe.run(
             main_program, self.feed_data, fetch_list=self.fetch_targets)
 
-        logger.debug("Paddle result:\n" +
-                     str([{
-                         self.fetch_targets[i].name: self.paddle_outputs[i]
-                     } for i in range(len(self.fetch_targets))]))
+        self.debug_info({
+            self.fetch_targets[i].name: self.paddle_outputs[i]
+            for i in range(len(self.fetch_targets))
+        }, "Paddle result")
 
     def build_cinn_program(self, target):
         scope = Scope()
@@ -289,10 +299,11 @@ class OpMapperTest(OpTest):
             passes=list(),
             scope=scope)
 
-        logger.debug("CINN result:\n" + str([{
-            self.fetch_targets[i].name + "/" + convertor.get_cinn_name(self.fetch_targets[i].name):
-            self.cinn_outputs[i]
-        } for i in range(len(self.fetch_targets))]))
+        self.debug_info({
+            self.fetch_targets[i].name + "/" + convertor.get_cinn_name(
+                self.fetch_targets[i].name): self.cinn_outputs[i]
+            for i in range(len(self.fetch_targets))
+        }, "CINN result")
 
     @staticmethod
     def paddleddtype2nptype(dtype):

@@ -119,5 +119,14 @@ class TestReduceAny(TestReduceOp):
         return "reduce_any"
 
 
+class TestReduceOutType(TestReduceOp):
+    def set_op_attrs(self):
+        return {
+            "dim": self.dim,
+            "keep_dim": self.keepdim,
+            "out_dtype": self.nptype2paddledtype("float64")
+        }
+
+
 if __name__ == "__main__":
     unittest.main()

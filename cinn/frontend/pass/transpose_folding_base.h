@@ -33,11 +33,15 @@ class TransposeFoldingBase : public ProgramPass {
 
  protected:
   virtual void set_target_instrs() = 0;
-  void set_fold_instrs() { fold_instrs_ = {"transpose", "scale", "broadcast_to", "cast", "identity"}; }
+  // the ops which can folding into matmul
+  void set_fold_instrs() { fold_instrs_ = {"transpose", "scale", "broadcast_to"}; }
+  // the ops which cannot folding but can ignore when it place between into folding op and matmul
+  void set_skip_instrs() { skip_instrs_ = {"cast", "identity"}; }
 
   void Clear() override {
     target_instrs_.clear();
     fold_instrs_.clear();
+    skip_instrs_.clear();
   }
 
   void ApplyImpl(Program* program,
@@ -46,6 +50,7 @@ class TransposeFoldingBase : public ProgramPass {
     VLOG(4) << "-- Before folding: " << *program;
     set_target_instrs();
     set_fold_instrs();
+    set_skip_instrs();
     // `out2instr` is used to represent the mapping of Output to Instruction.
     Out2InstrType out2instr;
     // `in2instr` is used to represent the mapping of Input to Instruction.
@@ -88,7 +93,7 @@ class TransposeFoldingBase : public ProgramPass {
                                                const Out2InstrType& out2instr,
                                                const In2InstrType& in2instr,
                                                bool from_input) const {
-    if (!fold_instrs_.count((*instr)->op_type)) {
+    if (!fold_instrs_.count((*instr)->op_type) && !skip_instrs_.count((*instr)->op_type)) {
       return {};
     }
     CHECK_EQ((*instr)->inputs.size(), 1UL) << "The op " << (*instr)->op_type << " should has 1 input.";
@@ -139,10 +144,14 @@ class TransposeFoldingBase : public ProgramPass {
   }
 
   bool CanFold(const Instruction* instr, const std::unordered_set<std::string>& visited_instr) const {
-    if (!instr || !fold_instrs_.count((*instr)->op_type) || visited_instr.count((*instr)->op_type)) {
+    if (!instr) {
       return false;
     }
+
     const auto& instr_type = (*instr)->op_type;
+    if ((!fold_instrs_.count(instr_type) && !skip_instrs_.count(instr_type)) || visited_instr.count(instr_type)) {
+      return false;
+    }
     if (instr_type == "transpose") {
       if (visited_instr.count("broadcast_to")) {
         // if transpose after broadcast_to, cannot fold because shape has changed
@@ -160,25 +169,19 @@ class TransposeFoldingBase : public ProgramPass {
     // `axis` of tranpose must be consecutive in the reverse order,
     // excluding the first dim
     auto axis = transpose.GetAttrs<std::vector<int>>("axis");
-    if (axis.size() == 3) {
-      // In the batched martix multiplication, the first dim should be batch dim.
-      if (axis[0] != 0) {
+    if (axis.size() <= 1) {
+      return false;
+    }
+    int rank = axis.size();
+
+    // the batch dimension should not change
+    for (int i = 0; i < rank - 2; ++i) {
+      if (axis[i] != i) {
         return false;
       }
-      for (size_t i = 1; i < axis.size(); ++i) {
-        if (axis[i] != axis.size() - i) {
-          return false;
-        }
-      }
-    } else if (axis.size() == 2) {
-      // In the normal martix multiplication, the axis should be consecutive in the reverse order.
-      for (size_t i = 1; i < axis.size(); ++i) {
-        if (axis[i] != axis.size() - 1 - i) {
-          return false;
-        }
-      }
-    } else {
-      // Otherwise, cannot folding
+    }
+    // only the last two dimension need transpose
+    if (axis[rank - 2] != rank - 1 || axis[rank - 1] != rank - 2) {
       return false;
     }
 
@@ -194,13 +197,7 @@ class TransposeFoldingBase : public ProgramPass {
     return (bias == 0.0f);
   }
 
-  bool IsValidBroadCast(const Instruction& broadcast) const {
-    if ("broadcast_to" != broadcast->op_type) {
-      return false;
-    }
-
-    return true;
-  }
+  bool CanSkip(const Instruction& instr) const { return skip_instrs_.count(instr->op_type); }
 
   virtual void DoMatmulFoldOptimize(Instruction* instr,
                                     const Out2InstrType& out2instr,
@@ -210,6 +207,7 @@ class TransposeFoldingBase : public ProgramPass {
 
   std::unordered_set<std::string> target_instrs_;
   std::unordered_set<std::string> fold_instrs_;
+  std::unordered_set<std::string> skip_instrs_;
 };
 
 }  // namespace cinn::frontend::pass

@@ -114,7 +114,7 @@ TEST(AutoInline, SingleLoopInline) {
           i0 = axis.bind(i)
           read_buffers(_A[i0(0:32)])
           write_buffers(_C[i0(0:32)])
-          C[i0] = (1.00000f + (2.00000f * A[i0]))
+          C[i0] = (1.00000000f + (2.00000000f * A[i0]))
         }
       }
     }
@@ -217,7 +217,7 @@ TEST(AutoInline, AddReluInline) {
               i0, i1, i2, i3 = axis.bind(0, j, k, a)
               read_buffers(_A[i0(0:1), i1(0:64), i2(0:112), i3(0:112)], _B[i1(0:64)])
               write_buffers(_var_2[i0(0:1), i1(0:64), i2(0:112), i3(0:112)])
-              var_2[i0, i1, i2, i3] = cinn_max((A[i0, i1, i2, i3] + B[i1]), 0.00000f)
+              var_2[i0, i1, i2, i3] = cinn_max((A[i0, i1, i2, i3] + B[i1]), 0.00000000f)
             }
           }
         }

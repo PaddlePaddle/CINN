@@ -16,6 +16,7 @@
 
 #include <absl/strings/string_view.h>
 
+#include <fstream>
 #include <memory>
 #include <string>
 
@@ -29,6 +30,22 @@
 
 namespace cinn {
 namespace backends {
+
+class SourceCodePrint {
+ public:
+  static SourceCodePrint* GetInstance() {
+    static SourceCodePrint print;
+    return &print;
+  }
+
+  void write(const std::string& source_code);
+
+ private:
+  SourceCodePrint();
+  ~SourceCodePrint();
+
+  std::ofstream of;
+};
 
 class Compiler final {
  public:

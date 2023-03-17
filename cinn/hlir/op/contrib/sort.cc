@@ -250,14 +250,16 @@ std::shared_ptr<framework::OpStrategy> StrategyForArgSort(const framework::NodeA
             << ", output_shapes: " << utils::Join(output_shapes[0], ", ");
     auto tensor_name = UniqName("ArgSort_out");
     if (FLAGS_cinn_ir_schedule) {
-      CHECK_EQ(pack_args.size(), 2U);
+      CHECK_EQ(pack_args.size(), 3U);
       CHECK(pack_args[1].is_string());
       tensor_name = pack_args[1].operator std::string();
     }
     auto out = ArgSort(tensor_A, target, stages, axis, is_ascend, tensor_name);
     std::vector<CINNValue> res;
     stages->InsertLazily(out.at(0));
+    stages->InsertLazily(out.at(1));
     res.push_back(CINNValue(out.at(0)));
+    res.push_back(CINNValue(out.at(1)));
     CHECK(!out_type.empty()) << "Output type of ArgSort is empty! Please check.\n";
     res.push_back(CINNValue(stages));
     *ret = CINNValuePack{res};
@@ -281,7 +283,8 @@ std::shared_ptr<framework::OpStrategy> StrategyForArgSort(const framework::NodeA
       auto blocks = ir_sch.GetAllBlocks();
       // TODO: remove external calls, do not use local variables, because
       // the size will exceed the limit.
-      ir_sch.SetBuffer(blocks[0], "local");
+      // TODO: There is a bug, setting buffer to "local" here will cause the var declared twice at CodeGen.
+      // ir_sch.SetBuffer(blocks[0], "local");
       long prod_size = std::accumulate(output_shapes[0].begin(), output_shapes[0].end(), 1, std::multiplies<int>());
       if (prod_size > 1 && target.arch == Target::Arch::X86) {
         pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target, true);
@@ -323,9 +326,25 @@ std::vector<Type> InferDtypeForSort(const std::vector<Type> &inputs_type, const 
   return res;
 }
 
+std::vector<std::vector<int>> InferShapeForArgSort(const std::vector<std::vector<int>> &inputs_shape,
+                                                   const framework::AttrMapType &attrs) {
+  CHECK_EQ(inputs_shape.size(), 1UL) << "The input's shape size should be 1! Please check again.";
+  int axis = 0;
+  for (auto &iter : attrs) {
+    if (iter.first == "axis") {
+      axis = absl::get<int>(iter.second);
+      break;
+    }
+  }
+  CHECK_GT(inputs_shape[0].size(), axis) << "The input's dim should be greater than axis! ";
+  std::vector<std::vector<int>> res{inputs_shape[0], inputs_shape[0]};
+
+  return res;
+}
+
 std::vector<Type> InferDtypeForArgSort(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_type.size(), 1UL) << "The input's type size should be 1! Please check again.";
-  return {Int(32)};
+  return {Int(32), Int(32)};
 }
 
 std::vector<std::vector<int>> InferShapeForTopK(const std::vector<std::vector<int>> &inputs_shape,
@@ -371,9 +390,9 @@ CINN_REGISTER_HELPER(sort_ops) {
   CINN_REGISTER_OP(argsort)
       .describe("Sort a variable x along the given axis and return indices.")
       .set_num_inputs(1)
-      .set_num_outputs(1)
+      .set_num_outputs(2)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForArgSort)
-      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForSort))
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForArgSort))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForArgSort))
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kNonFusible)
       .set_support_level(4);
