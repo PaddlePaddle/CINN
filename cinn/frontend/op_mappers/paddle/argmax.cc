@@ -48,7 +48,8 @@ void ArgMaxOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
     ndim = x->shape.size();
   }
   auto out = ctx.Builder()->Argmax(x, axis, keepdims);
-  out      = ctx.Builder()->Cast(out, dtype);
+  std::cout << "out :" << out << std::endl;
+  out = ctx.Builder()->Cast(out, dtype);
 
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);
