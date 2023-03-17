@@ -63,9 +63,15 @@ Tensor Argmax(const Tensor &in_tensor,
   }
   CHECK_LT(pos_axis, ndim) << "Axis must be less than tensor's dim";
   CHECK_GE(pos_axis, 0) << "Axis must be more than 0";
-
+  std::cout << "shape: " << shape.size() << std::endl;
+  for (auto i : shape) {
+    std::cout << i << std::endl;
+  }
+  std::cout << "axis: " << axis << std::endl;
   std::vector<Expr> output_shape;
   for (int i = 0; i < shape.size(); ++i) {
+    std::cout << "circle index: " << i << std::endl;
+    std::cout << "for range output_shape: " << output_shape.size() << std::endl;
     CHECK(shape[i].is_constant()) << "Input tensor's shape should be constant value.";
     if (axis == i) {
       if (keep_dims) {
