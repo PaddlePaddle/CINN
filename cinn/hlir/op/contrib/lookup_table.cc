@@ -81,7 +81,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForLookupTable(const framework::N
   std::string op_name("lookup_table");
   const auto& attr_store = attrs.attr_store;
   CHECK(attr_store.count("padding_idx")) << "find no attr of axis";
-  auto padding_idx = absl::get<int32_t>(attr_store.at("padding_idx"));
+  auto padding_idx = absl::get<int64_t>(attr_store.at("padding_idx"));
 
   framework::CINNCompute lookup_table_compute([=](lang::Args args, lang::RetValue* ret) {
     CHECK(!args.empty()) << "The input arguments of " << op_name << " compute is empty! Please check.\n";
