@@ -32,7 +32,7 @@ void ClipOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
     auto min_val_name   = op_desc.Input("Min").front();
     auto min_val_tensor = ctx.GetVar(min_val_name);
     CHECK_EQ(x->type, min_val_tensor->type) << "The input X and Min should have the same type";
-    CHECK_EQ(min_val_tensor->shape.size(), 1UL);
+    CHECK(min_val_tensor->shape, utils::ShapeType{1}) << "The [Min] tensor shape of clip op should be [1], but here [" << cinn::utils::Join(min_val_tensor->shape, ", ") << "]";
     min_val_tensor = builder->BroadcastTo(min_val_tensor, x->shape);
     x              = builder->Max(x, min_val_tensor);
   } else if (op_desc.HasAttr("min")) {
