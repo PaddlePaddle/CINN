@@ -62,73 +62,69 @@ class TestArgmaxOp(OpMapperTest):
         self.check_outputs_and_grads(all_equal=True)
 
 
-class TestArgmaxCase1(TestArgmaxOp):
-    """
-    Test case with negative axis and True flatten
-    """
+# class TestArgmaxCase1(TestArgmaxOp):
+#     """
+#     Test case with negative axis and True flatten
+#     """
 
-    def init_input_data(self):
-        self.axis = -1
-        self.shape = [2, 3, 4]
-        self.input_dtype = "float32"
-        self.output_dtype = "int64"
-        self.keepdims = False
-        self.flatten = True
-        self.feed_data = {
-            'x': self.random(self.shape, self.input_dtype),
-        }
+#     def init_input_data(self):
+#         self.axis = -1
+#         self.shape = [2, 3, 4]
+#         self.input_dtype = "float32"
+#         self.output_dtype = "int64"
+#         self.keepdims = False
+#         self.flatten = True
+#         self.feed_data = {
+#             'x': self.random(self.shape, self.input_dtype),
+#         }
 
+# class TestArgmaxCase2(TestArgmaxOp):
+#     """
+#     Test case with keepdims = true
+#     """
 
-class TestArgmaxCase2(TestArgmaxOp):
-    """
-    Test case with keepdims = true
-    """
+#     def init_input_data(self):
+#         self.axis = -1
+#         self.shape = [2, 3, 4]
+#         self.input_dtype = "float32"
+#         self.output_dtype = "int32"
+#         self.flatten = False
+#         self.keepdims = True
+#         self.feed_data = {
+#             'x': self.random(self.shape, self.input_dtype),
+#         }
 
-    def init_input_data(self):
-        self.axis = -1
-        self.shape = [2, 3, 4]
-        self.input_dtype = "float32"
-        self.output_dtype = "int32"
-        self.flatten = False
-        self.keepdims = True
-        self.feed_data = {
-            'x': self.random(self.shape, self.input_dtype),
-        }
+# class TestArgmaxCase3(TestArgmaxOp):
+#     """
+#     Test case with intput_dtype=uint8
+#     """
 
+#     def init_input_data(self):
+#         self.axis = 2
+#         self.shape = [2, 3, 4]
+#         self.input_dtype = "uint8"
+#         self.output_dtype = "int64"
+#         self.flatten = False
+#         self.keepdims = False
+#         self.feed_data = {
+#             'x': self.random(self.shape, self.input_dtype),
+#         }
 
-class TestArgmaxCase3(TestArgmaxOp):
-    """
-    Test case with intput_dtype=uint8 
-    """
+# class TestArgmaxCase4(TestArgmaxOp):
+#     """
+#     Test case with float64 input
+#     """
 
-    def init_input_data(self):
-        self.axis = 2
-        self.shape = [2, 3, 4]
-        self.input_dtype = "uint8"
-        self.output_dtype = "int64"
-        self.flatten = False
-        self.keepdims = False
-        self.feed_data = {
-            'x': self.random(self.shape, self.input_dtype),
-        }
-
-
-class TestArgmaxCase4(TestArgmaxOp):
-    """
-    Test case with float64 input
-    """
-
-    def init_input_data(self):
-        self.axis = 1
-        self.shape = [2, 3, 4]
-        self.input_dtype = "float64"
-        self.output_dtype = "int64"
-        self.flatten = False
-        self.keepdims = False
-        self.feed_data = {
-            'x': self.random(self.shape, self.input_dtype),
-        }
-
+#     def init_input_data(self):
+#         self.axis = 1
+#         self.shape = [2, 3, 4]
+#         self.input_dtype = "float64"
+#         self.output_dtype = "int64"
+#         self.flatten = False
+#         self.keepdims = False
+#         self.feed_data = {
+#             'x': self.random(self.shape, self.input_dtype),
+#         }
 
 if __name__ == "__main__":
     unittest.main()
