@@ -54,8 +54,6 @@ Tensor Argmax(const Tensor &in_tensor,
   auto shape = in_tensor->shape;
   auto ndim  = shape.size();
   CHECK_GT(ndim, 0) << "tensor's dim must be more than 0";
-  std::cout << "enter argmax: " << std::endl;
-  std::cout << ndim << std::endl;
 
   int pos_axis = axis;
   if (axis < 0) {
@@ -63,11 +61,7 @@ Tensor Argmax(const Tensor &in_tensor,
   }
   CHECK_LT(pos_axis, ndim) << "Axis must be less than tensor's dim";
   CHECK_GE(pos_axis, 0) << "Axis must be more than 0";
-  std::cout << "shape: " << shape.size() << std::endl;
-  for (auto i : shape) {
-    std::cout << i << std::endl;
-  }
-  std::cout << "axis: " << axis << std::endl;
+
   std::vector<Expr> output_shape;
   for (int i = 0; i < shape.size(); ++i) {
     CHECK(shape[i].is_constant()) << "Input tensor's shape should be constant value.";
@@ -78,35 +72,24 @@ Tensor Argmax(const Tensor &in_tensor,
     } else {
       output_shape.push_back(shape[i]);
     }
-    std::cout << "circle index: " << i << std::endl;
-    std::cout << "for range output_shape: " << output_shape.size() << std::endl;
   }
   if (output_shape.empty()) {
     output_shape.push_back(Expr(1));
   }
-  std::cout << "output_shape: " << output_shape.size() << std::endl;
-  for (auto i : output_shape) {
-    std::cout << i << std::endl;
-  }
+
   auto sort_index = ArgSort(in_tensor, target, stages, pos_axis, false, name + "_index").at(0);
   auto res        = Compute(
       output_shape,
       [=](const std::vector<Expr> &indices) {
         std::vector<Expr> eval_indices(indices);
-        if (keep_dims) {
+        if (!keep_dims) {
           eval_indices.insert(eval_indices.begin() + pos_axis, Expr(0));
         } else {
           eval_indices[pos_axis] = Expr(0);
         }
-        std::cout << "eval_indices " << std::endl;
-        for (auto i : eval_indices) {
-          std::cout << i << std::endl;
-        }
-        std::cout << sort_index << std::endl;
         return sort_index(eval_indices);
       },
       name);
-
   stages->InsertLazily(sort_index);
   return res;
 }
