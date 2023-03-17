@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import paddle
+import random
 import unittest
 from op_mapper_test import OpMapperTest
 
@@ -22,8 +23,10 @@ from op_mapper_test import OpMapperTest
 class TestClipOp(OpMapperTest):
     def init_input_data(self):
         self.feed_data = {
-            'x': self.random([2], "float32"),
+            'x': self.random([2], "float32", -1.0, 1.0),
         }
+        self.min_val = -random.random()
+        self.max_val = random.random()
 
     def set_op_type(self):
         return "clip"
@@ -36,7 +39,7 @@ class TestClipOp(OpMapperTest):
         return {'X': [x]}
 
     def set_op_attrs(self):
-        return {"min": -0.2, "max": 0.2}
+        return {"min": self.min_val, "max": self.max_val}
 
     def set_op_outputs(self):
         return {'Out': [str(self.feed_data['x'].dtype)]}
@@ -48,30 +51,38 @@ class TestClipOp(OpMapperTest):
 class TestClipOp2D(TestClipOp):
     def init_input_data(self):
         self.feed_data = {
-            'x': self.random([2, 3], "float32"),
+            'x': self.random([2, 3], "float32", -1.0, 1.0),
         }
+        self.min_val = -random.random()
+        self.max_val = random.random()
 
 
 class TestClipOp3D(TestClipOp):
     def init_input_data(self):
         self.feed_data = {
-            'x': self.random([2, 3, 4], "float32"),
+            'x': self.random([2, 3, 4], "float32", -1.0, 1.0),
         }
+        self.min_val = -random.random()
+        self.max_val = random.random()
 
 
 class TestClipOp4D(TestClipOp):
     def init_input_data(self):
         self.feed_data = {
-            'x': self.random([2, 3, 4, 5], "float32"),
+            'x': self.random([2, 3, 4, 5], "float32", -1.0, 1.0),
         }
+        self.min_val = -random.random()
+        self.max_val = random.random()
 
 
 class TestClipOpMaxTensor(TestClipOp):
     def init_input_data(self):
         self.feed_data = {
-            'x': self.random([2, 3, 4], "float32"),
+            'x': self.random([2, 3, 4], "float32", -1.0, 1.0),
             'max_input': self.random([1], "float32")
         }
+        self.min_val = -random.random()
+        self.max_val = random.random()
 
     def set_op_inputs(self):
         x = paddle.static.data(
@@ -84,24 +95,35 @@ class TestClipOpMaxTensor(TestClipOp):
             dtype=self.feed_data['max_input'].dtype)
         return {'X': [x], 'Max': [max_input]}
 
-    def set_op_attrs(self):
-        return {"min": 0.0, "max": 1.0}
 
-
-class TestClipOpMinTensorInt32(TestClipOpMaxTensor):
+class TestClipOpMaxTensorInt32(TestClipOpMaxTensor):
     def init_input_data(self):
         self.feed_data = {
             'x': self.random([2, 3, 4], "int32"),
             'max_input': self.random([1], "int32")
         }
+        self.min_val = -random.random()
+        self.max_val = random.random()
 
 
-class TestClipOpMinTensorFloat64(TestClipOpMaxTensor):
+class TestClipOpMaxTensorFloat64(TestClipOpMaxTensor):
     def init_input_data(self):
         self.feed_data = {
             'x': self.random([2, 3, 4], "float64"),
             'max_input': self.random([1], "float64")
         }
+        self.min_val = -random.random()
+        self.max_val = random.random()
+
+
+class TestClipOpMaxTensorTypeCast(TestClipOpMaxTensor):
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([2, 3, 4], "float64"),
+            'max_input': self.random([1], "float32")
+        }
+        self.min_val = -random.random()
+        self.max_val = random.random()
 
 
 class TestClipOpMinTensor(TestClipOp):
@@ -110,6 +132,8 @@ class TestClipOpMinTensor(TestClipOp):
             'x': self.random([2, 3, 4], "float32"),
             'min_input': self.random([1], "float32")
         }
+        self.min_val = -random.random()
+        self.max_val = random.random()
 
     def set_op_inputs(self):
         x = paddle.static.data(
@@ -132,6 +156,8 @@ class TestClipOpMinTensorInt32(TestClipOpMinTensor):
             'x': self.random([2, 3, 4], "int32"),
             'min_input': self.random([1], "int32")
         }
+        self.min_val = -random.random()
+        self.max_val = random.random()
 
 
 class TestClipOpMinTensorFloat64(TestClipOpMinTensor):
@@ -140,6 +166,18 @@ class TestClipOpMinTensorFloat64(TestClipOpMinTensor):
             'x': self.random([2, 3, 4], "float64"),
             'min_input': self.random([1], "float64")
         }
+        self.min_val = -random.random()
+        self.max_val = random.random()
+
+
+class TestClipOpMinTensorTypeCast(TestClipOpMinTensor):
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([2, 3, 4], "float64"),
+            'min_input': self.random([1], "float32")
+        }
+        self.min_val = -random.random()
+        self.max_val = random.random()
 
 
 class TestClipOpFloat64(TestClipOp):
@@ -147,6 +185,8 @@ class TestClipOpFloat64(TestClipOp):
         self.feed_data = {
             'x': self.random([2, 3, 4], "float64"),
         }
+        self.min_val = -random.random()
+        self.max_val = random.random()
 
 
 class TestClipOpInt32(TestClipOp):
@@ -154,6 +194,8 @@ class TestClipOpInt32(TestClipOp):
         self.feed_data = {
             'x': self.random([2, 3, 4], "int32", low=0, high=10),
         }
+        self.min_val = -random.random()
+        self.max_val = random.random()
 
     def set_op_attrs(self):
         return {"min": 3.0, "max": 7.0}
@@ -170,22 +212,9 @@ class TestClipOpInt64(TestClipOpInt32):
         self.feed_data = {
             'x': self.random([2, 3, 4], "int64", low=0, high=10),
         }
+        self.min_val = -random.random()
+        self.max_val = random.random()
 
-
-# class TestClipOpNoMax(TestClipOp):
-
-#     def set_op_attrs(self):
-#         return {"min": -0.2}
-
-# class TestClipOpNoMin(TestClipOp):
-
-#     def set_op_attrs(self):
-#         return {"max": 0.2}
-
-# class TestClipOpNoMaxmin(TestClipOp):
-
-#     def set_op_attrs(self):
-#         return {}
 
 if __name__ == "__main__":
     unittest.main()
