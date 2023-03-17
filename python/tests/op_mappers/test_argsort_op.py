@@ -20,70 +20,36 @@ from op_mapper_test import OpMapperTest, logger
 import paddle
 
 
-class TestCompareOp(OpMapperTest):
+class TestArgSortOp(OpMapperTest):
     def init_input_data(self):
         self.feed_data = {
-            'x': self.random([32, 64], "float32", -10, 10),
-            'y': self.random([32, 64], "float32", -10, 10),
+            'x': self.random([3, 4], "float32"),
         }
+        print("x = ", self.feed_data)
+        self.axis = 1
 
     def set_op_type(self):
-        return "equal"
+        return "argsort"
 
     def set_op_inputs(self):
         x = paddle.static.data(
             name='x',
             shape=self.feed_data['x'].shape,
             dtype=self.feed_data['x'].dtype)
-        y = paddle.static.data(
-            name='y',
-            shape=self.feed_data['y'].shape,
-            dtype=self.feed_data['y'].dtype)
-        return {'X': [x], 'Y': [y]}
+        return {'X': [x]}
 
     def set_op_attrs(self):
-        return {"axis": -1}
+        return {'axis': self.axis}
 
     def set_op_outputs(self):
-        return {'Out': ['bool']}
+        return {'Out': ['int64'], 'Indices': ['int64']}
+
+    def skip_check_outputs(self):
+        #'Out' is never used in Paddle API
+        return {"Out"}
 
     def test_check_results(self):
         self.check_outputs_and_grads()
-
-
-class TestEqualOp(TestCompareOp):
-    def set_op_type(self):
-        return "equal"
-
-
-class TestNotEqualOp(TestCompareOp):
-    def set_op_type(self):
-        return "not_equal"
-
-
-class TestGreaterEqualOp(TestCompareOp):
-    def set_op_type(self):
-        return "greater_equal"
-
-
-class TestGreaterThanOp(TestCompareOp):
-    def set_op_type(self):
-        return "greater_than"
-
-
-class TestLessEqualOp(TestCompareOp):
-    def set_op_type(self):
-        return "less_equal"
-
-
-class TestLessThanOp(TestCompareOp):
-    def set_op_type(self):
-        return "less_than"
-
-
-class TestAxisCase(TestCompareOp):
-    def set_op_attrs(self):
-        return {"axis": 0}
 
 
 if __name__ == "__main__":

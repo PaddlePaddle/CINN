@@ -15,6 +15,8 @@
 #include "cinn/ir/ir_printer.h"
 
 #include <algorithm>
+#include <iomanip>
+#include <limits>
 #include <vector>
 
 #include "cinn/ir/lowered_func.h"
@@ -71,15 +73,16 @@ void IrPrinter::Visit(const FloatImm *x) {
     } else if (std::isnan(x->value)) {
       os_ << "cinn::common::raw_uint16_to_float16(0x7e00)";
     } else {
-      os_ << "(float16)" << static_cast<float16>(x->value) << "f";
+      os_ << "(float16)" << std::setprecision(std::numeric_limits<float16>::max_digits10)
+          << static_cast<float16>(x->value) << "f";
     }
   } else if (x->type().is_float(32)) {
-    os_ << std::showpoint << x->value;
+    os_ << std::setprecision(std::numeric_limits<float>::max_digits10) << std::showpoint << x->value;
     if (std::isfinite(x->value)) {
       os_ << "f";
     }
   } else if (x->type().is_float(64)) {
-    os_ << std::showpoint << x->value;
+    os_ << std::setprecision(std::numeric_limits<double>::max_digits10) << std::showpoint << x->value;
   } else {
     LOG(FATAL) << "Not support float type: " << x->type();
   }

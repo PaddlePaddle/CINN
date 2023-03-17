@@ -33,7 +33,12 @@ namespace pass {
        (*instr)->op_type = "fill_constant"; \
        (*instr)->inputs.clear(); \
        (*instr)->attrs = fill_constant->attrs; \
-       (*instr)->attrs["value"] = std::op_name(fill_constant.GetAttrs<float>("value")); \
+       const auto& attr = fill_constant->attrs.at("value"); \
+       if (absl::get_if<float>(&attr)) (*instr)->attrs["value"] = std::op_name(absl::get<float>(attr)); \
+       else if (absl::get_if<double>(&attr)) (*instr)->attrs["value"] = std::op_name(absl::get<double>(attr)); \
+       else if (absl::get_if<int>(&attr)) (*instr)->attrs["value"] = std::op_name(absl::get<int>(attr)); \
+       else if (absl::get_if<int64_t>(&attr)) (*instr)->attrs["value"] = std::op_name(absl::get<int64_t>(attr)); \
+       else LOG(FATAL) << "fill_constant Only support float32/float64/int32/int64"; \
      } \
   }
 

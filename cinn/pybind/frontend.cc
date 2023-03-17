@@ -500,6 +500,15 @@ void BindFrontend(pybind11::module *m) {
            py::arg("name"),
            py::arg("dtype"),
            py::arg("force_cpu") = false)
+      .def("fill_constant",
+           static_cast<Variable (NetBuilder::*)(
+               const std::vector<int> &, const std::string &, const std::string &, const std::string &, bool)>(
+               &NetBuilder::FillConstant),
+           py::arg("shape"),
+           py::arg("value"),
+           py::arg("name"),
+           py::arg("dtype"),
+           py::arg("force_cpu") = false)
       .def("broadcast_to",
            static_cast<Variable (NetBuilder::*)(const Variable &, const std::vector<int> &)>(&NetBuilder::BroadcastTo),
            py::arg("x"),
@@ -710,7 +719,6 @@ void BindFrontend(pybind11::module *m) {
            py::arg("max")   = 1.0f,
            py::arg("seed")  = 0,
            py::arg("dtype") = "float32")
-      .def("norm", &NetBuilder::Norm, py::arg("x"), py::arg("axis") = -1, py::arg("epsilon") = 1e-12f)
       .def("cholesky", &NetBuilder::Cholesky, py::arg("x"), py::arg("upper") = false)
       .def("triangular_solve",
            &NetBuilder::TriangularSolve,

@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "cinn/frontend/paddle/cpp/op_desc.h"
+#include "cinn/utils/functional.h"
 #include "cinn/utils/type_defs.h"
 
 namespace cinn {
@@ -133,17 +134,6 @@ inline cinn::utils::ShapeType ToShapeType(const std::vector<T>& shape) {
 template <typename T>
 inline cinn::utils::DimType ToDimType(const T& val) {
   return static_cast<cinn::utils::DimType>(val);
-}
-
-inline std::vector<int> GetPositiveAxes(const std::vector<int>& axes, int rank) {
-  std::vector<int> new_axes(axes.size());
-  for (int i = 0; i < axes.size(); ++i) {
-    int axis = axes[i] + (axes[i] < 0 ? rank : 0);
-    CHECK(axis >= 0 && axis < rank) << "The axis should in [0, " << rank << "), but axes[" << i << "]=" << axes[i]
-                                    << " not.";
-    new_axes[i] = axis;
-  }
-  return new_axes;
 }
 
 }  // namespace utils

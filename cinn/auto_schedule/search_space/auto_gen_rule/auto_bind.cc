@@ -24,7 +24,7 @@
 namespace cinn {
 namespace auto_schedule {
 
-static constexpr uint32_t kMaxThreadBlocks = 256;
+static constexpr uint32_t kMaxBlocks = 256;
 // check whether the input ir::For is a spatial loop
 bool IsSpatialLoop(const ir::For* for_node) {
   if (for_node->for_type() != ir::ForType::Serial) return false;
@@ -79,8 +79,8 @@ int CountLoopCanBinded(const ir::For* for_node) {
 void BindGPUIndex(ir::IRSchedule* ir_schedule,
                   const std::string& block_name,
                   int num_loops_to_bind,
-                  int max_blocks_num,
-                  int max_threads_num) {
+                  int max_blocks,
+                  int max_threads_per_block) {
   auto all_loops = ir_schedule->GetLoops(block_name);
   CHECK_LE(num_loops_to_bind, all_loops.size()) << "The number of loops to be bind is greater than size of all_loops";
   // check whether it is the case that threadIdx has been binded but blockIdx not,
@@ -95,18 +95,18 @@ void BindGPUIndex(ir::IRSchedule* ir_schedule,
     return;
   }
 
-  if (extent <= max_threads_num) {
+  if (extent <= max_threads_per_block) {
     ir_schedule->Bind(fused_loop, "threadIdx.x");
     return;
   }
 
-  if (extent <= max_blocks_num * max_threads_num) {
-    auto splits = ir_schedule->Split(fused_loop, {-1, max_threads_num});
+  if (extent <= max_blocks * max_threads_per_block) {
+    auto splits = ir_schedule->Split(fused_loop, {-1, max_threads_per_block});
     CHECK_EQ(splits.size(), 2);
     ir_schedule->Bind(splits[0], "blockIdx.x");
     ir_schedule->Bind(splits[1], "threadIdx.x");
   } else {
-    auto splits = ir_schedule->Split(fused_loop, {-1, max_blocks_num, max_threads_num});
+    auto splits = ir_schedule->Split(fused_loop, {-1, max_blocks, max_threads_per_block});
     CHECK_EQ(splits.size(), 3);
     ir_schedule->Reorder({splits[1], splits[2], splits[0]});
     all_loops = ir_schedule->GetLoops(block_name);
@@ -136,7 +136,7 @@ void AutoBind::Apply(int index) {
   BindGPUIndex(ir_schedule_,
                applied_block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->name,
                CountLoopCanBinded(all_loops[0].As<ir::For>()),
-               kMaxThreadBlocks,
+               kMaxBlocks,
                target_->max_num_threads());
   return;
 }
@@ -154,7 +154,7 @@ std::vector<SearchState> AutoBind::ApplyOnBlock(SearchState state, const std::st
   BindGPUIndex(&new_state->ir_schedule,
                block_name,
                CountLoopCanBinded(all_loops[0].As<ir::For>()),
-               kMaxThreadBlocks,
+               kMaxBlocks,
                target_->max_num_threads());
   return {new_state};
 }

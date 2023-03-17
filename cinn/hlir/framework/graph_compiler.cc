@@ -760,6 +760,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
 
     parallel_compiler_ = std::make_shared<ParallelCompiler>(scope_, graph_, option, target_);
     auto instructions  = (*parallel_compiler_.get())();
+    graph_->VisualizeGroupedGraph(fetch_var_ids);
 
     if (options.remove_unused_variables) {
       RemoveInvalidVariables(instructions);

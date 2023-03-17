@@ -25,6 +25,7 @@
 #include "cinn/hlir/pe/nn.h"
 #include "cinn/hlir/pe/schedule.h"
 #include "cinn/ir/ir_operators.h"
+#include "cinn/utils/functional.h"
 
 DECLARE_bool(cinn_ir_schedule);
 
@@ -331,6 +332,7 @@ std::vector<shape_t> InferShapeForFillConstant(const std::vector<shape_t> &input
 
 std::vector<Type> InferDtypeForFillConstant(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   common::Type out_type;
+  CHECK(attrs.count("value"));
   if (attrs.find("dtype") != attrs.end()) {
     // attribute [dtype] are given
     auto dtype_str = absl::get<std::string>(attrs.at("dtype"));
@@ -338,7 +340,6 @@ std::vector<Type> InferDtypeForFillConstant(const std::vector<Type> &inputs_type
     VLOG(3) << "FillConstant output dtype (from [dtype]): " << dtype_str;
   } else {
     // attribute [dtype] no given, infered by value's type
-    CHECK(attrs.count("value"));
     auto scalar = GetScalarExpr(attrs.at("value"));
     out_type    = scalar->type();
     VLOG(3) << "FillConstant scalar type (from [vaule]): " << common::Type2Str(out_type);
@@ -571,7 +572,7 @@ std::vector<std::vector<int>> InferShapeForSqueeze(const std::vector<std::vector
       attrs.count("axes") ? absl::get<std::vector<int>>(attrs.at("axes")) : std::vector<int>{};
   VLOG(4) << "The [axis] value used in Squeeze: " << cinn::utils::Join(axes, ",");
 
-  const auto &posi_axes = GetPositiveAxes(axes, inputs_shape[0].size());
+  const auto &posi_axes = utils::GetPositiveAxes(axes, inputs_shape[0].size());
   std::vector<int> output_shape;
   if (posi_axes.size()) {
     for (int idx = 0; idx < inputs_shape[0].size(); ++idx) {
@@ -641,7 +642,7 @@ std::vector<std::vector<int>> InferShapeForExpandDims(const std::vector<std::vec
   VLOG(4) << "The [axes] value used in ExpandDims: " << cinn::utils::Join(axes, ",");
 
   std::vector<int> out_shape(inputs_shape[0].size() + axes.size(), 1);
-  const auto &posi_axes = GetPositiveAxes(axes, out_shape.size());
+  const auto &posi_axes = utils::GetPositiveAxes(axes, out_shape.size());
 
   int shape_pos = 0, axes_pos = 0;
   for (int i = 0; i < out_shape.size(); ++i) {

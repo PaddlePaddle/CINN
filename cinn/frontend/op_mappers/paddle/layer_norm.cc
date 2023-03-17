@@ -59,9 +59,8 @@ void LayerNormOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
     bias = ctx.GetVar(*bias_name);
   }
 
-  VLOG(4) << "layer_norm X=" << x_name << "[" << cinn::utils::Join(x->shape, ",") << "], Scale=" << scale_name.value()
-          << "[" << cinn::utils::Join(scale.value()->shape, ",") << "], Bias=" << bias_name.value() << "["
-          << cinn::utils::Join(bias.value()->shape, ",") << "], epsilon=" << epsilon
+  VLOG(4) << "layer_norm X=" << x_name << "[" << x << "], Scale=" << scale_name.value() << "[" << scale.value()
+          << "], Bias=" << bias_name.value() << "[" << bias.value() << "], epsilon=" << epsilon
           << ", begin_norm_axis=" << begin_norm_axis;
 
   const auto& x_shape = x->shape;
@@ -111,24 +110,30 @@ void LayerNormOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
   auto x_var_sqrt = builder->Sqrt(x_var_eps);
   auto y_out      = builder->Divide(y_sub, builder->BroadcastTo(x_var_sqrt, shape, {0}));
 
-  if (x_type.is_float(16)) {
-    y_out = builder->Cast(y_out, "float16");
-  }
-
   // multiply scale
   if (scale) {
+    if (scale.value()->type.is_float(16)) {
+      scale = ctx.Builder()->Cast(scale.value(), "float32");
+    }
     auto scale_broadcast = builder->BroadcastTo(*scale, shape, {1});
     y_out                = builder->Multiply(y_out, scale_broadcast);
   }
 
   // add bias
   if (bias) {
+    if (bias.value()->type.is_float(16)) {
+      bias = ctx.Builder()->Cast(bias.value(), "float32");
+    }
     auto bias_broadcast = builder->BroadcastTo(*bias, shape, {1});
     y_out               = builder->Add(y_out, bias_broadcast);
   }
 
   // reshape to the original shape
   y_out = builder->Reshape(y_out, x_shape);
+
+  if (x_type.is_float(16)) {
+    y_out = builder->Cast(y_out, "float16");
+  }
 
   // get output names
   auto y_name        = get_output("Y");
