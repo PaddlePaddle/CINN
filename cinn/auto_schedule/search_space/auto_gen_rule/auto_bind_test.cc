@@ -22,8 +22,8 @@
 #include <numeric>
 
 #include "cinn/auto_schedule/search_space/auto_gen_rule/test_helper.h"
-#include "cinn/auto_schedule/tests/test_op_builder.h"
 #include "cinn/ir/ir_printer.h"
+#include "tests/program_builder.h"
 
 namespace cinn {
 namespace auto_schedule {
@@ -38,7 +38,7 @@ class TestAutoBind : public TestAutoGenRuleBase {
 
   void TestApplyOnElementWiseAdd(const std::vector<int>& shape, const std::string& block_name) {
     Initialize(common::DefaultNVGPUTarget());
-    auto test_program = AddOpBuilder(shape, shape)();
+    auto test_program = tests::OpBuilder("elementwise_add").Build({{"X", shape}, {"Y", shape}});
     // construct input parameter
     ir::IRSchedule ir_schedule = MakeIRSchedule(test_program);
     SearchState state(ir_schedule, 0, {});
@@ -97,7 +97,7 @@ class TestAutoBind : public TestAutoGenRuleBase {
 
 TEST_F(TestAutoBind, AnalyseApplyType) {
   Initialize(common::DefaultNVGPUTarget());
-  ir::IRSchedule ir_schedule = MakeIRSchedule(MatmulOpBuilder({32, 64}, {64, 32})());
+  ir::IRSchedule ir_schedule = MakeIRSchedule(tests::OpBuilder("matmul").Build({{"X", {32, 64}}, {"Y", {64, 32}}}));
   SearchState state(ir_schedule, 0, {});
   AutoBind auto_bind(target_);
   const std::string& applied_block_name = default_output_names.back();
