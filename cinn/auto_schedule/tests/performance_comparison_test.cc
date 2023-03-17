@@ -265,12 +265,12 @@ TEST_F(PerformanceTester, Reshape) {
 }
 
 TEST_F(PerformanceTester, Softmax) {
-  int axis                = -1;
+  std::vector<int> axes   = {-1};
   std::string mode        = "fast";
   std::string data_format = "AnyLayout";
 
   Evaluate(tests::OpBuilder("softmax").Build({{"X", {batch_size, 1000}}},
-                                             {{"axis", axis}, {"mode", mode}, {"data_format", data_format}}));
+                                             {{"axes", axes}, {"mode", mode}, {"data_format", data_format}}));
 }
 
 TEST_F(PerformanceTester, Scale) {
