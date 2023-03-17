@@ -78,8 +78,10 @@ Tensor Argmax(const Tensor &in_tensor,
   if (output_shape.empty()) {
     output_shape.push_back(Expr(1));
   }
-  std::cout << "output_shape" << std::endl;
-  std::cout << output_shape << std::endl;
+  std::cout << "output_shape: " << output_shape.size() << std::endl;
+  for (auto i : output_shape) {
+    std::cout << i << std::endl;
+  }
   auto sort_index = ArgSort(in_tensor, target, stages, pos_axis, false, name + "_index").at(0);
   auto res        = Compute(
       output_shape,
@@ -91,7 +93,9 @@ Tensor Argmax(const Tensor &in_tensor,
           eval_indices[pos_axis] = Expr(0);
         }
         std::cout << "eval_indices " << std::endl;
-        std::cout << eval_indices << std::endl;
+        for (auto i : eval_indices) {
+          std::cout << i << std::endl;
+        }
         std::cout << sort_index << std::endl;
         return sort_index(eval_indices);
       },

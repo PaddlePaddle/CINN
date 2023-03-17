@@ -15,7 +15,6 @@
 #include "cinn/ir/tensor.h"
 
 #include <cstring>
-#include <iostream>
 
 #include "cinn/cinn.h"
 #include "cinn/common/arithmatic.h"
@@ -85,11 +84,6 @@ std::set<std::string> _Tensor_::GetDependTensorNames() const {
 Expr Tensor::operator()(const std::vector<Expr> &indices) const {
   CHECK(!self()->is_tuple()) << "should extract a specific value from the tuple and operate on that instead";
   auto *node = operator->();
-
-  std::cout << "indices size//" << std::endl;
-  std::cout << indices.size() << std::endl;
-  std::cout << "ndims()" << std::endl;
-  std::cout << ndims() << std::endl;
 
   CHECK_EQ(indices.size(), ndims()) << "number of indices not match the dimension";
 
