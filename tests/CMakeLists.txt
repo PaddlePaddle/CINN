@@ -1,3 +1,6 @@
+cc_library(test_program_builder SRCS program_builder.cc DEPS cinncore)
+target_compile_options(test_program_builder BEFORE PUBLIC -std=c++17)
+
 if (WITH_TESTING)
   include_directories(${CMAKE_SOURCE_DIR}/cinn/runtime)
   add_subdirectory(benchmark)
