@@ -41,6 +41,7 @@ void ArgMaxOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
   auto dtype      = common::Type2Str(dtype_cinn);
 
   std::cout << "get arg max all attr" << std::endl;
+  std::cout << axis << ' ' << keepdims << ' ' << flatten << ' ' << dtype << std::endl;
   int ndim = x->shape.size();
   // If flatten = true, flatten x and do argmax on axis 0.
   // if (flatten) {
