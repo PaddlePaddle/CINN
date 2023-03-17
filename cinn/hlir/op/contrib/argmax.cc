@@ -54,6 +54,8 @@ Tensor Argmax(const Tensor &in_tensor,
   auto shape = in_tensor->shape;
   auto ndim  = shape.size();
   CHECK_GT(ndim, 0) << "tensor's dim must be more than 0";
+  std::cout << "enter argmax: " << std::endl;
+  std::cout << ndim << std::endl;
 
   int pos_axis = axis;
   if (axis < 0) {
@@ -87,6 +89,9 @@ Tensor Argmax(const Tensor &in_tensor,
         } else {
           eval_indices[pos_axis] = Expr(0);
         }
+        std::cout << "eval_indices " << std::endl;
+        std::cout << eval_indices << std::endl;
+        std::cout << sort_index << std::endl;
         return sort_index(eval_indices);
       },
       name);
