@@ -23,6 +23,7 @@
 namespace cinn {
 namespace tests {
 
+// This struct packing data fields for variable constructor
 struct VariableInfo {
   std::string id;
   std::vector<int> shape;
@@ -31,27 +32,43 @@ struct VariableInfo {
       : id(name), shape(shape), type(dtype) {}
 };
 
+// This class define a general interface to build a frontend::Program easily for test usage,
+// developer can implement derived classes to build customized programs which may be reused
+// by others through specifying the detail of input variables and attributes
 class ProgramBuilder {
  public:
   ProgramBuilder(const std::string& name) : builder_(name) {}
 
+  /*
+   * \brief Build a frontend::Program with the input variables info and attributes
+   * @param input_varinfo The detail data fields of each input variable, input order should
+   *                      match their usage in override implement
+   * @param attrs The detail value of each input attributes, input order should
+   *                      match their usage in override implementdefinition
+   * @return The built program
+   */
   virtual frontend::Program Build(const std::vector<VariableInfo>& inputs_varinfo,
                                   const utils::AttributeMap& attrs) = 0;
 
+  // return the output variables
   const std::vector<frontend::Variable>& GetOutputs() const { return outputs_; }
 
  protected:
-  void AddOutput(frontend::Variable var) { outputs_.emplace_back(var); }
+  void AppendOutput(frontend::Variable var) { outputs_.emplace_back(var); }
 
   frontend::NetBuilder builder_;
-  common::Type dtype_;
   std::vector<frontend::Variable> outputs_;
 };
 
+// Build a frontend::Program which has only one operator
 class OpBuilder final : public ProgramBuilder {
  public:
+  /*
+   * @param op_name name of the built operator, you should lookup the name from its registry exactly
+   */
   OpBuilder(const std::string& op_name);
 
+  // the item order in `inputs_varinfo` and `attrs` should match their usage in the underlying operator
   frontend::Program Build(const std::vector<VariableInfo>& inputs_varinfo,
                           const utils::AttributeMap& attrs = {}) override;
 
@@ -59,8 +76,13 @@ class OpBuilder final : public ProgramBuilder {
   std::string op_name_;
 };
 
+// Build a frontend::Program by loading paddle model from local files
 class PaddleModelBuilder final : public ProgramBuilder {
  public:
+  /*
+   * @param model_path the path to local model files
+   * @param target device type
+   */
   PaddleModelBuilder(const std::string& model_path, const common::Target& target);
 
   frontend::Program Build(const std::vector<VariableInfo>& inputs_varinfo,
