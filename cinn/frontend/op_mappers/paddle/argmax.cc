@@ -30,6 +30,7 @@ void ArgMaxOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
   auto out_name = op_desc.Output("Out").front();
 
   auto x        = ctx.GetVar(x_name);
+  auto out      = ctx.GetVar(out_name);
   auto axis     = op_desc.GetAttr<int32_t>("axis");
   auto keepdims = op_desc.GetAttr<bool>("keepdims");
   auto flatten  = op_desc.GetAttr<bool>("flatten");
@@ -48,6 +49,7 @@ void ArgMaxOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
     x    = ctx.Builder()->Reshape(x, {-1});
     axis = 0;
     ndim = x->shape.size();
+    out  = ctx.Builder()->Reshape(out, {-1});
   }
   std::cout << "after flatten all attr" << std::endl;
   auto out = ctx.Builder()->Argmax(x, axis, keepdims);
