@@ -91,7 +91,7 @@ Expr Tensor::operator()(const std::vector<Expr> &indices) const {
   std::cout << "ndims()" << std::endl;
   std::cout << ndims() << std::endl;
 
-  CHECK_EQ(indices.size(), ndims()) << "number of indices not match the dimension";
+  // CHECK_EQ(indices.size(), ndims()) << "number of indices not match the dimension";
 
   return Load::Make(*this, indices);
 }

@@ -90,6 +90,7 @@ Tensor Argmax(const Tensor &in_tensor,
         return sort_index(eval_indices);
       },
       name);
+
   stages->InsertLazily(sort_index);
   return res;
 }
