@@ -75,6 +75,42 @@ class TestClipOp4D(TestClipOp):
         self.max_val = random.random()
 
 
+class TestClipOpSpecialCaseWithOne(TestClipOp):
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([2, 1, 4, 5], "float32", -1.0, 1.0),
+        }
+        self.min_val = -random.random()
+        self.max_val = random.random()
+
+
+class TestClipOpSpecialCaseAllOne(TestClipOp):
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([1, 1, 1, 1], "float32", -1.0, 1.0),
+        }
+        self.min_val = -random.random()
+        self.max_val = random.random()
+
+
+class TestClipOpSpecialCaseLessThan1024(TestClipOp):
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([2, 3, 512, 5], "float32", -1.0, 1.0),
+        }
+        self.min_val = -random.random()
+        self.max_val = random.random()
+
+
+class TestClipOpSpecialCaseGreaterThan1024(TestClipOp):
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([2, 3, 4, 2048], "float32", -1.0, 1.0),
+        }
+        self.min_val = -random.random()
+        self.max_val = random.random()
+
+
 class TestClipOpMaxTensor(TestClipOp):
     def init_input_data(self):
         self.feed_data = {
