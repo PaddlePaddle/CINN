@@ -52,7 +52,8 @@ std::vector<ir::Tensor> Argmax(const Tensor &in_tensor,
                                const bool &keep_dims,
                                const std::string &name) {
   auto shape = in_tensor->shape;
-  auto ndim  = shape.size();
+  std::cout << "shape: " << shape.size() << std::endl;
+  auto ndim = shape.size();
   CHECK_GT(ndim, 0) << "tensor's dim must be more than 0";
 
   int pos_axis = axis;
