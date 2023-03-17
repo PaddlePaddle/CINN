@@ -78,7 +78,9 @@ std::vector<ir::Tensor> Argmax(const Tensor &in_tensor,
   }
 
   auto sort_index = ArgSort(in_tensor, target, stages, pos_axis, false, name + "_index");
-  auto res        = Compute(
+  std::cout << "output_shape: " << output_shape.size() << std::endl;
+  std::cout << "sort_index: " << sort_index.size() << std::endl;
+  auto res = Compute(
       output_shape,
       [=](const std::vector<Expr> &indices) {
         std::vector<Expr> eval_indices(indices);
