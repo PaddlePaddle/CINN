@@ -16,12 +16,18 @@
 
 #include <memory>
 
+#include "cinn/optim/ir_simplify.h"
 #include "cinn/optim/optimize.h"
 
 namespace cinn {
 namespace ir {
 
-void Module::Builder::AddFunction(ir::LoweredFunc func) { module_->functions.push_back(func); }
+void Module::Builder::AddFunction(ir::LoweredFunc func) {
+  optim::Simplify(&(func->body));
+  optim::SimplifyLoopsAndBlock(&(func->body));
+  func->body = optim::Optimize(func->body, module_->target);
+  module_->functions.push_back(func);
+}
 
 void Module::Builder::AddBuffer(ir::Buffer buffer) {
   CHECK(buffer->target.defined()) << "buffer [" << buffer->name << "]'s target is undefined";

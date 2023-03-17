@@ -20,6 +20,7 @@
 
 #include "cinn/common/common.h"
 #include "cinn/ir/ir.h"
+#include "cinn/ir/ir_printer.h"
 #include "cinn/poly/domain_add_unit_loop_mutator.h"
 #include "cinn/poly/isl_utils.h"
 
@@ -535,9 +536,13 @@ void AddUnitLoopOfDomain(const isl::ast_node& node, const isl::set& domain, ir::
 
 void IslAstNodeToCinnExpr(const isl::ast_node& node, const isl::union_set& domain, ir::Expr* expr) {
   IslAstNodeToCinnExpr(node, expr);
+
   isl_set_list* set_list = isl_union_set_get_set_list(domain.get());
+  VLOG(6) << "After convert to CinnExpr, n = " << isl_set_list_n_set(set_list);
   for (int i = 0; i < isl_set_list_n_set(set_list); i++) {
     isl::set s = isl::manage(isl_set_list_get_set(set_list, i));
+    VLOG(6) << "i = " << i << ", s = " << s;
+    VLOG(6) << "expr = \n" << *expr;
     AddUnitLoopOfDomain(node, s, expr);
   }
 }

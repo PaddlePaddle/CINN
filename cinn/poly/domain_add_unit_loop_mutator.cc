@@ -29,11 +29,14 @@ DomainAddUnitLoopMutator::DomainAddUnitLoopMutator(const std::vector<std::string
     : dim_names_(dim_names), dim_min_max_(dim_min_max) {}
 
 void DomainAddUnitLoopMutator::operator()(ir::Expr* expr) {
+  VLOG(6) << "Before visit, expr =\n" << *expr;
   ir::IRMutator<>::Visit(expr, expr);
 
   // If the loop with length 1 is the most inner loop, Visit cannot find it
   // in deleted-length-1-loop expr. So we should check after visit
+  VLOG(6) << "Before MutateAfterVisit, expr =\n" << *expr;
   MutateAfterVisit(expr);
+  VLOG(6) << "Finish, expr=\n" << *expr;
 }
 
 void DomainAddUnitLoopMutator::Visit(const ir::For* op, Expr* expr) {
@@ -49,16 +52,25 @@ void DomainAddUnitLoopMutator::Visit(const ir::For* op, Expr* expr) {
                                          ir::ForType::Serial,
                                          node->device_api,
                                          ir::Block::Make({*expr}));
-
       if (parent_for_.empty()) {
         *expr = unit_loop;
-      } else {
+        parent_for_.push_back(unit_loop.As<ir::For>());
+        longest_loop_.push_back(unit_loop);
+        add_unit_loop = true;
+      } else if (parent_for_.back()->body.As<ir::For>() && parent_for_.back()->body == *expr) {
         parent_for_.back()->body = ir::Block::Make({unit_loop});
+        parent_for_.push_back(unit_loop.As<ir::For>());
+        longest_loop_.push_back(unit_loop);
+        add_unit_loop = true;
+      } else if (parent_for_.back()->body.As<ir::Block>()) {
+        ir::Block* body = parent_for_.back()->body.As<ir::Block>();
+        if (body->stmts.size() == 1 && body->stmts[0] == *expr) {
+          parent_for_.back()->body = ir::Block::Make({unit_loop});
+          parent_for_.push_back(unit_loop.As<ir::For>());
+          longest_loop_.push_back(unit_loop);
+          add_unit_loop = true;
+        }
       }
-      parent_for_.push_back(unit_loop.As<ir::For>());
-      longest_loop_.push_back(unit_loop);
-
-      add_unit_loop = true;
     }
   }
 
@@ -76,9 +88,11 @@ void DomainAddUnitLoopMutator::Visit(const ir::For* op, Expr* expr) {
 void DomainAddUnitLoopMutator::Visit(const ir::PolyFor* op, Expr* expr) {
   ir::PolyFor* node  = expr->As<ir::PolyFor>();
   bool add_unit_loop = false;
+  VLOG(6) << "Visiting PolyFor:\n" << *expr;
   if (parent_poly_for_.size() < dim_names_.size()) {
     std::string check_name      = dim_names_[parent_poly_for_.size()];
     std::tuple<int, int, int> t = dim_min_max_[parent_poly_for_.size()];
+    VLOG(6) << "check_name = " << check_name << ", loop range = [" << std::get<1>(t) << ", " << std::get<2>(t) << "]";
     if (!utils::Startswith(node->iterator->name, check_name) && (std::get<2>(t) - std::get<1>(t) == 0)) {
       ir::Expr unit_loop = ir::PolyFor::Make(ir::Var(check_name),
                                              ir::Expr(0),
@@ -90,20 +104,35 @@ void DomainAddUnitLoopMutator::Visit(const ir::PolyFor* op, Expr* expr) {
 
       if (parent_poly_for_.empty()) {
         *expr = unit_loop;
-      } else {
+        parent_poly_for_.push_back(unit_loop.As<ir::PolyFor>());
+        longest_loop_.push_back(unit_loop);
+        add_unit_loop = true;
+      } else if (parent_poly_for_.back()->body.As<ir::PolyFor>() && parent_poly_for_.back()->body == *expr) {
         parent_poly_for_.back()->body = ir::Block::Make({unit_loop});
+        parent_poly_for_.push_back(unit_loop.As<ir::PolyFor>());
+        longest_loop_.push_back(unit_loop);
+        add_unit_loop = true;
+      } else if (parent_poly_for_.back()->body.As<ir::Block>()) {
+        ir::Block* body = parent_poly_for_.back()->body.As<ir::Block>();
+        if (body->stmts.size() == 1 && body->stmts[0] == *expr) {
+          parent_poly_for_.back()->body = ir::Block::Make({unit_loop});
+          parent_poly_for_.push_back(unit_loop.As<ir::PolyFor>());
+          longest_loop_.push_back(unit_loop);
+          add_unit_loop = true;
+        }
       }
-      parent_poly_for_.push_back(unit_loop.As<ir::PolyFor>());
-      longest_loop_.push_back(unit_loop);
-
-      add_unit_loop = true;
     }
   }
 
+  VLOG(6) << "add_unit_loop = " << add_unit_loop;
   if (add_unit_loop) {
+    VLOG(6) << "Added unit loop, check before continue visiting, body = ";
+    VLOG(6) << parent_poly_for_.back()->body;
     ir::IRMutator<>::Visit(&(parent_poly_for_.back()->body), &(parent_poly_for_.back()->body));
     parent_poly_for_.pop_back();
   } else {
+    VLOG(6) << "Not added unit loop, check before continue visiting, body = ";
+    VLOG(6) << node->body;
     parent_poly_for_.push_back(node);
     longest_loop_.push_back(*expr);
     ir::IRMutator<>::Visit(&node->body, &node->body);

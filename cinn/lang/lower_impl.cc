@@ -95,6 +95,7 @@ Expr LowerGroup(const poly::ScheduleGroup& group,
   // add back, call poly::IslAstNodeToCinnExpr(ast, &e) instead of
   // poly::IslAstNodeToCinnExpr(ast, gen.domain(), &e);
 
+  VLOG(6) << "before ast to expr";
   // poly::IslAstNodeToCinnExpr(ast, &e);
   poly::IslAstNodeToCinnExpr(ast, gen.domain(), &e);
   // now we get a workable expression, but the statement are something like `B(((16 * po0) + po1), po2)`, we need to
@@ -204,7 +205,9 @@ Expr LowerGroup(const poly::ScheduleGroup& group,
     }
     std::reverse(traverse_order.begin(), traverse_order.end());
 
+    VLOG(6) << "Before TransformGpuForLoops, e =\n" << e;
     optim::TransformGpuForloops(forloop_infos, traverse_order, global_tensor_map, resized_buffer_cache, &e);
+    VLOG(6) << "After TransformGpuForLoops, e =\n" << e;
     auto axis_info = optim::GatherAxisInfoFromStages(stages);
     if (axis_info.valid()) cuda_axis_info->ExtendWith(axis_info);
   }
@@ -653,7 +656,10 @@ std::vector<ir::LoweredFunc> LowerImpl::operator()() {
     // some necessary modification.
     optim::ComputeInlineExpand(&func->body, stages_, &all_tensor_map);
 
-    auto res = optim::Optimize(func, target_, FLAGS_cinn_runtime_display_debug_info);
+    VLOG(6) << "func before optimization = \n" << func;
+    auto res =
+        optim::Optimize(func, target_, FLAGS_cinn_runtime_display_debug_info, /* remove_gpu_for_loops = */ false);
+    VLOG(6) << "expr after optimization = \n" << res;
 
     if (cuda_axis_info_.size() > num_func && cuda_axis_info_[num_func].valid()) {
       auto* res_func           = res.as_lowered_func();

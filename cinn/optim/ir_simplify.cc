@@ -344,8 +344,9 @@ void Simplify(Expr* expr) {
   mutator(expr);
 
   ReplaceFracWithDivMutator()(expr);
-  SimplifyForLoopsAndBlock()(expr);
 }
+
+void SimplifyLoopsAndBlock(Expr* expr) { SimplifyForLoopsAndBlock()(expr); }
 
 }  // namespace optim
 }  // namespace cinn

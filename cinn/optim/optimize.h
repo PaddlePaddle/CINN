@@ -25,7 +25,7 @@ namespace optim {
  * @param runtime_debug_info
  * @return
  */
-Expr Optimize(Expr e, Target target, bool runtime_debug_info = false);
+Expr Optimize(Expr e, Target target, bool runtime_debug_info = false, bool remove_gpu_for_loops = true);
 
 /**
  * Optimize a Module.
