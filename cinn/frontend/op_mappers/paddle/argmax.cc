@@ -44,11 +44,11 @@ void ArgMaxOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
   std::cout << axis << ' ' << keepdims << ' ' << flatten << ' ' << dtype << std::endl;
   int ndim = x->shape.size();
   // If flatten = true, flatten x and do argmax on axis 0.
-  // if (flatten) {
-  //   x    = ctx.Builder()->Reshape(x, {-1});
-  //   axis = 0;
-  //   ndim = x->shape.size();
-  // }
+  if (flatten) {
+    x    = ctx.Builder()->Reshape(x, {-1});
+    axis = 0;
+    ndim = x->shape.size();
+  }
   std::cout << "after flatten all attr" << std::endl;
   auto out = ctx.Builder()->Argmax(x, axis, keepdims);
   std::cout << "after build.argmax" << std::endl;
