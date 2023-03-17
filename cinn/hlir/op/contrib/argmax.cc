@@ -71,7 +71,7 @@ Tensor Argmax(const Tensor &in_tensor,
   std::vector<Expr> output_shape;
   for (int i = 0; i < shape.size(); ++i) {
     CHECK(shape[i].is_constant()) << "Input tensor's shape should be constant value.";
-    if (axis == i) {
+    if (pos_axis == i) {
       if (keep_dims) {
         output_shape.push_back(Expr(1));
       }
