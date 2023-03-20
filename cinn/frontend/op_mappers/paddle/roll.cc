@@ -24,18 +24,15 @@ void RollOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
   // input
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
   auto x_name = op_desc.Input("X").front();
-  // CHECK_EQ(op_desc.Input("ShiftsTensor").size(), 1UL);
-  // auto shifts_name = op_desc.Input("ShiftsTensor").front();
   // output
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
   auto out_name = op_desc.Output("Out").front();
-
+  std::cout << "Now " << std::endl;
   // attr shifts and axis
   std::vector<int> shifts = op_desc.GetAttr<std::vector<int>>("shifts");
   std::vector<int> axis   = op_desc.GetAttr<std::vector<int>>("axis");
 
-  auto x = ctx.GetVar(x_name);
-  // auto shifts_tensor          = ctx.GetVar(shifts_name);
+  auto x                        = ctx.GetVar(x_name);
   auto vec_x_dims               = std::vector<int>(x->shape);
   std::vector<int> output_shape = vec_x_dims;
 
@@ -74,21 +71,15 @@ void RollOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
   // use Split + Concat for each shift
   for (int i = 0; i < shifts_size; ++i) {
     int length = vec_x_dims[axis[i]];
-    // auto split_output = ctx.Builder()->Split(output, {length - shifts[i], -1}, axis[i]);
     if (shifts[i] > 0) {
       auto front_slice  = ctx.Builder()->Slice(output, {axis[i]}, {0}, {length - shifts[i]});
       auto behind_slice = ctx.Builder()->Slice(output, {axis[i]}, {length - shifts[i]}, {length});
-
-      // std::swap(split_output[0], split_output[1]);
       auto split_output = std::vector<Variable>{behind_slice, front_slice};
       output            = ctx.Builder()->Concat(split_output, axis[i]);
     }
   }
 
-  // reshape back when axis is None
-  if (axis_None) {
-    output = ctx.Builder()->Reshape(output, output_shape);
-  }
+  output = ctx.Builder()->Reshape(output, output_shape);
 
   ctx.AddVar(out_name, output);
   ctx.AddVarModelToProgram(out_name, output->id);
