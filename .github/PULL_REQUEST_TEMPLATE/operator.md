@@ -53,4 +53,3 @@ Test cases for operator attributes.
     - [ ] Possible value 2
     - [ ] Possible value 3
 - [ ] Use OpTestHelper to test the Cartesian product combination of the above attributes.
-
