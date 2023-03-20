@@ -1183,8 +1183,8 @@ void cinn_call_cholesky_nvgpu(void *v_args, int num_args, int batch_size, int m,
   // See also: https://docs.nvidia.com/cuda/cusolver/index.html#matrix-dense-format
   cublasFillMode_t uplo = upper ? CUBLAS_FILL_MODE_LOWER : CUBLAS_FILL_MODE_UPPER;
   size_t numel          = x->num_elements();
-  uint8_t bits = x->type.bits;
-  uint8_t bytes = bits / 8;
+  uint8_t bits          = x->type.bits;
+  uint8_t bytes         = bits / 8;
   CHECK(bits == 32 || bits == 64) << "Unsupported bits = " << bits << " float data type for cholesky";
 
   auto cuda_stream = static_cast<cudaStream_t>(stream);

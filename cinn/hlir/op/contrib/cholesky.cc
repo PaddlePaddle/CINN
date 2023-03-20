@@ -86,7 +86,8 @@ std::vector<framework::shape_t> InferShapeForCholesky(const std::vector<framewor
 
 std::vector<Type> InferDtypeForCholesky(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_type.size(), 1U) << "The input's shape size should be 1! Please check again.";
-  CHECK(inputs_type[0].is_float(32) || inputs_type[0].is_float(64)) << "The input's dtype should be float32 or float64! Please check again.";
+  CHECK(inputs_type[0].is_float(32) || inputs_type[0].is_float(64))
+      << "The input's dtype should be float32 or float64! Please check again.";
   return inputs_type;
 }
 
