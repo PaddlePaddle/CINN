@@ -73,8 +73,9 @@ class TestAutoTuner : public ::testing::Test {
     // AutoTuner is combined with new IR Schedule
     FLAGS_cinn_ir_schedule = true;
     std::unordered_set<std::string> fetch_ids;
-    auto program   = CreateAddReluProgram();
-    auto graph     = cinn::frontend::Optimize(&program, fetch_ids, target);
+    auto program = CreateAddReluProgram();
+    auto graph   = cinn::frontend::Optimize(&program, fetch_ids, target);
+    VLOG(6) << "Optimized AddReluProgram";
     compiled_scope = BuildScope(target, graph);
     graph_compiler = std::make_unique<GraphCompiler>(target, compiled_scope, graph);
     tuner          = std::make_unique<AutoTuner>(target, graph.get());
