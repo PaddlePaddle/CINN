@@ -65,7 +65,6 @@ std::ostream& operator<<(std::ostream& os, const std::vector<T, Alloc>& vec) {
 }  // namespace
 
 TEST(net_build, basic) {
-  Context::Global().ResetNameId();
   LOG(INFO) << "The size of registered operators: " << OpRegistry::Global()->ListAllNames().size();
   LOG(INFO) << "Registered operators:\n" << OpRegistry::Global()->ListAllNames();
   auto program = CreateAddProgram();
@@ -76,7 +75,6 @@ TEST(net_build, basic) {
 }
 
 TEST(net_build, program_execute_multi_elementwise_add) {
-  Context::Global().ResetNameId();
   auto program = CreateAddProgram();
 #ifdef CINN_WITH_CUDA
   Target target = common::DefaultNVGPUTarget();
@@ -104,7 +102,6 @@ TEST(net_build, program_execute_multi_elementwise_add) {
 }
 #ifdef CINN_WITH_CUDA
 TEST(net_build, program_execute_fc) {
-  Context::Global().ResetNameId();
   constexpr int B = 10;  // batch size
   constexpr int M = 32;
   constexpr int K = 18;
@@ -152,7 +149,6 @@ TEST(net_build, program_execute_fc) {
 #endif
 
 TEST(net_build, program_execute_pool2d) {
-  Context::Global().ResetNameId();
   const int B = 16;
   const int C = 64;
   const int H = 112;
@@ -204,7 +200,6 @@ TEST(net_build, program_execute_pool2d) {
 }
 
 TEST(net_build, program_execute_reverse) {
-  Context::Global().ResetNameId();
   const int B = 16;
   const int C = 3;
   const int H = 224;
@@ -238,7 +233,6 @@ TEST(net_build, program_execute_reverse) {
 }
 
 TEST(net_build, program_execute_clip) {
-  Context::Global().ResetNameId();
   const int M = 4;
   const int N = 3;
   const int K = 7;
@@ -317,7 +311,6 @@ TEST(net_build, program_execute_clip) {
 }
 
 TEST(net_build, program_execute_gather) {
-  Context::Global().ResetNameId();
   const int B     = 4;
   const int H_IN1 = 18;
   const int H_IN2 = 14;
@@ -377,7 +370,6 @@ TEST(net_build, program_execute_gather) {
 }
 
 TEST(net_build, program_execute_gather_nd) {
-  Context::Global().ResetNameId();
   const int B     = 4;
   const int H_IN1 = 11;
   const int H_IN2 = 14;
@@ -441,7 +433,6 @@ TEST(net_build, program_execute_gather_nd) {
 }
 
 TEST(net_build, program_execute_scatter) {
-  Context::Global().ResetNameId();
   const float default_value = 3.14;
   const int B               = 3;
   const int H_IN            = 4;
@@ -593,7 +584,6 @@ TEST(net_build, program_execute_scatter_nd) {
 }
 
 TEST(net_build, program_execute_cast) {
-  Context::Global().ResetNameId();
   const int B = 4;
   const int H = 7;
 
@@ -646,7 +636,6 @@ TEST(net_build, program_execute_cast) {
 }
 
 TEST(net_build, program_execute_squeeze_case0) {
-  Context::Global().ResetNameId();
   const int B = 4;
   const int C = 1;
   const int H = 7;
@@ -706,7 +695,6 @@ TEST(net_build, program_execute_squeeze_case0) {
 }
 
 TEST(net_build, program_execute_squeeze_case1) {
-  Context::Global().ResetNameId();
   const int B = 4;
   const int C = 1;
   const int H = 7;
@@ -766,7 +754,6 @@ TEST(net_build, program_execute_squeeze_case1) {
 }
 
 TEST(net_build, program_execute_squeeze_case2) {
-  Context::Global().ResetNameId();
   const int B = 4;
   const int C = 1;
   const int H = 7;
@@ -825,7 +812,6 @@ TEST(net_build, program_execute_squeeze_case2) {
 }
 
 TEST(net_build, program_execute_squeeze_case3) {
-  Context::Global().ResetNameId();
   const int B = 4;
   const int C = 1;
   const int H = 7;
@@ -884,7 +870,6 @@ TEST(net_build, program_execute_squeeze_case3) {
 }
 
 TEST(net_build, program_execute_squeeze_case4) {
-  Context::Global().ResetNameId();
   const int B = 4;
   const int C = 1;
   const int H = 7;
@@ -943,7 +928,6 @@ TEST(net_build, program_execute_squeeze_case4) {
 }
 
 TEST(net_build, program_execute_argsort) {
-  Context::Global().ResetNameId();
   const int B = 4;
   const int H = 7;
 
@@ -1005,7 +989,6 @@ TEST(net_build, program_execute_argsort) {
 }
 
 TEST(net_build, program_execute_sort) {
-  Context::Global().ResetNameId();
   const int B = 4;
   const int H = 7;
 
@@ -1065,7 +1048,6 @@ TEST(net_build, program_execute_sort) {
 }
 
 TEST(net_build, program_execute_arange_float) {
-  Context::Global().ResetNameId();
   const float start       = 1.5F;
   const float stop        = 31.5F;
   const float step        = 2.0F;
@@ -1107,7 +1089,6 @@ TEST(net_build, program_execute_arange_float) {
 }
 
 TEST(net_build, program_execute_arange_int) {
-  Context::Global().ResetNameId();
   const float start       = 1.5F;
   const float stop        = 31.5F;
   const float step        = 1.6F;
@@ -1149,7 +1130,6 @@ TEST(net_build, program_execute_arange_int) {
 }
 
 TEST(net_build, program_execute_flip) {
-  Context::Global().ResetNameId();
   const int C = 2;
   const int H = 2;
   const int W = 2;
@@ -1220,7 +1200,6 @@ TEST(net_build, program_execute_flip) {
 }
 
 TEST(net_build, program_argmax_case1) {
-  Context::Global().ResetNameId();
   const int N     = 4;
   const int IN_C  = 3;
   const int OUT_C = 1;
@@ -1296,7 +1275,6 @@ TEST(net_build, program_argmax_case1) {
 }
 
 TEST(net_build, program_argmax_case2) {
-  Context::Global().ResetNameId();
   const int N    = 4;
   const int IN_C = 3;
   const int H    = 7;
@@ -1370,7 +1348,6 @@ TEST(net_build, program_argmax_case2) {
 }
 
 TEST(net_build, program_argmin_case1) {
-  Context::Global().ResetNameId();
   const int N     = 4;
   const int IN_C  = 3;
   const int OUT_C = 1;
@@ -1446,7 +1423,6 @@ TEST(net_build, program_argmin_case1) {
 }
 
 TEST(net_build, program_argmin_case2) {
-  Context::Global().ResetNameId();
   const int N    = 4;
   const int IN_C = 3;
   const int H    = 7;
@@ -1520,7 +1496,6 @@ TEST(net_build, program_argmin_case2) {
 }
 
 TEST(net_build, program_execute_repeat_axis_0) {
-  Context::Global().ResetNameId();
   const int M       = 4;
   const int N       = 4;
   const int repeats = 3;
@@ -1575,7 +1550,6 @@ TEST(net_build, program_execute_repeat_axis_0) {
 }
 
 TEST(net_build, program_execute_repeat_axis_1) {
-  Context::Global().ResetNameId();
   const int M       = 4;
   const int N       = 4;
   const int repeats = 3;
@@ -1630,7 +1604,6 @@ TEST(net_build, program_execute_repeat_axis_1) {
 }
 
 TEST(net_build, program_execute_one_hot) {
-  Context::Global().ResetNameId();
   const int M             = 4;
   const int N             = 4;
   const int on_value      = 1;
