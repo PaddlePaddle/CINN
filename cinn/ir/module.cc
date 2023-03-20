@@ -24,7 +24,8 @@ namespace ir {
 
 void Module::Builder::AddFunction(ir::LoweredFunc func) {
   optim::Simplify(&(func->body));
-  optim::SimplifyLoopsAndBlock(&(func->body));
+  optim::SimplifyForLoops(&(func->body));
+  optim::SimplifyBlocks(&(func->body));
   func->body = optim::Optimize(func->body, module_->target);
   module_->functions.push_back(func);
 }

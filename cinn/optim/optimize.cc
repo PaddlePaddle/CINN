@@ -90,7 +90,8 @@ ir::Module Optimize(const ir::Module& module, const Target& target) {
   CallArgListToPodValue(&copied);
   LowerIntrin(&copied, target);
 
-  SimplifyLoopsAndBlock(&copied);
+  SimplifyForLoops(&copied);
+  SimplifyBlocks(&copied);
   Simplify(&copied);
   return copied.as_module_ref();
 }

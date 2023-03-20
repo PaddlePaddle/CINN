@@ -243,34 +243,12 @@ struct ReplaceFracWithDivMutator : public ir::IRMutator<> {
   }
 };
 
-struct SimplifyForLoopsAndBlock : public ir::IRMutator<> {
-  absl::flat_hash_map<std::string, common::CasInterval> var_intervals;
-  explicit SimplifyForLoopsAndBlock() {}
+struct SimplifyBlocksMutator : public ir::IRMutator<> {
+  explicit SimplifyBlocksMutator() {}
 
   void operator()(Expr* x) { ir::IRMutator<ir::Expr*>::Visit(x, x); }
 
   using ir::IRMutator<>::Visit;
-
-  void Visit(const For* op, Expr* expr) override {
-    auto* node = expr->As<ir::For>();
-    Visit(&node->min, &node->min);
-    Visit(&node->extent, &node->extent);
-    auto* min_i    = node->min.As<IntImm>();
-    auto* extent_i = node->extent.As<IntImm>();
-    if (min_i && extent_i && extent_i->value > min_i->value && extent_i->value - min_i->value == 1) {
-      std::string var_name = node->loop_var->name;
-      var_intervals.emplace(var_name, common::CasInterval{min_i->value, extent_i->value - 1});
-      if (node->body.As<ir::Block>() && node->body.As<ir::Block>()->stmts.size() == 1) {
-        *expr = node->body.As<ir::Block>()->stmts[0];
-      } else {
-        *expr = node->body;
-      }
-      Visit(expr, expr);
-      var_intervals.erase(var_name);
-    } else {
-      Visit(&node->body, &node->body);
-    }
-  }
 
   void Visit(const Block* op, Expr* expr) override {
     auto* node = expr->As<ir::Block>();
@@ -318,6 +296,36 @@ struct SimplifyForLoopsAndBlock : public ir::IRMutator<> {
     }
     ir::IRMutator<ir::Expr*>::Visit(op, expr);
   }
+};
+
+struct SimplifyForLoopsMutator : public ir::IRMutator<> {
+  absl::flat_hash_map<std::string, common::CasInterval> var_intervals;
+  explicit SimplifyForLoopsMutator() {}
+
+  void operator()(Expr* x) { ir::IRMutator<ir::Expr*>::Visit(x, x); }
+
+  using ir::IRMutator<>::Visit;
+
+  void Visit(const For* op, Expr* expr) override {
+    auto* node = expr->As<ir::For>();
+    Visit(&node->min, &node->min);
+    Visit(&node->extent, &node->extent);
+    auto* min_i    = node->min.As<IntImm>();
+    auto* extent_i = node->extent.As<IntImm>();
+    if (min_i && extent_i && extent_i->value > min_i->value && extent_i->value - min_i->value == 1) {
+      std::string var_name = node->loop_var->name;
+      var_intervals.emplace(var_name, common::CasInterval{min_i->value, extent_i->value - 1});
+      if (node->body.As<ir::Block>() && node->body.As<ir::Block>()->stmts.size() == 1) {
+        *expr = node->body.As<ir::Block>()->stmts[0];
+      } else {
+        *expr = node->body;
+      }
+      Visit(expr, expr);
+      var_intervals.erase(var_name);
+    } else {
+      Visit(&node->body, &node->body);
+    }
+  }
 
   void Visit(const _Var_* op, Expr* expr) override {
     auto* node = expr->As<ir::_Var_>();
@@ -346,7 +354,8 @@ void Simplify(Expr* expr) {
   ReplaceFracWithDivMutator()(expr);
 }
 
-void SimplifyLoopsAndBlock(Expr* expr) { SimplifyForLoopsAndBlock()(expr); }
+void SimplifyForLoops(Expr* expr) { SimplifyForLoopsMutator()(expr); }
+void SimplifyBlocks(Expr* expr) { SimplifyBlocksMutator()(expr); }
 
 }  // namespace optim
 }  // namespace cinn

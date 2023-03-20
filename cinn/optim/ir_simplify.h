@@ -29,7 +29,9 @@ namespace optim {
  */
 void Simplify(Expr *expr);
 
-void SimplifyLoopsAndBlock(Expr *expr);
+void SimplifyForLoops(Expr *expr);
+
+void SimplifyBlocks(Expr *expr);
 
 }  // namespace optim
 }  // namespace cinn
