@@ -36,15 +36,11 @@ class TestCholeskyOp(OpTest):
                       [0.88160539, 1.39001071, 0.48823422],
                       [0.40593964, 0.48823422, 0.19755946]]).astype(np.float32)
         }
-        self.outputs = {
-            "y":
-            np.array([[0.98147416, 0., 0.], [0.89824611, 0.76365221, 0.],
-                      [0.41360193, 0.15284170, 0.05596709]]).astype(np.float32)
-        }
         self.upper = False
 
     def build_paddle_program(self, target):
-        y = paddle.to_tensor(self.outputs["y"], stop_gradient=False)
+        x = paddle.to_tensor(self.inputs["x"], stop_gradient=False)
+        y = paddle.linalg.cholesky(x, upper=self.upper)
         self.paddle_outputs = [y]
 
     def build_cinn_program(self, target):
@@ -74,14 +70,6 @@ class TestCholeskyCase1(TestCholeskyOp):
                        [0.40593964, 0.48823422,
                         0.19755946]]]).astype(np.float32)
         }
-        self.outputs = {
-            "y":
-            np.array([[[0.98147416, 0., 0.], [0.89824611, 0.76365221, 0.],
-                       [0.41360193, 0.15284170, 0.05596709]],
-                      [[0.98147416, 0., 0.], [0.89824611, 0.76365221, 0.],
-                       [0.41360193, 0.15284170,
-                        0.05596709]]]).astype(np.float32)
-        }
         self.upper = False
 
 
@@ -95,15 +83,7 @@ class TestCholeskyCase2(TestCholeskyOp):
                       [[0.96329159, 0.88160539, 0.40593964],
                        [0.88160539, 1.39001071, 0.48823422],
                        [0.40593964, 0.48823422,
-                        0.19755946]]]).astype(np.float32)
-        }
-        self.outputs = {
-            "y":
-            np.array([[[0.98147416, 0.89824611, 0.41360193],
-                       [0., 0.76365221, 0.15284170], [0., 0., 0.05596709]],
-                      [[0.98147416, 0.89824611, 0.41360193],
-                       [0., 0.76365221, 0.15284170],
-                       [0., 0., 0.05596709]]]).astype(np.float32)
+                        0.19755946]]]).astype(np.float64)
         }
         self.upper = True
 

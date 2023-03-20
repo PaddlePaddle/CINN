@@ -159,20 +159,40 @@ void cinn_call_cholesky_host(void* v_args, int num_args, int batch_size, int m, 
   cinn_buffer_t* out = args[1].operator cinn_buffer_t*();
   memcpy(out->memory, x->memory, x->memory_size);
 
+  uint8_t bits = x->type.bits;
+  CHECK(bits == 32 || bits == 64) << "Unsupported bits = " << bits << " float data type for cholesky";
   char uplo = upper ? 'U' : 'L';
   for (int i = 0; i < batch_size; i++) {
-    float* matrix = reinterpret_cast<float*>(out->memory) + i * m * m;
-    LAPACKE_spotrf(LAPACK_ROW_MAJOR, uplo, m, matrix, m);
-    if (upper) {
-      for (int j = 0; j < m; j++) {
-        for (int k = 0; k < j; k++) {
-          matrix[j * m + k] = 0;
+    if (bits == 32) {
+      float* matrix = reinterpret_cast<float*>(out->memory) + i * m * m;
+      LAPACKE_spotrf(LAPACK_ROW_MAJOR, uplo, m, matrix, m);
+      if (upper) {
+        for (int j = 0; j < m; j++) {
+          for (int k = 0; k < j; k++) {
+            matrix[j * m + k] = 0.0f;
+          }
+        }
+      } else {
+        for (int j = 0; j < m; j++) {
+          for (int k = j + 1; k < m; k++) {
+            matrix[j * m + k] = 0.0f;
+          }
         }
       }
-    } else {
-      for (int j = 0; j < m; j++) {
-        for (int k = j + 1; k < m; k++) {
-          matrix[j * m + k] = 0;
+    } else if (bits == 64) {
+      double* matrix = reinterpret_cast<double*>(out->memory) + i * m * m;
+      LAPACKE_dpotrf(LAPACK_ROW_MAJOR, uplo, m, matrix, m);
+      if (upper) {
+        for (int j = 0; j < m; j++) {
+          for (int k = 0; k < j; k++) {
+            matrix[j * m + k] = 0.0f;
+          }
+        }
+      } else {
+        for (int j = 0; j < m; j++) {
+          for (int k = j + 1; k < m; k++) {
+            matrix[j * m + k] = 0.0f;
+          }
         }
       }
     }
