@@ -86,13 +86,14 @@ std::vector<ir::Tensor> Argmax(const Tensor &in_tensor,
   auto res = Compute(
       output_shape,
       [=](const std::vector<Expr> &indices) {
+        std::cout << "eval_indices.size() start: " << eval_indices.size() << std::endl;
         std::vector<Expr> eval_indices(indices);
         if (!keep_dims) {
           eval_indices.insert(eval_indices.begin() + pos_axis, Expr(0));
         } else {
           eval_indices[pos_axis] = Expr(0);
         }
-        std::cout << "eval_indices.size(): " << eval_indices.size() << std::endl;
+        std::cout << "eval_indices.size(): end" << eval_indices.size() << std::endl;
         return sort_index.at(0)(eval_indices);
       },
       name);
