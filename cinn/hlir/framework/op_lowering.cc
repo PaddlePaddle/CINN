@@ -538,11 +538,15 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
 
   // do schedule
   for (auto node : nodes_in_order) {
+    LOG(INFO) << node->id();
     // consumers.
     auto consumers      = GetConsumersInSet(node, nodes_set);
     const Node* reducer = greducer ? FindNearestReducer(node, nodes_set) : greducer;
     if (!reducer && greducer) {
       reducer = v_consumers.count(node) ? v_consumers.find(node)->second : reducer;
+      if (reducer && op_pattern_dict[reducer->op()] != framework::kReduction) {
+        reducer = nullptr;
+      }
     }
 
     // node can be inline.
@@ -564,7 +568,6 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
     }
     // find master to computeat.
     auto master = GetMasterToComputeAt(node, nodes_in_order, nodes_inline, nodes_set, v_consumers, this->shape_dict_);
-
     // assign to reducer/master loop.
     if (reducer) {
       // if node is vertical with reduce, loop assign reducer.

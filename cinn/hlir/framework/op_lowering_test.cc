@@ -54,6 +54,48 @@ void CodeGen(ir::LoweredFunc& func) {
 #endif
 }
 
+TEST(OpFusionPass, Reduce_Fuse_Broadcast_With_Output) {
+  NetBuilder net_builder("Reduce_Fuse_Broadcast_With_Output");
+  auto layer_norm_51__tmp_1 = net_builder.CreateInput(Float(32), {256}, "layer_norm_51__tmp_1");
+  auto var_3216             = net_builder.CreateInput(Float(32), {256, 60}, "var_3216");
+  auto var_3202             = net_builder.CreateInput(Float(32), {1, 60}, "var_3202");
+  auto var_3212             = net_builder.CreateInput(Float(32), {256, 60}, "var_3212");
+
+  auto var_3206         = net_builder.Reshape(layer_norm_51__tmp_1, {256, 1});
+  auto composite_tmp_8  = net_builder.FillConstant<float>({256, 1}, 1e-5, "composite_tmp_8");
+  auto var_3214         = net_builder.Add(var_3206, composite_tmp_8);
+  auto composite_tmp_10 = net_builder.FillConstant<float>({256, 1}, 1.0, "composite_tmp_10");
+  auto var_3220         = net_builder.Divide(composite_tmp_10, var_3214);
+  auto var_3226         = net_builder.Sqrt(var_3220);
+  auto var_3224         = net_builder.Scale(var_3220, -1.0, 0.0, true);
+  auto var_3366         = net_builder.BroadcastTo(var_3224, {256, 60});
+  auto var_3228         = net_builder.Multiply(var_3366, var_3216);
+  auto var_3368         = net_builder.BroadcastTo(var_3202, {256, 60});
+  auto var_3236         = net_builder.Multiply(var_3228, var_3212);
+  auto var_3244         = net_builder.Multiply(var_3236, var_3368);
+  auto var_3252         = net_builder.ReduceSum(var_3244, {1}, true);
+  auto var_3232         = net_builder.Scale(var_3226, 0.0166667, 0.0, true);
+
+  auto program = net_builder.Build();
+  auto target  = common::DefaultTarget();
+  RunDecomposer(&program, target);
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
+  CHECK_EQ(graph->fusion_groups.size(), 1);
+
+  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
+  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
+
+  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
+  for (auto& fusion_op : graph->fusion_groups) {
+    auto lowered_func = op_lowerer.Lower(fusion_op);
+    CHECK_EQ(lowered_func.size(), 1);
+    CodeGen(lowered_func[0]);
+  }
+}
+
 TEST(OpFusionPass, Reduce_Fuse_Broadcast_Layernorm) {
   int h = 32, w = 1024;
   NetBuilder net_builder("Reduce_Fuse_Broadcast_Layernorm");
