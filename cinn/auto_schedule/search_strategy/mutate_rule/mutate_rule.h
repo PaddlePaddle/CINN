@@ -29,12 +29,19 @@ class MutateRule {
   MutateRule() = default;
 
   /**
-   * \brief Apply the mutate rule to the given trace.
-   * \param trace The given trace for mutation.
-   * \param rand_seed The random seed for mutation.
-   * \return The mutated trace.
+   * @brief Apply the mutate rule to the given trace.
+   * @param trace The given trace for mutation.
+   * @param rand_seed The random seed for mutation.
+   * @return The mutated trace.
    */
   virtual ir::ScheduleDesc Apply(const ir::ScheduleDesc& trace, utils::LinearRandomEngine::StateType* rand_seed) = 0;
+
+  /**
+   * @brief Create a MutateRule with name.
+   * @param name The name of mutate rule, consisting of lowercase letters and underscores
+   * @return The created MutateRule.
+   */
+  static std::unique_ptr<MutateRule> Make(const std::string& name);
 };
 
 }  // namespace auto_schedule
