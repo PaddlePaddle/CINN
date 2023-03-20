@@ -141,7 +141,7 @@ SearchState EvolutionarySearch::CrossOver(const SearchState& state1, const Searc
   if (FLAGS_auto_schedule_use_cost_model) {
     res->predicted_cost = cost_model_.Predict(res->ir_schedule.GetModule(), tune_task_.target);
   }
-  VLOG(4) << JoinStatesDebugString("EvolutionarySearch::CrossOver", {state1, state2, res}, /*verbose=*/VLOG_IS_ON(5));
+  VLOG(5) << JoinStatesDebugString("EvolutionarySearch::CrossOver", {state1, state2, res}, /*verbose=*/VLOG_IS_ON(6));
   return res;
 }
 
@@ -165,7 +165,7 @@ SearchState EvolutionarySearch::Mutate(const SearchState& state, utils::LinearRa
   new_trace.Replay(&new_ir_sch);
   auto res = SearchState(std::move(new_ir_sch));
 
-  VLOG(4) << JoinStatesDebugString("EvolutionarySearch::Mutate", {state, res}, /*verbose=*/VLOG_IS_ON(5));
+  VLOG(5) << JoinStatesDebugString("EvolutionarySearch::Mutate", {state, res}, /*verbose=*/VLOG_IS_ON(6));
   return res;
 }
 
@@ -185,6 +185,7 @@ std::vector<SearchState> EvolutionarySearch::Evolve(const std::vector<SearchStat
       search_state->predicted_cost = cost_model_.Predict(search_state->ir_schedule.GetModule(), tune_task_.target);
     }
   }
+  VLOG(4) << JoinStatesDebugString("EvolutionarySearch::Evolve: Init evolution:", evolution, /*verbose=*/VLOG_IS_ON(5));
   // cross over
   for (int i = 0; i < cross_over_num; ++i) {
     int first_rand_idx  = utils::SampleUniformInt(0, generation_num, &rand_seed_);
@@ -194,6 +195,8 @@ std::vector<SearchState> EvolutionarySearch::Evolve(const std::vector<SearchStat
     }
     evolution.push_back(CrossOver(population[first_rand_idx], population[second_rand_idx]));
   }
+  VLOG(4) << JoinStatesDebugString(
+      "EvolutionarySearch::Evolve: after CrossOver evolution:", evolution, /*verbose=*/VLOG_IS_ON(5));
   // mutate
   std::vector<SearchState> mutated_individuals(evolution.size());
   std::vector<utils::LinearRandomEngine::StateType> rand_seeds(evolution.size());
@@ -204,13 +207,15 @@ std::vector<SearchState> EvolutionarySearch::Evolve(const std::vector<SearchStat
     mutated_individuals[index] = Mutate(evolution[index], &rand_seeds[index]);
   };
   utils::parallel_run(mutate_fn, utils::SequenceDispatcher(0, evolution.size()), evolution.size());
-  // select top ret_num with predicted cost
   if (FLAGS_auto_schedule_use_cost_model) {
     for (size_t i = 0; i < mutated_individuals.size(); ++i) {
       mutated_individuals[i]->predicted_cost =
           cost_model_.Predict(mutated_individuals[i]->ir_schedule.GetModule(), tune_task_.target);
     }
   }
+  VLOG(4) << JoinStatesDebugString(
+      "EvolutionarySearch::Evolve: mutated individuals:", mutated_individuals, /*verbose=*/VLOG_IS_ON(5));
+  // select top ret_num with predicted cost
   utils::SizedMultiSet<SearchState> evolution_with_cost(ret_num);
   for (size_t i = 0; i < evolution.size(); ++i) {
     evolution_with_cost.Push(evolution[i]);
@@ -218,8 +223,11 @@ std::vector<SearchState> EvolutionarySearch::Evolve(const std::vector<SearchStat
   for (size_t i = 0; i < mutated_individuals.size(); ++i) {
     evolution_with_cost.Push(mutated_individuals[i]);
   }
+  auto selected_individuals = evolution_with_cost.ReturnAsContainer<std::vector<SearchState>>();
+  VLOG(4) << JoinStatesDebugString(
+      "EvolutionarySearch::Evolve: selected individuals:", selected_individuals, /*verbose=*/VLOG_IS_ON(5));
 
-  return evolution_with_cost.ReturnAsContainer<std::vector<SearchState>>();
+  return selected_individuals;
 }
 
 std::vector<SearchState> EvolutionarySearch::PickNextGenerationEpsGreedy(const std::vector<SearchState>& picked_bests,
