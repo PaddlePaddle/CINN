@@ -1311,7 +1311,10 @@ void SyncThreadWithShared(ir::IRSchedule& ir_sch,
       master_shape = shape_dict.at(master->inlinks_in_order()[0]->source()->id());
     }
 
-    if (node_shape == master_shape) {
+    auto node_size   = std::accumulate(node_shape.begin(), node_shape.end(), 1, std::multiplies<int>());
+    auto master_size = std::accumulate(master_shape.begin(), master_shape.end(), 1, std::multiplies<int>());
+
+    if (node_size == master_size) {
       continue;
     }
 
