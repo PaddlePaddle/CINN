@@ -621,21 +621,15 @@ TEST(CodeGenCUDA2, test_schedule_conv2d_0) {
   auto conv     = res[0];
   auto B_t      = B.tensor();
 
-  VLOG(6) << "Before appliying schedule, conv Expr = " << conv;
   hlir::pe::CudaScheduleConv(stages, pad_data, B_t, conv, target);
-  VLOG(6) << "After CudaScheduleConv";
 
   CodeGenCUDA_Dev codegen(target);
 
   auto func = Lower("schedule_conv2d_0", stages, {A, B, conv}, {}, {}, nullptr, target);
-  VLOG(6) << "After Lower, func = " << func;
 
   Module::Builder builder("module", target);
   builder.AddFunction(func);
 
-  auto module = builder.Build();
-  VLOG(6) << "Module = " << module;
-  auto source_code = codegen.Compile(module);
 
   LOG(INFO) << "compiled schedule_conv2d_0 code:\n\n\n" << source_code;
 

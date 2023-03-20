@@ -605,7 +605,6 @@ std::vector<Expr> OpLowerer::IRReduceCompute(poly::StageMap& stages,
       }
     }
     auto func = lang::LowerVec("fn_" + node->id(), tmp_stages, tensor_inputs, {}, {}, nullptr, this->target_, true);
-    VLOG(6) << "func[0]->body =\n" << func[0]->body;
 
     // node is kReduction
     if (op_pattern_dict[node->op()] == framework::kReduction && apply_impl_schedule) {
@@ -622,7 +621,6 @@ std::vector<Expr> OpLowerer::IRReduceCompute(poly::StageMap& stages,
       common::CINNValuePack expr_pack = impl->fschedule(common::CINNValuePack{schedule_inputs});
       // ast tree after schedule.
       Expr ast_expr = expr_pack[0];
-      VLOG(6) << "After schedule, expr =\n" << ast_expr;
       ast_exprs.push_back(ast_expr);
     } else if (group->master_nodes.count(node)) {
       // as master node should copy transform from reducer, left it to reduce schedule.
@@ -663,25 +661,6 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
     if (just_reorder) {
       return;
     }
-
-    /*
-    VLOG(6) << "Huihuang changed here";
-    int last_dimension_num = n_out_dims - axes.size();
-    for (int idx = 0; idx < last_dimension_num - 1; ++idx) {
-      ir_sch.Fuse(block_name, {0, 1});
-    }
-    auto loops = ir_sch.GetLoops(block_name);
-    auto psize = ir::GetLoopExtent(loops[0]);
-    if (psize > this->target_.max_num_threads()) {
-      for (int idx = this->target_.max_num_threads(); idx > 0; --idx) {
-        if (psize % idx == 0) {
-          ir_sch.Split(loops[0], {-1, idx});
-          break;
-        }
-        CHECK_GT(idx, 1);
-      }
-    }
-    */
     // fuse others none-reduce axis.
     int last_dimension_num = n_out_dims - axes.back() - 1;
     int index              = n_out_dims - last_dimension_num - axes.size();

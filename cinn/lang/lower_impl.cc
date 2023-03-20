@@ -656,10 +656,8 @@ std::vector<ir::LoweredFunc> LowerImpl::operator()() {
     // some necessary modification.
     optim::ComputeInlineExpand(&func->body, stages_, &all_tensor_map);
 
-    VLOG(6) << "func before optimization = \n" << func;
     auto res =
         optim::Optimize(func, target_, FLAGS_cinn_runtime_display_debug_info, /* remove_gpu_for_loops = */ false);
-    VLOG(6) << "expr after optimization = \n" << res;
 
     if (cuda_axis_info_.size() > num_func && cuda_axis_info_[num_func].valid()) {
       auto* res_func           = res.as_lowered_func();

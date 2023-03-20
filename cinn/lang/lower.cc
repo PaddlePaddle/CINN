@@ -202,14 +202,11 @@ ir::LoweredFunc Lower(const std::string& name,
                       const Target& target,
                       bool support_ir_schedule) {
   // Init the reduce tensors first before any process.
-  VLOG(6) << "Initing reduce tensors";
   for (auto& t : tensor_args) InitReduceTensor(stages, t, target);
   for (auto& t : temp_tensors) InitReduceTensor(stages, t, target);
   // Merge the ctrl_deps with the given temp_tensors ang get a new temp_tensors
-  VLOG(6) << "Collect temp tensors";
   auto ctrl_deps = CollectTempTensorsFromCtrlDepends(stages, tensor_args);
   ctrl_deps.insert(temp_tensors.begin(), temp_tensors.end());
-  VLOG(6) << "detail::LowerImpl";
   auto lower_impl_instance = detail::LowerImpl(name,
                                                stages,
                                                tensor_args,
@@ -218,7 +215,6 @@ ir::LoweredFunc Lower(const std::string& name,
                                                target,
                                                support_ir_schedule);
   auto result              = lower_impl_instance();
-  VLOG(6) << "Before returning result";
   std::vector<ir::LoweredFunc> return_value;
   for (auto& res : result) {
     auto temp_buffers = GetTempBuffers(tensor_args, stages, res->body);

@@ -541,8 +541,6 @@ void IslAstNodeToCinnExpr(const isl::ast_node& node, const isl::union_set& domai
   VLOG(6) << "After convert to CinnExpr, n = " << isl_set_list_n_set(set_list);
   for (int i = 0; i < isl_set_list_n_set(set_list); i++) {
     isl::set s = isl::manage(isl_set_list_get_set(set_list, i));
-    VLOG(6) << "i = " << i << ", s = " << s;
-    VLOG(6) << "expr = \n" << *expr;
     AddUnitLoopOfDomain(node, s, expr);
   }
 }
