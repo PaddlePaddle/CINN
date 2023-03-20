@@ -94,12 +94,24 @@ class MultiLevelTiling : public AutoGenRule {
     return result;
   }
 
+ private:
   struct Config {
+    // Which thread axis each tiled loop is bound to
     std::vector<std::string> bind_axis;
+    // Use char 'S' and 'R' to represent tile structure.
+    // S means space tiling level and R means reduce tiling level
+    //
+    // For example, if tile_struct_ = "SSRSRS" and we are doing matrix
+    // multiplication, i, j are the spatial indices and k is the reduce index,
+    // the tiling result will be i_0, j0, i1, j1, k0, i2, j2, k1, i3, j3
     std::string tile_struct;
+    // The storage type of read cache
     std::string read_cache_memory_type;
+    // Which tiled levels are read cache block inserted at
     std::vector<int> read_cache_levels;
+    // The storage type of write cache
     std::string write_cache_memory_type;
+    // Which tiled levels are write cache block inserted at
     std::vector<int> write_cache_levels;
   };
 
@@ -112,12 +124,6 @@ class MultiLevelTiling : public AutoGenRule {
   std::vector<ir::Expr> all_block_realizes_;
   std::vector<int> applicable_indices_;
 
-  // Use char 'S' and 'R' to represent tile structure.
-  // S means space tiling level and R means reduce tiling level
-  //
-  // For example, if tile_struct_ = "SSRSRS" and we are doing matrix
-  // multiplication, i, j are the spatial indices and k is the reduce index,
-  // the tiling result will be i_0, j0, i1, j1, k0, i2, j2, k1, i3, j3
   Config config_;
   std::vector<int> s_indices_;
   std::vector<int> r_indices_;
