@@ -23,13 +23,31 @@
 #include "cinn/auto_schedule/database/database.h"
 #include "cinn/auto_schedule/search_space/search_space.h"
 #include "cinn/auto_schedule/search_space/search_state.h"
+#include "cinn/auto_schedule/task/task_creator.h"
+#include "cinn/auto_schedule/task/task_registry.h"
 #include "cinn/auto_schedule/task/tune_task.h"
+#include "cinn/auto_schedule/tests/test_op_builder.h"
 #include "cinn/auto_schedule/tuning.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_schedule.h"
 
 namespace cinn {
 namespace auto_schedule {
+
+std::vector<TuneTask> CreateTasks(const frontend::Program& program, const Target& target) {
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  TaskCreator task_creator;
+  auto tasks             = task_creator.CreateTuneTaskOpLevel(graph.get());
+  const auto& dtype_dict = graph->GetAttrs<absl::flat_hash_map<std::string, common::Type>>("inferdtype");
+  const auto& shape_dict = graph->GetAttrs<absl::flat_hash_map<std::string, hlir::framework::shape_t>>("infershape");
+  auto op_lowerer        = std::make_unique<hlir::framework::OpLowerer>(dtype_dict, shape_dict, target);
+  InitialTaskRegistry* task_registry = InitialTaskRegistry::Global();
+  for (auto i = 0; i < tasks.size(); ++i) {
+    tasks[i].Initialize(shape_dict, dtype_dict, op_lowerer.get());
+    task_registry->Regist(tasks[i].serialized_key, ir::ModuleExpr(tasks[i].GetLoweredFuncBodyExprs()));
+  }
+  return tasks;
+}
 
 /**
  * A mock search space is only used for test. It creates integer ir::Expr from
@@ -59,28 +77,33 @@ class MockSearchSpace : public SearchSpace {
     return ret;
   }
 
-  SearchState GetScheduleMutate(const SearchState& state, const ExprCostModel& cost_model) override {
-    float cost                  = 0.0f;
-    std::vector<ir::Expr> exprs = state->ir_schedule.GetModule().GetExprs();
-    for (const ir::Expr& expr : exprs) {
-      cost += static_cast<float>((expr.as_int32()));
-    }
-    SearchState ret(state->ir_schedule);
-    ret->predicted_cost = cost;
-    return ret;
-  }
-
  private:
   int module_expr_size_ = 10;
   int min_expr_value_   = 0;
 };
 
+class MockCostModel : public ExprCostModel {
+  float Predict(const ir::ModuleExpr& sample, const common::Target& target) const override {
+    float cost                  = 0.0f;
+    std::vector<ir::Expr> exprs = sample.GetExprs();
+    for (const ir::Expr& expr : exprs) {
+      if (expr.as_int32()) {
+        cost += static_cast<float>((expr.as_int32()));
+      }
+    }
+    return cost;
+  }
+};
+
 TEST(EvolutionarySearch, GetOneBest) {
   TuneTask mock_tune_task;
-  ExprCostModel cost_model;
+  mock_tune_task.serialized_key      = "mock_task";
+  mock_tune_task.target              = common::DefaultTarget();
+  InitialTaskRegistry* task_registry = InitialTaskRegistry::Global();
+  task_registry->Regist(mock_tune_task.serialized_key, ir::ModuleExpr({ir::Expr(0)}));
+  MockCostModel cost_model;
   TuningOptions options;
   Database db(2);
-  mock_tune_task.target = common::DefaultTarget();
   EvolutionarySearch evolutionary_search(mock_tune_task, cost_model, &db);
 
   MockSearchSpace* mock_search_space = new MockSearchSpace(mock_tune_task);
@@ -96,10 +119,13 @@ TEST(EvolutionarySearch, GetOneBest) {
 
 TEST(EvolutionarySearch, GetEpsGreedy) {
   TuneTask mock_tune_task;
+  mock_tune_task.serialized_key      = "mock_task";
+  mock_tune_task.target              = common::DefaultTarget();
+  InitialTaskRegistry* task_registry = InitialTaskRegistry::Global();
+  task_registry->Regist(mock_tune_task.serialized_key, ir::ModuleExpr({ir::Expr(0)}));
   ExprCostModel cost_model;
   TuningOptions options;
   Database db(2);
-  mock_tune_task.target = common::DefaultTarget();
   EvolutionarySearch evolutionary_search(mock_tune_task, cost_model, &db);
 
   MockSearchSpace* mock_search_space = new MockSearchSpace(mock_tune_task);
@@ -111,6 +137,58 @@ TEST(EvolutionarySearch, GetEpsGreedy) {
   size_t expr_size = static_cast<size_t>(mock_search_space->GetModuleExprSize());
   for (const SearchState& state : search_states) {
     EXPECT_EQ(state->ir_schedule.GetModule().GetExprs().size(), expr_size);
+  }
+}
+
+TEST(EvolutionarySearch, Evolve) {
+  auto target = common::DefaultNVGPUTarget();
+  auto tasks  = CreateTasks(MatmulOpBuilder({32, 32}, {32, 32})(), target);
+  CHECK_EQ(tasks.size(), 1);
+  ExprCostModel cost_model;
+  std::vector<const ir::ModuleExpr*> cost_model_samples(1);
+  std::vector<float> cost_model_labels(1);
+  for (size_t i = 0; i < 2; ++i) {
+    ir::ModuleExpr me({ir::Expr(tasks[0].lowered_funcs[0])});
+    cost_model_samples[0] = &me;
+    cost_model_labels[0]  = i + 10;
+    cost_model.Update(cost_model_samples, cost_model_labels, target);
+  }
+
+  Database db(2);
+  TuningOptions options;
+  options.evolution_pick_database_topk = 0;
+
+  EvolutionarySearch evolutionary_search(tasks[0], cost_model, &db);
+
+  int num_population                   = 10;
+  std::vector<SearchState> init_sketch = evolutionary_search.TestInitSketch(num_population, "rule_prune");
+  for (int i = 0; i < num_population; ++i) {
+    ir::ModuleExpr me(init_sketch[i]->ir_schedule.GetModule());
+    cost_model_samples[0] = &me;
+    cost_model_labels[0]  = i;
+    cost_model.Update(cost_model_samples, cost_model_labels, target);
+  }
+  VLOG(6) << "init sketch costs:";
+  for (auto s : init_sketch) {
+    VLOG(6) << "cost = " << s->predicted_cost;
+  }
+  std::vector<SearchState>*population_pre_ptr = &init_sketch, *population_next_ptr;
+  std::vector<SearchState> population;
+  for (int i = 0; i < 10; ++i) {
+    population          = evolutionary_search.TestEvolve(*population_pre_ptr, /*cross_over_num*/ 0, /*ret_num*/ 10);
+    population_next_ptr = &population;
+    VLOG(6) << "population[" << i + 1 << "] costs:";
+    double total_cost_pre = 0.0, total_cost_next = 0.0;
+    for (auto s : *population_pre_ptr) {
+      total_cost_pre += s->predicted_cost;
+    }
+    for (auto s : *population_next_ptr) {
+      total_cost_next += s->predicted_cost;
+      VLOG(6) << "cost = " << s->predicted_cost;
+    }
+    VLOG(6) << "total_cost_next = " << total_cost_next;
+    CHECK_LE(total_cost_next, total_cost_pre);
+    std::swap(population_pre_ptr, population_next_ptr);
   }
 }
 

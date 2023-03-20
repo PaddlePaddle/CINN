@@ -21,6 +21,7 @@
 #include "cinn/auto_schedule/database/database.h"
 #include "cinn/auto_schedule/search_space/search_space.h"
 #include "cinn/auto_schedule/search_space/search_state.h"
+#include "cinn/auto_schedule/search_strategy/mutate_rule/mutate_rule.h"
 #include "cinn/auto_schedule/task/tune_task.h"
 #include "cinn/auto_schedule/tuning.h"
 #include "cinn/ir/ir_schedule.h"
@@ -42,7 +43,8 @@ class EvolutionarySearch {
   EvolutionarySearch(const TuneTask& tune_task,
                      const ExprCostModel& cost_model,
                      Database* database,
-                     utils::LinearRandomEngine::StateType rand_seed = -1);
+                     utils::LinearRandomEngine::StateType rand_seed                   = -1,
+                     const std::vector<std::tuple<std::string, double>>& mutate_rules = {});
 
   /**
    * Destructor
@@ -85,6 +87,14 @@ class EvolutionarySearch {
    *     takes the ownership.
    */
   void SetSearchSpace(SearchSpace* search_space) { search_space_.reset(search_space); }
+
+  // Method only be called during testing, it is a wrapper of pravate method InitSketch().
+  std::vector<SearchState> TestInitSketch(int num, const std::string& strategy) { return InitSketch(num, strategy); }
+
+  // Method only be called during testing, it is a wrapper of pravate method Evolve().
+  std::vector<SearchState> TestEvolve(const std::vector<SearchState>& population, int cross_over_num, int ret_num) {
+    return Evolve(population, cross_over_num, ret_num);
+  }
 #endif
 
  private:
@@ -104,6 +114,8 @@ class EvolutionarySearch {
    */
   std::vector<SearchState> InitSketch(int num, const std::string& strategy);
 
+  SearchState Mutate(const SearchState& state, utils::LinearRandomEngine::StateType* rand_seed);
+
   SearchState CrossOver(const SearchState& state1, const SearchState& state2);
 
   std::vector<SearchState> Evolve(const std::vector<SearchState>& population, int cross_over_num, int ret_num);
@@ -120,6 +132,10 @@ class EvolutionarySearch {
   Database* database_;               // not owned
   // used to depuplicate states with the same structural IR
   std::unordered_set<SearchState, SearchStateHash, SearchStateEqual> visited_candidates_;
+  // mutate rule names and their weights
+  std::vector<std::tuple<std::string, double>> mutators_;
+  // mutate rules, the key is the accumulate weight of each mutate rule
+  std::map<double, std::unique_ptr<MutateRule>> weighted_mutators_;
   utils::LinearRandomEngine::StateType rand_seed_;
 };
 
