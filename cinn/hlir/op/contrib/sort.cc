@@ -336,6 +336,9 @@ std::vector<std::vector<int>> InferShapeForArgSort(const std::vector<std::vector
       break;
     }
   }
+  if (axis < 0) {
+    axis += inputs_shape[0].size();
+  }
   CHECK_GT(inputs_shape[0].size(), axis) << "The input's dim should be greater than axis! ";
   std::vector<std::vector<int>> res{inputs_shape[0], inputs_shape[0]};
 
