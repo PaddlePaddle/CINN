@@ -54,7 +54,7 @@ Expr Optimize(Expr e, Target target, bool runtime_debug_info, bool remove_gpu_fo
   UnrollLoop(&copied);
   VectorizeLoops(&copied, target);
 #ifdef CINN_WITH_CUDA
-  if (FLAGS_cinn_ir_schedule) {
+  if (FLAGS_cinn_ir_schedule && copied.as_lowered_func()) {
     ir::SetCudaAxisInfo(&copied);
   }
   if (remove_gpu_for_loops) {
