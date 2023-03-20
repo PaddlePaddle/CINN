@@ -52,7 +52,7 @@ TEST(lower, basic) {
   {
     serial for (j, 0, 15)
     {
-      B[i, j] = (1.00000f + A[i, j])
+      B[i, j] = (1.00000000f + A[i, j])
     }
   }
 }

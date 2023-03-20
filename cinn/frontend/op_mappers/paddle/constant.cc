@@ -58,6 +58,9 @@ void FillConstantOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperCont
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
   auto y_name = op_desc.Output("Out").front();
 
+  const auto& cinn_name = cinn::utils::TransValidVarName(y_name);
+  CheckVarNameValid(cinn_name);
+
   auto shape     = utils::ToShapeType(utils::GetAttrOrDefault<std::vector<int64_t>>(op_desc, "shape"));
   auto value     = utils::GetAttrOrDefault<float>(op_desc, "value", 0.0f);
   auto str_value = utils::GetAttrOrDefault<std::string>(op_desc, "str_value", "");
@@ -68,21 +71,36 @@ void FillConstantOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperCont
   auto dtype_cinn = utils::CppVarType2CommonType(dtype_pd);
   auto dtype      = common::Type2Str(dtype_cinn);
 
-  if (!str_value.empty()) {
-    size_t end_pos = 0;
-    value          = std::stof(str_value, &end_pos);
+  absl::optional<Variable> out;
+  if (op_desc.HasInput("ValueTensor") && !op_desc.Input("ValueTensor").empty()) {
+    CHECK_EQ(op_desc.Input("ValueTensor").size(), 1UL);
+    auto value_name   = op_desc.Input("ValueTensor").front();
+    auto value_tensor = ctx.GetVar(value_name);
+
+    VLOG(4) << "fill constant " << value_name << "=" << value_tensor << " with shape (" << cinn::utils::Join(shape, ",")
+            << ") and dtype [" << dtype << "]";
+
+    CHECK(value_tensor->shape == cinn::utils::ShapeType{1}) << "The shape of [ValueTensor] should be [1], but here ["
+                                                            << cinn::utils::Join(value_tensor->shape, ", ") << "]";
+    if (value_tensor->type != dtype_cinn) {
+      value_tensor = ctx.Builder()->Cast(value_tensor, dtype);
+    }
+    out = ctx.Builder()->BroadcastTo(value_tensor, shape);
+    out.value().set_id(cinn_name);
+  } else {
+    if (!str_value.empty()) {
+      VLOG(4) << "fill constant (" << str_value << ") with shape (" << cinn::utils::Join(shape, ",") << ") and dtype ["
+              << dtype << "]";
+      out = ctx.Builder()->FillConstant(shape, str_value, cinn_name, dtype, force_cpu);
+    } else {
+      VLOG(4) << "fill constant (" << value << ") with shape (" << cinn::utils::Join(shape, ",") << ") and dtype ["
+              << dtype << "]";
+      out = ctx.Builder()->FillConstant(shape, value, cinn_name, dtype, force_cpu);
+    }
   }
 
-  VLOG(4) << "fill constant (" << value << ") with shape (" << cinn::utils::Join(shape, ",") << ") and dtype [" << dtype
-          << "]";
-
-  const auto& cinn_name = cinn::utils::TransValidVarName(y_name);
-  CheckVarNameValid(cinn_name);
-
-  auto out = ctx.Builder()->FillConstant(shape, value, cinn_name, dtype, force_cpu);
-
-  ctx.AddVar(y_name, out);
-  ctx.AddVarModelToProgram(y_name, out->id);
+  ctx.AddVar(y_name, out.value());
+  ctx.AddVarModelToProgram(y_name, out.value()->id);
 }
 
 void FillAnyLikeOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {

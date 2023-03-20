@@ -27,42 +27,11 @@
 
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/utils/dot_lang.h"
+#include "cinn/utils/string.h"
 
 namespace cinn {
 namespace hlir {
 namespace framework {
-
-std::string Attribute2String(const utils::Attribute& attr) {
-  std::stringstream ss;
-  if (absl::get_if<bool>(&attr)) {
-    ss << std::boolalpha << absl::get<bool>(attr);
-  } else if (absl::get_if<float>(&attr)) {
-    ss << absl::get<float>(attr) << "f";
-  } else if (absl::get_if<double>(&attr)) {
-    ss << absl::get<double>(attr);
-  } else if (absl::get_if<int>(&attr)) {
-    ss << absl::get<int>(attr);
-  } else if (absl::get_if<int64_t>(&attr)) {
-    ss << absl::get<int64_t>(attr);
-  } else if (absl::get_if<std::string>(&attr)) {
-    ss << absl::get<std::string>(attr);
-  } else if (absl::get_if<std::vector<bool>>(&attr)) {
-    ss << "[" + cinn::utils::Join(absl::get<std::vector<bool>>(attr), ", ") + "]";
-  } else if (absl::get_if<std::vector<int>>(&attr)) {
-    ss << "[" + cinn::utils::Join(absl::get<std::vector<int>>(attr), ", ") + "]";
-  } else if (absl::get_if<std::vector<int64_t>>(&attr)) {
-    ss << "[" + cinn::utils::Join(absl::get<std::vector<int64_t>>(attr), ", ") + "]";
-  } else if (absl::get_if<std::vector<float>>(&attr)) {
-    ss << "[" + cinn::utils::Join(absl::get<std::vector<float>>(attr), ", ") + "]";
-  } else if (absl::get_if<std::vector<double>>(&attr)) {
-    ss << "[" + cinn::utils::Join(absl::get<std::vector<double>>(attr), ", ") + "]";
-  } else if (absl::get_if<std::vector<std::string>>(&attr)) {
-    ss << "[" + cinn::utils::Join(absl::get<std::vector<std::string>>(attr), ", ") + "]";
-  } else {
-    LOG(FATAL) << "Unkown attribute data type! Please check.";
-  }
-  return ss.str();
-}
 
 bool MakeDirectory(const std::string& dirname, mode_t mode) {
   auto len = dirname.length();
@@ -263,7 +232,7 @@ std::string DebugString(const Node* node) {
   ss << ", id=" << node->id() << ", ";
 
   for (const auto& attr_pair : node->attrs.attr_store) {
-    ss << attr_pair.first << "=" << Attribute2String(attr_pair.second) << ", ";
+    ss << attr_pair.first << "=" << utils::Attribute2String(attr_pair.second) << ", ";
   }
   ss << "}";
   return ss.str();
