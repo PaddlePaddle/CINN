@@ -1,3 +1,5 @@
+cc_library(test_utils SRCS utils.cc DEPS cinncore)
+
 if (WITH_TESTING)
   include_directories(${CMAKE_SOURCE_DIR}/cinn/runtime)
   add_subdirectory(benchmark)
