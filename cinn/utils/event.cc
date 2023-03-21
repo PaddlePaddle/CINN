@@ -26,12 +26,14 @@ inline std::string EventTypeToString(const EventType &type) {
       return "Graph";
     case EventType::kProgram:
       return "Program";
-    case EventType::kPass:
-      return "Pass";
-    case EventType::kOpLowering:
-      return "OpLowering";
+    case EventType::kFusePass:
+      return "FusePass";
+    case EventType::kCompute:
+      return "Compute";
     case EventType::kSchedule:
       return "Schedule";
+    case EventType::kOptimize:
+      return "Optimize";
     case EventType::kCodeGen:
       return "CodeGen";
     case EventType::kCompile:
