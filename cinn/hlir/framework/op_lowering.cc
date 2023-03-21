@@ -538,7 +538,6 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
 
   // do schedule
   for (auto node : nodes_in_order) {
-    LOG(INFO) << node->id();
     // consumers.
     auto consumers      = GetConsumersInSet(node, nodes_set);
     const Node* reducer = greducer ? FindNearestReducer(node, nodes_set) : greducer;

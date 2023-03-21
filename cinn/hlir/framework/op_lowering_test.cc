@@ -54,6 +54,36 @@ void CodeGen(ir::LoweredFunc& func) {
 #endif
 }
 
+void Compile(NetBuilder& net_builder) {
+  auto program = net_builder.Build();
+  auto target  = common::DefaultTarget();
+  RunDecomposer(&program, target);
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
+
+  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
+  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
+
+  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
+  for (auto& fusion_op : graph->fusion_groups) {
+    auto lowered_func = op_lowerer.Lower(fusion_op);
+    CHECK_EQ(lowered_func.size(), 1);
+    CodeGen(lowered_func[0]);
+  }
+}
+
+TEST(OpFusionPass, Reduce_With_Last_Axis_1) {
+  NetBuilder net_builder("Reduce_With_Last_Axis_1");
+  // create model
+  {
+    auto A = net_builder.CreateInput(Float(32), {10, 100, 1}, "A");
+    auto B = net_builder.ReduceSum(A, {0, 2});
+  }
+  Compile(net_builder);
+}
+
 TEST(OpFusionPass, Reduce_Fuse_Broadcast_With_Output) {
   NetBuilder net_builder("Reduce_Fuse_Broadcast_With_Output");
   auto layer_norm_51__tmp_1 = net_builder.CreateInput(Float(32), {256}, "layer_norm_51__tmp_1");
@@ -76,24 +106,7 @@ TEST(OpFusionPass, Reduce_Fuse_Broadcast_With_Output) {
   auto var_3252         = net_builder.ReduceSum(var_3244, {1}, true);
   auto var_3232         = net_builder.Scale(var_3226, 0.0166667, 0.0, true);
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OpFusionPass, Reduce_Fuse_Broadcast_Layernorm) {
@@ -133,23 +146,7 @@ TEST(OpFusionPass, Reduce_Fuse_Broadcast_Layernorm) {
     auto N = net_builder.Divide(M, LL);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OpFusionPass, Reduce_Fuse_Broadcast_Softmax) {
@@ -175,23 +172,7 @@ TEST(OpFusionPass, Reduce_Fuse_Broadcast_Softmax) {
     auto H = net_builder.Divide(E, G);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OpFusionPass, Reduce_Fuse_Broadcast_1) {
@@ -204,13 +185,7 @@ TEST(OpFusionPass, Reduce_Fuse_Broadcast_1) {
     auto C = net_builder.BroadcastTo(B, {h * w}, {0});
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
+  Compile(net_builder);
 }
 
 TEST(OpFusionPass, Reduce_Fuse_Broadcast_2) {
@@ -223,13 +198,7 @@ TEST(OpFusionPass, Reduce_Fuse_Broadcast_2) {
     auto C = net_builder.BroadcastTo(B, {h, w}, {1});
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
+  Compile(net_builder);
 }
 
 TEST(OpFusionPass, Reduce_Fuse_Broadcast_3) {
@@ -242,13 +211,7 @@ TEST(OpFusionPass, Reduce_Fuse_Broadcast_3) {
     auto C = net_builder.BroadcastTo(B, {h, h, w}, {0});
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
+  Compile(net_builder);
 }
 
 TEST(OpFusionPass, Reduce_Fuse_Broadcast_4) {
@@ -261,13 +224,7 @@ TEST(OpFusionPass, Reduce_Fuse_Broadcast_4) {
     auto C = net_builder.BroadcastTo(B, {h, h, w}, {1});
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  CHECK_EQ(graph->fusion_groups.size(), 2);
+  Compile(net_builder);
 }
 
 TEST(OpFusionPass, Reduce_Fuse_Broadcast_5) {
@@ -282,13 +239,7 @@ TEST(OpFusionPass, Reduce_Fuse_Broadcast_5) {
     auto E = net_builder.BroadcastTo(D, {h, h, w}, {0});
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
+  Compile(net_builder);
 }
 
 TEST(OpFusionPass, Reduce_Fuse_Broadcast_6) {
@@ -303,14 +254,7 @@ TEST(OpFusionPass, Reduce_Fuse_Broadcast_6) {
     auto E = net_builder.BroadcastTo(D, {h, h, w}, {1, 2});
     auto F = net_builder.Add(C, E);
   }
-
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Dim_Equal_One_0) {
@@ -324,23 +268,7 @@ TEST(OP_LOWERING, Reduce_Dim_Equal_One_0) {
     auto F = net_builder.Add(D, E);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Dim_Equal_One_1) {
@@ -350,23 +278,7 @@ TEST(OP_LOWERING, Reduce_Dim_Equal_One_1) {
     auto B = net_builder.ReduceSum(A, {0, 1}, false);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Dim_Equal_One_2) {
@@ -376,23 +288,7 @@ TEST(OP_LOWERING, Reduce_Dim_Equal_One_2) {
     auto B = net_builder.ReduceSum(A, {1}, false);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Dim_Equal_One_3) {
@@ -402,23 +298,7 @@ TEST(OP_LOWERING, Reduce_Dim_Equal_One_3) {
     auto B = net_builder.ReduceSum(A, {0, 1}, false);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Dim_Equal_One_4) {
@@ -428,23 +308,7 @@ TEST(OP_LOWERING, Reduce_Dim_Equal_One_4) {
     auto B = net_builder.ReduceSum(A, {0, 2}, false);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Dim_Equal_One_5) {
@@ -454,23 +318,7 @@ TEST(OP_LOWERING, Reduce_Dim_Equal_One_5) {
     auto B = net_builder.ReduceSum(A, {0, 2, 3}, false);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Dim_Equal_One_6) {
@@ -479,23 +327,8 @@ TEST(OP_LOWERING, Reduce_Dim_Equal_One_6) {
     auto A = net_builder.CreateInput(Float(32), {32, 32, 256}, "A");
     auto B = net_builder.ReduceSum(A, {1, 2});
   }
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
 
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Dim_Equal_One_7) {
@@ -505,23 +338,7 @@ TEST(OP_LOWERING, Reduce_Dim_Equal_One_7) {
     auto B = net_builder.ReduceSum(A, {2}, false);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Keep_Dim_Fuse_Elementwise_0) {
@@ -531,23 +348,7 @@ TEST(OP_LOWERING, Reduce_Keep_Dim_Fuse_Elementwise_0) {
     auto B = net_builder.ReduceSum(A, {2}, true);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Keep_Dim_Fuse_Elementwise_1) {
@@ -559,23 +360,7 @@ TEST(OP_LOWERING, Reduce_Keep_Dim_Fuse_Elementwise_1) {
     auto D = net_builder.Add(B, C);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Keep_Dim_Fuse_Elementwise_2) {
@@ -587,23 +372,7 @@ TEST(OP_LOWERING, Reduce_Keep_Dim_Fuse_Elementwise_2) {
     auto D = net_builder.Add(B, C);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Keep_Dim_Fuse_Elementwise_3) {
@@ -613,23 +382,7 @@ TEST(OP_LOWERING, Reduce_Keep_Dim_Fuse_Elementwise_3) {
     auto B = net_builder.ReduceSum(A, {2, 3}, true);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Keep_Dim_Fuse_Elementwise_4) {
@@ -639,23 +392,7 @@ TEST(OP_LOWERING, Reduce_Keep_Dim_Fuse_Elementwise_4) {
     auto B = net_builder.ReduceSum(A, {2}, true);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Keep_Dim_Fuse_Elementwise_5) {
@@ -665,23 +402,7 @@ TEST(OP_LOWERING, Reduce_Keep_Dim_Fuse_Elementwise_5) {
     auto B = net_builder.ReduceSum(A, {2}, true);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Keep_Dim_Fuse_Elementwise_6) {
@@ -691,23 +412,7 @@ TEST(OP_LOWERING, Reduce_Keep_Dim_Fuse_Elementwise_6) {
     auto B = net_builder.ReduceSum(A, {2}, true);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Keep_Dim_Fuse_Elementwise_7) {
@@ -717,23 +422,7 @@ TEST(OP_LOWERING, Reduce_Keep_Dim_Fuse_Elementwise_7) {
     auto B = net_builder.ReduceSum(A, {1, 3}, true);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Elementwise_Test_Concat_Before_Reduce) {
@@ -746,23 +435,7 @@ TEST(OP_LOWERING, Elementwise_Test_Concat_Before_Reduce) {
     auto E = net_builder.ReduceSum(D, {2}, false);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Elementwise_Test_Reshape_Before_Reduce) {
@@ -777,23 +450,7 @@ TEST(OP_LOWERING, Elementwise_Test_Reshape_Before_Reduce) {
     auto G = net_builder.ReduceSum(F, {0, 1}, false);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Elementwise_Test_Reshape_After_Reduce) {
@@ -809,23 +466,7 @@ TEST(OP_LOWERING, Elementwise_Test_Reshape_After_Reduce) {
     auto H = net_builder.Add(B, G);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Elementwise_Test_Reshape_Fuse_Concat) {
@@ -843,23 +484,7 @@ TEST(OP_LOWERING, Elementwise_Test_Reshape_Fuse_Concat) {
     auto I  = net_builder.Concat({G, H}, 2);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Elementwise_TEST_Split_0) {
@@ -869,23 +494,7 @@ TEST(OP_LOWERING, Elementwise_TEST_Split_0) {
     auto B = net_builder.Split(A, {3, 5, 16, 2, 6}, 0);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Elementwise_TEST_Split_1) {
@@ -895,23 +504,7 @@ TEST(OP_LOWERING, Elementwise_TEST_Split_1) {
     auto B = net_builder.Split(A, {32, 32, 32, 32}, 1);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Elementwise_TEST_Split_2) {
@@ -921,23 +514,7 @@ TEST(OP_LOWERING, Elementwise_TEST_Split_2) {
     auto B = net_builder.Split(A, {64, 32, 32}, 1);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Elementwise_TEST_0) {
@@ -948,23 +525,7 @@ TEST(OP_LOWERING, Elementwise_TEST_0) {
     auto o2 = net_builder.Scale(x, -1.0, 0.0);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, NonFusibleOp_TEST_0) {
@@ -974,22 +535,7 @@ TEST(OP_LOWERING, NonFusibleOp_TEST_0) {
     auto B = net_builder.Reshape(A, {9801, 2});
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, NonFusibleOp_TEST_1) {
@@ -1000,22 +546,7 @@ TEST(OP_LOWERING, NonFusibleOp_TEST_1) {
     auto C = net_builder.Matmul(A, B);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, NonFusibleOp_TEST_2) {
@@ -1025,22 +556,7 @@ TEST(OP_LOWERING, NonFusibleOp_TEST_2) {
     auto B = net_builder.Matmul(A, A);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, NonFusibleOp_TEST_3) {
@@ -1050,22 +566,7 @@ TEST(OP_LOWERING, NonFusibleOp_TEST_3) {
     auto C = net_builder.Split(A, {4}, 1);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 #ifdef CINN_WITH_CUDA
@@ -1079,23 +580,7 @@ TEST(OP_LOWERING, NonFusibleOp_TEST_4) {
     auto E = net_builder.Add(C, D);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "TransToCustomCallPass");
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 #endif
 
@@ -1108,22 +593,7 @@ TEST(OP_LOWERING, Transform_TEST_0) {
     auto D = net_builder.Concat({A, B, C}, 1);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Elementwise_Test_0) {
@@ -1140,22 +610,7 @@ TEST(OP_LOWERING, Elementwise_Test_0) {
     auto G = net_builder.Add(E, F);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Elementwise_Test_2) {
@@ -1173,22 +628,7 @@ TEST(OP_LOWERING, Elementwise_Test_2) {
     auto H = net_builder.Add(F, G);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Test_0) {
@@ -1200,22 +640,7 @@ TEST(OP_LOWERING, Reduce_Test_0) {
     auto B = net_builder.ReduceSum(A, {0, 1});
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Test_1) {
@@ -1227,22 +652,7 @@ TEST(OP_LOWERING, Reduce_Test_1) {
     auto B = net_builder.ReduceSum(A, {0, 1, 2});
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Test_2) {
@@ -1254,22 +664,7 @@ TEST(OP_LOWERING, Reduce_Test_2) {
     auto B = net_builder.ReduceSum(A, {0, 1});
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Test_3) {
@@ -1281,22 +676,7 @@ TEST(OP_LOWERING, Reduce_Test_3) {
     auto B = net_builder.ReduceSum(A, {0, 1, 2});
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Test_4) {
@@ -1308,22 +688,7 @@ TEST(OP_LOWERING, Reduce_Test_4) {
     auto B = net_builder.ReduceSum(A, {0});
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Test_5) {
@@ -1335,22 +700,7 @@ TEST(OP_LOWERING, Reduce_Test_5) {
     auto B = net_builder.ReduceSum(A, {0});
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Test_6) {
@@ -1362,22 +712,7 @@ TEST(OP_LOWERING, Reduce_Test_6) {
     auto B = net_builder.ReduceSum(A, {0});
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Test_7) {
@@ -1389,22 +724,7 @@ TEST(OP_LOWERING, Reduce_Test_7) {
     auto B = net_builder.ReduceSum(A, {1});
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Test_8) {
@@ -1416,22 +736,7 @@ TEST(OP_LOWERING, Reduce_Test_8) {
     auto B = net_builder.ReduceSum(A, {1, 2});
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Test_9) {
@@ -1443,22 +748,7 @@ TEST(OP_LOWERING, Reduce_Test_9) {
     auto B = net_builder.ReduceSum(A, {0, 2, 3});
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Test_10) {
@@ -1470,22 +760,7 @@ TEST(OP_LOWERING, Reduce_Test_10) {
     auto B = net_builder.ReduceSum(A, {1});
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Fusion_Test_0) {
@@ -1500,23 +775,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_0) {
     auto D = net_builder.Add(B, C);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Fusion_Test_1) {
@@ -1530,24 +789,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_1) {
     auto E = net_builder.ReduceSum(D, {0});
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Fusion_Test_2) {
@@ -1566,23 +808,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_2) {
     auto H = net_builder.Add(E, G);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Fusion_Test_3) {
@@ -1596,23 +822,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_3) {
     auto D = net_builder.Add(B, C);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Fusion_Test_4) {
@@ -1628,26 +838,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_4) {
     auto E = net_builder.ReduceSum(C, {0});
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  CHECK_EQ(graph->fusion_groups.size(), 3);
-
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Fusion_Test_5) {
@@ -1663,26 +854,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_5) {
     auto E = net_builder.ReduceSum(C, {1});
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  CHECK_EQ(graph->fusion_groups.size(), 3);
-
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Fusion_Test_6) {
@@ -1700,26 +872,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_6) {
     auto I = net_builder.Add(F, C);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  CHECK_EQ(graph->fusion_groups.size(), 3);
-
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Fusion_Test_7) {
@@ -1737,26 +890,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_7) {
     auto I = net_builder.Add(F, C);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  CHECK_EQ(graph->fusion_groups.size(), 5);
-
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Fuse_Reduce_Test_0) {
@@ -1771,26 +905,7 @@ TEST(OP_LOWERING, Reduce_Fuse_Reduce_Test_0) {
     auto F = net_builder.ReduceSum(D, {0});
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  CHECK_EQ(graph->fusion_groups.size(), 3);
-
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Fuse_Reduce_Test_1) {
@@ -1805,26 +920,7 @@ TEST(OP_LOWERING, Reduce_Fuse_Reduce_Test_1) {
     auto F = net_builder.ReduceSum(D, {0});
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  CHECK_EQ(graph->fusion_groups.size(), 3);
-
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Fuse_Reduce_Test_2) {
@@ -1839,26 +935,7 @@ TEST(OP_LOWERING, Reduce_Fuse_Reduce_Test_2) {
     auto F = net_builder.ReduceSum(D, {0});
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  CHECK_EQ(graph->fusion_groups.size(), 3);
-
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Fuse_Reduce_Test_3) {
@@ -1873,26 +950,7 @@ TEST(OP_LOWERING, Reduce_Fuse_Reduce_Test_3) {
     auto F = net_builder.ReduceSum(D, {1});
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  CHECK_EQ(graph->fusion_groups.size(), 3);
-
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Fuse_Reduce_Test_4) {
@@ -1907,26 +965,7 @@ TEST(OP_LOWERING, Reduce_Fuse_Reduce_Test_4) {
     auto F = net_builder.ReduceSum(D, {0, 1});
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  CHECK_EQ(graph->fusion_groups.size(), 3);
-
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Fuse_Reduce_Test_5) {
@@ -1941,26 +980,7 @@ TEST(OP_LOWERING, Reduce_Fuse_Reduce_Test_5) {
     auto F = net_builder.ReduceSum(D, {0, 1});
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  CHECK_EQ(graph->fusion_groups.size(), 3);
-
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Fuse_Reduce_Test_6) {
@@ -1975,26 +995,7 @@ TEST(OP_LOWERING, Reduce_Fuse_Reduce_Test_6) {
     auto F = net_builder.ReduceSum(D, {0, 2});
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  CHECK_EQ(graph->fusion_groups.size(), 3);
-
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Fuse_Reduce_Test_7) {
@@ -2012,26 +1013,7 @@ TEST(OP_LOWERING, Reduce_Fuse_Reduce_Test_7) {
     auto H = net_builder.Add(F, C);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  CHECK_EQ(graph->fusion_groups.size(), 3);
-
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Fuse_Reduce_Test_8) {
@@ -2046,26 +1028,7 @@ TEST(OP_LOWERING, Reduce_Fuse_Reduce_Test_8) {
     auto G = net_builder.Add(E, F);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
-
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Fuse_Reduce_Test_9) {
@@ -2080,26 +1043,7 @@ TEST(OP_LOWERING, Reduce_Fuse_Reduce_Test_9) {
     auto G = net_builder.Add(E, F);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
-
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Fusion_Test_8) {
@@ -2117,26 +1061,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_8) {
     auto I = net_builder.Add(F, C);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  CHECK_EQ(graph->fusion_groups.size(), 5);
-
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Fusion_Test_9) {
@@ -2154,26 +1079,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_9) {
     auto I = net_builder.Add(F, C);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  CHECK_EQ(graph->fusion_groups.size(), 5);
-
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Fusion_Test_10) {
@@ -2187,26 +1093,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_10) {
     auto D = net_builder.Add(B, C);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
-
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Fusion_Test_11) {
@@ -2221,26 +1108,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_11) {
     auto F = net_builder.ReduceSum(D, {0, 2, 3});
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  CHECK_EQ(graph->fusion_groups.size(), 3);
-
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Fusion_Test_12) {
@@ -2255,26 +1123,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_12) {
     auto F = net_builder.ReduceSum(D, {0, 2, 3});
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  CHECK_EQ(graph->fusion_groups.size(), 3);
-
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Fusion_Test_13) {
@@ -2289,26 +1138,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_13) {
     auto F = net_builder.ReduceSum(D, {0, 1, 2});
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  CHECK_EQ(graph->fusion_groups.size(), 3);
-
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Fusion_Test_14) {
@@ -2323,26 +1153,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_14) {
     auto F = net_builder.ReduceSum(D, {0, 3, 4});
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  CHECK_EQ(graph->fusion_groups.size(), 3);
-
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Fusion_Test_15) {
@@ -2357,26 +1168,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_15) {
     auto F = net_builder.ReduceSum(D, {0});
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  CHECK_EQ(graph->fusion_groups.size(), 3);
-
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Fusion_Test_16) {
@@ -2391,26 +1183,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_16) {
     auto F = net_builder.ReduceSum(D, {0, 2, 3});
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  CHECK_EQ(graph->fusion_groups.size(), 3);
-
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Fusion_Test_17) {
@@ -2425,23 +1198,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_17) {
     auto G = net_builder.Add(E, F);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Fusion_Test_18) {
@@ -2456,26 +1213,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_18) {
     auto G = net_builder.Add(E, F);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
-
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Fusion_Test_19) {
@@ -2490,26 +1228,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_19) {
     auto G = net_builder.Add(E, F);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
-
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Fusion_Test_20) {
@@ -2530,26 +1249,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_20) {
     auto K = net_builder.Add(H, J);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
-
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Fusion_Test_21) {
@@ -2578,26 +1278,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_21) {
     auto K  = net_builder.Add(H, J);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  CHECK_EQ(graph->fusion_groups.size(), 5);
-
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 TEST(OP_LOWERING, Reduce_Fusion_Test_22) {
@@ -2630,26 +1311,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_22) {
     auto DDD = net_builder.Add(DD, D1);
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  CHECK_EQ(graph->fusion_groups.size(), 9);
-
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
 
 }  // namespace framework

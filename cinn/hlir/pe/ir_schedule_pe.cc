@@ -497,17 +497,37 @@ void IRCudaScheduleBlockReduce(ir::IRSchedule &ir_sch,
       ir_sch.Split(loops[0], {-1, ir::GetLoopExtent(loops[0])});
     }
   }
-
-  for (auto &tensor : {reduce_tmp_out, tmp_out, out}) {
-    auto loops = ir_sch.GetLoops(tensor->name);
-    CHECK(!loops.empty());
-    if (loops.size() == 1 && tensor != out) {
-      ir_sch.Split(loops[0], {1, -1});
-    } else if (loops.size() == 1) {
-      ir_sch.Split(loops[0], {-1, 1});
+  // bind block and thread for reduce.
+  // reduce_tmp_out
+  {
+    auto loops = ir_sch.GetLoops(reduce_tmp_out->name);
+    if (loops.size() <= 2U) {
+      if (ir_sch.GetLoops(tmp_out->name).size() == 1) {
+        ir_sch.Split(loops[0], {-1, 1});
+      }
+      loops = ir_sch.GetLoops(reduce_tmp_out->name);
+    }
+    ir_sch.Bind(loops[0], "blockIdx.x");
+    ir_sch.Bind(loops[1], "threadIdx.x");
+  }
+  // tmp_out
+  {
+    auto loops = ir_sch.GetLoops(tmp_out->name);
+    if (loops.size() < 2U) {
+      ir_sch.Split(loops.back(), {-1, 1});
+      loops = ir_sch.GetLoops(tmp_out->name);
     }
 
-    loops = ir_sch.GetLoops(tensor->name);
+    ir_sch.Bind(loops[0], "blockIdx.x");
+    ir_sch.Bind(loops[1], "threadIdx.x");
+  }
+  // out
+  {
+    auto loops = ir_sch.GetLoops(out->name);
+    if (loops.size() < 2U) {
+      ir_sch.Split(loops.back(), {-1, 1});
+      loops = ir_sch.GetLoops(out->name);
+    }
     ir_sch.Bind(loops[0], "blockIdx.x");
     ir_sch.Bind(loops[1], "threadIdx.x");
   }
