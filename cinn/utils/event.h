@@ -24,6 +24,11 @@
 namespace cinn {
 namespace utils {
 
+/*
+TODO(Aurelius84): For now, we don't implement EventLevel to
+control or shield the event greater than specified level.
+So EventType is not strictly a single-layer structure.
+*/
 enum class EventType {
   // kOrdinary is default type
   kOrdinary,
@@ -31,12 +36,14 @@ enum class EventType {
   kGraph,
   // kProgram is fronted Program process
   kProgram,
-  // kPass is Graph and Program pass process
-  kPass,
-  // kOpLowering is NetBuilder OpLower process
-  kOpLowering,
-  // kSchedule is applying Schedule process
+  // kFusePass is Graph and Program pass process
+  kFusePass,
+  // kCompute is NetBuilder OpLower process in OpLowering
+  kCompute,
+  // kSchedule is applying Schedule process in OpLowering
   kSchedule,
+  // kOptimize is applying Optimize process in OpLowering
+  kOptimize,
   // kCodeGen is AstCodegen process
   kCodeGen,
   // kCompile is LLVM or CUDA NVTX compile process
