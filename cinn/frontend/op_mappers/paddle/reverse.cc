@@ -19,21 +19,15 @@ namespace cinn {
 namespace frontend {
 namespace paddle_mappers {
 
-void TriangularSolveOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+void ReverseOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
   auto x_name = op_desc.Input("X").front();
-  CHECK_EQ(op_desc.Input("Y").size(), 1UL);
-  auto y_name = op_desc.Input("Y").front();
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
   auto out_name = op_desc.Output("Out").front();
 
-  constexpr bool left_side = true;
-  auto upper               = utils::GetAttrOrDefault<bool>(op_desc, "upper", true);
-  auto transpose           = utils::GetAttrOrDefault<bool>(op_desc, "transpose", false);
-  auto unitriangular       = utils::GetAttrOrDefault<bool>(op_desc, "unitriangular", false);
-  auto x                   = ctx.GetVar(x_name);
-  auto y                   = ctx.GetVar(y_name);
-  auto out                 = ctx.Builder()->TriangularSolve(x, y, left_side, upper, transpose, unitriangular);
+  auto axes = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "axis", std::vector<int>{});
+  auto x    = ctx.GetVar(x_name);
+  auto out  = ctx.Builder()->Reverse(x, axes);
 
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);
@@ -43,7 +37,7 @@ void TriangularSolveOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperC
 }  // namespace frontend
 }  // namespace cinn
 
-CINN_REGISTER_HELPER(paddle_triangular_solve) {
-  CINN_REGISTER_OP_MAPPER(triangular_solve, cinn::frontend::paddle_mappers::TriangularSolveOpMapper)
+CINN_REGISTER_HELPER(paddle_reverse) {
+  CINN_REGISTER_OP_MAPPER(reverse, cinn::frontend::paddle_mappers::ReverseOpMapper)
   return true;
 }

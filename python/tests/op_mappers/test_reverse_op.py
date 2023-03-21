@@ -19,29 +19,22 @@ from op_mapper_test import OpMapperTest
 import paddle
 
 
-class TestTriangularSolveOp(OpMapperTest):
+class TestReverseOp(OpMapperTest):
     def init_input_data(self):
-        self.feed_data = {
-            'x': self.random([32, 32], "float32"),
-            'y': self.random([32, 128], "float32")
-        }
+        self.feed_data = {'x': self.random([3, 2, 4], "float32")}
 
     def set_op_type(self):
-        return "triangular_solve"
+        return "reverse"
 
     def set_op_inputs(self):
         x = paddle.static.data(
             name='x',
             shape=self.feed_data['x'].shape,
             dtype=self.feed_data['x'].dtype)
-        y = paddle.static.data(
-            name='y',
-            shape=self.feed_data['y'].shape,
-            dtype=self.feed_data['y'].dtype)
-        return {'X': [x], 'Y': [y]}
+        return {'X': [x]}
 
     def set_op_attrs(self):
-        return {"upper": True, "transpose": False, "unitriangular": False}
+        return {"axis": [0, 1]}
 
     def set_op_outputs(self):
         return {'Out': [str(self.feed_data['x'].dtype)]}
@@ -50,19 +43,9 @@ class TestTriangularSolveOp(OpMapperTest):
         self.check_outputs_and_grads()
 
 
-class TestTriangularSolveOpUpper(TestTriangularSolveOp):
+class TestReverseOpAxis(TestReverseOp):
     def set_op_attrs(self):
-        return {"upper": False, "transpose": False, "unitriangular": False}
-
-
-class TestTriangularSolveOpTranspose(TestTriangularSolveOp):
-    def set_op_attrs(self):
-        return {"upper": True, "transpose": True, "unitriangular": False}
-
-
-class TestTriangularSolveOpUnitriangular(TestTriangularSolveOp):
-    def set_op_attrs(self):
-        return {"upper": True, "transpose": False, "unitriangular": True}
+        return {"axis": [0, 2]}
 
 
 if __name__ == "__main__":
