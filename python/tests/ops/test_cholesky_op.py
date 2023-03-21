@@ -30,12 +30,10 @@ class TestCholeskyOp(OpTest):
         self.init_case()
 
     def init_case(self):
-        self.inputs = {
-            "x":
-            np.array([[0.96329159, 0.88160539, 0.40593964],
-                      [0.88160539, 1.39001071, 0.48823422],
-                      [0.40593964, 0.48823422, 0.19755946]]).astype(np.float32)
-        }
+        matrix = np.random.random([3, 3]).astype("float32")
+        matrix_t = np.transpose(matrix, [1, 0])
+        x = np.dot(matrix, matrix_t)
+        self.inputs = {"x": x}
         self.upper = False
 
     def build_paddle_program(self, target):
@@ -60,32 +58,40 @@ class TestCholeskyOp(OpTest):
 
 class TestCholeskyCase1(TestCholeskyOp):
     def init_case(self):
-        self.inputs = {
-            "x":
-            np.array([[[0.96329159, 0.88160539, 0.40593964],
-                       [0.88160539, 1.39001071, 0.48823422],
-                       [0.40593964, 0.48823422, 0.19755946]],
-                      [[0.96329159, 0.88160539, 0.40593964],
-                       [0.88160539, 1.39001071, 0.48823422],
-                       [0.40593964, 0.48823422,
-                        0.19755946]]]).astype(np.float32)
-        }
-        self.upper = False
+        matrix = np.random.random([5, 5]).astype("float64")
+        matrix_t = np.transpose(matrix, [1, 0])
+        x = np.dot(matrix, matrix_t)
+        self.inputs = {"x": x}
+        self.upper = True
 
 
 class TestCholeskyCase2(TestCholeskyOp):
     def init_case(self):
+        matrix = np.random.random([3, 3]).astype("float32")
+        matrix_t = np.transpose(matrix, [1, 0])
+        x = np.dot(matrix, matrix_t)
+        x = np.broadcast_to(x, [3, 3, 3])
+        self.inputs = {"x": x}
+        self.upper = False
+
+
+class TestCholeskyCase3(TestCholeskyOp):
+    def init_case(self):
         self.inputs = {
             "x":
-            np.array([[[0.96329159, 0.88160539, 0.40593964],
-                       [0.88160539, 1.39001071, 0.48823422],
-                       [0.40593964, 0.48823422, 0.19755946]],
-                      [[0.96329159, 0.88160539, 0.40593964],
-                       [0.88160539, 1.39001071, 0.48823422],
-                       [0.40593964, 0.48823422,
-                        0.19755946]]]).astype(np.float64)
+            np.array([
+                [[0.96329159, 0.88160539, 0.40593964],
+                 [0.88160539, 1.39001071, 0.48823422],
+                 [0.40593964, 0.48823422, 0.19755946]],
+                [[0.96329159, 0.88160539, 0.40593964],
+                 [0.88160539, 1.39001071, 0.48823422],
+                 [0.40593964, 0.48823422, 0.19755946]],
+                [[0.96329159, 0.88160539, 0.40593964],
+                 [0.88160539, 1.39001071, 0.48823422],
+                 [0.40593964, 0.48823422, 0.19755946]],
+            ]).astype(np.float32)
         }
-        self.upper = True
+        self.upper = False
 
 
 if __name__ == "__main__":

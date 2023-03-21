@@ -1185,6 +1185,7 @@ void cinn_call_cholesky_nvgpu(void *v_args, int num_args, int batch_size, int m,
   size_t numel          = x->num_elements();
   uint8_t bits          = x->type.bits;
   uint8_t bytes         = bits / 8;
+  CHECK_EQ(x->type.code, cinn_type_code_t::cinn_type_float);
   CHECK(bits == 32 || bits == 64) << "Unsupported bits = " << bits << " float data type for cholesky";
 
   auto cuda_stream = static_cast<cudaStream_t>(stream);
@@ -1196,7 +1197,7 @@ void cinn_call_cholesky_nvgpu(void *v_args, int num_args, int batch_size, int m,
   // Generate pointer array
   std::vector<void *> host_out_ptr(batch_size, nullptr);
   for (int i = 0; i < batch_size; ++i) {
-    host_out_ptr[i] = reinterpret_cast<void *>(out_ptr) + i * m * m * bytes;
+    host_out_ptr[i] = reinterpret_cast<char *>(out_ptr) + i * m * m * bytes;
   }
   thrust::device_vector<void *> dev_out_ptr(host_out_ptr.begin(), host_out_ptr.end());
   // Store the return value of each matrix
