@@ -62,7 +62,7 @@ class TestArgminOp(OpMapperTest):
         self.check_outputs_and_grads(all_equal=True)
 
 
-class TestArgminCase1(TestArgmaxOp):
+class TestArgminCase1(TestArgminOp):
     """
     Test case with negative axis and True flatten and int64 output dtype
     """
@@ -79,7 +79,7 @@ class TestArgminCase1(TestArgmaxOp):
         }
 
 
-class TestArgminCase2(TestArgmaxOp):
+class TestArgminCase2(TestArgminOp):
     """
     Test case with true keepdims 
     """
