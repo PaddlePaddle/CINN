@@ -57,6 +57,7 @@ CINN_USE_REGISTER(paddle_cumsum)
 CINN_USE_REGISTER(paddle_norm)
 CINN_USE_REGISTER(paddle_tile)
 CINN_USE_REGISTER(paddle_arg_max)
+CINN_USE_REGISTER(paddle_arg_min)
 
 CINN_USE_REGISTER(science_broadcast)
 CINN_USE_REGISTER(science_transform)

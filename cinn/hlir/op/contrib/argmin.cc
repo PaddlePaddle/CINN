@@ -65,7 +65,7 @@ std::vector<Tensor> Argmin(const Tensor &in_tensor,
   std::vector<Expr> output_shape;
   for (int i = 0; i < shape.size(); ++i) {
     CHECK(shape[i].is_constant()) << "Input tensor's shape should be constant value.";
-    if (axis == i) {
+    if (pos_axis == i) {
       if (keep_dims) {
         output_shape.push_back(Expr(1));
       }
@@ -81,7 +81,7 @@ std::vector<Tensor> Argmin(const Tensor &in_tensor,
       output_shape,
       [=](const std::vector<Expr> &indices) {
         std::vector<Expr> eval_indices(indices);
-        if (!keep_dims) {
+        if (!keep_dims and ndim > 1) {
           eval_indices.insert(eval_indices.begin() + pos_axis, Expr(0));
         } else {
           eval_indices[pos_axis] = Expr(0);

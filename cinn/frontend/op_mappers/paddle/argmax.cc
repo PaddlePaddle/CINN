@@ -20,7 +20,7 @@ namespace cinn {
 namespace frontend {
 namespace paddle_mappers {
 
-void ArgMaxOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+void ArgOpMapperHelper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx, const std::string arg_type) {
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
   auto x_name = op_desc.Input("X").front();
 
@@ -39,17 +39,32 @@ void ArgMaxOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
   auto dtype      = common::Type2Str(dtype_cinn);
 
   int ndim = x->shape.size();
-  // If flatten = true, flatten x and do argmax on axis 0.
+  // If flatten = true, flatten x and do opration on axis 0.
   if (flatten) {
     x    = ctx.Builder()->Reshape(x, {-1});
     axis = 0;
     ndim = x->shape.size();
   }
-  auto out = ctx.Builder()->Argmax(x, axis, keepdims);
-  out      = ctx.Builder()->Cast(out, dtype);
+  if (arg_type == "ArgMax") {
+    auto out = ctx.Builder()->Argmax(x, axis, keepdims);
+  } else if (arg_type == "ArgMin") {
+    auto out = ctx.Builder()->Argmin(x, axis, keepdims);
+  } else {
+    CHECK(0) << "arg_type must in [ArgMax, ArgMin]";
+  }
+
+  out = ctx.Builder()->Cast(out, dtype);
 
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);
+}
+
+void ArgMaxOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+  ArgOpMapperHelper(op_desc, ctx, "ArgMax");
+}
+
+void ArgMinOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+  ArgOpMapperHelper(op_desc, ctx, "ArgMin");
 }
 
 }  // namespace paddle_mappers
@@ -58,5 +73,10 @@ void ArgMaxOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
 
 CINN_REGISTER_HELPER(paddle_arg_max) {
   CINN_REGISTER_OP_MAPPER(arg_max, cinn::frontend::paddle_mappers::ArgMaxOpMapper)
+  return true;
+}
+
+CINN_REGISTER_HELPER(paddle_arg_min) {
+  CINN_REGISTER_OP_MAPPER(arg_min, cinn::frontend::paddle_mappers::ArgMinOpMapper)
   return true;
 }
