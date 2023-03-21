@@ -45,10 +45,12 @@ void ArgOpMapperHelper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
     axis = 0;
     ndim = x->shape.size();
   }
+
+  Variable out;
   if (arg_type == "ArgMax") {
-    auto out = ctx.Builder()->Argmax(x, axis, keepdims);
+    out = ctx.Builder()->Argmax(x, axis, keepdims);
   } else if (arg_type == "ArgMin") {
-    auto out = ctx.Builder()->Argmin(x, axis, keepdims);
+    out = ctx.Builder()->Argmin(x, axis, keepdims);
   } else {
     CHECK(0) << "arg_type must in [ArgMax, ArgMin]";
   }
