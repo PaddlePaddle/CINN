@@ -623,8 +623,8 @@ Node* GetMasterToComputeAt(Node* node,
     }
   }
 
-  // find consumer
-  std::unordered_set<Node*> visited;
+  // collect all consumers.
+  std::unordered_set<Node*> visited, masters;
   std::queue<Node*> candidates;
   candidates.push(node);
 
@@ -641,11 +641,22 @@ Node* GetMasterToComputeAt(Node* node,
         candidates.push(consumer);
         visited.insert(consumer);
       } else {
-        return consumer;
+        masters.insert(consumer);
       }
     }
   }
 
+  // nodes-in-order
+  for (int idx = 0; idx < nodes_in_order.size(); ++idx) {
+    if (nodes_in_order[idx] == node) {
+      for (int idy = idx - 1; idy >= 0; --idy) {
+        if (masters.count(nodes_in_order[idy])) {
+          return nodes_in_order[idy];
+        }
+      }
+      break;
+    }
+  }
   return nullptr;
 }
 
