@@ -505,7 +505,6 @@ TEST(net_build, program_execute_scatter) {
   }
 }
 
-
 TEST(net_build, program_execute_scatter_nd) {
   const float default_value = 3.14;
   const int B               = 3;
