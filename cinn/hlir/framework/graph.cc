@@ -83,9 +83,21 @@ void Graph::Initialize(const frontend::Program& prog,
 
 std::vector<std::vector<Node*>> Graph::FusionGroupsToGroups() {
   std::vector<std::vector<Node*>> groups;
-  groups.resize(fusion_groups.size());
-  for (size_t i = 0; i < fusion_groups.size(); ++i) {
-    groups[i] = fusion_groups[i]->CollectNodes();
+  if (fusion_groups.empty()) {
+    // if no fusion_groups, the graph will be treated as a big group
+    const auto& nodes =
+        this->CollectNodes([](const common::GraphNode* node) { return node->safe_as<Node>() != nullptr; });
+    std::vector<Node*> group;
+    group.reserve(nodes.size());
+    for (auto* node : nodes) {
+      group.emplace_back(node->safe_as<Node>());
+    }
+    groups.emplace_back(std::move(group));
+  } else {
+    groups.resize(fusion_groups.size());
+    for (size_t i = 0; i < fusion_groups.size(); ++i) {
+      groups[i] = fusion_groups[i]->CollectNodes();
+    }
   }
   return groups;
 }
@@ -110,7 +122,7 @@ std::string Graph::DebugGroupedGraph(const std::unordered_set<std::string>& fetc
   return DebugGroupedGraph(graph_ops, fetch_var_ids);
 }
 
-std::string Graph::DebugGroupedGraph(const std::vector<std::vector<Node*>>& groups,
+std::string Graph::DebugGroupedGraph(const std::vector<Node*>& group,
                                      const std::unordered_set<std::string>& fetch_var_ids) {
   auto& shape_dict = HasAttr("infershape") ? GetAttrs<ShapeDict>("infershape") : ShapeDict{};
   auto& dtype_dict = HasAttr("inferdtype") ? GetAttrs<DTypeDict>("inferdtype") : DTypeDict{};
@@ -139,17 +151,6 @@ std::string Graph::DebugGroupedGraph(const std::vector<std::vector<Node*>>& grou
     }
     return std::vector<std::string>(feed_list.begin(), feed_list.end());
   };
-  auto debug_feed_list = [&](const std::vector<std::string>& feed_list) {
-    // print by "create_input" let the code copy to python test more convenience
-    std::stringstream ss;
-    for (const auto& id : feed_list) {
-      ss << "  " << id << " = builder.create_input(";
-      ss << "type=\"" << (dtype_dict.count(id) ? common::Type2Str(dtype_dict.at(id)) : "float32") << "\", ";
-      ss << "shape=[" << (shape_dict.count(id) ? cinn::utils::Join(shape_dict.at(id), ", ") : "-1") << "], ";
-      ss << "id_hint=\"" << id << "\")\n";
-    }
-    return ss.str();
-  };
   auto get_fetch_list = [&](const std::vector<Node*>& nodes, const std::unordered_set<std::string>& out_names) {
     // if the fetch var in out_names, it's the group's fetch var, otherwise not
     std::unordered_set<std::string> in_names;
@@ -169,24 +170,78 @@ std::string Graph::DebugGroupedGraph(const std::vector<std::vector<Node*>>& grou
     return fetch_list;
   };
 
+  const auto& out_names = get_all_out_names(group);
+  const auto& feed_list = get_feed_list(group, out_names);
+
+  std::stringstream debug_str;
+  // generator python test code
+  for (const auto& id : feed_list) {
+    const auto& shape = shape_dict.count(id) ? cinn::utils::Join(shape_dict.at(id), ", ") : "-1";
+    const auto& dtype = dtype_dict.count(id) ? common::Type2Str(dtype_dict.at(id)) : "float32";
+
+    // generator python create_input code
+    debug_str << "    " << id << " = builder.create_input(type=\"" << dtype << "\", shape=[" << shape << "], id_hint=\""
+              << id << "\")\n";
+  }
+  debug_str << "\n";
+  // generator builder.op code
+  for (auto* node : group) {
+    debug_str << "    " << DebugString(node) << "\n";
+  }
+  debug_str << "\n";
+  // generator
+  debug_str << "    feed_list = [" << cinn::utils::Join(feed_list, ", ") << "]\n";
+  debug_str << "    fetch_list = [" << cinn::utils::Join(get_fetch_list(group, out_names), ", ") << "]\n";
+
+  return debug_str.str();
+}
+
+std::string Graph::GenerateGroupPythonCode(const std::vector<Node*>& group,
+                                           const std::unordered_set<std::string>& fetch_var_ids) {
+  std::stringstream ss;
+  ss << "#!/usr/bin/env python3\n";
+  ss << "# Please set \"export PYTHONPATH=${CINN_ROOT}/build/python:${PYTHONPATH}\" first\n";
+  ss << "\n";
+  ss << "import unittest\n";
+  ss << "import numpy as np\n";
+  ss << "from cinn.frontend import NetBuilder\n";
+  ss << "from cinn.common import DefaultNVGPUTarget\n";
+  ss << "from tests.ops.op_test import OpTest\n";
+  ss << "\n";
+  ss << "class TestGroup(unittest.TestCase):\n";
+  ss << "  def test_group(self):\n";
+  ss << "    builder = NetBuilder(\"group_test\")\n";
+  ss << "\n";
+  ss << DebugGroupedGraph(group, fetch_var_ids);
+  ss << "\n";
+  ss << "    prog = builder.build()\n";
+  ss << "\n";
+  ss << "    feed_data = [OpTest.random(shape=var.shape(), dtype=var.type()) for var in feed_list]\n";
+  ss << "    result = prog.build_and_get_output(DefaultNVGPUTarget(), feed_list, feed_data, fetch_list)\n";
+  ss << "\n";
+  ss << "    result = [res.numpy(DefaultNVGPUTarget()) for res in result]\n";
+  ss << "    for i in range(len(result)):\n";
+  ss << "      info_str = fetch_list[i].name()\n";
+  ss << "      info_str += \", shape=\" + str(result[i].shape)\n";
+  ss << "      info_str += \", dtype=\" + str(result[i].dtype) + \":\\n\"\n";
+  ss << "      info_str += str(result[i])\n";
+  ss << "      print(info_str)\n";
+
+  ss << "\n";
+  ss << "\n";
+  ss << "if __name__ == \"__main__\":\n";
+  ss << "  unittest.main()\n";
+  ss << "\n";
+  return ss.str();
+}
+
+std::string Graph::DebugGroupedGraph(const std::vector<std::vector<Node*>>& groups,
+                                     const std::unordered_set<std::string>& fetch_var_ids) {
   std::stringstream debug_str;
   int group_id = 0;
   for (auto& group : groups) {
-    const auto& out_names = get_all_out_names(group);
-
     debug_str << "Group " << group_id++ << " {\n";
-
-    const auto& feed_list = get_feed_list(group, out_names);
-    debug_str << debug_feed_list(feed_list) << "\n";
-
-    for (auto* node : group) {
-      debug_str << "  " << DebugString(node) << "\n";
-    }
-    debug_str << "\n";
-
-    debug_str << "  feed_list=[" << cinn::utils::Join(feed_list, ", ") << "]\n";
-    debug_str << "  fetch_list=[" << cinn::utils::Join(get_fetch_list(group, out_names), ", ") << "]\n";
-
+    debug_str << DebugGroupedGraph(group, fetch_var_ids);
     debug_str << "}\n";
   }
   debug_str << "\n";
@@ -204,7 +259,6 @@ void Graph::VisualizeGroupedGraph(const std::unordered_set<std::string>& fetch_v
 void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
                                   const std::unordered_set<std::string>& fetch_var_ids) {
   if (FLAGS_cinn_fusion_groups_graphviz_dir.empty()) {
-    VLOG(4) << DebugGroupedGraph(groups, fetch_var_ids);
     return;
   }
 
@@ -215,7 +269,10 @@ void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
     return;
   }
 
-  WriteToFile(viz_path_ + "simple_graph.txt", DebugGroupedGraph(groups, fetch_var_ids));
+  for (int i = 0; i < groups.size(); i++) {
+    WriteToFile(viz_path_ + "test_group_" + std::to_string(i) + ".py",
+                GenerateGroupPythonCode(groups[i], fetch_var_ids));
+  }
 
   Summary(groups, viz_path_);
 
