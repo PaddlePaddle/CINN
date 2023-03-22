@@ -502,7 +502,7 @@ Variable NetBuilder::Argmin(const Variable& x, const int& axis, const bool& keep
 }
 
 Variable NetBuilder::LookupTable(const Variable& table, const Variable& ids, int64_t padding_idx) {
-  return CustomInstr("lookup_table", {table, ids}, {{"padding_idx", static_cast<int>(padding_idx)}}).front();
+  return CustomInstr("lookup_table", {table, ids}, {{"padding_idx", padding_idx}}).front();
 }
 
 Variable NetBuilder::Conv2d(const Variable& a,

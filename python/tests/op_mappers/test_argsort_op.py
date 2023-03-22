@@ -25,7 +25,6 @@ class TestArgSortOp(OpMapperTest):
         self.feed_data = {
             'x': self.random([3, 4], "float32"),
         }
-        print("x = ", self.feed_data)
         self.axis = 1
 
     def set_op_type(self):
