@@ -14,27 +14,46 @@
 
 #pragma once
 
+#include <functional>
 #include <string>
 
 #ifdef CINN_WITH_NVTX
 #include <nvToolsExt.h>
 #endif
 
+#include "cinn/utils/event.h"
+
 namespace cinn {
 namespace utils {
 
-class RecordEvent {
+enum class ProfilerState {
+  kDisabled,  // disabled state
+  kCPU,       // CPU profiling state
+  kCUDA,      // GPU profiling state
+  kAll
+};
+
+class ProfilerHelper {
  public:
-  RecordEvent(const std::string& name) {
-#ifdef CINN_WITH_NVTX
-    nvtxRangePushA(name.c_str());
-#endif
-  }
-  ~RecordEvent() {
-#ifdef CINN_WITH_NVTX
-    nvtxRangePop();
-#endif
-  }
+  static ProfilerState g_state;
+
+  static void Enable() { g_state = ProfilerState::kAll; }
+  static void Enable_CPU() { g_state = ProfilerState::kCPU; }
+  static void Enable_CUDA() { g_state = ProfilerState::kCUDA; }
+};
+
+class RecordEvent {
+  using CallBack = std::function<void()>;
+
+ public:
+  RecordEvent(const std::string& name, EventType type = EventType::kOrdinary);
+
+  void End();
+
+  ~RecordEvent() { End(); }
+
+ private:
+  CallBack call_back_;
 };
 
 void SynchronizeAllDevice();
@@ -46,6 +65,16 @@ void ProfilerStop();
 void ProfilerRangePush(const std::string& name);
 
 void ProfilerRangePop();
+
+inline bool is_profiler_enable() { return ProfilerHelper::g_state != ProfilerState::kDisabled; }
+
+inline bool is_cpu_enable() {
+  return ProfilerHelper::g_state == ProfilerState::kAll || ProfilerHelper::g_state == ProfilerState::kCPU;
+}
+
+inline bool is_cuda_enable() {
+  return ProfilerHelper::g_state == ProfilerState::kAll || ProfilerHelper::g_state == ProfilerState::kCUDA;
+}
 
 }  // namespace utils
 }  // namespace cinn
