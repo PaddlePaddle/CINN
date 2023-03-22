@@ -30,6 +30,7 @@
 #include "cinn/auto_schedule/tuning.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_schedule.h"
+#include "tests/program_builder.h"
 
 namespace cinn {
 namespace auto_schedule {
@@ -142,7 +143,7 @@ TEST(EvolutionarySearch, GetEpsGreedy) {
 
 TEST(EvolutionarySearch, Evolve) {
   auto target = common::DefaultNVGPUTarget();
-  auto tasks  = CreateTasks(MatmulOpBuilder({32, 32}, {32, 32})(), target);
+  auto tasks  = CreateTasks(tests::OpBuilder("matmul").Build({{"X", {32, 32}}, {"Y", {32, 32}}}), target);
   CHECK_EQ(tasks.size(), 1);
   ExprCostModel cost_model;
   std::vector<const ir::ModuleExpr*> cost_model_samples(1);

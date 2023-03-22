@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#pragma once
-
 #include "cinn/auto_schedule/search_strategy/mutate_rule/mutate_rule.h"
 
 #include "cinn/auto_schedule/search_strategy/mutate_rule/mutate_tile_size.h"
