@@ -183,5 +183,14 @@ class GatherOpBuilder : public TestOpBuilder {
   }
 };
 
+class ReduceSumOpBuilder : public TestOpBuilder {
+ public:
+  ReduceSumOpBuilder(const std::vector<int32_t>& input_shape, const std::vector<int32_t>& reduce_dim)
+      : TestOpBuilder("reduce_sum_net_builder") {
+    auto x = builder_.CreateInput(Float(32), input_shape, "X");
+    builder_.ReduceSum(x, reduce_dim);
+  }
+};
+
 }  // namespace auto_schedule
 }  // namespace cinn

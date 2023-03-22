@@ -190,11 +190,11 @@ class TestMultiLevelTiling : public TestAutoGenRuleBase {
 };
 
 TEST_F(TestMultiLevelTiling, Matmul) {
-  default_input_names        = {"X", "Y"};
-  default_output_names       = {"temp_matmul_out"};
-  std::vector<int> X_shape   = {32, 32};
-  std::vector<int> Y_shape   = {32, 32};
-  std::vector<int> out_shape = {32, 32};
+  default_input_names            = {"X", "Y"};
+  default_output_names           = {"temp_matmul_out"};
+  std::vector<int32_t> X_shape   = {32, 32};
+  std::vector<int32_t> Y_shape   = {32, 32};
+  std::vector<int32_t> out_shape = {32, 32};
 
   Initialize(common::DefaultNVGPUTarget());
   ir::IRSchedule ir_schedule = MakeIRSchedule(MatmulOpBuilder(X_shape, Y_shape)());
@@ -206,7 +206,7 @@ TEST_F(TestMultiLevelTiling, Matmul) {
   EXPECT_EQ(multi_level_tiling.AnalyseApplyType(state, default_output_names[0]),
             RuleApplyType::kApplyAndPruneOtherRules);
   auto new_states = multi_level_tiling.ApplyOnBlock(state, default_output_names[0]);
-  VLOG(6) << "After MultiLevelTiling, state:\n" << state->DebugString();
+  VLOG(6) << "After MultiLevelTiling, state:\n" << new_states[0]->DebugString();
 
   // build ir::Module and debug source code
   auto ir_module   = BuildIRModule(new_states[0]->ir_schedule);
@@ -222,6 +222,23 @@ TEST_F(TestMultiLevelTiling, Matmul) {
               {X_shape, Y_shape},
               {out_shape},
               target_);
+}
+
+TEST_F(TestMultiLevelTiling, ReduceSum) {
+  default_input_names             = {"X"};
+  default_output_names            = {"var_0_tmp"};
+  std::vector<int32_t> X_shape    = {1, 16, 32};
+  std::vector<int32_t> out_shape  = {1, 16, 1};
+  std::vector<int32_t> reduce_dim = {2};
+
+  Initialize(common::DefaultNVGPUTarget());
+  ir::IRSchedule ir_schedule = MakeIRSchedule(ReduceSumOpBuilder(X_shape, reduce_dim)());
+  SearchState state(ir_schedule);
+  VLOG(6) << "Original state:\n" << state->DebugString();
+
+  // Apply MultiLevelTiling
+  MultiLevelTiling multi_level_tiling(target_);
+  EXPECT_EQ(multi_level_tiling.AnalyseApplyType(state, default_output_names[0]), RuleApplyType::kCannotApply);
 }
 
 }  // namespace auto_schedule
