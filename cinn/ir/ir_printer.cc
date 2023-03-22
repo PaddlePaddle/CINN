@@ -65,8 +65,7 @@ void IrPrinter::Visit(const UIntImm *x) {
   } else if (x->type().is_uint(1)) {
     if (x->value) {
       os_ << "true";
-    }
-    else {
+    } else {
       os_ << "false";
     }
   } else {
