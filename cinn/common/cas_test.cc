@@ -386,7 +386,7 @@ TEST(CAS, SimplifyMinMax) {
 TEST(CAS, cond) {
   {
     Expr cond = Expr(2) > Expr(1);
-    EXPECT_EQ(GetStreamCnt(CasSimplify(cond)), "1");
+    EXPECT_EQ(GetStreamCnt(CasSimplify(cond)), "true");
   }
   {
     Var a("a");
@@ -396,7 +396,7 @@ TEST(CAS, cond) {
   {
     Var a("a");
     Expr cond = (Expr(2) < Expr(1)) && (a < 20);
-    EXPECT_EQ(GetStreamCnt(CasSimplify(cond)), "0");
+    EXPECT_EQ(GetStreamCnt(CasSimplify(cond)), "false");
   }
 }
 

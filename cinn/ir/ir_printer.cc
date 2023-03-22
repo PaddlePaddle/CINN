@@ -63,7 +63,12 @@ void IrPrinter::Visit(const UIntImm *x) {
   } else if (x->type().is_uint(8)) {
     os_ << "(uint8_t)" << x->value;
   } else if (x->type().is_uint(1)) {
-    os_ << "(bool)" << x->value;
+    if (x->value) {
+      os_ << "true";
+    }
+    else {
+      os_ << "false";
+    }
   } else {
     LOG(FATAL) << "Not support uint type: " << x->type();
   }
