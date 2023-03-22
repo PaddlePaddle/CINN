@@ -868,7 +868,7 @@ void cinn_call_cudnn_pool2d_forward(void *v_args,
   cudnnDataType_t data_type         = convert_to_cudnn_dtype(v_args, num_args);
 
   if (GetCinnCudnnDeterministic() && pool_mode == CUDNN_POOLING_MAX) {
-    algo = CUDNN_POOLING_MAX_DETERMINISTIC;
+    pool_mode = CUDNN_POOLING_MAX_DETERMINISTIC;
   }
 
   std::string hash_key =
@@ -938,7 +938,7 @@ void cinn_call_cudnn_pool2d_backward(void *v_args,
   cudnnDataType_t data_type         = convert_to_cudnn_dtype(v_args, num_args);
 
   if (GetCinnCudnnDeterministic() && pool_mode == CUDNN_POOLING_MAX) {
-    algo = CUDNN_POOLING_MAX_DETERMINISTIC;
+    pool_mode = CUDNN_POOLING_MAX_DETERMINISTIC;
   }
 
   std::string hash_key =
