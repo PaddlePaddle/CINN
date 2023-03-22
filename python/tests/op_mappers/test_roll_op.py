@@ -104,7 +104,7 @@ class TestRollCase6(TestRollOp):
 
 class TestRollAxesEmpty(TestRollOp):
     def set_op_attrs(self):
-        return {"shifts": self.shifts, "axes": []}
+        return {"shifts": self.shifts, "axis": []}
 
 
 if __name__ == "__main__":

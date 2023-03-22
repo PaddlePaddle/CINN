@@ -30,6 +30,7 @@ void RollOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
 
   // attr shifts and axis
   CHECK(op_desc.HasAttr("shifts"));
+  CHECK(op_desc.HasAttr("axis"));
   std::vector<int> shifts = utils::ToShapeType(utils::GetAttrOrDefault<std::vector<int64_t>>(op_desc, "shifts", {1}));
   std::vector<int> axis   = utils::ToShapeType(utils::GetAttrOrDefault<std::vector<int64_t>>(op_desc, "axis", {}));
 
