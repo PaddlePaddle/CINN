@@ -760,6 +760,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
 
     parallel_compiler_ = std::make_shared<ParallelCompiler>(scope_, graph_, option, target_);
     auto instructions  = (*parallel_compiler_.get())();
+    graph_->VisualizeGroupedGraph(fetch_var_ids);
 
     if (options.remove_unused_variables) {
       RemoveInvalidVariables(instructions);
@@ -1089,8 +1090,8 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions(
           if (node->attrs.attr_store.find("padding_size") != node->attrs.attr_store.end()) {
             if (global_pooling == false) {
               auto padding = absl::get<std::vector<int>>(node->attrs.attr_store.at("padding_size"));
-              CHECK_EQ(padding.size(), 4UL);
               instr->attrs.insert(instr->attrs.end(), padding.begin(), padding.end());
+              if (padding.size() == 2) instr->attrs.insert(instr->attrs.end(), padding.begin(), padding.end());
             } else {
               instr->attrs.push_back(0);
               instr->attrs.push_back(0);

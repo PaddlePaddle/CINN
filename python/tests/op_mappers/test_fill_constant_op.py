@@ -22,7 +22,7 @@ import paddle
 
 class TestFillConstantOp(OpMapperTest):
     def init_input_data(self):
-        self.feed_data = dict()
+        self.feed_data = {"x": self.random([1], "float32")}
         self.shape = [10, 10]
         self.value = np.random.default_rng(12345).random()
         self.str_value = ""
@@ -64,6 +64,24 @@ class TestFillConstantCase2(TestFillConstantOp):
         self.shape = [10, 10]
         self.value = 0
         self.str_value = "0.123456"
+        self.dtype = "float32"
+
+
+class TestFillConstantByValueTensor(TestFillConstantOp):
+    def set_op_inputs(self):
+        x = paddle.static.data(
+            name='x',
+            shape=self.feed_data['x'].shape,
+            dtype=self.feed_data['x'].dtype)
+        return {"ValueTensor": [x]}
+
+
+class TestFillConstantByValueTensorCase1(TestFillConstantByValueTensor):
+    def init_input_data(self):
+        self.feed_data = {"x": self.random([1], "int32", -10, 10)}
+        self.shape = [10, 10]
+        self.value = np.random.default_rng(12345).random()
+        self.str_value = ""
         self.dtype = "float32"
 
 

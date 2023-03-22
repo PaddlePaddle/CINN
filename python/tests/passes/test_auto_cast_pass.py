@@ -22,12 +22,12 @@ from cinn.common import *
 
 class TestAutoCastPass(PassTest):
     def init_input_data(self):
-        self.feed_data = [self.random([4, 5, 6], "float16")]
+        self.feed_data = {'x': self.random([4, 5, 6], "float16")}
 
     def build_program(self, builder, target):
         x = builder.create_input(
-            self.nptype2cinntype(self.feed_data[0].dtype),
-            self.feed_data[0].shape, "x")
+            self.nptype2cinntype(self.feed_data['x'].dtype),
+            self.feed_data['x'].shape, "x")
         out = builder.exp(x)
         return [x], [out]
 

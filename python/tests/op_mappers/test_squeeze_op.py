@@ -49,5 +49,10 @@ class TestSqueezeOp(OpMapperTest):
         self.check_outputs_and_grads()
 
 
+class TestSqueezeAxesEmpty(TestSqueezeOp):
+    def set_op_attrs(self):
+        return {"axes": []}
+
+
 if __name__ == "__main__":
     unittest.main()
