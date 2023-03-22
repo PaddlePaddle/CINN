@@ -254,16 +254,17 @@ struct SimplifyBlocksMutator : public ir::IRMutator<> {
     auto* node = expr->As<ir::Block>();
 
     if (node->stmts.size() == 1 && node->stmts[0].As<ir::Block>()) {
+      VLOG(6) << "Simplify size-1 ir::Block";
       *expr = node->stmts[0];
       Visit(expr, expr);
     } else {
       for (auto& s : node->stmts) {
         Visit(&s, &s);
       }
-      bool all_is_block = true;
       std::vector<Expr> stmts;
       for (auto& s : node->stmts) {
         if (s.As<ir::Block>()) {
+          VLOG(6) << "Simplify ir::Block inside ir::Block";
           auto inner_block = s.As<ir::Block>();
           for (auto inner_stmt : inner_block->stmts) {
             stmts.push_back(inner_stmt);
@@ -279,6 +280,7 @@ struct SimplifyBlocksMutator : public ir::IRMutator<> {
   void Visit(const IfThenElse* op, Expr* expr) override {
     if (op->condition.As<ir::UIntImm>()) {
       if (op->condition.as_bool() == false) {
+        VLOG(6) << "Simplify ir::IfThenElse false block";
         if (expr->As<IfThenElse>()->false_case.defined()) {
           *expr = expr->As<IfThenElse>()->false_case;
         } else {
@@ -286,6 +288,7 @@ struct SimplifyBlocksMutator : public ir::IRMutator<> {
         }
       } else {
         if (expr->As<IfThenElse>()->true_case.defined()) {
+          VLOG(6) << "Simplify ir::IfThenElse true block";
           *expr = expr->As<IfThenElse>()->true_case;
         } else {
           *expr = ir::Block::Make({});
@@ -313,6 +316,7 @@ struct SimplifyForLoopsMutator : public ir::IRMutator<> {
     auto* min_i    = node->min.As<IntImm>();
     auto* extent_i = node->extent.As<IntImm>();
     if (min_i && extent_i && extent_i->value > min_i->value && extent_i->value - min_i->value == 1) {
+      VLOG(6) << "Simplify current For Loop";
       std::string var_name = node->loop_var->name;
       var_intervals.emplace(var_name, common::CasInterval{min_i->value, extent_i->value - 1});
       if (node->body.As<ir::Block>() && node->body.As<ir::Block>()->stmts.size() == 1) {

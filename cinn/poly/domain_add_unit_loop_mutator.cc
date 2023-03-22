@@ -14,6 +14,8 @@
 
 #include "cinn/poly/domain_add_unit_loop_mutator.h"
 
+#include <glog/logging.h>
+
 #include <tuple>
 #include <vector>
 
@@ -37,6 +39,7 @@ void DomainAddUnitLoopMutator::operator()(ir::Expr* expr) {
 }
 
 void DomainAddUnitLoopMutator::Visit(const ir::For* op, Expr* expr) {
+  VLOG(6) << "DomainAddUnitLoopMutator Visit For";
   ir::For* node      = expr->As<ir::For>();
   bool add_unit_loop = false;
   if (parent_for_.size() < dim_names_.size()) {
@@ -83,6 +86,7 @@ void DomainAddUnitLoopMutator::Visit(const ir::For* op, Expr* expr) {
 }
 
 void DomainAddUnitLoopMutator::Visit(const ir::PolyFor* op, Expr* expr) {
+  VLOG(6) << "DomainAddUnitLoopMutator Visit PolyFor";
   ir::PolyFor* node  = expr->As<ir::PolyFor>();
   bool add_unit_loop = false;
   if (parent_poly_for_.size() < dim_names_.size()) {
@@ -131,6 +135,7 @@ void DomainAddUnitLoopMutator::Visit(const ir::PolyFor* op, Expr* expr) {
 }
 
 void DomainAddUnitLoopMutator::MutateAfterVisit(ir::Expr* expr) {
+  VLOG(6) << "DomainAddUnitLoopMutator::MutateAfterVisit";
   if (longest_loop_.size() >= dim_min_max_.size()) {
     // No loops to add
     return;
