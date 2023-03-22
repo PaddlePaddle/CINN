@@ -59,7 +59,7 @@ class TestGatherNdOp(OpTest):
         self.cinn_outputs = [res[0]]
 
     def test_check_results(self):
-        self.check_outputs_and_grads()
+        self.check_outputs_and_grads(all_equal=True)
 
 
 class TestGatherNdCase1(TestGatherNdOp):
@@ -75,6 +75,14 @@ class TestGatherNdCase2(TestGatherNdOp):
         self.inputs = {
             'x': self.random([2, 3, 4], 'float32'),
             'index': np.array([[1, 2, 3]], dtype='int32')
+        }
+
+
+class TestGatherNdCase3(TestGatherNdOp):
+    def init_case(self):
+        self.inputs = {
+            'x': self.random([2, 3, 4], 'float64'),
+            'index': np.array([[1, 2, 3]], dtype='int64')
         }
 
 

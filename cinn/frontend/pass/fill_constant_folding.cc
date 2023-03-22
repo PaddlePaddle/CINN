@@ -22,20 +22,22 @@
 #include "cinn/frontend/net_builder.h"
 #include "cinn/frontend/program_pass.h"
 #include "cinn/frontend/syntax.h"
+#include "cinn/utils/string.h"
 #include "cinn/utils/type_defs.h"
 
 namespace cinn::frontend::pass {
 
+using cinn::utils::Attribute;
 using cinn::utils::DimType;
 using cinn::utils::ShapeType;
 
 class FillConstantKey {
  public:
-  FillConstantKey(const ShapeType& shape, float value, const std::string& dtype, bool force_cpu) {
+  FillConstantKey(const ShapeType& shape, Attribute value, const std::string& dtype, bool force_cpu) {
     SetKey(shape, value, dtype, force_cpu);
   }
 
-  void SetKey(const ShapeType& shape, float value, const std::string& dtype, bool force_cpu) {
+  void SetKey(const ShapeType& shape, Attribute value, const std::string& dtype, bool force_cpu) {
     shape_     = shape;
     value_     = value;
     force_cpu_ = force_cpu;
@@ -53,7 +55,7 @@ class FillConstantKey {
 
       std::for_each(key.shape_.begin(), key.shape_.end(), [&](const DimType& dim) { hash_str << dim; });
 
-      hash_str << key.value_;
+      hash_str << utils::Attribute2String(key.value_);
       hash_str << key.force_cpu_;
       hash_str << key.dtype_;
 
@@ -63,7 +65,7 @@ class FillConstantKey {
 
  private:
   ShapeType shape_;
-  float value_;
+  Attribute value_;
   bool force_cpu_;
   std::string dtype_;
 };
@@ -100,7 +102,7 @@ class FillConstantFoldingPass : public ProgramPass {
           << "The fill_constant op should has one, and only one output ! Please check.";
 
       const auto& shape = instr.GetAttrs<ShapeType>("shape");
-      auto value        = instr.GetAttrs<float>("value");
+      auto value        = instr->attrs.at("value");
       const auto& dtype = instr.GetAttrs<std::string>("dtype");
       auto force_cpu    = instr.GetAttrs<bool>("force_cpu");
 

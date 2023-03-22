@@ -23,17 +23,6 @@ DECLARE_bool(cinn_ir_schedule);
 namespace cinn {
 namespace hlir {
 
-std::vector<int> GetPositiveAxes(const std::vector<int>& axes, int rank) {
-  std::vector<int> new_axes(axes.size());
-  for (int i = 0; i < axes.size(); ++i) {
-    int axis = axes[i] + (axes[i] < 0 ? rank : 0);
-    CHECK(axis >= 0 && axis < rank) << "The axis should in [0, " << rank << "), but axes[" << i << "]=" << axes[i]
-                                    << " not.";
-    new_axes[i] = axis;
-  }
-  return new_axes;
-}
-
 CINNSchedule GetElementwiseScheduleFunc(const std::vector<std::vector<int>>& output_shapes,
                                         const Target& target,
                                         bool vectorizable) {

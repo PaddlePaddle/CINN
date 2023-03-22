@@ -42,7 +42,7 @@ class TestCompareOp(OpMapperTest):
         return {'X': [x], 'Y': [y]}
 
     def set_op_attrs(self):
-        return {}
+        return {"axis": -1}
 
     def set_op_outputs(self):
         return {'Out': ['bool']}
@@ -79,6 +79,11 @@ class TestLessEqualOp(TestCompareOp):
 class TestLessThanOp(TestCompareOp):
     def set_op_type(self):
         return "less_than"
+
+
+class TestAxisCase(TestCompareOp):
+    def set_op_attrs(self):
+        return {"axis": 0}
 
 
 if __name__ == "__main__":
