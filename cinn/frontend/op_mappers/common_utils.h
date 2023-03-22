@@ -36,24 +36,31 @@ inline T GetAttrOrDefault(const paddle::cpp::OpDesc& op_desc, const std::string&
   return default_value;
 }
 
-#define EXPAND_SINGLE_NUM_TO_VECTOR(DATA_TYPE, ATTR_TYPE)                                                         \
-  template <>                                                                                                     \
-  inline std::vector<DATA_TYPE> GetAttrOrDefault(                                                                 \
-      const paddle::cpp::OpDesc& op_desc, const std::string& name, const std::vector<DATA_TYPE>& default_value) { \
-    if (op_desc.HasAttr(name)) {                                                                                  \
-      auto attr_type = op_desc.GetAttrType(name);                                                                 \
-      using AttrType = paddle::cpp::OpDescAPI::AttrType;                                                          \
-      switch (attr_type) {                                                                                        \
-        case AttrType::ATTR_TYPE##S:                                                                              \
-          return op_desc.GetAttr<std::vector<DATA_TYPE>>(name);                                                   \
-        case AttrType::ATTR_TYPE:                                                                                 \
-          return std::vector<DATA_TYPE>{op_desc.GetAttr<DATA_TYPE>(name)};                                        \
-        default:                                                                                                  \
-          LOG(FATAL) << "Op " << op_desc.Type() << "'s attribute " << name << " should be " << #ATTR_TYPE         \
-                     << "S. Please Check!";                                                                       \
-      }                                                                                                           \
-    }                                                                                                             \
-    return default_value;                                                                                         \
+#define EXPAND_SINGLE_NUM_TO_VECTOR(DATA_TYPE, ATTR_TYPE)                                                             \
+  template <>                                                                                                         \
+  inline std::vector<DATA_TYPE> GetAttrOrDefault(                                                                     \
+      const paddle::cpp::OpDesc& op_desc, const std::string& name, const std::vector<DATA_TYPE>& default_value) {     \
+    if (op_desc.HasAttr(name)) {                                                                                      \
+      auto attr_type = op_desc.GetAttrType(name);                                                                     \
+      using AttrType = paddle::cpp::OpDescAPI::AttrType;                                                              \
+      switch (attr_type) {                                                                                            \
+        case AttrType::ATTR_TYPE##S:                                                                                  \
+          return op_desc.GetAttr<std::vector<DATA_TYPE>>(name);                                                       \
+        case AttrType::ATTR_TYPE:                                                                                     \
+          return std::vector<DATA_TYPE>{op_desc.GetAttr<DATA_TYPE>(name)};                                            \
+        default:                                                                                                      \
+          if (attr_type == AttrType::BOOLEANS) {                                                                      \
+            LOG(WARNING) << "Op \"" << op_desc.Type() << "\"'s attribute \"" << name << "\" should be " << #ATTR_TYPE \
+                         << "S, but here is BOOLEANS, considering the type of python empty list in cpp are BOOLEANS," \
+                         << " here we will return a empty vector.";                                                   \
+            return {};                                                                                                \
+          } else {                                                                                                    \
+            LOG(FATAL) << "Op \"" << op_desc.Type() << "\"'s attribute \"" << name << "\" should be " << #ATTR_TYPE   \
+                       << "S. But here " << static_cast<int>(attr_type) << " Please Check!";                          \
+          }                                                                                                           \
+      }                                                                                                               \
+    }                                                                                                                 \
+    return default_value;                                                                                             \
   }
 
 EXPAND_SINGLE_NUM_TO_VECTOR(int, INT)
