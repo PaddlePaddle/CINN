@@ -144,7 +144,7 @@ std::string Graph::DebugGroupedGraph(const std::vector<std::vector<Node*>>& grou
     std::stringstream ss;
     for (const auto& id : feed_list) {
       ss << "  " << id << " = builder.create_input(";
-      ss << "dtype=\"" << (dtype_dict.count(id) ? common::Type2Str(dtype_dict.at(id)) : "float32") << "\", ";
+      ss << "type=\"" << (dtype_dict.count(id) ? common::Type2Str(dtype_dict.at(id)) : "float32") << "\", ";
       ss << "shape=[" << (shape_dict.count(id) ? cinn::utils::Join(shape_dict.at(id), ", ") : "-1") << "], ";
       ss << "id_hint=\"" << id << "\")\n";
     }
