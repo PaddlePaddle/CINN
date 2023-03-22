@@ -214,10 +214,13 @@ TEST(AutoInline, AddReluInline) {
           {
             serial for (a, 0, 112)
             {
-              i0, i1, i2, i3 = axis.bind(0, j, k, a)
-              read_buffers(_A[i0(0:1), i1(0:64), i2(0:112), i3(0:112)], _B[i1(0:64)])
-              write_buffers(_var_2[i0(0:1), i1(0:64), i2(0:112), i3(0:112)])
-              var_2[i0, i1, i2, i3] = cinn_max((A[i0, i1, i2, i3] + B[i1]), 0.00000000f)
+              ScheduleBlock(var_2)
+              {
+                i0, i1, i2, i3 = axis.bind(0, j, k, a)
+                read_buffers(_A[i0(0:1), i1(0:64), i2(0:112), i3(0:112)], _B[i1(0:64)])
+                write_buffers(_var_2[i0(0:1), i1(0:64), i2(0:112), i3(0:112)])
+                var_2[i0, i1, i2, i3] = cinn_max((A[i0, i1, i2, i3] + B[i1]), 0.00000000f)
+              }
             }
           }
         }
