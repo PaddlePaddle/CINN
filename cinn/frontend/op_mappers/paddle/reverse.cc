@@ -1,4 +1,4 @@
-// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+// Copyright (c) 2023 CINN Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,8 +26,10 @@ void ReverseOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& 
   auto out_name = op_desc.Output("Out").front();
 
   auto axes = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "axis", std::vector<int>{});
-  auto x    = ctx.GetVar(x_name);
-  auto out  = ctx.Builder()->Reverse(x, axes);
+  VLOG(4) << "out_name = reverse(" << x_name << ", axis=[" << cinn::utils::Join(axes, ", ") << "])";
+
+  auto x   = ctx.GetVar(x_name);
+  auto out = ctx.Builder()->Reverse(x, axes);
 
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);

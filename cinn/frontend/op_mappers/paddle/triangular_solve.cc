@@ -1,4 +1,4 @@
-// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+// Copyright (c) 2023 CINN Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -31,9 +31,12 @@ void TriangularSolveOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperC
   auto upper               = utils::GetAttrOrDefault<bool>(op_desc, "upper", true);
   auto transpose           = utils::GetAttrOrDefault<bool>(op_desc, "transpose", false);
   auto unitriangular       = utils::GetAttrOrDefault<bool>(op_desc, "unitriangular", false);
-  auto x                   = ctx.GetVar(x_name);
-  auto y                   = ctx.GetVar(y_name);
-  auto out                 = ctx.Builder()->TriangularSolve(x, y, left_side, upper, transpose, unitriangular);
+  VLOG(4) << "out_name = triangular_solve(" << x_name << ", left_side=" << left_side << ", upper=" << upper
+          << ", transpose=" << transpose << ", unitriangular=" << unitriangular << ")";
+
+  auto x   = ctx.GetVar(x_name);
+  auto y   = ctx.GetVar(y_name);
+  auto out = ctx.Builder()->TriangularSolve(x, y, left_side, upper, transpose, unitriangular);
 
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);
