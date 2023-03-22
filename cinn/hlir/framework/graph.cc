@@ -26,12 +26,15 @@ namespace cinn {
 namespace hlir {
 namespace framework {
 
+using DTypeDict = absl::flat_hash_map<std::string, common::Type>;
+using ShapeDict = absl::flat_hash_map<std::string, shape_t>;
+
 void Graph::Initialize(const frontend::Program& prog,
                        const std::unordered_set<std::string>& fetch_var_ids,
                        const Target& target) {
   target_ = target;
-  absl::flat_hash_map<std::string, shape_t> shape_dict;
-  absl::flat_hash_map<std::string, common::Type> dtype_dict;
+  ShapeDict shape_dict;
+  DTypeDict dtype_dict;
   int counter = 0;
   for (size_t i = 0; i < prog.size(); i++) {
     auto temp = prog[i];
@@ -109,20 +112,88 @@ std::string Graph::DebugGroupedGraph(const std::unordered_set<std::string>& fetc
 
 std::string Graph::DebugGroupedGraph(const std::vector<std::vector<Node*>>& groups,
                                      const std::unordered_set<std::string>& fetch_var_ids) {
-  std::stringstream debug_str;
-  for (auto& id : fetch_var_ids) {
-    debug_str << "Fetch: " << id << "\n";
-  }
+  auto& shape_dict = HasAttr("infershape") ? GetAttrs<ShapeDict>("infershape") : ShapeDict{};
+  auto& dtype_dict = HasAttr("inferdtype") ? GetAttrs<DTypeDict>("inferdtype") : DTypeDict{};
 
+  auto get_all_out_names = [](const std::vector<Node*>& nodes) {
+    // collect all op's output var name in group
+    std::unordered_set<std::string> out_names;
+    for (auto* node : nodes) {
+      for (const auto& link : node->outlinks()) {
+        auto* out_node = link->sink()->safe_as<NodeData>();
+        out_names.emplace(out_node->id());
+      }
+    }
+    return out_names;
+  };
+  auto get_feed_list = [](const std::vector<Node*>& nodes, const std::unordered_set<std::string>& out_names) {
+    // if the op's input var name cannot found in out_names, it is the group's feed var
+    std::unordered_set<std::string> feed_list;
+    for (auto* node : nodes) {
+      for (const auto& link : node->inlinks()) {
+        auto* in_node = link->source()->safe_as<NodeData>();
+        if (!out_names.count(in_node->id())) {
+          feed_list.emplace(in_node->id());
+        }
+      }
+    }
+    return std::vector<std::string>(feed_list.begin(), feed_list.end());
+  };
+  auto debug_feed_list = [&](const std::vector<std::string>& feed_list) {
+    // print by "create_input" let the code copy to python test more convenience
+    std::stringstream ss;
+    for (const auto& id : feed_list) {
+      ss << "  " << id << " = builder.create_input(";
+      ss << "dtype=\"" << (dtype_dict.count(id) ? common::Type2Str(dtype_dict.at(id)) : "float32") << "\", ";
+      ss << "shape=[" << (shape_dict.count(id) ? cinn::utils::Join(shape_dict.at(id), ", ") : "-1") << "], ";
+      ss << "id_hint=\"" << id << "\")\n";
+    }
+    return ss.str();
+  };
+  auto get_fetch_list = [&](const std::vector<Node*>& nodes, const std::unordered_set<std::string>& out_names) {
+    // if the fetch var in out_names, it's the group's fetch var, otherwise not
+    std::unordered_set<std::string> in_names;
+    for (auto* node : nodes) {
+      for (const auto& link : node->inlinks()) {
+        auto* in_node = link->source()->safe_as<NodeData>();
+        in_names.emplace(in_node->id());
+      }
+    }
+    std::vector<std::string> fetch_list;
+    for (const auto& out : out_names) {
+      if (!in_names.count(out) || fetch_var_ids.count(out)) {
+        // if the var not any op's input, or in fetch_var_ids, it's the group's fetch list
+        fetch_list.emplace_back(out);
+      }
+    }
+    return fetch_list;
+  };
+
+  std::stringstream debug_str;
   int group_id = 0;
   for (auto& group : groups) {
+    const auto& out_names = get_all_out_names(group);
+
     debug_str << "Group " << group_id++ << " {\n";
+
+    const auto& feed_list = get_feed_list(group, out_names);
+    debug_str << debug_feed_list(feed_list) << "\n";
+
     for (auto* node : group) {
       debug_str << "  " << DebugString(node) << "\n";
     }
-    debug_str << "}"
-              << "\n";
+    debug_str << "\n";
+
+    debug_str << "  feed_list=[" << cinn::utils::Join(feed_list, ", ") << "]\n";
+    debug_str << "  fetch_list=[" << cinn::utils::Join(get_fetch_list(group, out_names), ", ") << "]\n";
+
+    debug_str << "}\n";
   }
+  debug_str << "\n";
+
+  debug_str << "graph_fetch_list=["
+            << cinn::utils::Join(std::vector<std::string>(fetch_var_ids.begin(), fetch_var_ids.end()), ", ") << "]\n";
+
   return debug_str.str();
 }
 
@@ -132,9 +203,8 @@ void Graph::VisualizeGroupedGraph(const std::unordered_set<std::string>& fetch_v
 
 void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
                                   const std::unordered_set<std::string>& fetch_var_ids) {
-  VLOG(4) << DebugGroupedGraph(groups, fetch_var_ids);
-
   if (FLAGS_cinn_fusion_groups_graphviz_dir.empty()) {
+    VLOG(4) << DebugGroupedGraph(groups, fetch_var_ids);
     return;
   }
 
@@ -145,12 +215,12 @@ void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
     return;
   }
 
+  WriteToFile(viz_path_ + "simple_graph.txt", DebugGroupedGraph(groups, fetch_var_ids));
+
   Summary(groups, viz_path_);
 
-  auto& shape_dict = HasAttr("infershape") ? GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape")
-                                           : absl::flat_hash_map<std::string, shape_t>{};
-  auto& dtype_dict = HasAttr("inferdtype") ? GetAttrs<absl::flat_hash_map<std::string, common::Type>>("inferdtype")
-                                           : absl::flat_hash_map<std::string, common::Type>{};
+  auto& shape_dict = HasAttr("infershape") ? GetAttrs<ShapeDict>("infershape") : ShapeDict{};
+  auto& dtype_dict = HasAttr("inferdtype") ? GetAttrs<DTypeDict>("inferdtype") : DTypeDict{};
 
   std::unordered_map<std::string, int> recompute_nodes;
   FindRecomputeNodes(groups, &recompute_nodes);
@@ -189,10 +259,8 @@ void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
 
 void Graph::VisualizeGroups(const std::vector<std::vector<Node*>>& groups,
                             const std::unordered_set<std::string>& fetch_var_ids) {
-  auto& shape_dict = HasAttr("infershape") ? GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape")
-                                           : absl::flat_hash_map<std::string, shape_t>{};
-  auto& dtype_dict = HasAttr("inferdtype") ? GetAttrs<absl::flat_hash_map<std::string, common::Type>>("inferdtype")
-                                           : absl::flat_hash_map<std::string, common::Type>{};
+  auto& shape_dict = HasAttr("infershape") ? GetAttrs<ShapeDict>("infershape") : ShapeDict{};
+  auto& dtype_dict = HasAttr("inferdtype") ? GetAttrs<DTypeDict>("inferdtype") : DTypeDict{};
 
   std::unordered_map<std::string, int> recompute_nodes;
   FindRecomputeNodes(groups, &recompute_nodes);
