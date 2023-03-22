@@ -27,10 +27,12 @@ void RollOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
   // output
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
   auto out_name = op_desc.Output("Out").front();
-  std::cout << "Now " << std::endl;
+
   // attr shifts and axis
-  std::vector<int> shifts = op_desc.GetAttr<std::vector<int>>("shifts");
-  std::vector<int> axis   = op_desc.GetAttr<std::vector<int>>("axis");
+  CHECK(op_desc.HasAttr("shifts"));
+  CHECK(op_desc.HasAttr("axis"));
+  std::vector<int> shifts = utils::ToShapeType(utils::GetAttrOrDefault<std::vector<int64_t>>(op_desc, "shifts", {1}));
+  std::vector<int> axis   = utils::ToShapeType(utils::GetAttrOrDefault<std::vector<int64_t>>(op_desc, "axis", {}));
 
   auto x                        = ctx.GetVar(x_name);
   auto vec_x_dims               = std::vector<int>(x->shape);
@@ -54,24 +56,37 @@ void RollOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
 
   // preprocessing the shifts and axis
   int shifts_size = shifts.size();
-  for (int i = 0; i < shifts_size; ++i) {
+  int i = 0;
+  while (i < shifts_size) {
     int vec_x_dims_size = vec_x_dims.size();
     CHECK_GE(axis[i], -vec_x_dims_size) << "axis value should be >= " << -vec_x_dims_size;
     CHECK_LT(axis[i], vec_x_dims_size) << "axis value should be < " << vec_x_dims_size;
     if (axis[i] < 0) {
       axis[i] += vec_x_dims_size;
     }
+    // optimize for the same continuous axis
+    // while ( (i < shifts_size - 1) && ((axis[i] == axis[i+1]) || (axis[i] == axis[i+1] + vec_x_dims_size))) {
+    //   shifts[i] += shifts[i + 1];
+    //   shifts.erase(shifts.begin() + i + 1);
+    //   axis.erase(axis.begin() + i + 1);
+    //   --shifts_size;
+    //   std::cout << "now shift" << shifts[i] <<std::endl;
+    //   std::cout << "now axis" << axis[i] <<std::endl;
+    // }
     int size = vec_x_dims[axis[i]];
     if (size > 0) {
       shifts[i] = (shifts[i] % size + size) % size;
     }
+    std::cout << "shift i: " << shifts[i] <<std::endl;
+    ++i;
   }
-
-  auto output = x;
+  std::cout << "now shift size" << shifts.size() <<std::endl;
+  std::cout << "now axis size" << axis.size() <<std::endl;
+  auto output = ctx.Builder()->Identity(x);
   // use Split + Concat for each shift
   for (int i = 0; i < shifts_size; ++i) {
-    int length = vec_x_dims[axis[i]];
     if (shifts[i] > 0) {
+      int length = vec_x_dims[axis[i]];
       auto front_slice  = ctx.Builder()->Slice(output, {axis[i]}, {0}, {length - shifts[i]});
       auto behind_slice = ctx.Builder()->Slice(output, {axis[i]}, {length - shifts[i]}, {length});
       auto split_output = std::vector<Variable>{behind_slice, front_slice};
@@ -79,7 +94,9 @@ void RollOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
     }
   }
 
-  output = ctx.Builder()->Reshape(output, output_shape);
+  if (axis_None) {
+    output = ctx.Builder()->Reshape(output, output_shape);
+  }
 
   ctx.AddVar(out_name, output);
   ctx.AddVarModelToProgram(out_name, output->id);
