@@ -144,6 +144,13 @@ std::pair<ir::Module, std::string> GenReduceCode(const std::vector<int>& shape,
   return std::pair<ir::Module, std::string>(host_module, source_code);
 }
 
+TEST(Operator, Operator_Reduction_Case_Last_Dim_1) {
+  std::vector<int> shape = {10, 100, 1};
+  std::vector<int> dim   = {0, 2};
+
+  GenReduceCode(shape, dim, "reduce_cast_with_last_1");
+}
+
 TEST(Operator, Operator_Reduction_Case_0) {
   std::vector<int> shape = {16, 16, 8, 16};
   std::vector<int> dim   = {2, 3};

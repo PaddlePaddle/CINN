@@ -72,9 +72,7 @@ class OpLowerer {
   std::vector<ir::LoweredFunc> LowerWithoutSchedule(GroupPtr& group);
 
  private:
-  std::vector<ir::LoweredFunc> LowerOp(ComputeFunction, ScheduleFunction, GroupPtr&);
-  std::vector<ir::LoweredFunc> LowerNonFusibleOp(GroupPtr&);
-  std::vector<ir::LoweredFunc> IRLowerOp(IRComputeFunction, IRScheduleFunction, GroupPtr&);
+  std::vector<ir::LoweredFunc> IRLowerOp(IRComputeFunction, GroupPtr&);
   std::vector<ir::LoweredFunc> IRLowerNonFusibleOp(GroupPtr&, bool);
   std::vector<ir::LoweredFunc> IRLowerOpWithoutSchedule(IRComputeFunction, GroupPtr&);
 #define DEFINE_IR_COMPUTE_SCHDULE(type)                                                        \
@@ -91,29 +89,14 @@ class OpLowerer {
                           Node*& first,                                                        \
                           Node*& second);
 
-#define DEFINE_COMPUTE_SCHDULE(type)                                           \
-  void type##Compute(poly::StageMap& stages,                                   \
-                     std::vector<ir::Tensor>& func_args,                       \
-                     std::unordered_map<std::string, ir::Tensor>& tensor_map,  \
-                     const GroupPtr& group,                                    \
-                     const GroupPtr& sub_group);                               \
-  void type##Schedule(poly::StageMap& stages,                                  \
-                      std::unordered_map<std::string, ir::Tensor>& tensor_map, \
-                      const GroupPtr& group,                                   \
-                      const GroupPtr& sub_group);
-
   // compute and schedule
   DEFINE_IR_COMPUTE_SCHDULE(Elementwise);
   DEFINE_IR_COMPUTE_SCHDULE(Reduce);
   DEFINE_IR_COMPUTE_SCHDULE(OutEWiseFusable);
 
-  DEFINE_COMPUTE_SCHDULE(Elementwise);
-  DEFINE_COMPUTE_SCHDULE(Reduce);
-  DEFINE_COMPUTE_SCHDULE(OutEWiseFusable);
-
-  std::vector<ir::Tensor> CollectInputTensor(std::vector<ir::Tensor>& func_args,
-                                             std::unordered_map<std::string, ir::Tensor>& tensor_map,
-                                             const Node* node);
+  void IRSchedule(ir::IRSchedule& ir_sch,
+                  const GroupPtr& group,
+                  const std::unordered_map<std::string, ir::Tensor>& tensor_map);
 
   Target target_;
   const absl::flat_hash_map<std::string, Type>& type_dict_;

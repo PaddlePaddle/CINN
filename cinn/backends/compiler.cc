@@ -118,7 +118,6 @@ void Compiler::CompileCudaModule(const Module& module, const std::string& code) 
   using runtime::cuda::CUDAModule;
 
   backends::nvrtc::Compiler compiler;
-
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
 

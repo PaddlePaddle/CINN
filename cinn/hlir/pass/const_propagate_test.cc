@@ -102,10 +102,9 @@ TEST(const_bn, const_bn) {
 
   hlir::framework::GraphCompiler gc(target, scope, graph);
   auto runtime_program = gc.Build();
-  auto& prerun_instrs  = runtime_program->GetPreRunInstructions();
   auto& run_instrs     = runtime_program->GetRunInstructions();
   // Revert changes in PR #990 to pass the model unittests
-  ASSERT_EQ(run_instrs.size(), 2);
+  ASSERT_EQ(run_instrs.size(), 1);
 
   scope->Var<hlir::framework::Tensor>("A");
   scope->Var<hlir::framework::Tensor>("Scale");
