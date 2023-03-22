@@ -319,7 +319,7 @@ struct Program {
   SYNTAX_PRIM_UNARY_DECL(rsqrt);
 
 #define SYNTAX_PRIM_BINARY_DECL(name__) Variable primitive_##name__(const Variable& a, const Variable& b);
-  SYNTAX_PRIM_BINARY_DECL(substract)
+  SYNTAX_PRIM_BINARY_DECL(subtract)
   SYNTAX_PRIM_BINARY_DECL(divide)
   SYNTAX_PRIM_BINARY_DECL(floor_divide)
   SYNTAX_PRIM_BINARY_DECL(mod)
@@ -376,7 +376,7 @@ struct Program {
   Variable elementwise_div(const Variable& a, const Variable& b, int axis = -1);
 
   /**
-   * Substract two tensors element-wise.
+   * Subtract two tensors element-wise.
    */
   Variable elementwise_sub(const Variable& a, const Variable& b, int axis = -1);
 
