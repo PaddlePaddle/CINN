@@ -26,7 +26,6 @@
 #include "cinn/auto_schedule/task/task_creator.h"
 #include "cinn/auto_schedule/task/task_registry.h"
 #include "cinn/auto_schedule/task/tune_task.h"
-#include "cinn/auto_schedule/tests/test_op_builder.h"
 #include "cinn/auto_schedule/tuning.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_schedule.h"
