@@ -14,6 +14,7 @@
 
 #include "cinn/hlir/framework/op_lowering.h"
 
+#include "cinn/hlir/framework/op_lowering_util.h"
 #include "cinn/hlir/op/external_api_registry.h"
 #include "cinn/optim/transform_gpu_forloop.h"
 
