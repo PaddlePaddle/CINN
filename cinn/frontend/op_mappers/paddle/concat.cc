@@ -130,11 +130,28 @@ void SplitOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ct
     sections.clear();
     sections.resize(num, dim / num);
   }
-  auto sections_sum = std::accumulate(sections.begin(), sections.end(), 0);
-  CHECK_EQ(sections_sum, dim) << "The sum of num_or_sections:[" << cinn::utils::Join(sections, ", ")
-                              << "] not equal to the split axis:" << axis << " 's dimension:" << dim;
   CHECK_EQ(sections.size(), out_names.size())
       << "The output number of split op should be " << sections.size() << ", but actual " << out_names.size();
+
+  int neg_idx = -1, sum = 0;
+  for (int i = 0; i < sections.size(); ++i) {
+    if (sections[i] < 0) {
+      CHECK_LT(neg_idx, 0) << "The [num_or_sections] should only has one -1! But here "
+                           << cinn::utils::Join(sections, ", ");
+      neg_idx = i;
+    } else {
+      sum += sections[i];
+    }
+  }
+  if (neg_idx > 0) {
+    CHECK_LT(sum, dim) << "The sum of [num_or_sections] should less than to the dimension of split [axis] when -1 "
+                          "found in [num_or_sections]! But here "
+                       << cinn::utils::Join(sections, ", ");
+    sections[neg_idx] = dim - sum;
+  } else {
+    CHECK_EQ(sum, dim) << "The sum of [num_or_sections] should equal to the dimension of split [axis]! But here "
+                       << cinn::utils::Join(sections, ", ");
+  }
 
   auto outs = ctx.Builder()->Split(x, sections, axis);
 
