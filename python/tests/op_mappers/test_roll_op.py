@@ -48,22 +48,22 @@ class TestRollOp(OpMapperTest):
         self.check_outputs_and_grads(all_equal=True)
 
 
-# class TestRollCase1(TestRollOp):
-#     def init_input_data(self):
-#         self.feed_data = {
-#             'x': self.random([1, 2, 3], 'float32'),
-#         }
-#         self.axis = [1]
-#         self.shifts = [3]
+class TestRollCase1(TestRollOp):
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([1, 2, 3], 'float32'),
+        }
+        self.axis = [1]
+        self.shifts = [3]
 
 
-# class TestRollCase2(TestRollOp):
-#     def init_input_data(self):
-#         self.feed_data = {
-#             'x': self.random([1], 'float32'),
-#         }
-#         self.axis = [0]
-#         self.shifts = [2]
+class TestRollCase2(TestRollOp):
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([1], 'float32'),
+        }
+        self.axis = [0]
+        self.shifts = [2]
 
 
 class TestRollCase3(TestRollOp):
@@ -71,44 +71,40 @@ class TestRollCase3(TestRollOp):
         self.feed_data = {
             'x': self.random([1, 2, 3], 'float32'),
         }
-        self.axis = [0, 1, 2, 2, -1]
-        self.shifts = [3, 4, 10, 3, 9]
+        self.axis = [0, 1, 2, -1]
+        self.shifts = [3, 4, 10, 3]
 
 
-# class TestRollCase4(TestRollOp):
-#     def init_input_data(self):
-#         self.feed_data = {
-#             'x': self.random([1, 2, 3], 'float32'),
-#         }
-#         self.axis = [0, 1]
-#         self.shifts = [3, -8]
+class TestRollCase4(TestRollOp):
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([1, 2, 3], 'float32'),
+        }
+        self.axis = [0, 1]
+        self.shifts = [3, -8]
 
 
-# class TestRollCase5(TestRollOp):
-#     def init_input_data(self):
-#         self.feed_data = {
-#             'x': self.random([1, 2, 3], 'float32'),
-#         }
-#         self.axis = [1]
-#         self.shifts = [121]
+class TestRollCase5(TestRollOp):
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([1, 2, 3], 'float32'),
+        }
+        self.axis = [1]
+        self.shifts = [121]
 
 
-# class TestRollCase6(TestRollOp):
-#     def init_input_data(self):
-#         self.feed_data = {
-#             'x': self.random([10, 2, 3], 'float32'),
-#         }
-#         self.axis = [-1, 2]
-#         self.shifts = [121, 122]
+class TestRollCase6(TestRollOp):
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([10, 2, 3], 'float32'),
+        }
+        self.axis = [1, 2]
+        self.shifts = [121, 122]
 
 
-# class TestRollCase7(TestRollOp):
-#     def init_input_data(self):
-#         self.feed_data = {
-#             'x': self.random([10, 2, 3], 'float32'),
-#         }
-#         self.axis = []
-#         self.shifts = [121]
+class TestRollAxesEmpty(TestRollOp):
+    def set_op_attrs(self):
+        return {"shifts": self.shifts, "axes": []}
 
 
 if __name__ == "__main__":
