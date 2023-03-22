@@ -33,7 +33,29 @@ namespace auto_schedule {
 
 class MultiLevelTiling : public AutoGenRule {
  public:
-  MultiLevelTiling(const common::Target& target);
+  struct Config {
+    // Which thread axis each tiled loop is bound to
+    std::vector<std::string> bind_axis;
+    // Use char 'S' and 'R' to represent tile structure.
+    // S means space tiling level and R means reduce tiling level
+    //
+    // For example, if tile_struct_ = "SSRSRS" and we are doing matrix
+    // multiplication, i, j are the spatial indices and k is the reduce index,
+    // the tiling result will be i_0, j0, i1, j1, k0, i2, j2, k1, i3, j3
+    std::string tile_struct;
+    // The storage type of read cache
+    std::string read_cache_memory_type;
+    // Which tiled levels are read cache block inserted at
+    std::vector<int> read_cache_levels;
+    // The storage type of write cache
+    std::string write_cache_memory_type;
+    // Which tiled levels are write cache block inserted at
+    std::vector<int> write_cache_levels;
+  };
+
+  static const std::unordered_map<common::Target::Arch, Config> kConfigs;
+
+  MultiLevelTiling(const common::Target& target, const Config& config);
   ~MultiLevelTiling() = default;
 
   // initailize the AutoGenRule, it must be called before further actions.
@@ -95,27 +117,6 @@ class MultiLevelTiling : public AutoGenRule {
   }
 
  private:
-  struct Config {
-    // Which thread axis each tiled loop is bound to
-    std::vector<std::string> bind_axis;
-    // Use char 'S' and 'R' to represent tile structure.
-    // S means space tiling level and R means reduce tiling level
-    //
-    // For example, if tile_struct_ = "SSRSRS" and we are doing matrix
-    // multiplication, i, j are the spatial indices and k is the reduce index,
-    // the tiling result will be i_0, j0, i1, j1, k0, i2, j2, k1, i3, j3
-    std::string tile_struct;
-    // The storage type of read cache
-    std::string read_cache_memory_type;
-    // Which tiled levels are read cache block inserted at
-    std::vector<int> read_cache_levels;
-    // The storage type of write cache
-    std::string write_cache_memory_type;
-    // Which tiled levels are write cache block inserted at
-    std::vector<int> write_cache_levels;
-  };
-
- private:
   void ApplyTiling(ir::IRSchedule* ir_schedule, ir::Expr& block_expr);
   void ApplyCacheRead(ir::IRSchedule* ir_schedule, ir::Expr& block_expr);
   void ApplyCacheWrite(ir::IRSchedule* ir_schedule, ir::Expr& block_expr);
@@ -131,8 +132,6 @@ class MultiLevelTiling : public AutoGenRule {
 
   // A factor to limit the split factor within max thread number per block
   int max_factor_ = 1024;
-
-  static const std::unordered_map<common::Target::Arch, Config> kConfigs;
 };
 
 }  // namespace auto_schedule

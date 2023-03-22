@@ -25,6 +25,7 @@
 #include "cinn/hlir/framework/scope.h"
 #include "cinn/ir/ir_schedule.h"
 #include "cinn/ir/lowered_func.h"
+#include "cinn/utils/random_engine.h"
 
 namespace cinn {
 namespace auto_schedule {
@@ -47,10 +48,15 @@ class TestAutoGenRuleBase : public ::testing::Test {
   void Initialize(const common::Target& target);
 
   // construct an ir::IRSchedule by lowering the specified for following AutoGenRule test
-  ir::IRSchedule MakeIRSchedule(const frontend::Program& test_program, bool apply_manual_schedule = false);
+  ir::IRSchedule MakeIRSchedule(const frontend::Program& test_program,
+                                utils::LinearRandomEngine::StateType rand_seed = -1,
+                                bool apply_manual_schedule                     = false);
 
   // build ir::Module from the original lowered funcs with their bodys updated by the schedule
   ir::Module BuildIRModule(const ir::IRSchedule& schedule);
+
+  // check the feature of the ir in IRSchedule
+  void CheckFeature(const ir::IRSchedule& schedule, std::vector<float> target_feature);
 
   // generate source code with the built ir module
   std::string GenSourceCode(const ir::Module& ir_module);

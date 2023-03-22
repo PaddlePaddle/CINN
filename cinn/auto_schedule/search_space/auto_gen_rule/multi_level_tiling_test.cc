@@ -25,6 +25,7 @@
 #include "cinn/auto_schedule/search_space/auto_gen_rule/test_helper.h"
 #include "cinn/auto_schedule/tests/test_op_builder.h"
 #include "cinn/cinn.h"
+#include "cinn/frontend/syntax.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_printer.h"
@@ -47,7 +48,7 @@ TEST(MultiLevelTile, SampleSplitTwo) {
   Target target = common::DefaultHostTarget();
 #endif
 
-  MultiLevelTiling multi_level_tiling(target);
+  MultiLevelTiling multi_level_tiling(target, MultiLevelTiling::kConfigs.at(target.arch));
 
   for (int i = 0; i < 100; ++i) {
     size_t number_to_split    = rand() % 65535 + 2;  // random number in [2, 2^16]
@@ -66,7 +67,7 @@ TEST(MultiLevelTile, SampleTileSplit) {
   Target target = common::DefaultHostTarget();
 #endif
 
-  MultiLevelTiling multi_level_tiling(target);
+  MultiLevelTiling multi_level_tiling(target, MultiLevelTiling::kConfigs.at(target.arch));
 
   for (int i = 0; i < 100; ++i) {
     int number_to_split    = rand() % 65535 + 2;  // random number in [2, 2^16]
@@ -107,7 +108,7 @@ TEST(MultiLevelTile, SimpleLoops) {
   VLOG(6) << "Expr before MultiLevelTiling: ";
   VLOG(6) << ast_expr;
 
-  MultiLevelTiling multi_level_tiling(target);
+  MultiLevelTiling multi_level_tiling(target, MultiLevelTiling::kConfigs.at(target.arch));
   ir::IRSchedule ir_schedule(ir::ModuleExpr({ast_expr}));
   SearchState state(ir_schedule, 0, {});
   EXPECT_EQ(multi_level_tiling.Init(&ir_schedule), RuleApplyType::kApplyAndPruneOtherRules);
@@ -159,7 +160,7 @@ TEST(MulitLevelTile, MatrixMultiply) {
   VLOG(6) << "Expr before MultiLevelTiling: ";
   VLOG(6) << ast_expr;
 
-  MultiLevelTiling multi_level_tiling(target);
+  MultiLevelTiling multi_level_tiling(target, MultiLevelTiling::kConfigs.at(target.arch));
   ir::IRSchedule ir_schedule(ir::ModuleExpr({ast_expr}));
   SearchState state(ir_schedule, 0, {});
   EXPECT_EQ(multi_level_tiling.Init(&ir_schedule), RuleApplyType::kApplyAndPruneOtherRules);
@@ -185,6 +186,7 @@ TEST(MulitLevelTile, MatrixMultiply) {
 
 class TestMultiLevelTiling : public TestAutoGenRuleBase {
  public:
+  int fixed_rand_seed = 1;
   std::vector<std::string> default_input_names;
   std::vector<std::string> default_output_names;
 };
@@ -197,16 +199,20 @@ TEST_F(TestMultiLevelTiling, Matmul) {
   std::vector<int32_t> out_shape = {32, 32};
 
   Initialize(common::DefaultNVGPUTarget());
-  ir::IRSchedule ir_schedule = MakeIRSchedule(MatmulOpBuilder(X_shape, Y_shape)());
+  ir::IRSchedule ir_schedule = MakeIRSchedule(MatmulOpBuilder(X_shape, Y_shape)(), fixed_rand_seed);
   SearchState state(ir_schedule);
   VLOG(6) << "Original state:\n" << state->DebugString();
 
   // Apply MultiLevelTiling
-  MultiLevelTiling multi_level_tiling(target_);
+  MultiLevelTiling multi_level_tiling(target_, MultiLevelTiling::kConfigs.at(target_.arch));
   EXPECT_EQ(multi_level_tiling.AnalyseApplyType(state, default_output_names[0]),
             RuleApplyType::kApplyAndPruneOtherRules);
   auto new_states = multi_level_tiling.ApplyOnBlock(state, default_output_names[0]);
   VLOG(6) << "After MultiLevelTiling, state:\n" << new_states[0]->DebugString();
+  std::vector<float> target_feature = {1, 15,      15,      0,       0,       0, 0,       0, 0, 0,       0, 0, 0, 0,
+                                       0, 0,       0,       16.6724, 15.2854, 0, 0,       0, 0, 0,       0, 0, 0, 0,
+                                       0, 4.39232, 1.58496, 0,       0,       0, 2.32193, 0, 0, 2.32193, 0, 0, 0, 0};
+  CheckFeature(new_states[0]->ir_schedule, target_feature);
 
   // build ir::Module and debug source code
   auto ir_module   = BuildIRModule(new_states[0]->ir_schedule);
@@ -215,8 +221,8 @@ TEST_F(TestMultiLevelTiling, Matmul) {
 
   // execute and check precision
   CheckResult(GenExecutableKernel(ir_module),
-              GenExecutableKernel(
-                  BuildIRModule(MakeIRSchedule(MatmulOpBuilder(X_shape, Y_shape)(), /* apply_manual_schedule*/ true))),
+              GenExecutableKernel(BuildIRModule(MakeIRSchedule(
+                  MatmulOpBuilder(X_shape, Y_shape)(), fixed_rand_seed, /* apply_manual_schedule*/ true))),
               default_input_names,
               default_output_names,
               {X_shape, Y_shape},
@@ -237,8 +243,76 @@ TEST_F(TestMultiLevelTiling, ReduceSum) {
   VLOG(6) << "Original state:\n" << state->DebugString();
 
   // Apply MultiLevelTiling
-  MultiLevelTiling multi_level_tiling(target_);
+  MultiLevelTiling multi_level_tiling(target_, MultiLevelTiling::kConfigs.at(target_.arch));
   EXPECT_EQ(multi_level_tiling.AnalyseApplyType(state, default_output_names[0]), RuleApplyType::kCannotApply);
+}
+
+TEST_F(TestMultiLevelTiling, Pool2d) {
+  default_input_names  = {"input"};
+  default_output_names = {"var_0"};
+  std::vector<int32_t> input_shape{2, 8, 16, 16};
+  std::vector<int32_t> output_shape{2, 8, 8, 8};
+  std::string pooling_type = "max";
+  std::vector<int> ksize{3, 3};
+  std::vector<int> strides{2, 2};
+  std::vector<int> paddings{1, 1, 1, 1};
+  bool ceil_mode                   = false;
+  bool exclusive                   = true;
+  bool global_pooling              = false;
+  std::string data_format          = "NCHW";
+  bool adaptive                    = false;
+  std::string padding_algorithm    = "EXPLICIT";
+  frontend::Program pool2d_program = Pool2dOpBuilder(input_shape,
+                                                     pooling_type,
+                                                     ksize,
+                                                     strides,
+                                                     paddings,
+                                                     ceil_mode,
+                                                     exclusive,
+                                                     global_pooling,
+                                                     data_format,
+                                                     adaptive,
+                                                     padding_algorithm)();
+
+  Initialize(common::DefaultNVGPUTarget());
+  ir::IRSchedule ir_schedule = MakeIRSchedule(pool2d_program, fixed_rand_seed);
+  SearchState state(ir_schedule);
+  VLOG(6) << "Original state:\n" << state->DebugString();
+
+  // Apply MultiLevelTiling
+  MultiLevelTiling::Config mlt_config = {
+      /*bind_axis*/ std::vector<std::string>{"blockIdx.x", "threadIdx.x"},
+      /*tile_struct*/ std::string("SSRS"),
+      /*read_cache_memory_type*/ std::string("shared"),
+      /*read_cache_levels*/ std::vector<int>{3},
+      /*write_cache_memory_type*/ std::string("local"),
+      /*write_cache_levels*/ std::vector<int>{2},
+  };
+  MultiLevelTiling multi_level_tiling(target_, mlt_config);
+  EXPECT_EQ(multi_level_tiling.AnalyseApplyType(state, default_output_names[0]),
+            RuleApplyType::kApplyAndPruneOtherRules);
+  auto new_states = multi_level_tiling.ApplyOnBlock(state, default_output_names[0]);
+  VLOG(6) << "After MultiLevelTiling, state:\n" << new_states[0]->DebugString();
+  std::vector<float> target_feature = {1, 0,       0,       0,       0,       0, 0,       14.8138, 14.17,   0, 14.3399,
+                                       0, 0,       13.9249, 13.8139, 0,       0, 15.3152, 14.9916, 0,       0, 0,
+                                       0, 0,       0,       0,       0,       0, 0,       4.32193, 1.58496, 0, 0,
+                                       0, 4.08746, 0,       0,       6.02237, 0, 0,       0,       0};
+  CheckFeature(new_states[0]->ir_schedule, target_feature);
+
+  // build ir::Module and debug source code
+  auto ir_module   = BuildIRModule(new_states[0]->ir_schedule);
+  auto source_code = GenSourceCode(ir_module);
+  VLOG(6) << "scheduled source code:\n" << source_code;
+
+  // execute and check precision
+  CheckResult(GenExecutableKernel(ir_module),
+              GenExecutableKernel(
+                  BuildIRModule(MakeIRSchedule(pool2d_program, fixed_rand_seed, /* apply_manual_schedule*/ true))),
+              default_input_names,
+              default_output_names,
+              {input_shape},
+              {output_shape},
+              target_);
 }
 
 }  // namespace auto_schedule

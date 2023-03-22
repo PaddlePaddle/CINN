@@ -38,9 +38,8 @@
 namespace cinn {
 namespace auto_schedule {
 
-MultiLevelTiling::MultiLevelTiling(const common::Target& target) : AutoGenRule(target) {
-  config_ = kConfigs.at(target_->arch);
-
+MultiLevelTiling::MultiLevelTiling(const common::Target& target, const Config& config)
+    : AutoGenRule(target), config_(config) {
   for (int i = 0; i < config_.tile_struct.size(); ++i) {
     if (config_.tile_struct[i] == 'S') {
       s_indices_.push_back(i);
@@ -133,13 +132,16 @@ void MultiLevelTiling::ApplyTiling(ir::IRSchedule* ir_schedule, ir::Expr& block_
 
     int extent = ir_for->extent.as_int32();  // maybe int64?
 
-    int num_split                       = idx->size();
-    std::vector<Expr> tile_split_factor = ir_schedule->SamplePerfectTile(Expr(ir_for), num_split, 64);
-
-    std::vector<Expr> splited = ir_schedule->Split(Expr(ir_for), tile_split_factor);
-    VLOG(6) << "Finish Split for MultiLevelTiling on above loop";
-    for (int j = 0; j < num_split; ++j) {
-      tile_loops_[idx->at(j)].push_back(splited[j]);
+    int num_split = idx->size();
+    if (num_split > 1) {
+      std::vector<Expr> tile_split_factor = ir_schedule->SamplePerfectTile(Expr(ir_for), num_split, 64);
+      std::vector<Expr> splited           = ir_schedule->Split(Expr(ir_for), tile_split_factor);
+      VLOG(6) << "Finish Split for MultiLevelTiling on above loop";
+      for (int j = 0; j < num_split; ++j) {
+        tile_loops_[idx->at(j)].push_back(splited[j]);
+      }
+    } else {
+      tile_loops_[idx->at(0)].push_back(for_exprs[i]);
     }
   }
   VLOG(5) << "Finish Split in MultiLevelTiling, before Reorder.";
@@ -297,7 +299,7 @@ void MultiLevelTiling::ApplyCacheRead(ir::IRSchedule* ir_schedule, ir::Expr& blo
       }
       std::string target_for_loop_name = loops.back().As<ir::For>()->loop_var->name;
       for (const Expr& for_expr : for_exprs) {
-        if (for_expr.As<ir::For>()->loop_var->name == target_for_loop_name) {
+        if (for_expr.As<ir::For>()->loop_var->name.find(target_for_loop_name) != std::string::npos) {
           ir_schedule->ComputeAt(cache_block, for_expr);
         }
       }
@@ -322,7 +324,7 @@ void MultiLevelTiling::ApplyCacheWrite(ir::IRSchedule* ir_schedule, ir::Expr& bl
         original_block_name + "_" + config_.write_cache_memory_type + "_temp_buffer";
     std::vector<Expr> for_exprs = ir_schedule->GetLoops(derivative_block_name);
     for (const Expr& for_expr : for_exprs) {
-      if (for_expr.As<ir::For>()->loop_var->name == target_for_loop_name) {
+      if (for_expr.As<ir::For>()->loop_var->name.find(target_for_loop_name) != std::string::npos) {
         ir_schedule->ReverseComputeAt(ir_schedule->GetBlock(original_block_name), for_expr);
       }
     }
@@ -330,7 +332,7 @@ void MultiLevelTiling::ApplyCacheWrite(ir::IRSchedule* ir_schedule, ir::Expr& bl
     const std::string reduce_init_block_name = original_block_name + "__reduce_init";
     for_exprs                                = ir_schedule->GetLoops(derivative_block_name);
     for (const Expr& for_expr : for_exprs) {
-      if (for_expr.As<ir::For>()->loop_var->name == target_for_loop_name &&
+      if (for_expr.As<ir::For>()->loop_var->name.find(target_for_loop_name) != std::string::npos &&
           ir_schedule->HasBlock(reduce_init_block_name)) {
         ir_schedule->SimpleComputeAt(ir_schedule->GetBlock(reduce_init_block_name), for_expr);
       }
