@@ -2033,7 +2033,6 @@ Expr CasSimplifyMutator::SimplifyFracOp(Expr expr) {
     //   b_args = bp->operands();
     // else
     //   b_args.push_back(b);
-
     // return reduce_product_div_product(a_args, b_args);
   }
 
