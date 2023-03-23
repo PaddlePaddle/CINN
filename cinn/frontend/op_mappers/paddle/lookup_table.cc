@@ -29,7 +29,26 @@ void LookupTableOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperConte
   auto w        = ctx.GetVar(w_name);
   auto ids      = ctx.GetVar(ids_name);
   CHECK(op_desc.HasAttr("padding_idx"));
-  auto padding_idx = op_desc.GetAttr<int64_t>("padding_idx");
+  auto padding_idx = static_cast<int64_t>(op_desc.GetAttr<int32_t>("padding_idx"));
+  auto int32_ids   = ctx.Builder()->Cast(ids, "int32");
+  auto out         = ctx.Builder()->LookupTable(w, ids, padding_idx);
+
+  ctx.AddVar(out_name, out);
+  ctx.AddVarModelToProgram(out_name, out->id);
+}
+
+void LookupTableV2OpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+  CHECK_EQ(op_desc.Input("W").size(), 1UL);
+  auto w_name = op_desc.Input("W").front();
+  CHECK_EQ(op_desc.Input("Ids").size(), 1UL);
+  auto ids_name = op_desc.Input("Ids").front();
+  CHECK_EQ(op_desc.Output("Out").size(), 1UL);
+  auto out_name = op_desc.Output("Out").front();
+  auto w        = ctx.GetVar(w_name);
+  auto ids      = ctx.GetVar(ids_name);
+  ids           = ctx.Builder()->ExpandDims(ids, {-1});
+  CHECK(op_desc.HasAttr("padding_idx"));
+  auto padding_idx = static_cast<int64_t>(op_desc.GetAttr<int32_t>("padding_idx"));
   auto int32_ids   = ctx.Builder()->Cast(ids, "int32");
   auto out         = ctx.Builder()->LookupTable(w, ids, padding_idx);
 
@@ -43,5 +62,6 @@ void LookupTableOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperConte
 
 CINN_REGISTER_HELPER(paddle_lookup_table) {
   CINN_REGISTER_OP_MAPPER(lookup_table, cinn::frontend::paddle_mappers::LookupTableOpMapper)
+  CINN_REGISTER_OP_MAPPER(lookup_table_v2, cinn::frontend::paddle_mappers::LookupTableV2OpMapper)
   return true;
 }
