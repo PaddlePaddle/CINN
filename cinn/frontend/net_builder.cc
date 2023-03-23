@@ -21,6 +21,7 @@
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/pe/broadcast.h"
 #include "cinn/utils/functional.h"
+#include "cinn/utils/profiler.h"
 
 namespace cinn {
 namespace frontend {
@@ -34,6 +35,7 @@ using utils::ShapeType;
 NetBuilder::NetBuilder(const std::string& name) : name_(name) {}
 
 Program NetBuilder::Build(bool in_reverse) {
+  utils::RecordEvent("NetBuilder::Build", utils::EventType::kProgram);
   std::vector<Instruction> instrs;
   if (in_reverse) {
     instrs.reserve(instrs_.size());
@@ -85,7 +87,7 @@ const std::vector<Variable>& NetBuilder::CustomInstr(const std::string& type,
   for (auto& kv : attrs) {
     instr.SetAttr(kv.first, kv.second);
   }
-
+  utils::RecordEvent("NetBuilder." + type, utils::EventType::kProgram);
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutputs();
