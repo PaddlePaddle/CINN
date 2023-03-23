@@ -38,7 +38,7 @@ void RollOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
   auto vec_x_dims               = std::vector<int>(x->shape);
   std::vector<int> output_shape = vec_x_dims;
 
-  // check axis and shifts
+  // check axis and shifts and when axis is None, we should flatten x.
   bool axis_None = false;
   if (axis.size() == 0) {
     CHECK_EQ(shifts.size(), 1) << "shifts.size() should be equal to 1 when axis is None";
