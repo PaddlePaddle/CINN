@@ -23,7 +23,7 @@ import paddle
 class TestStridedSliceOp(OpMapperTest):
     def init_input_data(self):
         self.feed_data = {
-            'inputs': np.array([1, 2, 3], dtype='float32'),
+            'inputs': np.array([10, 5, 3], dtype='float32'),
         }
         self.axes = [0, 1]
         self.starts = [2, 2]

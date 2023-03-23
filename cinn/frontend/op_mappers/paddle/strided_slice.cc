@@ -21,22 +21,28 @@ namespace frontend {
 namespace paddle_mappers {
 
 void StridedSliceOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+  std::cout << " ----------- program start ---------------- " << std::endl;
   CHECK_EQ(op_desc.Input("Input").size(), 1UL);
   auto x_name = op_desc.Input("Input").front();
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
   auto out_name = op_desc.Output("Out").front();
 
   CHECK(op_desc.HasAttr("starts"));
-  auto starts = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "starts");
+  auto starts = utils::ToShapeType(utils::GetAttrOrDefault<std::vector<int>>(op_desc, "starts"));
   CHECK(op_desc.HasAttr("ends"));
-  auto ends = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "ends");
+  auto ends = utils::ToShapeType(utils::GetAttrOrDefault<std::vector<int>>(op_desc, "ends"));
   CHECK(op_desc.HasAttr("axes"));
-  auto axes = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "axes");
+  auto axes = utils::ToShapeType(utils::GetAttrOrDefault<std::vector<int>>(op_desc, "axes"));
   CHECK(op_desc.HasAttr("strides"));
-  auto strides = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "strides");
+  auto strides = utils::ToShapeType(utils::GetAttrOrDefault<std::vector<int>>(op_desc, "strides"));
 
-  auto infer_flags   = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "infer_flags");
-  auto decrease_axis = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "decrease_axis");
+  std::cout << "starts size : " << starts.size() << std::endl;
+  std::cout << "ends size : " << ends.size() << std::endl;
+  std::cout << "axes size : " << axes.size() << std::endl;
+  std::cout << "strides size : " << strides.size() << std::endl;
+
+  auto infer_flags   = utils::ToShapeType(utils::GetAttrOrDefault<std::vector<int>>(op_desc, "infer_flags"));
+  auto decrease_axis = utils::ToShapeType(utils::GetAttrOrDefault<std::vector<int>>(op_desc, "decrease_axis"));
   auto x             = ctx.GetVar(x_name);
   auto out           = ctx.Builder()->Slice(x, axes, starts, ends, infer_flags, strides, decrease_axis);
 
