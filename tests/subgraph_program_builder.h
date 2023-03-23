@@ -23,7 +23,7 @@ class BiasBnReLUSubGraphBuilder : public ProgramBuilder {
  public:
   BiasBnReLUSubGraphBuilder() : ProgramBuilder("bias_bn_relu_builder") {}
   frontend::Program Build(const std::vector<VariableInfo>& inputs_varinfo, const utils::AttributeMap& attrs = {}) {
-    CHECK(inputs_varinfo.size()==4);
+    CHECK(inputs_varinfo.size() == 4);
     auto conv_output = builder_.CreateInput(inputs_varinfo[0].type, inputs_varinfo[0].shape, inputs_varinfo[0].id);
     auto bias        = builder_.CreateInput(inputs_varinfo[1].type, inputs_varinfo[1].shape, inputs_varinfo[1].id);
     auto bn_scale    = builder_.CreateInput(inputs_varinfo[2].type, inputs_varinfo[2].shape, inputs_varinfo[2].id);
@@ -41,7 +41,7 @@ class ExpTwoConsumersOpBuilder : public ProgramBuilder {
  public:
   ExpTwoConsumersOpBuilder() : ProgramBuilder("exp_two_consumers_builder") {}
   frontend::Program Build(const std::vector<VariableInfo>& inputs_varinfo, const utils::AttributeMap& attrs = {}) {
-    CHECK(inputs_varinfo.size()==1);
+    CHECK(inputs_varinfo.size() == 1);
     auto x     = builder_.CreateInput(inputs_varinfo[0].type, inputs_varinfo[0].shape, inputs_varinfo[0].id);
     auto exp_x = builder_.Exp(x);
     auto add_x = builder_.Add(exp_x, x);
@@ -54,11 +54,11 @@ class GatherAddSubSubGraphBuilder : public ProgramBuilder {
  public:
   GatherAddSubSubGraphBuilder() : ProgramBuilder("gather_add_sub_builder") {}
   frontend::Program Build(const std::vector<VariableInfo>& inputs_varinfo, const utils::AttributeMap& attrs = {}) {
-    CHECK(inputs_varinfo.size()==2);
-    auto x     = builder_.CreateInput(inputs_varinfo[0].type, inputs_varinfo[0].shape, inputs_varinfo[0].id);
-    auto y     = builder_.CreateInput(inputs_varinfo[1].type, inputs_varinfo[1].shape, inputs_varinfo[1].id);
+    CHECK(inputs_varinfo.size() == 2);
+    auto x             = builder_.CreateInput(inputs_varinfo[0].type, inputs_varinfo[0].shape, inputs_varinfo[0].id);
+    auto y             = builder_.CreateInput(inputs_varinfo[1].type, inputs_varinfo[1].shape, inputs_varinfo[1].id);
     auto input_x_shape = inputs_varinfo[0].shape;
-    auto where_x_0 = builder_.Gather(x, builder_.FillConstant({input_x_shape[0]}, 0, "constant_idx_first"));
+    auto where_x_0     = builder_.Gather(x, builder_.FillConstant({input_x_shape[0]}, 0, "constant_idx_first"));
     auto where_x_last =
         builder_.Gather(x, builder_.FillConstant({input_x_shape[0]}, input_x_shape[0] - 1, "constant_idx_last"));
     auto add_1 = builder_.Add(where_x_0, y);
@@ -71,8 +71,8 @@ class FillConstantAddSubGraphBuilder : public ProgramBuilder {
  public:
   FillConstantAddSubGraphBuilder() : ProgramBuilder("fill_constant_add_builder") {}
   frontend::Program Build(const std::vector<VariableInfo>& inputs_varinfo, const utils::AttributeMap& attrs = {}) {
-    CHECK(inputs_varinfo.size()==1);
-    auto x     = builder_.CreateInput(inputs_varinfo[0].type, inputs_varinfo[0].shape, inputs_varinfo[0].id);
+    CHECK(inputs_varinfo.size() == 1);
+    auto x             = builder_.CreateInput(inputs_varinfo[0].type, inputs_varinfo[0].shape, inputs_varinfo[0].id);
     auto fill_constant = builder_.FillConstant(inputs_varinfo[0].shape, 1.0f, "fill_constant");
     builder_.Add(x, fill_constant);
     return builder_.Build();
