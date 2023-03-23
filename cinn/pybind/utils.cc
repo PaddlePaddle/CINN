@@ -64,10 +64,6 @@ void BindUtils(py::module *m) {
           "type",
           [](HostEvent &self) -> const EventType & { return self.type_; },
           [](HostEvent &self, const EventType &v) { self.type_ = v; });
-
-  m->def("is_profiler_enable", &is_profiler_enable)
-      .def("is_cpu_enable", &is_cpu_enable)
-      .def("is_cuda_enable", &is_cuda_enable);
 }
 
 }  // namespace pybind
