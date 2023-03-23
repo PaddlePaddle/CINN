@@ -142,9 +142,9 @@ std::shared_ptr<framework::OpStrategy> StrategyForRepeat(const framework::NodeAt
                       << ", but got repeats = " << repeats;
 
   framework::CINNCompute repeat_compute([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input arguments of Cast compute is empty! Please check.\n";
+    CHECK(!args.empty()) << "The input arguments of Repeat compute is empty! Please check.\n";
     CINNValuePack pack_args = args[0];
-    CHECK_GE(pack_args.size(), 1U) << "at least 1 input tensors for Cast compute\n";
+    CHECK_GE(pack_args.size(), 1U) << "at least 1 input tensors for Repeat compute\n";
     Expr A = pack_args[0];
     CHECK(A.as_tensor());
     CHECK(!output_shapes.empty());

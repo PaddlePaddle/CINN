@@ -15,43 +15,54 @@
 # limitations under the License.
 
 import unittest
-import numpy as np
-from op_mapper_test import OpMapperTest, logger
+from op_mapper_test import OpMapperTest
 import paddle
 
 
-class TestSqueezeOp(OpMapperTest):
+class TestTriangularSolveOp(OpMapperTest):
     def init_input_data(self):
         self.feed_data = {
-            'x': self.random([5, 1, 10], 'float32'),
+            'x': self.random([32, 32], "float32"),
+            'y': self.random([32, 128], "float32")
         }
 
     def set_op_type(self):
-        return "squeeze2"
+        return "triangular_solve"
 
     def set_op_inputs(self):
         x = paddle.static.data(
             name='x',
             shape=self.feed_data['x'].shape,
             dtype=self.feed_data['x'].dtype)
-        return {'X': [x]}
+        y = paddle.static.data(
+            name='y',
+            shape=self.feed_data['y'].shape,
+            dtype=self.feed_data['y'].dtype)
+        return {'X': [x], 'Y': [y]}
 
     def set_op_attrs(self):
-        return {"axes": [1]}
+        return {"upper": True, "transpose": False, "unitriangular": False}
 
     def set_op_outputs(self):
-        return {
-            'Out': [str(self.feed_data['x'].dtype)],
-            "XShape": [str(self.feed_data['x'].dtype)]
-        }
+        return {'Out': [str(self.feed_data['x'].dtype)]}
 
     def test_check_results(self):
         self.check_outputs_and_grads()
 
 
-class TestSqueezeAxesEmpty(TestSqueezeOp):
+class TestTriangularSolveOpUpper(TestTriangularSolveOp):
     def set_op_attrs(self):
-        return {"axes": []}
+        return {"upper": False, "transpose": False, "unitriangular": False}
+
+
+class TestTriangularSolveOpTranspose(TestTriangularSolveOp):
+    def set_op_attrs(self):
+        return {"upper": True, "transpose": True, "unitriangular": False}
+
+
+class TestTriangularSolveOpUnitriangular(TestTriangularSolveOp):
+    def set_op_attrs(self):
+        return {"upper": True, "transpose": False, "unitriangular": True}
 
 
 if __name__ == "__main__":

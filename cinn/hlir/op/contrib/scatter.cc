@@ -227,11 +227,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForScatter(const framework::NodeA
       ir_sch.MergeExprs();
       long prod_size = std::accumulate(output_shapes[0].begin(), output_shapes[0].end(), 1, std::multiplies<int>());
       if (prod_size > 1) {
-        if (target.arch == Target::Arch::NVGPU) {
-          pe::IRCudaScheduleInjective(ir_sch, output_shapes.front(), target);
-        } else if (target.arch == Target::Arch::X86) {
-          pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target, true);
-        }
+        pe::IRInjectiveSchedule(ir_sch, output_shapes.front(), target);
       }
       std::vector<common::CINNValue> res{common::CINNValue(ir_sch.GetModule().GetExprs().at(0))};
       *ret = common::CINNValuePack{res};
@@ -307,11 +303,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForScatterNd(const framework::Nod
       ir_sch.MergeExprs();
       long prod_size = std::accumulate(output_shapes[0].begin(), output_shapes[0].end(), 1, std::multiplies<int>());
       if (prod_size > 1) {
-        if (target.arch == Target::Arch::NVGPU) {
-          pe::IRCudaScheduleInjective(ir_sch, output_shapes.front(), target);
-        } else if (target.arch == Target::Arch::X86) {
-          pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target, true);
-        }
+        pe::IRInjectiveSchedule(ir_sch, output_shapes.front(), target);
       }
       std::vector<common::CINNValue> res{common::CINNValue(ir_sch.GetModule().GetExprs().at(0))};
       *ret = common::CINNValuePack{res};
@@ -355,6 +347,7 @@ CINN_REGISTER_HELPER(scatter_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForScatter)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForScatter))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForScatter))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kInjective)
       .set_support_level(4);
 
   CINN_REGISTER_OP(scatter_nd)

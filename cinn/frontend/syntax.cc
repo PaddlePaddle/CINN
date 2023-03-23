@@ -359,7 +359,7 @@ SYNTAX_PRIM_UNARY_IMPL(rsqrt);
     return instr.GetOutput(0);                                                 \
   }
 
-SYNTAX_PRIM_BINARY_IMPL(substract)
+SYNTAX_PRIM_BINARY_IMPL(subtract)
 SYNTAX_PRIM_BINARY_IMPL(divide)
 SYNTAX_PRIM_BINARY_IMPL(floor_divide)
 SYNTAX_PRIM_BINARY_IMPL(mod)
@@ -405,7 +405,7 @@ Variable Program::elementwise_div(const Variable& a, const Variable& b, int axis
 }
 
 Variable Program::elementwise_sub(const Variable& a, const Variable& b, int axis) {
-  Instruction instr("substract", {a, b});
+  Instruction instr("subtract", {a, b});
   instr.SetAttr("axis", axis);
   AppendInstruction(instr);
   return instr.GetOutput(0);

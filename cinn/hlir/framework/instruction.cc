@@ -70,7 +70,7 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
                       bool dryrun,
                       void* stream,
                       bool use_cache) {
-  utils::RecordEvent record_run(function_name_);
+  utils::RecordEvent record_run(function_name_, cinn::utils::EventType::kInstruction);
   CHECK(finalized_flag_) << "Instruction must be finalized before run";
   if (function_name_ == "no_run") {
     VLOG(2) << "skip instruction";
@@ -80,7 +80,7 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
   VLOG(2) << "Run function " << function_name_;
 
   {
-    utils::RecordEvent record_args("PrepareArgs");
+    utils::RecordEvent record_args("PrepareArgs", cinn::utils::EventType::kInstruction);
     if (!use_cache || args_cached_.size() != size()) {
       UpdateArgsCache(name2podargs);
     }
@@ -246,29 +246,35 @@ void Instruction::CheckResults(const std::map<std::string, cinn_pod_value_t>* na
 
   AccuracyChecker checker(target_, scope_);
 
-  LOG(WARNING) << "Instruction {";
+  std::cerr << "Instruction {" << std::endl;
   for (size_t i = 0; i < fn_names_.size(); ++i) {
-    LOG(WARNING) << "  Function " << fn_names_[i] << ":";
-    for (auto& in_name : in_args_[i]) {
+    std::cerr << "  Function " << fn_names_[i] << ":" << std::endl;
+
+    auto in_arg = in_args_[i];
+    std::sort(in_arg.begin(), in_arg.end());
+    for (auto& in_name : in_arg) {
       std::string result_str;
       if (name2podargs) {
         result_str = checker(name2podargs, in_name);
       } else {
         result_str = checker(in_name);
       }
-      LOG(WARNING) << "    input: " << result_str;
+      std::cerr << "    input: " << result_str << std::endl;
     }
-    for (auto& out_name : out_args_[i]) {
+
+    auto out_arg = out_args_[i];
+    std::sort(out_arg.begin(), out_arg.end());
+    for (auto& out_name : out_arg) {
       std::string result_str;
       if (name2podargs) {
         result_str = checker(name2podargs, out_name);
       } else {
         result_str = checker(out_name);
       }
-      LOG(WARNING) << "    output: " << result_str;
+      std::cerr << "    output: " << result_str << std::endl;
     }
   }
-  LOG(WARNING) << "}";
+  std::cerr << "}" << std::endl;
 }
 
 }  // namespace framework

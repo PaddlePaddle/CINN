@@ -17,6 +17,7 @@
 #include <stdarg.h>
 
 #include <cstring>
+#include <iomanip>
 
 #include "glog/logging.h"
 
@@ -129,17 +130,17 @@ std::string TransValidVarName(std::string name) {
 std::string Attribute2String(const utils::Attribute &attr) {
   std::stringstream ss;
   if (absl::get_if<bool>(&attr)) {
-    ss << std::boolalpha << absl::get<bool>(attr);
+    ss << (absl::get<bool>(attr) ? "True" : "False");
   } else if (absl::get_if<float>(&attr)) {
-    ss << absl::get<float>(attr) << "f";
+    ss << std::setprecision(std::numeric_limits<float>::max_digits10) << std::showpoint << absl::get<float>(attr);
   } else if (absl::get_if<double>(&attr)) {
-    ss << absl::get<double>(attr);
+    ss << std::setprecision(std::numeric_limits<double>::max_digits10) << std::showpoint << absl::get<double>(attr);
   } else if (absl::get_if<int>(&attr)) {
     ss << absl::get<int>(attr);
   } else if (absl::get_if<int64_t>(&attr)) {
     ss << absl::get<int64_t>(attr);
   } else if (absl::get_if<std::string>(&attr)) {
-    ss << absl::get<std::string>(attr);
+    ss << "\"" << absl::get<std::string>(attr) << "\"";
   } else if (absl::get_if<std::vector<bool>>(&attr)) {
     ss << "[" + cinn::utils::Join(absl::get<std::vector<bool>>(attr), ", ") + "]";
   } else if (absl::get_if<std::vector<int>>(&attr)) {
@@ -151,7 +152,11 @@ std::string Attribute2String(const utils::Attribute &attr) {
   } else if (absl::get_if<std::vector<double>>(&attr)) {
     ss << "[" + cinn::utils::Join(absl::get<std::vector<double>>(attr), ", ") + "]";
   } else if (absl::get_if<std::vector<std::string>>(&attr)) {
-    ss << "[" + cinn::utils::Join(absl::get<std::vector<std::string>>(attr), ", ") + "]";
+    auto attrs = absl::get<std::vector<std::string>>(attr);
+    for (auto &str : attrs) {
+      str = "\"" + str + "\"";
+    }
+    ss << "[" + cinn::utils::Join(attrs, ", ") + "]";
   } else {
     LOG(FATAL) << "Unkown attribute data type! Please check.";
   }

@@ -15,19 +15,16 @@
 # limitations under the License.
 
 import unittest
-import numpy as np
-from op_mapper_test import OpMapperTest, logger
+from op_mapper_test import OpMapperTest
 import paddle
 
 
-class TestSqueezeOp(OpMapperTest):
+class TestFlipOp(OpMapperTest):
     def init_input_data(self):
-        self.feed_data = {
-            'x': self.random([5, 1, 10], 'float32'),
-        }
+        self.feed_data = {'x': self.random([3, 2, 4], "float32")}
 
     def set_op_type(self):
-        return "squeeze2"
+        return "flip"
 
     def set_op_inputs(self):
         x = paddle.static.data(
@@ -37,21 +34,18 @@ class TestSqueezeOp(OpMapperTest):
         return {'X': [x]}
 
     def set_op_attrs(self):
-        return {"axes": [1]}
+        return {"axis": [0, 1]}
 
     def set_op_outputs(self):
-        return {
-            'Out': [str(self.feed_data['x'].dtype)],
-            "XShape": [str(self.feed_data['x'].dtype)]
-        }
+        return {'Out': [str(self.feed_data['x'].dtype)]}
 
     def test_check_results(self):
         self.check_outputs_and_grads()
 
 
-class TestSqueezeAxesEmpty(TestSqueezeOp):
+class TestFlipOpAxis(TestFlipOp):
     def set_op_attrs(self):
-        return {"axes": []}
+        return {"axis": [0, 2]}
 
 
 if __name__ == "__main__":
