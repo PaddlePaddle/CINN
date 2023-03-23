@@ -26,12 +26,12 @@ template <ArgType type>
 Variable ArgImpl(NetBuilder* builder, const Variable& x, int axis, bool keepdims);
 
 template <>
-Variable ArgImpl<ArgMax>(NetBuilder* builder, const Variable& x, int axis, bool keepdims) {
+Variable ArgImpl<ArgType::ArgMax>(NetBuilder* builder, const Variable& x, int axis, bool keepdims) {
   return builder->Argmax(x, axis, keepdims);
 }
 
 template <>
-Variable ArgImpl<ArgMin>(NetBuilder* builder, const Variable& x, int axis, bool keepdims) {
+Variable ArgImpl<ArgType::ArgMin>(NetBuilder* builder, const Variable& x, int axis, bool keepdims) {
   return builder->Argmin(x, axis, keepdims);
 }
 
