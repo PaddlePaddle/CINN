@@ -53,7 +53,7 @@ HLIR_DCL_BC_PE(Add);
 //! Compute Atan2 with auto-broadcasting.
 HLIR_DCL_BC_PE(Atan2);
 //! Compute A - B with auto-broadcasting.
-HLIR_DCL_BC_PE(Substract);
+HLIR_DCL_BC_PE(Subtract);
 //! Compute A * B with auto-broadcasting.
 HLIR_DCL_BC_PE(Multiply);
 //! Compute A / B with auto-broadcasting.

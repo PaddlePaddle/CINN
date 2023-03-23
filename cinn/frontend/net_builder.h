@@ -82,10 +82,12 @@ namespace frontend {
 // Variable BINARY_OP(const Variable& lhs, const Variable& rhs, int axis = -1);
 #define NETBUILDER_BINARY_OP_FOREACH(macro__) \
   macro__(Add) \
+  macro__(ElementwiseAdd) \
   macro__(Atan2) \
   macro__(Subtract) \
   macro__(Divide) \
   macro__(Multiply) \
+  macro__(ElementwiseMul) \
   macro__(FloorDivide) \
   macro__(Mod) \
   macro__(Remainder) \
@@ -364,18 +366,20 @@ class NetBuilder {
    */
   template <typename T>
   std::enable_if_t<std::is_arithmetic<T>::value, Variable> Constant(const T& value,
-                                                                    const std::string& name,
+                                                                    const std::string& name  = "",
                                                                     const std::string& dtype = "") {
     auto true_dtype = dtype.empty() ? common::Type2Str(common::type_of<T>()) : dtype;
     auto out        = CustomInstr("const_scalar", {}, {{"value", value}, {"dtype", true_dtype}}).front();
 
-    out.set_id(name);
+    if (!name.empty()) {
+      out.set_id(name);
+    }
     return out;
   }
 
   template <typename T>
   std::enable_if_t<cinn::utils::IsVector<T>::value, Variable> Constant(const T& value,
-                                                                       const std::string& name,
+                                                                       const std::string& name  = "",
                                                                        const std::string& dtype = "") {
     CHECK(!value.empty()) << "The value of Constant should not be None or empty list! Please check.";
 
@@ -398,7 +402,9 @@ class NetBuilder {
     auto out        = Reshape(assign_out, real_shape);
 
     // set the name correctly
-    out.set_id(name);
+    if (!name.empty()) {
+      out.set_id(name);
+    }
     return out;
   }
 
@@ -441,7 +447,10 @@ class NetBuilder {
    * @return The result variable.
    */
   template <typename T = float>
-  Variable FillConstant(const cinn::utils::ShapeType& shape, T value, const std::string& name, bool force_cpu = false) {
+  Variable FillConstant(const cinn::utils::ShapeType& shape,
+                        T value,
+                        const std::string& name = "",
+                        bool force_cpu          = false) {
     return FillConstant(shape, static_cast<float>(value), name, common::Type2Str(common::type_of<T>()), force_cpu);
   }
 

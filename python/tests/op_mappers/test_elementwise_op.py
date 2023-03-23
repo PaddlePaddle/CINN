@@ -91,5 +91,27 @@ class TestMinOp(TestElementwiseOp):
         return "elementwise_min"
 
 
+class TestFloorDivOpCase1(TestElementwiseOp):
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([32, 64], low=1, high=10, dtype='int32'),
+            'y': self.random([32, 64], low=1, high=10, dtype='int32')
+        }
+
+    def set_op_type(self):
+        return "elementwise_floordiv"
+
+
+class TestFloorDivOpCase2(TestElementwiseOp):
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([32], low=1, high=10, dtype='int64'),
+            'y': self.random([32], low=1, high=10, dtype='int64')
+        }
+
+    def set_op_type(self):
+        return "elementwise_floordiv"
+
+
 if __name__ == "__main__":
     unittest.main()

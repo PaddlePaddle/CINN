@@ -74,6 +74,7 @@ void BindFrontend(pybind11::module *m) {
       .def(py::init([](const Placeholder &p) { return new Variable(p); }))
       .def("__str__", [](Variable &self) { return self->id; })
       .def("__repr__", [](Variable &self) { return utils::GetStreamCnt(self); })
+      .def("id", [](Variable &self) { return self->id; })
       .def("name", [](Variable &self) { return self->id; })
       .def("shape", [](Variable &self) { return self->shape; })
       .def("type", [](Variable &self) { return common::Type2Str(self->type); })
@@ -98,6 +99,7 @@ void BindFrontend(pybind11::module *m) {
            py::arg("shape"),
            py::arg("id") = "")
       .def("shape", &Placeholder::shape)
+      .def("type", [](Placeholder &self) { return common::Type2Str(self.type()); })
       .def("id", &Placeholder::id)
       .def("name", &Placeholder::id)
       .def("__str__", [](const Placeholder &self) { return self.id(); });
@@ -420,7 +422,7 @@ void BindFrontend(pybind11::module *m) {
           static_cast<Variable (NetBuilder::*)(const TYPE__&, const std::string &, const std::string &)>( \
                &NetBuilder::template Constant<TYPE__>),                              \
           py::arg("value"),                                                          \
-          py::arg("name"),                                                          \
+          py::arg("name") = "",                                                      \
           py::arg("dtype") = "")
      EXPAND_CINN_SUPPORT_TYPE(PY_REGISTER_CONSTANT_OP)
 #define EXPAND_ONE_VECTOR(TYPE) PY_REGISTER_CONSTANT_OP(std::vector<TYPE>)
@@ -449,7 +451,7 @@ void BindFrontend(pybind11::module *m) {
                &NetBuilder::template FillConstant<TYPE__>),                   \
           py::arg("shape"),                                                   \
           py::arg("value"),                                                   \
-          py::arg("name"),                                                    \
+          py::arg("name") = "",                                               \
           py::arg("force_cpu") = false)
           EXPAND_CINN_SUPPORT_TYPE(PY_REGISTER_FILLCONSTANT_OP)
 #undef PY_REGISTER_FILLCONSTANT_OP
@@ -469,6 +471,14 @@ void BindFrontend(pybind11::module *m) {
        py::arg("keepdim") = false)
       NETBUILDER_REDUCE_OP_FOREACH(PY_REGISTER_REDUCE_FUNC)
 #undef PY_REGISTER_REDUCE_FUNC
+#define PY_REGISTER_REDUCE_CINN_FUNC(func_name__) \
+  .def(SnakeName(#func_name__),              \
+       &NetBuilder::func_name__,             \
+       py::arg("x"),                         \
+       py::arg("dim") = std::vector<int>{}, \
+       py::arg("keep_dim") = false)
+      NETBUILDER_REDUCE_OP_FOREACH(PY_REGISTER_REDUCE_CINN_FUNC)
+#undef PY_REGISTER_REDUCE_CINN_FUNC
       // clang-format on
       .def(py::init<const std::string &>(), py::arg("name") = "")
       .def(
@@ -497,7 +507,7 @@ void BindFrontend(pybind11::module *m) {
                &NetBuilder::FillConstant),
            py::arg("shape"),
            py::arg("value"),
-           py::arg("name"),
+           py::arg("name") = "",
            py::arg("dtype"),
            py::arg("force_cpu") = false)
       .def("fill_constant",
@@ -506,7 +516,7 @@ void BindFrontend(pybind11::module *m) {
                &NetBuilder::FillConstant),
            py::arg("shape"),
            py::arg("value"),
-           py::arg("name"),
+           py::arg("name") = "",
            py::arg("dtype"),
            py::arg("force_cpu") = false)
       .def("broadcast_to",
