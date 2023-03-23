@@ -116,16 +116,10 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOp(IRComputeFunction compute,
 
   Node* first  = nullptr;
   Node* second = nullptr;
-  // do schedule.
+
   VLOG(3) << "Before IRLowerOp schedule, ir is: \n" << ir_sch.GetModule().GetExprs().at(0);
-  if (group->fused_sub_groups.size() == 0) {
-    (this->*schedule)(ir_sch, tensor_map, group, group, first, second);
-  } else {
-    // do schedule from back to front.
-    for (int idx = group->fused_sub_groups.size() - 1; idx >= 0; --idx) {
-      (this->*schedule)(ir_sch, tensor_map, group, group->fused_sub_groups[idx], first, second);
-    }
-  }
+  // do schedule.
+  IRSchedule(ir_sch, group, tensor_map);
   VLOG(3) << "After IRLowerOp schedule, ir is: \n" << ir_sch.GetModule().GetExprs().at(0);
   // function args
   group->input_names.clear();
