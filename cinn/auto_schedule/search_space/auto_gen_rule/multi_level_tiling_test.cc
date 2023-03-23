@@ -269,7 +269,7 @@ void __launch_bounds__(1) fn_matmul_0(const float* __restrict__ X, const float* 
                   for (int32_t reduce_k_2 = 0; reduce_k_2 < 8; reduce_k_2 += 1) {
                     for (int32_t i_4 = 0; i_4 < 8; i_4 += 1) {
                       for (int32_t j_4 = 0; j_4 < 32; j_4 += 1) {
-                        temp_matmul_out_local_temp_buffer[((256 * i_3) + ((32 * i_4) + ((32 * j_3) + j_4)))] = (temp_matmul_out_local_temp_buffer[((256 * i_3) + ((32 * i_4) + ((32 * j_3) + j_4)))] + (X_reshape_shared_temp_buffer[((64 * i_3) + ((8 * i_4) + ((8 * r     educe_k_1) + ((64 * (int)threadIdx.x) + reduce_k_2))))] * Y_reshape_shared_temp_buffer[((32 * j_3) + ((256 * reduce_k_1) + ((32 * reduce_k_2) + j_4)))]));
+                        temp_matmul_out_local_temp_buffer[((256 * i_3) + ((32 * i_4) + ((32 * j_3) + j_4)))] = (temp_matmul_out_local_temp_buffer[((256 * i_3) + ((32 * i_4) + ((32 * j_3) + j_4)))] + (X_reshape_shared_temp_buffer[((64 * i_3) + ((8 * i_4) + ((8 * reduce_k_1) + ((64 * (int)threadIdx.x) + reduce_k_2))))] * Y_reshape_shared_temp_buffer[((32 * j_3) + ((256 * reduce_k_1) + ((32 * reduce_k_2) + j_4)))]));
                       };
                     };
                   };
