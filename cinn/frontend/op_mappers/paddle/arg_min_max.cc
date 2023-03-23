@@ -81,11 +81,11 @@ void ArgOpMapperHelper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
 }
 
 void ArgMaxOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
-  ArgOpMapperHelper<ArgMax>(op_desc, ctx);
+  ArgOpMapperHelper<ArgType::ArgMax>(op_desc, ctx);
 }
 
 void ArgMinOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
-  ArgOpMapperHelper<ArgMin>(op_desc, ctx);
+  ArgOpMapperHelper<ArgType::ArgMin>(op_desc, ctx);
 }
 
 }  // namespace paddle_mappers
