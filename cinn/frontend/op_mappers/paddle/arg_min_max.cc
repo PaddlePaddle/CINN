@@ -20,6 +20,22 @@ namespace cinn {
 namespace frontend {
 namespace paddle_mappers {
 
+enum class ArgType { ArgMax, ArgMin };
+
+template <ArgType type>
+Variable ArgImpl(NetBuilder* builder, const Variable& x, const std::vector<int>& axis, bool keepdims);
+
+template <>
+Variable ArgImpl<ArgMax>(NetBuilder* builder, const Variable& x, const std::vector<int>& axis, bool keepdims) {
+  return builder->Argmax(x, axis, keepdims);
+}
+
+template <>
+Variable ArgImpl<ArgMin>(NetBuilder* builder, const Variable& x, const std::vector<int>& axis, bool keepdims) {
+  return builder->Argmin(x, axis, keepdims);
+}
+
+template <ArgType type>
 void ArgOpMapperHelper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx, const std::string arg_type) {
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
   auto x_name = op_desc.Input("X").front();
@@ -27,16 +43,26 @@ void ArgOpMapperHelper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
   auto out_name = op_desc.Output("Out").front();
 
-  auto x        = ctx.GetVar(x_name);
-  auto axis     = op_desc.GetAttr<int32_t>("axis");
-  auto keepdims = op_desc.GetAttr<bool>("keepdims");
-  auto flatten  = op_desc.GetAttr<bool>("flatten");
+  auto x    = ctx.GetVar(x_name);
+  auto axis = utils::GetAttrOrDefault<int32_t>(op_desc, "axis", -1);
+  CHECK(op_desc.HasAttr("axis")) << "Argmax/Argmin op should has attribute \"axis\"! Please check.";
+
+  auto keepdims = utils::GetAttrOrDefault<bool>(op_desc, "keepdims", false);
+  CHECK(op_desc.HasAttr("keepdims")) << "Argmax/Argmin op should has attribute \"keepdims\"! Please check.";
+
+  auto flatten = utils::GetAttrOrDefault<bool>(op_desc, "flatten", false);
+  CHECK(op_desc.HasAttr("flatten")) << "Argmax/Argmin op should has attribute \"flatten\"! Please check.";
+
   auto dtype_id =
       utils::GetAttrOrDefault<int>(op_desc, "dtype", static_cast<int>(paddle::cpp::VarDescAPI::Type::INT64));
   if (dtype_id < 0) dtype_id = static_cast<int>(paddle::cpp::VarDescAPI::Type::INT64);
   auto dtype_pd   = static_cast<paddle::cpp::VarDescAPI::Type>(dtype_id);
   auto dtype_cinn = utils::CppVarType2CommonType(dtype_pd);
   auto dtype      = common::Type2Str(dtype_cinn);
+
+  CHECK(dtype_id == static_cast<int>(paddle::cpp::VarDescAPI::Type::INT64) ||
+        dtype_id == static_cast<int>(paddle::cpp::VarDescAPI::Type::INT32))
+      << "the indices dtype must be int32 or int64, but got dtype = " << dtype;
 
   int ndim = x->shape.size();
   // If flatten = true, flatten x and do opration on axis 0.
@@ -46,27 +72,20 @@ void ArgOpMapperHelper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
     ndim = x->shape.size();
   }
 
-  Variable out;
-  if (arg_type == "ArgMax") {
-    out = ctx.Builder()->Argmax(x, axis, keepdims);
-  } else if (arg_type == "ArgMin") {
-    out = ctx.Builder()->Argmin(x, axis, keepdims);
-  } else {
-    CHECK(0) << "arg_type must in [ArgMax, ArgMin]";
-  }
+  auto out = ArgImpl<type>(ctx.Builder(), x, axis, keepdims);
 
-  out = ctx.Builder()->Cast(out, dtype);
+  auto out = ctx.Builder()->Cast(out, dtype);
 
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);
 }
 
 void ArgMaxOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
-  ArgOpMapperHelper(op_desc, ctx, "ArgMax");
+  ArgOpMapperHelper<ArgMax>(op_desc, ctx);
 }
 
 void ArgMinOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
-  ArgOpMapperHelper(op_desc, ctx, "ArgMin");
+  ArgOpMapperHelper<ArgMin>(op_desc, ctx);
 }
 
 }  // namespace paddle_mappers
@@ -75,10 +94,7 @@ void ArgMinOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
 
 CINN_REGISTER_HELPER(paddle_arg_max) {
   CINN_REGISTER_OP_MAPPER(arg_max, cinn::frontend::paddle_mappers::ArgMaxOpMapper)
-  return true;
-}
-
-CINN_REGISTER_HELPER(paddle_arg_min) {
   CINN_REGISTER_OP_MAPPER(arg_min, cinn::frontend::paddle_mappers::ArgMinOpMapper)
+
   return true;
 }
