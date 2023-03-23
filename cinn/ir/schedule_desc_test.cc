@@ -745,7 +745,7 @@ TEST_F(TestScheduleDesc, StepKind_SampleCategorical) {
       ScheduleDesc::Step("SampleCategorical",
                          {},
                          {{"candidates", std::vector<int>({1, 2, 3})}, {"probs", std::vector<float>({1.0, 2.0, 3.0})}},
-                         ret));
+                         {ret}));
   CheckReplayResult(ir_sch, trace);
   CheckReplayResult(ir_sch, ir_sch.GetTraceDesc());
 }
