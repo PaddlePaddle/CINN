@@ -87,7 +87,7 @@ class TestArgminCase2(TestArgminOp):
     def init_input_data(self):
         self.axis = -1
         self.shape = [2, 3, 4]
-        self.input_dtype = "float64"
+        self.input_dtype = "float32"
         self.output_dtype = "int32"
         self.flatten = False
         self.keepdims = True
