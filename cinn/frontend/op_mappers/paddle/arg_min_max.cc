@@ -74,7 +74,7 @@ void ArgOpMapperHelper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
 
   auto out = ArgImpl<type>(ctx.Builder(), x, axis, keepdims);
 
-  auto out = ctx.Builder()->Cast(out, dtype);
+  out = ctx.Builder()->Cast(out, dtype);
 
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);
