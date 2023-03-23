@@ -19,8 +19,6 @@
 #include <iostream>
 
 #include "cinn/auto_schedule/auto_tuner.h"
-#include "cinn/auto_schedule/tests/test_model_builder.h"
-#include "cinn/auto_schedule/tests/test_op_builder.h"
 #include "cinn/common/target.h"
 #include "cinn/frontend/net_builder.h"
 #include "cinn/frontend/optimize.h"
@@ -31,6 +29,7 @@
 #include "cinn/ir/ir_base.h"
 #include "cinn/runtime/flags.h"
 #include "cinn/utils/data_util.h"
+#include "tests/program_builder.h"
 
 /* This test is used as a tool to evalute or compare performance of 3 schedules(no scheudle, manual schedule,
  * auto-schedule). One can specify which schedules to be evaluated through `FLAGS_evaluate_knobs` and specify which
@@ -185,38 +184,35 @@ class PerformanceTester : public ::testing::Test {
 
 constexpr int batch_size = 2;
 
-TEST_F(PerformanceTester, Mul) {
-  int M = 32;
-  int K = 16;
-  int N = 32;
+TEST_F(PerformanceTester, Mul) { Evaluate(tests::OpBuilder("mul").Build({{"X", {32, 16}}, {"Y", {16, 32}}})); }
 
-  Evaluate(MulOpBuilder({M, K}, {N, K})());
+TEST_F(PerformanceTester, Add) {
+  Evaluate(tests::OpBuilder("elementwise_add").Build({{"X", {1, 56, 56, 256}}, {"Y", {1, 56, 56, 256}}}));
 }
-
-TEST_F(PerformanceTester, Add) { Evaluate(AddOpBuilder({1, 56, 56, 256}, {1, 56, 56, 256})()); }
 
 TEST_F(PerformanceTester, Matmul) {
-  int M = batch_size;
-  int K = 2048;
-  int N = 1000;
-
-  Evaluate(MatmulOpBuilder({M, K}, {K, N})());
+  Evaluate(tests::OpBuilder("matmul").Build({{"X", {batch_size, 2048}}, {"Y", {2048, 1000}}}));
 }
 
-TEST_F(PerformanceTester, Relu) { Evaluate(ReluOpBuilder({batch_size, 64, 56, 56})()); }
+TEST_F(PerformanceTester, Relu) { Evaluate(tests::OpBuilder("relu").Build({{"X", {batch_size, 64, 56, 56}}})); }
 
 TEST_F(PerformanceTester, Conv2d) {
-  std::vector<int32_t> input_shape{batch_size, 3, 224, 224};
-  std::vector<int32_t> weight_shape{64, 3, 7, 7};
   std::vector<int> strides{2, 2};
   std::vector<int> paddings{3, 3};
   std::vector<int> dilations{1, 1};
   int groups                    = 1;
+  std::string conv_type         = "forward";
   std::string data_format       = "NCHW";
   std::string padding_algorithm = "EXPLICIT";
 
-  Evaluate(Conv2dOpBuilder(
-      input_shape, weight_shape, strides, paddings, dilations, groups, data_format, padding_algorithm)());
+  Evaluate(tests::OpBuilder("conv2d").Build({{"X", {batch_size, 3, 224, 224}}, {"W", {64, 3, 7, 7}}},
+                                            {{"stride", strides},
+                                             {"padding", paddings},
+                                             {"dilation", dilations},
+                                             {"groups", groups},
+                                             {"conv_type", conv_type},
+                                             {"data_format", data_format},
+                                             {"padding_algorithm", padding_algorithm}}));
 }
 
 TEST_F(PerformanceTester, Pool2d) {
@@ -232,17 +228,17 @@ TEST_F(PerformanceTester, Pool2d) {
   bool adaptive                 = false;
   std::string padding_algorithm = "EXPLICIT";
 
-  Evaluate(Pool2dOpBuilder(input_shape,
-                           pooling_type,
-                           ksize,
-                           strides,
-                           paddings,
-                           ceil_mode,
-                           exclusive,
-                           global_pooling,
-                           data_format,
-                           adaptive,
-                           padding_algorithm)());
+  Evaluate(tests::OpBuilder("pool2d").Build({{"X", {batch_size, 64, 112, 112}}},
+                                            {{"pool_type", pooling_type},
+                                             {"kernel_size", ksize},
+                                             {"stride_size", strides},
+                                             {"padding_size", paddings},
+                                             {"ceil_mode", ceil_mode},
+                                             {"exclusive", exclusive},
+                                             {"global_pooling", global_pooling},
+                                             {"data_format", data_format},
+                                             {"adaptive", adaptive},
+                                             {"padding_algorithm", padding_algorithm}}));
 }
 
 TEST_F(PerformanceTester, BatchNorm) {
@@ -254,56 +250,59 @@ TEST_F(PerformanceTester, BatchNorm) {
   float epsilon                  = 1e-5f;
   float momentum                 = 0.9f;
   const std::string& data_layout = "NCHW";
-  bool is_test                   = true;
 
-  Evaluate(BatchNormOpBuilder(
-      input_shape, scale_shape, bias_shape, mean_shape, variance_shape, epsilon, momentum, data_layout, is_test)());
+  Evaluate(
+      tests::OpBuilder("batch_norm")
+          .Build(
+              {{"X", {batch_size, 64, 112, 112}}, {"scale", {64}}, {"bias", {64}}, {"mean", {64}}, {"variance", {64}}},
+              {{"epsilon", epsilon}, {"momentum", momentum}, {"data_layout", data_layout}}));
 }
 
 TEST_F(PerformanceTester, Reshape) {
-  std::vector<int32_t> input_shape{batch_size, 2048, 1, 1};
   std::vector<int32_t> output_shape{batch_size, 2048};
 
-  Evaluate(ReshapeOpBuilder(input_shape, output_shape)());
+  Evaluate(tests::OpBuilder("reshape").Build({{"X", {batch_size, 2048, 1, 1}}}, {{"shape", output_shape}}));
 }
 
 TEST_F(PerformanceTester, Softmax) {
-  std::vector<int32_t> input_shape{batch_size, 1000};
-  int axis = -1;
+  std::vector<int> axes   = {-1};
+  std::string mode        = "fast";
+  std::string data_format = "AnyLayout";
 
-  Evaluate(SoftmaxOpBuilder(input_shape, {axis})());
+  Evaluate(tests::OpBuilder("softmax").Build({{"X", {batch_size, 1000}}},
+                                             {{"axes", axes}, {"mode", mode}, {"data_format", data_format}}));
 }
 
 TEST_F(PerformanceTester, Scale) {
-  std::vector<int32_t> input_shape{batch_size, 1000};
   float scale           = 1.0f;
   float bias            = 0.0f;
   bool bias_after_scale = true;
 
-  Evaluate(ScaleOpBuilder(input_shape, scale, bias, bias_after_scale)());
+  Evaluate(tests::OpBuilder("scale").Build({{"X", {batch_size, 1000}}},
+                                           {{"scale", scale}, {"bias", bias}, {"bias_after_scale", bias_after_scale}}));
 }
 
 TEST_F(PerformanceTester, LookupTable) {
-  std::vector<int32_t> table_shape{50001, 768};
-  std::vector<int32_t> ids_shape{10, 128, 1};
+  int64_t padding_idx = -1;
 
-  Evaluate(LookupTableOpBuilder(table_shape, ids_shape, -1)());
+  Evaluate(
+      tests::OpBuilder("lookup_table")
+          .Build({{"table", {50001, 768}}, {"ids", {10, 128, 1}, common::Int(64)}}, {{"padding_idx", padding_idx}}));
 }
 
 TEST_F(PerformanceTester, Gather) {
-  std::vector<int32_t> operand_shape{10, 12, 128, 512};
-  std::vector<int32_t> index_shape{128};
+  int axis = 3;
 
-  Evaluate(GatherOpBuilder(operand_shape, index_shape, 3)());
+  Evaluate(tests::OpBuilder("gather").Build({{"operand", {10, 12, 128, 512}}, {"index", {128}, common::Int(32)}},
+                                            {{"axis", axis}}));
 }
 
 // paddle model test
 TEST_F(PerformanceTester, ResNet50) {
-  std::vector<std::string> input_names       = {"inputs"};
-  std::vector<std::vector<int>> input_shapes = {{batch_size, 3, 224, 224}};
   CHECK_NE(FLAGS_resnet50_model_dir, "");
 
-  Evaluate(PaddleModelBuilder(FLAGS_resnet50_model_dir, input_names, input_shapes)());
+  Evaluate(tests::PaddleModelBuilder(FLAGS_resnet50_model_dir, common::DefaultNVGPUTarget())
+               .Build({{"inputs", {batch_size, 3, 224, 224}}}));
 }
 
 }  // namespace auto_schedule
