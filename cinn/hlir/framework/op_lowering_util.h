@@ -37,9 +37,13 @@ std::vector<ir::Tensor> CollectInputTensor(const Node* node,
 std::unordered_map<Node*, Node*> BuildVirtualConsumer(const GroupPtr& group,
                                                       const absl::flat_hash_map<std::string, shape_t>& shape_dict);
 
-// NodeData* GetNodeData(const Node* node);
+NodeData* GetNodeData(const Node* node);
 
-// std::vector<NodeData*> GetAllNodeData(const Node* node);
+std::vector<NodeData*> GetAllNodeData(const Node* node);
+
+std::vector<Node*> GetConsumers(const Node* node);
+
+bool IsConstOp(const framework::Node* node);
 
 std::vector<Node*> GetConsumersInSet(const Node* node, const std::unordered_set<Node*>& node_set);
 
