@@ -36,7 +36,7 @@ Variable ArgImpl<ArgMin>(NetBuilder* builder, const Variable& x, const std::vect
 }
 
 template <ArgType type>
-void ArgOpMapperHelper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx, const std::string arg_type) {
+void ArgOpMapperHelper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
   auto x_name = op_desc.Input("X").front();
 
