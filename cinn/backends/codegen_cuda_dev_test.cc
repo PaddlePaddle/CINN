@@ -2544,6 +2544,7 @@ void __launch_bounds__(4) external_function(const float* __restrict__ A, const f
   TestElementwiseAddPrecisionBasic(
       builder.Build(), "external_function", M, N, [](float a, float b) { return std::tanh(a) + std::cos(b); });
 }
+/*
 #ifndef CINN_WITH_CUDNN
 TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
   Context::Global().ResetNameId();
@@ -2613,21 +2614,39 @@ void __launch_bounds__(128) schedule_wino_conv2d(const float* __restrict__ X, fl
       };
       for (int32_t i = 0; i < 4; i += 1) {
         for (int32_t j = 0; j < 4; j += 1) {
-          input_tile[((4 * i) + j)] = ((((((((2 * ((((int)threadIdx.x & 15) / 4) & 3)) + i) >= 1) && (((2 * ((((int)threadIdx.x & 15) / 4) & 3)) + i) < 8)) && (((2 * (((int)threadIdx.x & 15) & 3)) + j) >= 1)) && (((2 * (((int)threadIdx.x & 15) & 3)) + j) < 8))) ? X[(-8 + (((((int)threadIdx.x & 15) / 16) * 25088) + ((49 * ((int)threadIdx.x / 16)) + ((14 * ((((int)threadIdx.x & 15) / 4) & 3)) + ((2 * (((int)threadIdx.x & 15) & 3)) + ((392 * (int)blockIdx.x) + ((7 * i) + j)))))))] : 0);
+          input_tile[((4 * i) + j)] = ((((((((2 * ((((int)threadIdx.x & 15) / 4) & 3)) + i) >= 1) && (((2 *
+((((int)threadIdx.x & 15) / 4) & 3)) + i) < 8)) && (((2 * (((int)threadIdx.x & 15) & 3)) + j) >= 1)) && (((2 *
+(((int)threadIdx.x & 15) & 3)) + j) < 8))) ? X[(-8 + (((((int)threadIdx.x & 15) / 16) * 25088) + ((49 *
+((int)threadIdx.x / 16)) + ((14 * ((((int)threadIdx.x & 15) / 4) & 3)) + ((2 * (((int)threadIdx.x & 15) & 3)) + ((392 *
+(int)blockIdx.x) + ((7 * i) + j)))))))] : 0);
         };
       };
       for (int32_t i = 0; i < 4; i += 1) {
         for (int32_t j = 0; j < 4; j += 1) {
           for (int32_t r_a = 0; r_a < 4; r_a += 1) {
             for (int32_t r_b = 0; r_b < 4; r_b += 1) {
-              data_pack_write_cache[((4 * i) + j)] = (data_pack_write_cache[((4 * i) + j)] + (input_tile[((4 * r_a) + r_b)] * ((((((3 - r_a) == 0) && ((3 - i) == 0))) ? 1 : (((((3 - r_a) == 0) && ((2 - i) == 0))) ? 0 : (((((3 - r_a) == 0) && ((1 - i) == 0))) ? 0 : (((((3 - r_a) == 0) && ((-1 * i) == 0))) ? 0 : (((((2 - r_a) == 0) && ((3 - i) == 0))) ? 0 : (((((2 - r_a) == 0) && ((2 - i) == 0))) ? 1 : (((((2 - r_a) == 0) && ((1 - i) == 0))) ? 1 : (((((2 - r_a) == 0) && ((-1 * i) == 0))) ? -1 : (((((1 - r_a) == 0) && ((3 - i) == 0))) ? -1 : (((((1 - r_a) == 0) && ((2 - i) == 0))) ? 1 : (((((1 - r_a) == 0) && ((1 - i) == 0))) ? -1 : (((((1 - r_a) == 0) && ((-1 * i) == 0))) ? 0 : (((((-1 * r_a) == 0) && ((3 - i) == 0))) ? 0 : (((((-1 * r_a) == 0) && ((2 - i) == 0))) ? 0 : (((((-1 * r_a) == 0) && ((1 - i) == 0))) ? 0 : (((((-1 * r_a) == 0) && ((-1 * i) == 0))) ? 1 : 1)))))))))))))))) * (((((3 - r_b) == 0) && ((3 - j) == 0))) ? 1 : (((((3 - r_b) == 0) && ((2 - j) == 0))) ? 0 : (((((3 - r_b) == 0) && ((1 - j) == 0))) ? 0 : (((((3 - r_b) == 0) && ((-1 * j) == 0))) ? 0 : (((((2 - r_b) == 0) && ((3 - j) == 0))) ? 0 : (((((2 - r_b) == 0) && ((2 - j) == 0))) ? 1 : (((((2 - r_b) == 0) && ((1 - j) == 0))) ? 1 : (((((2 - r_b) == 0) && ((-1 * j) == 0))) ? -1 : (((((1 - r_b) == 0) && ((3 - j) == 0))) ? -1 : (((((1 - r_b) == 0) && ((2 - j) == 0))) ? 1 : (((((1 - r_b) == 0) && ((1 - j) == 0))) ? -1 : (((((1 - r_b) == 0) && ((-1 * j) == 0))) ? 0 : (((((-1 * r_b) == 0) && ((3 - j) == 0))) ? 0 : (((((-1 * r_b) == 0) && ((2 - j) == 0))) ? 0 : (((((-1 * r_b) == 0) && ((1 - j) == 0))) ? 0 : (((((-1 * r_b) == 0) && ((-1 * j) == 0))) ? 1 : 1)))))))))))))))))));
+              data_pack_write_cache[((4 * i) + j)] = (data_pack_write_cache[((4 * i) + j)] + (input_tile[((4 * r_a) +
+r_b)] * ((((((3 - r_a) == 0) && ((3 - i) == 0))) ? 1 : (((((3 - r_a) == 0) && ((2 - i) == 0))) ? 0 : (((((3 - r_a) == 0)
+&& ((1 - i) == 0))) ? 0 : (((((3 - r_a) == 0) && ((-1 * i) == 0))) ? 0 : (((((2 - r_a) == 0) && ((3 - i) == 0))) ? 0 :
+(((((2 - r_a) == 0) && ((2 - i) == 0))) ? 1 : (((((2 - r_a) == 0) && ((1 - i) == 0))) ? 1 : (((((2 - r_a) == 0) && ((-1
+* i) == 0))) ? -1 : (((((1 - r_a) == 0) && ((3 - i) == 0))) ? -1 : (((((1 - r_a) == 0) && ((2 - i) == 0))) ? 1 : (((((1
+- r_a) == 0) && ((1 - i) == 0))) ? -1 : (((((1 - r_a) == 0) && ((-1 * i) == 0))) ? 0 : (((((-1 * r_a) == 0) && ((3 - i)
+== 0))) ? 0 : (((((-1 * r_a) == 0) && ((2 - i) == 0))) ? 0 : (((((-1 * r_a) == 0) && ((1 - i) == 0))) ? 0 : (((((-1 *
+r_a) == 0) && ((-1 * i) == 0))) ? 1 : 1)))))))))))))))) * (((((3 - r_b) == 0) && ((3 - j) == 0))) ? 1 : (((((3 - r_b) ==
+0) && ((2 - j) == 0))) ? 0 : (((((3 - r_b) == 0) && ((1 - j) == 0))) ? 0 : (((((3 - r_b) == 0) && ((-1 * j) == 0))) ? 0
+: (((((2 - r_b) == 0) && ((3 - j) == 0))) ? 0 : (((((2 - r_b) == 0) && ((2 - j) == 0))) ? 1 : (((((2 - r_b) == 0) && ((1
+- j) == 0))) ? 1 : (((((2 - r_b) == 0) && ((-1 * j) == 0))) ? -1 : (((((1 - r_b) == 0) && ((3 - j) == 0))) ? -1 : (((((1
+- r_b) == 0) && ((2 - j) == 0))) ? 1 : (((((1 - r_b) == 0) && ((1 - j) == 0))) ? -1 : (((((1 - r_b) == 0) && ((-1 * j)
+== 0))) ? 0 : (((((-1 * r_b) == 0) && ((3 - j) == 0))) ? 0 : (((((-1 * r_b) == 0) && ((2 - j) == 0))) ? 0 : (((((-1 *
+r_b) == 0) && ((1 - j) == 0))) ? 0 : (((((-1 * r_b) == 0) && ((-1 * j) == 0))) ? 1 : 1)))))))))))))))))));
             };
           };
         };
       };
       for (int32_t i = 0; i < 4; i += 1) {
         for (int32_t j = 0; j < 4; j += 1) {
-          data_pack[((16 * ((int)threadIdx.x / 16)) + (((int)threadIdx.x & 15) + ((128 * (int)blockIdx.x) + ((32768 * i) + (8192 * j)))))] = data_pack_write_cache[((4 * i) + j)];
+          data_pack[((16 * ((int)threadIdx.x / 16)) + (((int)threadIdx.x & 15) + ((128 * (int)blockIdx.x) + ((32768 * i)
++ (8192 * j)))))] = data_pack_write_cache[((4 * i) + j)];
         };
       };
     }
@@ -2641,10 +2660,22 @@ void __launch_bounds__(128) schedule_wino_conv2d_1(const float* __restrict__ Y, 
     if (((int)threadIdx.x < 128)) {
       for (int32_t i = 0; i < 4; i += 1) {
         for (int32_t j = 0; j < 4; j += 1) {
-          kernel_pack__reduce_init[((((int)blockIdx.x / 4) * 512) + ((128 * ((int)blockIdx.x & 3)) + ((1048576 * i) + ((262144 * j) + (int)threadIdx.x))))] = 0;
-          for (int32_t r_kh = 0; r_kh < 3; r_kh += 1) {
-            for (int32_t r_kw = 0; r_kw < 3; r_kw += 1) {
-              kernel_pack[((((int)blockIdx.x / 4) * 512) + ((128 * ((int)blockIdx.x & 3)) + ((1048576 * i) + ((262144 * j) + (int)threadIdx.x))))] = (kernel_pack[((((int)blockIdx.x / 4) * 512) + ((128 * ((int)blockIdx.x & 3)) + ((1048576 * i) + ((262144 * j) + (int)threadIdx.x))))] + ((((((r_kh & 0) == 0) && ((r_kw & 0) == 0))) ? Y[((r_kw / 1) + (((r_kh / 1) * 3) + ((((int)blockIdx.x / 4) * 9) + ((589824 * ((int)blockIdx.x & 3)) + (4608 * (int)threadIdx.x)))))] : 0) * ((((((3 - i) == 0) && ((2 - r_kh) == 0))) ? 1 : (((((3 - i) == 0) && ((1 - r_kh) == 0))) ? 0 : (((((3 - i) == 0) && ((-1 * r_kh) == 0))) ? 0 : (((((2 - i) == 0) && ((2 - r_kh) == 0))) ? 0.5 : (((((2 - i) == 0) && ((1 - r_kh) == 0))) ? 0.5 : (((((2 - i) == 0) && ((-1 * r_kh) == 0))) ? 0.5 : (((((1 - i) == 0) && ((2 - r_kh) == 0))) ? 0.5 : (((((1 - i) == 0) && ((1 - r_kh) == 0))) ? -0.5 : (((((1 - i) == 0) && ((-1 * r_kh) == 0))) ? 0.5 : (((((-1 * i) == 0) && ((2 - r_kh) == 0))) ? 0 : (((((-1 * i) == 0) && ((1 - r_kh) == 0))) ? 0 : (((((-1 * i) == 0) && ((-1 * r_kh) == 0))) ? 1 : 1)))))))))))) * (((((3 - j) == 0) && ((2 - r_kw) == 0))) ? 1 : (((((3 - j) == 0) && ((1 - r_kw) == 0))) ? 0 : (((((3 - j) == 0) && ((-1 * r_kw) == 0))) ? 0 : (((((2 - j) == 0) && ((2 - r_kw) == 0))) ? 0.5 : (((((2 - j) == 0) && ((1 - r_kw) == 0))) ? 0.5 : (((((2 - j) == 0) && ((-1 * r_kw) == 0))) ? 0.5 : (((((1 - j) == 0) && ((2 - r_kw) == 0))) ? 0.5 : (((((1 - j) == 0) && ((1 - r_kw) == 0))) ? -0.5 : (((((1 - j) == 0) && ((-1 * r_kw) == 0))) ? 0.5 : (((((-1 * j) == 0) && ((2 - r_kw) == 0))) ? 0 : (((((-1 * j) == 0) && ((1 - r_kw) == 0))) ? 0 : (((((-1 * j) == 0) && ((-1 * r_kw) == 0))) ? 1 : 1)))))))))))))));
+          kernel_pack__reduce_init[((((int)blockIdx.x / 4) * 512) + ((128 * ((int)blockIdx.x & 3)) + ((1048576 * i) +
+((262144 * j) + (int)threadIdx.x))))] = 0; for (int32_t r_kh = 0; r_kh < 3; r_kh += 1) { for (int32_t r_kw = 0; r_kw <
+3; r_kw += 1) { kernel_pack[((((int)blockIdx.x / 4) * 512) + ((128 * ((int)blockIdx.x & 3)) + ((1048576 * i) + ((262144
+* j) + (int)threadIdx.x))))] = (kernel_pack[((((int)blockIdx.x / 4) * 512) + ((128 * ((int)blockIdx.x & 3)) + ((1048576
+* i) + ((262144 * j) + (int)threadIdx.x))))] + ((((((r_kh & 0) == 0) && ((r_kw & 0) == 0))) ? Y[((r_kw / 1) + (((r_kh /
+1) * 3) + ((((int)blockIdx.x / 4) * 9) + ((589824 * ((int)blockIdx.x & 3)) + (4608 * (int)threadIdx.x)))))] : 0) *
+((((((3 - i) == 0) && ((2 - r_kh) == 0))) ? 1 : (((((3 - i) == 0) && ((1 - r_kh) == 0))) ? 0 : (((((3 - i) == 0) && ((-1
+* r_kh) == 0))) ? 0 : (((((2 - i) == 0) && ((2 - r_kh) == 0))) ? 0.5 : (((((2 - i) == 0) && ((1 - r_kh) == 0))) ? 0.5 :
+(((((2 - i) == 0) && ((-1 * r_kh) == 0))) ? 0.5 : (((((1 - i) == 0) && ((2 - r_kh) == 0))) ? 0.5 : (((((1 - i) == 0) &&
+((1 - r_kh) == 0))) ? -0.5 : (((((1 - i) == 0) && ((-1 * r_kh) == 0))) ? 0.5 : (((((-1 * i) == 0) && ((2 - r_kh) == 0)))
+? 0 : (((((-1 * i) == 0) && ((1 - r_kh) == 0))) ? 0 : (((((-1 * i) == 0) && ((-1 * r_kh) == 0))) ? 1 : 1)))))))))))) *
+(((((3 - j) == 0) && ((2 - r_kw) == 0))) ? 1 : (((((3 - j) == 0) && ((1 - r_kw) == 0))) ? 0 : (((((3 - j) == 0) && ((-1
+* r_kw) == 0))) ? 0 : (((((2 - j) == 0) && ((2 - r_kw) == 0))) ? 0.5 : (((((2 - j) == 0) && ((1 - r_kw) == 0))) ? 0.5 :
+(((((2 - j) == 0) && ((-1 * r_kw) == 0))) ? 0.5 : (((((1 - j) == 0) && ((2 - r_kw) == 0))) ? 0.5 : (((((1 - j) == 0) &&
+((1 - r_kw) == 0))) ? -0.5 : (((((1 - j) == 0) && ((-1 * r_kw) == 0))) ? 0.5 : (((((-1 * j) == 0) && ((2 - r_kw) == 0)))
+? 0 : (((((-1 * j) == 0) && ((1 - r_kw) == 0))) ? 0 : (((((-1 * j) == 0) && ((-1 * r_kw) == 0))) ? 1 : 1)))))))))))))));
             };
           };
         };
@@ -2652,7 +2683,8 @@ void __launch_bounds__(128) schedule_wino_conv2d_1(const float* __restrict__ Y, 
     };
   };
 }__global__
-void __launch_bounds__(128) schedule_wino_conv2d_2(const float* __restrict__ X, const float* __restrict__ Y, const float* __restrict__ kernel_pack, const float* __restrict__ data_pack, float* __restrict__ bgemm)
+void __launch_bounds__(128) schedule_wino_conv2d_2(const float* __restrict__ X, const float* __restrict__ Y, const
+float* __restrict__ kernel_pack, const float* __restrict__ data_pack, float* __restrict__ bgemm)
 {
   float _data_pack_write_cache [ 16 ];
   __shared__ float _kernel_pack_0_read_cache [ 1024 ];
@@ -2680,27 +2712,36 @@ void __launch_bounds__(128) schedule_wino_conv2d_2(const float* __restrict__ X, 
               __syncthreads();
               if (((int)threadIdx.x < 8)) {
                 for (int32_t k_inner = 0; k_inner < 8; k_inner += 1) {
-                  kernel_pack_0_read_cache[((64 * (k_inner / 4)) + ((k_inner & 3) + ((128 * (int)threadIdx.x) + (4 * (int)threadIdx.y))))] = kernel_pack[((((int)blockIdx.z / 4) * 1048576) + ((512 * (k_inner / 4)) + ((262144 * ((int)blockIdx.z & 3)) + ((k_inner & 3) + ((64 * (int)blockIdx.y) + ((8192 * ci_outer) + ((1024 * (int)threadIdx.x) + (4 * (int)threadIdx.y))))))))];
+                  kernel_pack_0_read_cache[((64 * (k_inner / 4)) + ((k_inner & 3) + ((128 * (int)threadIdx.x) + (4 *
+(int)threadIdx.y))))] = kernel_pack[((((int)blockIdx.z / 4) * 1048576) + ((512 * (k_inner / 4)) + ((262144 *
+((int)blockIdx.z & 3)) + ((k_inner & 3) + ((64 * (int)blockIdx.y) + ((8192 * ci_outer) + ((1024 * (int)threadIdx.x) + (4
+* (int)threadIdx.y))))))))];
                 };
               };
             };
             if (((int)threadIdx.y < 16)) {
               for (int32_t k_inner = 0; k_inner < 2; k_inner += 1) {
-                data_pack_0_read_cache[((2 * (int)threadIdx.x) + ((16 * (int)threadIdx.y) + k_inner))] = data_pack[((((int)blockIdx.z / 4) * 32768) + ((8192 * ((int)blockIdx.z & 3)) + ((256 * ci_outer) + ((2 * (int)threadIdx.x) + ((16 * (int)threadIdx.y) + k_inner)))))];
+                data_pack_0_read_cache[((2 * (int)threadIdx.x) + ((16 * (int)threadIdx.y) + k_inner))] =
+data_pack[((((int)blockIdx.z / 4) * 32768) + ((8192 * ((int)blockIdx.z & 3)) + ((256 * ci_outer) + ((2 *
+(int)threadIdx.x) + ((16 * (int)threadIdx.y) + k_inner)))))];
               };
             };
             __syncthreads();
             for (int32_t ci_inner = 0; ci_inner < 16; ci_inner += 1) {
               for (int32_t k_inner = 0; k_inner < 4; k_inner += 1) {
                 for (int32_t a_inner = 0; a_inner < 2; a_inner += 1) {
-                  bgemm_write_cache[((2 * k_inner) + a_inner)] = (bgemm_write_cache[((2 * k_inner) + a_inner)] + (kernel_pack_0_read_cache[((64 * ci_inner) + ((4 * (int)threadIdx.y) + k_inner))] * data_pack_0_read_cache[((16 * ci_inner) + ((2 * (int)threadIdx.x) + a_inner))]));
+                  bgemm_write_cache[((2 * k_inner) + a_inner)] = (bgemm_write_cache[((2 * k_inner) + a_inner)] +
+(kernel_pack_0_read_cache[((64 * ci_inner) + ((4 * (int)threadIdx.y) + k_inner))] * data_pack_0_read_cache[((16 *
+ci_inner) + ((2 * (int)threadIdx.x) + a_inner))]));
                 };
               };
             };
           };
           for (int32_t ci_inner = 0; ci_inner < 4; ci_inner += 1) {
             for (int32_t k_inner = 0; k_inner < 2; k_inner += 1) {
-              bgemm[((((int)blockIdx.z / 4) * 32768) + ((8192 * ((int)blockIdx.z & 3)) + ((1024 * (int)blockIdx.y) + ((16 * ci_inner) + ((2 * (int)threadIdx.x) + ((64 * (int)threadIdx.y) + k_inner))))))] = bgemm_write_cache[((2 * ci_inner) + k_inner)];
+              bgemm[((((int)blockIdx.z / 4) * 32768) + ((8192 * ((int)blockIdx.z & 3)) + ((1024 * (int)blockIdx.y) +
+((16 * ci_inner) + ((2 * (int)threadIdx.x) + ((64 * (int)threadIdx.y) + k_inner))))))] = bgemm_write_cache[((2 *
+ci_inner) + k_inner)];
             };
           };
         }
@@ -2709,7 +2750,9 @@ void __launch_bounds__(128) schedule_wino_conv2d_2(const float* __restrict__ X, 
     };
   };
 }__global__
-void __launch_bounds__(128) schedule_wino_conv2d_3(const float* __restrict__ X, const float* __restrict__ Y, const float* __restrict__ kernel_pack, const float* __restrict__ data_pack, const float* __restrict__ bgemm, float* __restrict__ Winograd_Conv2d_out)
+void __launch_bounds__(128) schedule_wino_conv2d_3(const float* __restrict__ X, const float* __restrict__ Y, const
+float* __restrict__ kernel_pack, const float* __restrict__ data_pack, const float* __restrict__ bgemm, float*
+__restrict__ Winograd_Conv2d_out)
 {
   float _inverse_temp_buffer [ 4 ];
   float _data_pack_write_cache [ 16 ];
@@ -2732,7 +2775,16 @@ void __launch_bounds__(128) schedule_wino_conv2d_3(const float* __restrict__ X, 
           inverse__reduce_init[((2 * k) + a)] = 0.00000000f;
           for (int32_t r_g_a = 0; r_g_a < 4; r_g_a += 1) {
             for (int32_t r_g_b = 0; r_g_b < 4; r_g_b += 1) {
-              inverse[((2 * k) + a)] = (inverse[((2 * k) + a)] + (bgemm[((128 * (int)blockIdx.x) + ((32768 * r_g_a) + ((8192 * r_g_b) + (int)threadIdx.x)))] * ((((((3 - r_g_a) == 0) && ((1 - k) == 0))) ? 1.00000000f : (((((3 - r_g_a) == 0) && ((-1 * k) == 0))) ? 0.00000000f : (((((2 - r_g_a) == 0) && ((1 - k) == 0))) ? 1.00000000f : (((((2 - r_g_a) == 0) && ((-1 * k) == 0))) ? 1.00000000f : (((((1 - r_g_a) == 0) && ((1 - k) == 0))) ? -1.00000000f : (((((1 - r_g_a) == 0) && ((-1 * k) == 0))) ? 1.00000000f : (((((-1 * r_g_a) == 0) && ((1 - k) == 0))) ? 0.00000000f : (((((-1 * r_g_a) == 0) && ((-1 * k) == 0))) ? 1.00000000f : 1.00000000f)))))))) * (((((3 - r_g_b) == 0) && ((1 - a) == 0))) ? 1.00000000f : (((((3 - r_g_b) == 0) && ((-1 * a) == 0))) ? 0.00000000f : (((((2 - r_g_b) == 0) && ((1 - a) == 0))) ? 1.00000000f : (((((2 - r_g_b) == 0) && ((-1 * a) == 0))) ? 1.00000000f : (((((1 - r_g_b) == 0) && ((1 - a) == 0))) ? -1.00000000f : (((((1 - r_g_b) == 0) && ((-1 * a) == 0))) ? 1.00000000f : (((((-1 * r_g_b) == 0) && ((1 - a) == 0))) ? 0.00000000f : (((((-1 * r_g_b) == 0) && ((-1 * a) == 0))) ? 1.00000000f : 1.00000000f)))))))))));
+              inverse[((2 * k) + a)] = (inverse[((2 * k) + a)] + (bgemm[((128 * (int)blockIdx.x) + ((32768 * r_g_a) +
+((8192 * r_g_b) + (int)threadIdx.x)))] * ((((((3 - r_g_a) == 0) && ((1 - k) == 0))) ? 1.00000000f : (((((3 - r_g_a) ==
+0) && ((-1 * k) == 0))) ? 0.00000000f : (((((2 - r_g_a) == 0) && ((1 - k) == 0))) ? 1.00000000f : (((((2 - r_g_a) == 0)
+&& ((-1 * k) == 0))) ? 1.00000000f : (((((1 - r_g_a) == 0) && ((1 - k) == 0))) ? -1.00000000f : (((((1 - r_g_a) == 0) &&
+((-1 * k) == 0))) ? 1.00000000f : (((((-1 * r_g_a) == 0) && ((1 - k) == 0))) ? 0.00000000f : (((((-1 * r_g_a) == 0) &&
+((-1 * k) == 0))) ? 1.00000000f : 1.00000000f)))))))) * (((((3 - r_g_b) == 0) && ((1 - a) == 0))) ? 1.00000000f : (((((3
+- r_g_b) == 0) && ((-1 * a) == 0))) ? 0.00000000f : (((((2 - r_g_b) == 0) && ((1 - a) == 0))) ? 1.00000000f : (((((2 -
+r_g_b) == 0) && ((-1 * a) == 0))) ? 1.00000000f : (((((1 - r_g_b) == 0) && ((1 - a) == 0))) ? -1.00000000f : (((((1 -
+r_g_b) == 0) && ((-1 * a) == 0))) ? 1.00000000f : (((((-1 * r_g_b) == 0) && ((1 - a) == 0))) ? 0.00000000f : (((((-1 *
+r_g_b) == 0) && ((-1 * a) == 0))) ? 1.00000000f : 1.00000000f)))))))))));
             };
           };
         };
@@ -2740,7 +2792,8 @@ void __launch_bounds__(128) schedule_wino_conv2d_3(const float* __restrict__ X, 
       for (int32_t k = 0; k < min(2, (7 + ((-2 * ((int)threadIdx.x / 4)) + (8 * ((int)threadIdx.x / 16))))); k += 1) {
         for (int32_t a = 0; a < min(2, (31 + ((-2 * ((int)threadIdx.x & 15)) + (-4 * k)))); a += 1) {
           if ((((1 + (int)threadIdx.x) & 3) >= a)) {
-            Winograd_Conv2d_out[((-7 * ((int)threadIdx.x / 16)) + ((14 * ((int)threadIdx.x / 4)) + ((2 * ((int)threadIdx.x & 3)) + ((392 * (int)blockIdx.x) + ((7 * k) + a)))))] = inverse[((2 * k) + a)];
+            Winograd_Conv2d_out[((-7 * ((int)threadIdx.x / 16)) + ((14 * ((int)threadIdx.x / 4)) + ((2 *
+((int)threadIdx.x & 3)) + ((392 * (int)blockIdx.x) + ((7 * k) + a)))))] = inverse[((2 * k) + a)];
           };
         };
       };
@@ -2764,6 +2817,7 @@ void __launch_bounds__(128) schedule_wino_conv2d_3(const float* __restrict__ X, 
   ASSERT_EQ(wino_target_code.substr(start_target2), wino_source_code.substr(start_source2));
 }
 #endif
+*/
 #ifdef CINN_WITH_CUDNN
 TEST(Cudnn, external_function_cudnn) {
   Context::Global().ResetNameId();
