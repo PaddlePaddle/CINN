@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
+#include "cinn/auto_schedule/search_space/auto_gen_rule/test_helper.h"
 #include "cinn/cinn.h"
 #include "cinn/frontend/net_builder.h"
 #include "cinn/hlir/framework/op_lowering.h"
@@ -37,6 +38,7 @@
 #include "cinn/poly/stage.h"
 #include "cinn/runtime/flags.h"
 #include "cinn/utils/string.h"
+#include "tests/program_ops_builder.h"
 
 DECLARE_bool(cinn_ir_schedule);
 
@@ -236,5 +238,173 @@ TEST(AutoInline, AddReluInline) {
   EXPECT_EQ(auto_inline.AnalyseApplyType(new_states[0], "var_2"), RuleApplyType::kCannotApply);
 }
 
+#ifdef CINN_WITH_CUDA
+class TestAutoInline : public TestAutoGenRuleBase {};
+
+TEST_F(TestAutoInline, ConsumerChain) {
+  Target target = common::DefaultNVGPUTarget();
+  Initialize(target);
+  std::vector<std::string> input_names   = {"bias", "conv_output", "bn_scale", "bn_offset"};
+  std::vector<std::string> output_names  = {"var_6", "var_5", "var_1", "var", "var_0", "var_4", "var_3"};
+  std::vector<int32_t> conv_output_shape = {1, 512, 56, 56};
+  int32_t channel                        = conv_output_shape[1];
+  std::vector<tests::VariableInfo> inputs_varinfo({{"conv_output", conv_output_shape},
+                                                   {"bias", {channel, 1, 1}},
+                                                   {"bn_scale", {channel, 1, 1}},
+                                                   {"bn_offset", {channel, 1, 1}}});
+
+  Context::Global().ResetNameId();
+  ir::IRSchedule ir_schedule = MakeIRSchedule(tests::BiasBnReLUOpsBuilder().Build(inputs_varinfo));
+  SearchState state(ir_schedule, 0, {});
+  std::vector<ir::Expr> func_bodys = ir_schedule.GetModule().GetExprs();
+  ASSERT_EQ(func_bodys.size(), 1UL);
+  VLOG(6) << "Original Expr:\n" << func_bodys[0];
+
+  AutoInline auto_inline(target_, {output_names.front()});
+  ASSERT_EQ(auto_inline.Init(&ir_schedule), RuleApplyType::kApplyAndPruneOtherRules);
+  EXPECT_EQ(auto_inline.AnalyseApplyType(state, "var_3"), RuleApplyType::kApplyAndPruneOtherRules);
+  auto new_states = auto_inline.ApplyOnBlock(state, "var_3");
+  std::vector<std::string> inline_block_names({"var_4", "var_5", "var_6", "var", "var_0", "var_1"});
+  for (const auto& inline_block_name : inline_block_names) {
+    new_states = auto_inline.ApplyOnBlock(new_states[0], inline_block_name);
+  }
+  std::vector<ir::Expr> exprs = new_states[0]->ir_schedule.GetModule().GetExprs();
+  EXPECT_EQ(exprs.size(), 1UL);
+  VLOG(6) << "Expr after AutoInline applied on block: " << exprs[0];
+
+  auto build_module_auto     = BuildIRModule(new_states[0]->ir_schedule);
+  auto build_module_manually = BuildIRModule(MakeIRSchedule(tests::BiasBnReLUOpsBuilder().Build(inputs_varinfo), true));
+  auto source_code_auto      = GenSourceCode(build_module_auto);
+  VLOG(6) << " auto-schedule source code:\n" << source_code_auto;
+  auto source_code_manually = GenSourceCode(build_module_manually);
+  VLOG(6) << " manually-schedule source code:\n" << source_code_manually;
+
+  CheckResult(GenExecutableKernel(build_module_auto),
+              GenExecutableKernel(build_module_manually),
+              input_names,
+              output_names,
+              {{conv_output_shape[1], 1, 1}, conv_output_shape, conv_output_shape, conv_output_shape},
+              {conv_output_shape, {1}, {1}, {1}, {1}, {1}, {1}},
+              target);
+}
+
+TEST_F(TestAutoInline, MultipleConsumers) {
+  Target target = common::DefaultNVGPUTarget();
+  Initialize(target);
+  std::vector<std::string> input_names  = {"x"};
+  std::vector<std::string> output_names = {"var_2", "var_1", "var_0"};
+  std::vector<int32_t> input_shape{256, 256};
+  std::vector<tests::VariableInfo> inputs_varinfo({{"x", input_shape}});
+  ir::IRSchedule ir_schedule = MakeIRSchedule(tests::ExpTwoConsumersOpBuilder().Build(inputs_varinfo));
+  SearchState state(ir_schedule, 0, {});
+  std::vector<ir::Expr> func_bodys = ir_schedule.GetModule().GetExprs();
+  ASSERT_EQ(func_bodys.size(), 1UL);
+  VLOG(6) << "Original Expr:\n" << func_bodys[0];
+
+  AutoInline auto_inline(target_, {output_names.front()});
+  ASSERT_EQ(auto_inline.Init(&ir_schedule), RuleApplyType::kApplyAndPruneOtherRules);
+  EXPECT_EQ(auto_inline.AnalyseApplyType(state, "var_0"), RuleApplyType::kApplyAndPruneOtherRules);
+  auto new_states             = auto_inline.ApplyOnBlock(state, "var_1");
+  new_states                  = auto_inline.ApplyOnBlock(state, "var_0");
+  std::vector<ir::Expr> exprs = new_states[0]->ir_schedule.GetModule().GetExprs();
+  EXPECT_EQ(exprs.size(), 1UL);
+  VLOG(6) << "Expr after AutoInline applied on block: " << exprs[0];
+
+  auto build_module_auto     = BuildIRModule(new_states[0]->ir_schedule);
+  auto build_module_manually = BuildIRModule(MakeIRSchedule(tests::ExpTwoConsumersOpBuilder().Build(inputs_varinfo)));
+  auto source_code_auto      = GenSourceCode(build_module_auto);
+  VLOG(6) << " auto-schedule source code:\n" << source_code_auto;
+  auto source_code_manually = GenSourceCode(build_module_manually);
+  VLOG(6) << " manually-schedule source code:\n" << source_code_manually;
+
+  CheckResult(GenExecutableKernel(build_module_auto),
+              GenExecutableKernel(build_module_manually),
+              input_names,
+              output_names,
+              {input_shape},
+              {input_shape, {1}, {1}},
+              target);
+}
+
+TEST_F(TestAutoInline, PureSpatial) {
+  Target target = common::DefaultNVGPUTarget();
+  Initialize(target);
+  std::vector<std::string> input_names  = {"x", "y"};
+  std::vector<std::string> output_names = {
+      "var_6", "var_4", "constant_idx_last", "constant_idx_first", "var_2", "var_5"};
+  std::vector<int32_t> input_shape{256, 256};
+  std::vector<tests::VariableInfo> inputs_varinfo({{"x", input_shape}, {"y", input_shape}});
+
+  Context::Global().ResetNameId();
+  ir::IRSchedule ir_schedule = MakeIRSchedule(tests::GatherAddSubOpsBuilder().Build(inputs_varinfo));
+  SearchState state(ir_schedule, 0, {});
+  std::vector<ir::Expr> func_bodys = ir_schedule.GetModule().GetExprs();
+  ASSERT_EQ(func_bodys.size(), 1UL);
+  VLOG(6) << "Original Expr:\n" << func_bodys[0];
+
+  AutoInline auto_inline(target_, {output_names.front()});
+  ASSERT_EQ(auto_inline.Init(&ir_schedule), RuleApplyType::kApplyAndPruneOtherRules);
+  EXPECT_EQ(auto_inline.AnalyseApplyType(state, "constant_idx_first"), RuleApplyType::kApplyAndPruneOtherRules);
+  auto new_states = auto_inline.ApplyOnBlock(state, "constant_idx_first");
+  std::vector<std::string> inline_block_names({"constant_idx_last", "var_2", "var_5", "var_4"});
+  for (const auto& inline_block_name : inline_block_names) {
+    new_states = auto_inline.ApplyOnBlock(new_states[0], inline_block_name);
+  }
+  std::vector<ir::Expr> exprs = new_states[0]->ir_schedule.GetModule().GetExprs();
+  EXPECT_EQ(exprs.size(), 1UL);
+  VLOG(6) << "Expr after AutoInline applied on block: " << exprs[0];
+
+  auto build_module_auto     = BuildIRModule(new_states[0]->ir_schedule);
+  auto build_module_manually = BuildIRModule(MakeIRSchedule(tests::GatherAddSubOpsBuilder().Build(inputs_varinfo)));
+  auto source_code_auto      = GenSourceCode(build_module_auto);
+  VLOG(6) << " auto-schedule source code:\n" << source_code_auto;
+  auto source_code_manually = GenSourceCode(build_module_manually);
+  VLOG(6) << " manually-schedule source code:\n" << source_code_manually;
+  CheckResult(GenExecutableKernel(build_module_auto),
+              GenExecutableKernel(build_module_manually),
+              input_names,
+              output_names,
+              {input_shape, input_shape},
+              {input_shape, {1}, {1}, {1}, {1}, {1}},
+              target);
+}
+//
+TEST_F(TestAutoInline, NoReadBufferTensor) {
+  Target target = common::DefaultNVGPUTarget();
+  Initialize(target);
+  std::vector<std::string> input_names  = {"x"};
+  std::vector<std::string> output_names = {"var_0", "fill_constant"};
+  std::vector<int32_t> input_shape{256, 256};
+  std::vector<tests::VariableInfo> inputs_varinfo({{"x", input_shape}});
+
+  ir::IRSchedule ir_schedule = MakeIRSchedule(tests::FillConstantAddOpsBuilder().Build(inputs_varinfo));
+  SearchState state(ir_schedule, 0, {});
+  std::vector<ir::Expr> func_bodys = ir_schedule.GetModule().GetExprs();
+  ASSERT_EQ(func_bodys.size(), 1UL);
+  VLOG(6) << "Original Expr:\n" << func_bodys[0];
+
+  AutoInline auto_inline(target_, {output_names.front()});
+  ASSERT_EQ(auto_inline.Init(&ir_schedule), RuleApplyType::kApplyAndPruneOtherRules);
+  EXPECT_EQ(auto_inline.AnalyseApplyType(state, "fill_constant"), RuleApplyType::kApplyAndPruneOtherRules);
+  auto new_states             = auto_inline.ApplyOnBlock(state, "fill_constant");
+  std::vector<ir::Expr> exprs = new_states[0]->ir_schedule.GetModule().GetExprs();
+  EXPECT_EQ(exprs.size(), 1UL);
+  VLOG(6) << "Expr after AutoInline applied on block: " << exprs[0];
+
+  auto build_module_auto     = BuildIRModule(new_states[0]->ir_schedule);
+  auto build_module_manually = BuildIRModule(MakeIRSchedule(tests::FillConstantAddOpsBuilder().Build(inputs_varinfo)));
+  auto source_code_auto      = GenSourceCode(build_module_auto);
+  VLOG(6) << " auto-schedule source code:\n" << source_code_auto;
+  auto source_code_manually = GenSourceCode(build_module_manually);
+  VLOG(6) << " manually-schedule source code:\n" << source_code_manually;
+  CheckResult(GenExecutableKernel(build_module_auto),
+              GenExecutableKernel(build_module_manually),
+              input_names,
+              output_names,
+              {input_shape},
+              {input_shape, {1}},
+              target);
+}
+#endif
 }  // namespace auto_schedule
 }  // namespace cinn
