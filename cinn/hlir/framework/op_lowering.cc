@@ -1093,46 +1093,19 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerNonFusibleOp(GroupPtr& group, boo
 
   std::vector<ir::Argument> args;
   std::unordered_map<std::string, ir::Tensor> tensor_map;
-  for (auto& i : node->inlinks_in_order(true)) {
-    std::string id = i->source()->as<NodeData>()->id();
-    auto shape     = shape_dict_.at(id);
-    Type dtype     = type_dict_.at(id);
-    CHECK(dtype.is_supported()) << "Node " << id << " 's dtype " << dtype << "is not supported yet!";
-
+  for (auto& node_data : GetInputNodeData(node)) {
+    CHECK(node_data);
     ir::Tensor tensor;
-    if (!tensor_map.count(id)) {
-      if (dtype.is_float(32)) {
-        tensor = lang::Placeholder<float>(id, shape);
-      } else if (dtype.is_float(64)) {
-        tensor = lang::Placeholder<double>(id, shape);
-      } else if (dtype.is_float(16)) {
-        tensor = lang::Placeholder<float16>(id, shape);
-      } else if (dtype.is_bool()) {
-        tensor = lang::Placeholder<bool>(id, shape);
-      } else if (dtype.is_int(8)) {
-        tensor = lang::Placeholder<int8_t>(id, shape);
-      } else if (dtype.is_int(16)) {
-        tensor = lang::Placeholder<int16_t>(id, shape);
-      } else if (dtype.is_int(32)) {
-        tensor = lang::Placeholder<int32_t>(id, shape);
-      } else if (dtype.is_int(64)) {
-        tensor = lang::Placeholder<int64_t>(id, shape);
-      } else if (dtype.is_uint(8)) {
-        tensor = lang::Placeholder<uint8_t>(id, shape);
-      } else if (dtype.is_uint(16)) {
-        tensor = lang::Placeholder<uint16_t>(id, shape);
-      } else if (dtype.is_uint(32)) {
-        tensor = lang::Placeholder<uint32_t>(id, shape);
-      } else if (dtype.is_uint(64)) {
-        tensor = lang::Placeholder<uint64_t>(id, shape);
-      }
-      tensor_map[id] = tensor;
-      // input name
-      group->input_names.push_back(id);
-      // input args type
+    if (!tensor_map.count(node_data->id())) {
+      tensor = GetTensor(node_data, this->type_dict_, this->shape_dict_);
+      // record tensor.
+      tensor_map[node_data->id()] = tensor;
+      // input name.
+      group->input_names.push_back(node_data->id());
+      // input type.
       args.emplace_back(tensor->buffer, ir::Argument::IO::kInput);
     } else {
-      tensor = tensor_map[id];
+      tensor = tensor_map[node_data->id()];
     }
     inputs.push_back(tensor);
     cinn_inputs.push_back(common::CINNValue(tensor));
@@ -1140,7 +1113,6 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerNonFusibleOp(GroupPtr& group, boo
 
   std::vector<Type> out_types;
   std::vector<std::vector<int>> out_shapes;
-
   auto node_datas = GetAllNodeData(node);
   for (auto node_data : node_datas) {
     VLOG(3) << "cinn_inputs.push_back " << node_data->id();
