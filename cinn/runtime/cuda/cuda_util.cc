@@ -510,6 +510,8 @@ std::string debug_cudnn_pool_mode(cudnnPoolingMode_t pool_mode) {
   switch (pool_mode) {
     case CUDNN_POOLING_MAX:
       return "max";
+    case CUDNN_POOLING_MAX_DETERMINISTIC:
+      return "max_deterministic";
     case CUDNN_POOLING_AVERAGE_COUNT_INCLUDE_PADDING:
       return "avg";
     default:
@@ -865,6 +867,10 @@ void cinn_call_cudnn_pool2d_forward(void *v_args,
   cudnnTensorFormat_t tensor_format = static_cast<cudnnTensorFormat_t>(format);
   cudnnDataType_t data_type         = convert_to_cudnn_dtype(v_args, num_args);
 
+  if (GetCinnCudnnDeterministic() && pool_mode == CUDNN_POOLING_MAX) {
+    pool_mode = CUDNN_POOLING_MAX_DETERMINISTIC;
+  }
+
   std::string hash_key =
       "pool2d forward, layout=" + debug_cudnn_tensor_format(tensor_format) +
       ", pool_type=" + debug_cudnn_pool_mode(pool_mode) + ", dtype=" + debug_cudnn_tensor_dtype(data_type) +
@@ -930,6 +936,10 @@ void cinn_call_cudnn_pool2d_backward(void *v_args,
   cudnnPoolingMode_t pool_mode      = static_cast<cudnnPoolingMode_t>(mode);
   cudnnTensorFormat_t tensor_format = static_cast<cudnnTensorFormat_t>(format);
   cudnnDataType_t data_type         = convert_to_cudnn_dtype(v_args, num_args);
+
+  if (GetCinnCudnnDeterministic() && pool_mode == CUDNN_POOLING_MAX) {
+    pool_mode = CUDNN_POOLING_MAX_DETERMINISTIC;
+  }
 
   std::string hash_key =
       "pool2d backward, layout=" + debug_cudnn_tensor_format(tensor_format) +
