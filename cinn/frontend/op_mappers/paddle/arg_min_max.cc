@@ -23,15 +23,15 @@ namespace paddle_mappers {
 enum class ArgType { ArgMax, ArgMin };
 
 template <ArgType type>
-Variable ArgImpl(NetBuilder* builder, const Variable& x, const std::vector<int>& axis, bool keepdims);
+Variable ArgImpl(NetBuilder* builder, const Variable& x, int axis, bool keepdims);
 
 template <>
-Variable ArgImpl<ArgMax>(NetBuilder* builder, const Variable& x, const std::vector<int>& axis, bool keepdims) {
+Variable ArgImpl<ArgMax>(NetBuilder* builder, const Variable& x, int axis, bool keepdims) {
   return builder->Argmax(x, axis, keepdims);
 }
 
 template <>
-Variable ArgImpl<ArgMin>(NetBuilder* builder, const Variable& x, const std::vector<int>& axis, bool keepdims) {
+Variable ArgImpl<ArgMin>(NetBuilder* builder, const Variable& x, int axis, bool keepdims) {
   return builder->Argmin(x, axis, keepdims);
 }
 
