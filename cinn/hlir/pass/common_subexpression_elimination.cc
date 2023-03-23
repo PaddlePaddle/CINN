@@ -18,7 +18,7 @@
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
-#include "cinn/hlir/framework/op_lowering.h"
+#include "cinn/hlir/framework/op_lowering_util.h"
 #include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/pass/use_pass.h"
 #include "cinn/utils/string.h"

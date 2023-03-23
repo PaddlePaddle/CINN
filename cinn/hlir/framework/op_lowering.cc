@@ -42,43 +42,6 @@ using Comparator = Graph::Group::SharedGroupComparator;
 using Hasher     = Graph::Group::SharedGroupHasher;
 using cinn::hlir::op::ExternalApiRegistry;
 
-NodeData* GetNodeData(const Node* node) {
-  auto node_data = (*node->outlinks().begin())->sink()->safe_as<NodeData>();
-  CHECK(node_data);
-  return node_data;
-}
-
-std::vector<NodeData*> GetAllNodeData(const Node* node) {
-  std::vector<NodeData*> node_datas;
-  for (auto& link : node->outlinks_in_order(true)) {
-    auto node_data = link->sink()->safe_as<NodeData>();
-    CHECK(node_data);
-    node_datas.push_back(node_data);
-  }
-
-  return node_datas;
-}
-
-std::vector<Node*> GetConsumer(Node* node) {
-  std::vector<Node*> consumers;
-  auto node_data = GetNodeData(node);
-  for (auto& link : node_data->outlinks()) {
-    auto consumer_node = link->sink()->safe_as<Node>();
-    CHECK(consumer_node);
-    consumers.push_back(consumer_node);
-  }
-  return consumers;
-}
-
-bool IsConstOp(const framework::Node* node) {
-  static std::unordered_set<std::string> const_op_type = {"const_scalar", "fill_constant", "arange"};
-  if (const_op_type.count(node->op()->name)) {
-    return true;
-  } else {
-    return false;
-  }
-}
-
 OpLowerer::OpLowerer(const absl::flat_hash_map<std::string, Type>& type_dict,
                      const absl::flat_hash_map<std::string, shape_t>& shape_dict,
                      const Target& target)
@@ -291,93 +254,6 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpWithoutSchedule(IRComputeFuncti
   return {func};
 }
 
-std::vector<ir::Tensor> OpLowerer::CollectInputTensor(std::vector<ir::Tensor>& func_args,
-                                                      std::unordered_map<std::string, ir::Tensor>& tensor_map,
-                                                      const Node* node) {
-  std::vector<ir::Tensor> tensor_inputs;
-  // get all input nodes
-  for (auto& link : node->inlinks_in_order(true)) {
-    auto source = link->source();
-    CHECK(source);
-    auto source_data = source->safe_as<NodeData>();
-    CHECK(source_data);
-    if (FLAGS_cinn_ir_schedule) {
-      auto dtype = this->type_dict_.at(source_data->id());
-      CHECK(dtype.is_supported()) << "Node " << source_data->id() << " 's dtype " << dtype << "is not supported yet!";
-      ir::Tensor tensor;
-      if (dtype.is_float(32)) {
-        tensor = lang::Placeholder<float>(source_data->id(), this->shape_dict_.at(source_data->id()));
-      } else if (dtype.is_float(64)) {
-        tensor = lang::Placeholder<double>(source_data->id(), this->shape_dict_.at(source_data->id()));
-      } else if (dtype.is_float(16)) {
-        tensor = lang::Placeholder<float16>(source_data->id(), this->shape_dict_.at(source_data->id()));
-      } else if (dtype.is_bool()) {
-        tensor = lang::Placeholder<bool>(source_data->id(), this->shape_dict_.at(source_data->id()));
-      } else if (dtype.is_int(8)) {
-        tensor = lang::Placeholder<int8_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
-      } else if (dtype.is_int(16)) {
-        tensor = lang::Placeholder<int16_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
-      } else if (dtype.is_int(32)) {
-        tensor = lang::Placeholder<int32_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
-      } else if (dtype.is_int(64)) {
-        tensor = lang::Placeholder<int64_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
-      } else if (dtype.is_uint(8)) {
-        tensor = lang::Placeholder<uint8_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
-      } else if (dtype.is_uint(16)) {
-        tensor = lang::Placeholder<uint16_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
-      } else if (dtype.is_uint(32)) {
-        tensor = lang::Placeholder<uint32_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
-      } else if (dtype.is_uint(64)) {
-        tensor = lang::Placeholder<uint64_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
-      }
-      if (!tensor_map.count(source_data->id())) {
-        tensor_map[source_data->id()] = tensor;
-        // record func input args
-        func_args.push_back(tensor);
-      }
-      tensor_inputs.push_back(tensor);
-    } else {
-      if (tensor_map.count(source_data->id())) {
-        tensor_inputs.push_back(tensor_map[source_data->id()]);
-      } else {
-        auto dtype = this->type_dict_.at(source_data->id());
-        CHECK(dtype.is_supported()) << "Node " << source_data->id() << " 's dtype " << dtype << "is not supported yet!";
-        ir::Tensor tensor;
-        if (dtype.is_float(32)) {
-          tensor = lang::Placeholder<float>(source_data->id(), this->shape_dict_.at(source_data->id()));
-        } else if (dtype.is_float(64)) {
-          tensor = lang::Placeholder<double>(source_data->id(), this->shape_dict_.at(source_data->id()));
-        } else if (dtype.is_float(16)) {
-          tensor = lang::Placeholder<float16>(source_data->id(), this->shape_dict_.at(source_data->id()));
-        } else if (dtype.is_bool()) {
-          tensor = lang::Placeholder<bool>(source_data->id(), this->shape_dict_.at(source_data->id()));
-        } else if (dtype.is_int(8)) {
-          tensor = lang::Placeholder<int8_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
-        } else if (dtype.is_int(16)) {
-          tensor = lang::Placeholder<int16_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
-        } else if (dtype.is_int(32)) {
-          tensor = lang::Placeholder<int32_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
-        } else if (dtype.is_int(64)) {
-          tensor = lang::Placeholder<int64_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
-        } else if (dtype.is_uint(8)) {
-          tensor = lang::Placeholder<uint8_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
-        } else if (dtype.is_uint(16)) {
-          tensor = lang::Placeholder<uint16_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
-        } else if (dtype.is_uint(32)) {
-          tensor = lang::Placeholder<uint32_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
-        } else if (dtype.is_uint(64)) {
-          tensor = lang::Placeholder<uint64_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
-        }
-        tensor_map[source_data->id()] = tensor;
-        tensor_inputs.push_back(tensor);
-        // record func input args
-        func_args.push_back(tensor);
-      }
-    }
-  }
-  return tensor_inputs;
-}
-
 std::vector<Expr> OpLowerer::IRElementwiseCompute(poly::StageMap& stages,
                                                   std::vector<ir::Tensor>& func_tensors,
                                                   std::unordered_map<std::string, ir::Tensor>& tensor_map,
@@ -392,7 +268,8 @@ std::vector<Expr> OpLowerer::IRElementwiseCompute(poly::StageMap& stages,
     auto node_data = GetNodeData(node);
     CHECK_EQ(GetAllNodeData(node).size(), 1U);
     std::vector<common::CINNValue> cinn_inputs;
-    std::vector<ir::Tensor> tensor_inputs = std::move(CollectInputTensor(func_tensors, tensor_map, node));
+    std::vector<ir::Tensor> tensor_inputs =
+        std::move(CollectInputTensor(node, func_tensors, tensor_map, this->type_dict_, this->shape_dict_));
     for (auto& tensor : tensor_inputs) {
       cinn_inputs.push_back(common::CINNValue(ir::Expr(tensor)));
     }
@@ -500,7 +377,8 @@ std::vector<Expr> OpLowerer::IRReduceCompute(poly::StageMap& stages,
     VLOG(3) << "In ReduceCompute, process node: " << node->id() << " with op type: " << node->op()->name;
 
     std::vector<common::CINNValue> cinn_inputs;
-    std::vector<ir::Tensor> tensor_inputs = std::move(CollectInputTensor(func_args, tensor_map, node));
+    std::vector<ir::Tensor> tensor_inputs =
+        std::move(CollectInputTensor(node, func_args, tensor_map, this->type_dict_, this->shape_dict_));
     for (auto& tensor : tensor_inputs) {
       cinn_inputs.push_back(common::CINNValue(ir::Expr(tensor)));
     }
@@ -1028,7 +906,7 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
     bool dont_compute_inline =
         group->output_nodes.count(node) || group->internal_nodes.count(node) || sub_group->internal_nodes.count(node);
     if (!dont_compute_inline) {
-      auto consumers = GetConsumer(node);
+      auto consumers = GetConsumers(node);
       for (auto& consumer : consumers) {
         if (op_pattern_dict[consumer->op()] == framework::kReduction) {
           dont_compute_inline = true;
@@ -1351,6 +1229,70 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerNonFusibleOp(GroupPtr& group, boo
     }
     return func;
   }
+}
+
+// do compute
+void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
+                           const GroupPtr& group,
+                           const std::unordered_map<std::string, ir::Tensor>& tensor_map) {
+  // topological order.
+  auto nodes_set      = group->NodeSet();
+  auto v_consumers    = BuildVirtualConsumer(group, this->shape_dict_);
+  auto nodes_in_order = TopologicalOrder(group, v_consumers);
+  // find reducer.
+  std::unordered_set<Node*> nodes_inline;
+  auto greducer         = FindGlobalReducer(nodes_in_order);
+  auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
+
+  // do schedule
+  for (auto node : nodes_in_order) {
+    // consumers.
+    auto consumers      = GetConsumersInSet(node, nodes_set);
+    const Node* reducer = greducer ? FindNearestReducer(node, nodes_set) : greducer;
+    if (!reducer && greducer) {
+      reducer = v_consumers.count(node) ? v_consumers.find(node)->second : reducer;
+      if (reducer && op_pattern_dict[reducer->op()] != framework::kReduction) {
+        reducer = nullptr;
+      }
+    }
+
+    // node can be inline.
+    if (CanbeInline(node, consumers, reducer, nodes_in_order.front(), group, nodes_set, this->shape_dict_)) {
+      // if exist global reduce node.
+      if (greducer) {
+        auto loops = ir_sch.GetLoops(GetNodeData(node)->id());
+        if (op_pattern_dict[node->op()] == framework::kElementWise) {
+          ir_sch.FlattenLoops(loops, true);
+        } else {
+          ir_sch.FlattenLoops(loops, false);
+        }
+      }
+
+      auto block = ir_sch.GetBlock(GetNodeData(node)->id());
+      ir_sch.ComputeInline(block);
+      nodes_inline.insert(node);
+      continue;
+    }
+    // find master to computeat.
+    auto master = GetMasterToComputeAt(node, nodes_in_order, nodes_inline, nodes_set, v_consumers, this->shape_dict_);
+    // assign to reducer/master loop.
+    if (reducer) {
+      // if node is vertical with reduce, loop assign reducer.
+      LoopAssignReduce(ir_sch, node, reducer, this->target_, tensor_map, this->shape_dict_);
+    } else if (greducer) {
+      // if node is horizontal with reduce or node is reduce, loop assign master.
+      auto loops = ir_sch.GetLoops(GetNodeData(node)->id());
+      if (op_pattern_dict[node->op()] == framework::kElementWise) {
+        ir_sch.FlattenLoops(loops, true);
+      } else if (op_pattern_dict[node->op()] != framework::kReduction) {
+        ir_sch.FlattenLoops(loops, false);
+      }
+    }
+    // do loop fuse.
+    LoopComputeAt(ir_sch, node, master ? master : nodes_in_order.front(), group, this->shape_dict_, tensor_map);
+  }
+
+  SyncThreadWithShared(ir_sch, nodes_inline, nodes_set, this->shape_dict_, tensor_map);
 }
 
 }  // namespace framework
