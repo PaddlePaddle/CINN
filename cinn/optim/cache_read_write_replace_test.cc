@@ -105,7 +105,7 @@ function fn (_A, _B, _C1_write_cache)
   {
     serial for (j, 0, 100)
     {
-      C1_write_cache[i, j] = (3.00000f + A[i, j])
+      C1_write_cache[i, j] = (3.00000000f + A[i, j])
     }
   }
   serial for (i, 0, 100)

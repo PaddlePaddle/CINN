@@ -27,6 +27,7 @@
 #include "cinn/lang/lower.h"
 #include "cinn/lang/placeholder.h"
 #include "cinn/poly/stage.h"
+#include "cinn/utils/string.h"
 
 namespace cinn {
 namespace hlir {
@@ -46,7 +47,7 @@ TEST(GenerateCode_Cpu, Argmax_Keep) {
 
   lang::Placeholder<float> in("in", {n, in_c, h, w});
   poly::StageMap stages = poly::CreateStages({in});
-  ir::Tensor res        = Argmax(in, target, stages, axis, true, "test_argmax_in");
+  ir::Tensor res        = Argmax(in, target, stages, axis, true, "test_argmax_in").at(0);
   stages->InsertLazily(res);
 
   std::vector<ir::LoweredFunc> funcs =

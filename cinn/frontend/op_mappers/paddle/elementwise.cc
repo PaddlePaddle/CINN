@@ -167,6 +167,7 @@ void CastOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
   auto out_name = op_desc.Output("Out").front();
 
+  CHECK(op_desc.HasAttr("out_dtype")) << "The cast op should has [out_dtype] attribute!";
   auto dtype =
       utils::GetAttrOrDefault<int>(op_desc, "out_dtype", static_cast<int>(paddle::cpp::VarDescAPI::Type::FP32));
   auto str_dtype = common::Type2Str(utils::CppVarType2CommonType(static_cast<paddle::cpp::VarDescAPI::Type>(dtype)));

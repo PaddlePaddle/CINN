@@ -1229,7 +1229,8 @@ void ScheduleImpl::SimpleComputeAt(const Expr& block, const Expr& loop) {
   Expr source_expr{nullptr};
   Expr target_expr{nullptr};
 
-  LeafBlockRemovalPlan remove_plan(result.As<ir::For>() ? result : this_block, &source_expr, &target_expr);
+  LeafBlockRemovalPlan remove_plan(
+      result.As<ir::For>() ? block_loops[loops.size()] : this_block, &source_expr, &target_expr);
   remove_plan(&root);
 
   this->Replace(source_expr, target_expr);

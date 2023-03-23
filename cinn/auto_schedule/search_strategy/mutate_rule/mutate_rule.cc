@@ -1,4 +1,4 @@
-// Copyright (c) 2022 CINN Authors. All Rights Reserved.
+// Copyright (c) 2023 CINN Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,25 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#pragma once
-#include "cinn/frontend/net_builder.h"
+#include "cinn/auto_schedule/search_strategy/mutate_rule/mutate_rule.h"
+
+#include "cinn/auto_schedule/search_strategy/mutate_rule/mutate_tile_size.h"
 
 namespace cinn {
 namespace auto_schedule {
 
-class TestProgramBuilder {
- public:
-  virtual frontend::Program operator()() = 0;
-};
-
-class TestOpBuilder : public TestProgramBuilder {
- public:
-  TestOpBuilder(const std::string& name) : builder_(name) {}
-  frontend::Program operator()() { return builder_.Build(); }
-
- protected:
-  frontend::NetBuilder builder_;
-};
+std::unique_ptr<MutateRule> MutateRule::Make(const std::string& name) {
+  if (name == "mutate_tile_size") {
+    return std::make_unique<MutateTileSize>();
+  } else {
+    LOG(FATAL) << "MutateRule " << name << " is not supported.";
+  }
+  return nullptr;
+}
 
 }  // namespace auto_schedule
 }  // namespace cinn

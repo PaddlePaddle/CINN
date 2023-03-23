@@ -81,5 +81,14 @@ class TestSplitWithSectionCase1(TestSplitWithSection):
         self.sections = [4, 4, 16, 8]
 
 
+class TestSplitWithSectionCase2(TestSplitWithSection):
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([32, 64], "int32", 0, 10000),
+        }
+        self.axis = 0
+        self.sections = [4, 4, -1, 8]
+
+
 if __name__ == "__main__":
     unittest.main()

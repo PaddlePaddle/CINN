@@ -22,14 +22,14 @@
 #include <numeric>
 
 #include "cinn/auto_schedule/search_space/auto_gen_rule/test_helper.h"
-#include "cinn/auto_schedule/tests/test_op_builder.h"
 #include "cinn/ir/ir_printer.h"
+#include "tests/program_builder.h"
 
 namespace cinn {
 namespace auto_schedule {
 
-static constexpr uint32_t kMaxThreadBlocks = 256;
-static constexpr uint32_t kMaxThreadNums   = 1024;
+static constexpr uint32_t kMaxBlocks          = 256;
+static constexpr uint32_t kMaxThreadsPerBlock = 1024;
 
 class TestAutoBind : public TestAutoGenRuleBase {
  public:
@@ -38,7 +38,7 @@ class TestAutoBind : public TestAutoGenRuleBase {
 
   void TestApplyOnElementWiseAdd(const std::vector<int>& shape, const std::string& block_name) {
     Initialize(common::DefaultNVGPUTarget());
-    auto test_program = AddOpBuilder(shape, shape)();
+    auto test_program = tests::OpBuilder("elementwise_add").Build({{"X", shape}, {"Y", shape}});
     // construct input parameter
     ir::IRSchedule ir_schedule = MakeIRSchedule(test_program);
     SearchState state(ir_schedule, 0, {});
@@ -57,25 +57,25 @@ class TestAutoBind : public TestAutoGenRuleBase {
     // check bind result
     auto all_loops = result->ir_schedule.GetLoops(block_name);
     int total_num  = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<int>());
-    if (total_num <= kMaxThreadNums) {
+    if (total_num <= kMaxThreadsPerBlock) {
       ASSERT_EQ(all_loops.size(), 1);
       EXPECT_EQ(all_loops[0].As<ir::For>()->extent.as_int32(), total_num);
       EXPECT_TRUE(all_loops[0].As<ir::For>()->is_gpu_thread_binded());
-    } else if (total_num <= kMaxThreadBlocks * kMaxThreadNums) {
+    } else if (total_num <= kMaxBlocks * kMaxThreadsPerBlock) {
       ASSERT_EQ(all_loops.size(), 2);
       EXPECT_EQ(all_loops[0].As<ir::For>()->extent.as_int32(),
-                static_cast<int32_t>(std::ceil(double(total_num) / kMaxThreadNums)));
+                static_cast<int32_t>(std::ceil(double(total_num) / kMaxThreadsPerBlock)));
       EXPECT_TRUE(all_loops[0].As<ir::For>()->is_gpu_block_binded());
-      EXPECT_EQ(all_loops[1].As<ir::For>()->extent.as_int32(), kMaxThreadNums);
+      EXPECT_EQ(all_loops[1].As<ir::For>()->extent.as_int32(), kMaxThreadsPerBlock);
       EXPECT_TRUE(all_loops[1].As<ir::For>()->is_gpu_thread_binded());
     } else {
       ASSERT_EQ(all_loops.size(), 3);
-      EXPECT_EQ(all_loops[0].As<ir::For>()->extent.as_int32(), kMaxThreadBlocks);
+      EXPECT_EQ(all_loops[0].As<ir::For>()->extent.as_int32(), kMaxBlocks);
       EXPECT_TRUE(all_loops[0].As<ir::For>()->is_gpu_block_binded());
-      EXPECT_EQ(all_loops[1].As<ir::For>()->extent.as_int32(), kMaxThreadNums);
+      EXPECT_EQ(all_loops[1].As<ir::For>()->extent.as_int32(), kMaxThreadsPerBlock);
       EXPECT_TRUE(all_loops[1].As<ir::For>()->is_gpu_thread_binded());
       EXPECT_EQ(all_loops[2].As<ir::For>()->extent.as_int32(),
-                static_cast<int32_t>(std::ceil(double(total_num) / (kMaxThreadBlocks * kMaxThreadNums))));
+                static_cast<int32_t>(std::ceil(double(total_num) / (kMaxBlocks * kMaxThreadsPerBlock))));
       EXPECT_FALSE(all_loops[2].As<ir::For>()->is_binded());
     }
 
@@ -97,7 +97,7 @@ class TestAutoBind : public TestAutoGenRuleBase {
 
 TEST_F(TestAutoBind, AnalyseApplyType) {
   Initialize(common::DefaultNVGPUTarget());
-  ir::IRSchedule ir_schedule = MakeIRSchedule(MatmulOpBuilder({32, 64}, {64, 32})());
+  ir::IRSchedule ir_schedule = MakeIRSchedule(tests::OpBuilder("matmul").Build({{"X", {32, 64}}, {"Y", {64, 32}}}));
   SearchState state(ir_schedule, 0, {});
   AutoBind auto_bind(target_);
   const std::string& applied_block_name = default_output_names.back();

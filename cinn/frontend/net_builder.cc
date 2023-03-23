@@ -20,6 +20,7 @@
 
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/pe/broadcast.h"
+#include "cinn/utils/functional.h"
 
 namespace cinn {
 namespace frontend {
@@ -240,6 +241,31 @@ Variable NetBuilder::FillConstant(
   return out;
 }
 
+Variable NetBuilder::FillConstant(const std::vector<int>& shape,
+                                  const std::string& str_value,
+                                  const std::string& name,
+                                  const std::string& dtype,
+                                  bool force_cpu) {
+  const auto& type = common::Str2Type(dtype);
+
+  utils::Attribute value;
+  if (type.is_float()) {
+    value = std::stod(str_value);
+  } else if (type.is_int() || type.is_uint()) {
+    value = static_cast<int64_t>(std::stoll(str_value));
+  } else if (type.is_bool()) {
+    static std::unordered_set<std::string> true_string = {"1", "t", "T", "true", "True", "TRUE"};
+    value                                              = static_cast<bool>(true_string.count(str_value));
+  } else {
+    LOG(FATAL) << "FillConstant only support int/float/bool, but here " << dtype;
+  }
+  auto out =
+      CustomInstr("fill_constant", {}, {{"shape", shape}, {"value", value}, {"dtype", dtype}, {"force_cpu", force_cpu}})
+          .front();
+  out.set_id(cinn::utils::TransValidVarName(name));
+  return out;
+}
+
 std::vector<Variable> NetBuilder::Split(const Variable& operand, const std::vector<int>& num_or_sections, int axis) {
   return CustomInstr("split", {operand}, {{"num_or_sections", num_or_sections}, {"axis", axis}});
 }
@@ -304,7 +330,7 @@ Variable NetBuilder::Reshape(const Variable& operand, const std::vector<int>& sh
 }
 
 Variable NetBuilder::Transpose(const Variable& operand, const std::vector<int>& axis) {
-  return CustomInstr("transpose", {operand}, {{"axis", axis}}).front();
+  return CustomInstr("transpose", {operand}, {{"axis", utils::GetPositiveAxes(axis, operand->shape.size())}}).front();
 }
 
 Variable NetBuilder::Slice(const Variable& operand,
@@ -338,7 +364,7 @@ Variable NetBuilder::SliceAssign(const Variable& input,
 }
 
 Variable NetBuilder::Reverse(const Variable& operand, const std::vector<int>& axis) {
-  return CustomInstr("reverse", {operand}, {{"axis", axis}}).front();
+  return CustomInstr("reverse", {operand}, {{"axis", utils::GetPositiveAxes(axis, operand->shape.size())}}).front();
 }
 
 Variable NetBuilder::Select(const Variable& condition, const Variable& true_value, const Variable& false_value) {
@@ -459,48 +485,24 @@ Variable NetBuilder::Conv(const Variable& lhs,
       .front();
 }
 
-Variable NetBuilder::ArgSort(const Variable& operand, const int& axis, const bool& is_ascend) {
-  Instruction instr("argsort", {operand});
-  instr.SetAttr("axis", axis);
-  instr.SetAttr("is_ascend", is_ascend);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+std::vector<Variable> NetBuilder::ArgSort(const Variable& operand, const int& axis, const bool& is_ascend) {
+  return CustomInstr("argsort", {operand}, {{"axis", axis}, {"is_ascend", is_ascend}});
 }
 
 Variable NetBuilder::Sort(const Variable& operand, const int& axis, const bool& is_ascend) {
-  Instruction instr("sort", {operand});
-  instr.SetAttr("axis", axis);
-  instr.SetAttr("is_ascend", is_ascend);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return CustomInstr("sort", {operand}, {{"axis", axis}, {"is_ascend", is_ascend}}).front();
 }
 
 Variable NetBuilder::Argmax(const Variable& x, const int& axis, const bool& keep_dim) {
-  Instruction instr("argmax", {x});
-  instr.SetAttr("axis", axis);
-  instr.SetAttr("keep_dim", keep_dim);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return CustomInstr("argmax", {x}, {{"axis", axis}, {"keep_dim", keep_dim}}).front();
 }
 
 Variable NetBuilder::Argmin(const Variable& x, const int& axis, const bool& keep_dim) {
-  Instruction instr("argmin", {x});
-  instr.SetAttr("axis", axis);
-  instr.SetAttr("keep_dim", keep_dim);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return CustomInstr("argmin", {x}, {{"axis", axis}, {"keep_dim", keep_dim}}).front();
 }
 
 Variable NetBuilder::LookupTable(const Variable& table, const Variable& ids, int64_t padding_idx) {
-  Instruction instr("lookup_table", {table, ids});
-  instr.SetAttr<int32_t>("padding_idx", padding_idx);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return CustomInstr("lookup_table", {table, ids}, {{"padding_idx", padding_idx}}).front();
 }
 
 Variable NetBuilder::Conv2d(const Variable& a,
@@ -727,15 +729,6 @@ Variable NetBuilder::TriangularSolve(
                       {"transpose_a", transpose_a},
                       {"unit_diagonal", unit_diagonal}})
       .front();
-}
-
-Variable NetBuilder::Norm(const Variable& x, int axis, float epsilon) {
-  Instruction instr("norm", {x});
-  instr.SetAttr<int32_t>("axis", axis);
-  instr.SetAttr<float>("epsilon", epsilon);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
 }
 
 std::vector<Variable> NetBuilder::TopK(const Variable& x, int k, int axis, bool largest) {

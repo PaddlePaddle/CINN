@@ -23,7 +23,6 @@
 
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
 #include "cinn/auto_schedule/search_space/auto_gen_rule/test_helper.h"
-#include "cinn/auto_schedule/tests/test_op_builder.h"
 #include "cinn/cinn.h"
 #include "cinn/frontend/syntax.h"
 #include "cinn/ir/ir.h"
@@ -35,6 +34,7 @@
 #include "cinn/lang/lower.h"
 #include "cinn/poly/stage.h"
 #include "cinn/utils/string.h"
+#include "tests/program_builder.h"
 
 namespace cinn {
 namespace auto_schedule {
@@ -199,7 +199,8 @@ TEST_F(TestMultiLevelTiling, Matmul) {
   std::vector<int32_t> out_shape = {32, 32};
 
   Initialize(common::DefaultNVGPUTarget());
-  ir::IRSchedule ir_schedule = MakeIRSchedule(MatmulOpBuilder(X_shape, Y_shape)(), fixed_rand_seed);
+  frontend::Program matmul_op = tests::OpBuilder("matmul").Build({{"X", X_shape}, {"Y", Y_shape}});
+  ir::IRSchedule ir_schedule  = MakeIRSchedule(matmul_op, fixed_rand_seed);
   SearchState state(ir_schedule);
   VLOG(6) << "Original state:\n" << state->DebugString();
 
@@ -220,14 +221,14 @@ TEST_F(TestMultiLevelTiling, Matmul) {
   VLOG(6) << "scheduled source code:\n" << source_code;
 
   // execute and check precision
-  CheckResult(GenExecutableKernel(ir_module),
-              GenExecutableKernel(BuildIRModule(MakeIRSchedule(
-                  MatmulOpBuilder(X_shape, Y_shape)(), fixed_rand_seed, /* apply_manual_schedule*/ true))),
-              default_input_names,
-              default_output_names,
-              {X_shape, Y_shape},
-              {out_shape},
-              target_);
+  CheckResult(
+      GenExecutableKernel(ir_module),
+      GenExecutableKernel(BuildIRModule(MakeIRSchedule(matmul_op, fixed_rand_seed, /* apply_manual_schedule*/ true))),
+      default_input_names,
+      default_output_names,
+      {X_shape, Y_shape},
+      {out_shape},
+      target_);
 }
 
 TEST_F(TestMultiLevelTiling, ReduceSum) {
@@ -238,7 +239,9 @@ TEST_F(TestMultiLevelTiling, ReduceSum) {
   std::vector<int32_t> reduce_dim = {2};
 
   Initialize(common::DefaultNVGPUTarget());
-  ir::IRSchedule ir_schedule = MakeIRSchedule(ReduceSumOpBuilder(X_shape, reduce_dim)());
+  frontend::Program reduce_sum_op =
+      tests::OpBuilder("reduce_sum").Build({{"X", X_shape}}, {{"dim", reduce_dim}, {"keep_dim", false}});
+  ir::IRSchedule ir_schedule = MakeIRSchedule(reduce_sum_op);
   SearchState state(ir_schedule);
   VLOG(6) << "Original state:\n" << state->DebugString();
 
@@ -262,17 +265,17 @@ TEST_F(TestMultiLevelTiling, Pool2d) {
   std::string data_format          = "NCHW";
   bool adaptive                    = false;
   std::string padding_algorithm    = "EXPLICIT";
-  frontend::Program pool2d_program = Pool2dOpBuilder(input_shape,
-                                                     pooling_type,
-                                                     ksize,
-                                                     strides,
-                                                     paddings,
-                                                     ceil_mode,
-                                                     exclusive,
-                                                     global_pooling,
-                                                     data_format,
-                                                     adaptive,
-                                                     padding_algorithm)();
+  frontend::Program pool2d_program = tests::OpBuilder("pool2d").Build({{"input", input_shape}},
+                                                                      {{"pool_type", pooling_type},
+                                                                       {"kernel_size", ksize},
+                                                                       {"stride_size", strides},
+                                                                       {"padding_size", paddings},
+                                                                       {"ceil_mode", ceil_mode},
+                                                                       {"exclusive", exclusive},
+                                                                       {"global_pooling", global_pooling},
+                                                                       {"data_format", data_format},
+                                                                       {"adaptive", adaptive},
+                                                                       {"padding_algorithm", padding_algorithm}});
 
   Initialize(common::DefaultNVGPUTarget());
   ir::IRSchedule ir_schedule = MakeIRSchedule(pool2d_program, fixed_rand_seed);

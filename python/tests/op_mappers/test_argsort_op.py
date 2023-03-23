@@ -20,14 +20,15 @@ from op_mapper_test import OpMapperTest, logger
 import paddle
 
 
-class TestSqueezeOp(OpMapperTest):
+class TestArgSortOp(OpMapperTest):
     def init_input_data(self):
         self.feed_data = {
-            'x': self.random([5, 1, 10], 'float32'),
+            'x': self.random([3, 4], "float32"),
         }
+        self.axis = 1
 
     def set_op_type(self):
-        return "squeeze2"
+        return "argsort"
 
     def set_op_inputs(self):
         x = paddle.static.data(
@@ -37,21 +38,17 @@ class TestSqueezeOp(OpMapperTest):
         return {'X': [x]}
 
     def set_op_attrs(self):
-        return {"axes": [1]}
+        return {'axis': self.axis}
 
     def set_op_outputs(self):
-        return {
-            'Out': [str(self.feed_data['x'].dtype)],
-            "XShape": [str(self.feed_data['x'].dtype)]
-        }
+        return {'Out': ['int64'], 'Indices': ['int64']}
+
+    def skip_check_outputs(self):
+        #'Out' is never used in Paddle API
+        return {"Out"}
 
     def test_check_results(self):
         self.check_outputs_and_grads()
-
-
-class TestSqueezeAxesEmpty(TestSqueezeOp):
-    def set_op_attrs(self):
-        return {"axes": []}
 
 
 if __name__ == "__main__":
