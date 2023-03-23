@@ -19,9 +19,9 @@
 namespace cinn {
 namespace tests {
 
-class BiasBnReLUOpsBuilder : public ProgramBuilder {
+class BiasBnReLUSubGraphBuilder : public ProgramBuilder {
  public:
-  BiasBnReLUOpsBuilder() : ProgramBuilder("bias_bn_relu_builder") {}
+  BiasBnReLUSubGraphBuilder() : ProgramBuilder("bias_bn_relu_builder") {}
   frontend::Program Build(const std::vector<VariableInfo>& inputs_varinfo, const utils::AttributeMap& attrs = {}) {
     CHECK(inputs_varinfo.size()==4);
     auto conv_output = builder_.CreateInput(inputs_varinfo[0].type, inputs_varinfo[0].shape, inputs_varinfo[0].id);
@@ -50,9 +50,9 @@ class ExpTwoConsumersOpBuilder : public ProgramBuilder {
   }
 };
 
-class GatherAddSubOpsBuilder : public ProgramBuilder {
+class GatherAddSubSubGraphBuilder : public ProgramBuilder {
  public:
-  GatherAddSubOpsBuilder() : ProgramBuilder("gather_add_sub_builder") {}
+  GatherAddSubSubGraphBuilder() : ProgramBuilder("gather_add_sub_builder") {}
   frontend::Program Build(const std::vector<VariableInfo>& inputs_varinfo, const utils::AttributeMap& attrs = {}) {
     CHECK(inputs_varinfo.size()==2);
     auto x     = builder_.CreateInput(inputs_varinfo[0].type, inputs_varinfo[0].shape, inputs_varinfo[0].id);
@@ -67,9 +67,9 @@ class GatherAddSubOpsBuilder : public ProgramBuilder {
   }
 };
 
-class FillConstantAddOpsBuilder : public ProgramBuilder {
+class FillConstantAddSubGraphBuilder : public ProgramBuilder {
  public:
-  FillConstantAddOpsBuilder() : ProgramBuilder("fill_constant_add_builder") {}
+  FillConstantAddSubGraphBuilder() : ProgramBuilder("fill_constant_add_builder") {}
   frontend::Program Build(const std::vector<VariableInfo>& inputs_varinfo, const utils::AttributeMap& attrs = {}) {
     CHECK(inputs_varinfo.size()==1);
     auto x     = builder_.CreateInput(inputs_varinfo[0].type, inputs_varinfo[0].shape, inputs_varinfo[0].id);

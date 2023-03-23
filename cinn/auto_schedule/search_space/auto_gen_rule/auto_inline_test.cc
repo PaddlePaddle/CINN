@@ -38,7 +38,7 @@
 #include "cinn/poly/stage.h"
 #include "cinn/runtime/flags.h"
 #include "cinn/utils/string.h"
-#include "tests/program_ops_builder.h"
+#include "tests/subgraph_program_builder.h"
 
 DECLARE_bool(cinn_ir_schedule);
 
@@ -254,14 +254,13 @@ TEST_F(TestAutoInline, ConsumerChain) {
                                                    {"bn_offset", {channel, 1, 1}}});
 
   Context::Global().ResetNameId();
-  ir::IRSchedule ir_schedule = MakeIRSchedule(tests::BiasBnReLUOpsBuilder().Build(inputs_varinfo));
+  ir::IRSchedule ir_schedule = MakeIRSchedule(tests::BiasBnReLUSubGraphBuilder().Build(inputs_varinfo));
   SearchState state(ir_schedule, 0, {});
   std::vector<ir::Expr> func_bodys = ir_schedule.GetModule().GetExprs();
   ASSERT_EQ(func_bodys.size(), 1UL);
   VLOG(6) << "Original Expr:\n" << func_bodys[0];
 
   AutoInline auto_inline(target_, {output_names.front()});
-  ASSERT_EQ(auto_inline.Init(&ir_schedule), RuleApplyType::kApplyAndPruneOtherRules);
   EXPECT_EQ(auto_inline.AnalyseApplyType(state, "var_3"), RuleApplyType::kApplyAndPruneOtherRules);
   auto new_states = auto_inline.ApplyOnBlock(state, "var_3");
   std::vector<std::string> inline_block_names({"var_4", "var_5", "var_6", "var", "var_0", "var_1"});
@@ -272,9 +271,10 @@ TEST_F(TestAutoInline, ConsumerChain) {
   EXPECT_EQ(exprs.size(), 1UL);
   VLOG(6) << "Expr after AutoInline applied on block: " << exprs[0];
 
-  auto build_module_auto     = BuildIRModule(new_states[0]->ir_schedule);
-  auto build_module_manually = BuildIRModule(MakeIRSchedule(tests::BiasBnReLUOpsBuilder().Build(inputs_varinfo), true));
-  auto source_code_auto      = GenSourceCode(build_module_auto);
+  auto build_module_auto = BuildIRModule(new_states[0]->ir_schedule);
+  auto build_module_manually =
+      BuildIRModule(MakeIRSchedule(tests::BiasBnReLUSubGraphBuilder().Build(inputs_varinfo), true));
+  auto source_code_auto = GenSourceCode(build_module_auto);
   VLOG(6) << " auto-schedule source code:\n" << source_code_auto;
   auto source_code_manually = GenSourceCode(build_module_manually);
   VLOG(6) << " manually-schedule source code:\n" << source_code_manually;
@@ -302,7 +302,6 @@ TEST_F(TestAutoInline, MultipleConsumers) {
   VLOG(6) << "Original Expr:\n" << func_bodys[0];
 
   AutoInline auto_inline(target_, {output_names.front()});
-  ASSERT_EQ(auto_inline.Init(&ir_schedule), RuleApplyType::kApplyAndPruneOtherRules);
   EXPECT_EQ(auto_inline.AnalyseApplyType(state, "var_0"), RuleApplyType::kApplyAndPruneOtherRules);
   auto new_states             = auto_inline.ApplyOnBlock(state, "var_1");
   new_states                  = auto_inline.ApplyOnBlock(state, "var_0");
@@ -336,14 +335,13 @@ TEST_F(TestAutoInline, PureSpatial) {
   std::vector<tests::VariableInfo> inputs_varinfo({{"x", input_shape}, {"y", input_shape}});
 
   Context::Global().ResetNameId();
-  ir::IRSchedule ir_schedule = MakeIRSchedule(tests::GatherAddSubOpsBuilder().Build(inputs_varinfo));
+  ir::IRSchedule ir_schedule = MakeIRSchedule(tests::GatherAddSubSubGraphBuilder().Build(inputs_varinfo));
   SearchState state(ir_schedule, 0, {});
   std::vector<ir::Expr> func_bodys = ir_schedule.GetModule().GetExprs();
   ASSERT_EQ(func_bodys.size(), 1UL);
   VLOG(6) << "Original Expr:\n" << func_bodys[0];
 
   AutoInline auto_inline(target_, {output_names.front()});
-  ASSERT_EQ(auto_inline.Init(&ir_schedule), RuleApplyType::kApplyAndPruneOtherRules);
   EXPECT_EQ(auto_inline.AnalyseApplyType(state, "constant_idx_first"), RuleApplyType::kApplyAndPruneOtherRules);
   auto new_states = auto_inline.ApplyOnBlock(state, "constant_idx_first");
   std::vector<std::string> inline_block_names({"constant_idx_last", "var_2", "var_5", "var_4"});
@@ -354,9 +352,10 @@ TEST_F(TestAutoInline, PureSpatial) {
   EXPECT_EQ(exprs.size(), 1UL);
   VLOG(6) << "Expr after AutoInline applied on block: " << exprs[0];
 
-  auto build_module_auto     = BuildIRModule(new_states[0]->ir_schedule);
-  auto build_module_manually = BuildIRModule(MakeIRSchedule(tests::GatherAddSubOpsBuilder().Build(inputs_varinfo)));
-  auto source_code_auto      = GenSourceCode(build_module_auto);
+  auto build_module_auto = BuildIRModule(new_states[0]->ir_schedule);
+  auto build_module_manually =
+      BuildIRModule(MakeIRSchedule(tests::GatherAddSubSubGraphBuilder().Build(inputs_varinfo)));
+  auto source_code_auto = GenSourceCode(build_module_auto);
   VLOG(6) << " auto-schedule source code:\n" << source_code_auto;
   auto source_code_manually = GenSourceCode(build_module_manually);
   VLOG(6) << " manually-schedule source code:\n" << source_code_manually;
@@ -368,7 +367,7 @@ TEST_F(TestAutoInline, PureSpatial) {
               {input_shape, {1}, {1}, {1}, {1}, {1}},
               target);
 }
-//
+
 TEST_F(TestAutoInline, NoReadBufferTensor) {
   Target target = common::DefaultNVGPUTarget();
   Initialize(target);
@@ -377,23 +376,23 @@ TEST_F(TestAutoInline, NoReadBufferTensor) {
   std::vector<int32_t> input_shape{256, 256};
   std::vector<tests::VariableInfo> inputs_varinfo({{"x", input_shape}});
 
-  ir::IRSchedule ir_schedule = MakeIRSchedule(tests::FillConstantAddOpsBuilder().Build(inputs_varinfo));
+  ir::IRSchedule ir_schedule = MakeIRSchedule(tests::FillConstantAddSubGraphBuilder().Build(inputs_varinfo));
   SearchState state(ir_schedule, 0, {});
   std::vector<ir::Expr> func_bodys = ir_schedule.GetModule().GetExprs();
   ASSERT_EQ(func_bodys.size(), 1UL);
   VLOG(6) << "Original Expr:\n" << func_bodys[0];
 
   AutoInline auto_inline(target_, {output_names.front()});
-  ASSERT_EQ(auto_inline.Init(&ir_schedule), RuleApplyType::kApplyAndPruneOtherRules);
   EXPECT_EQ(auto_inline.AnalyseApplyType(state, "fill_constant"), RuleApplyType::kApplyAndPruneOtherRules);
   auto new_states             = auto_inline.ApplyOnBlock(state, "fill_constant");
   std::vector<ir::Expr> exprs = new_states[0]->ir_schedule.GetModule().GetExprs();
   EXPECT_EQ(exprs.size(), 1UL);
   VLOG(6) << "Expr after AutoInline applied on block: " << exprs[0];
 
-  auto build_module_auto     = BuildIRModule(new_states[0]->ir_schedule);
-  auto build_module_manually = BuildIRModule(MakeIRSchedule(tests::FillConstantAddOpsBuilder().Build(inputs_varinfo)));
-  auto source_code_auto      = GenSourceCode(build_module_auto);
+  auto build_module_auto = BuildIRModule(new_states[0]->ir_schedule);
+  auto build_module_manually =
+      BuildIRModule(MakeIRSchedule(tests::FillConstantAddSubGraphBuilder().Build(inputs_varinfo)));
+  auto source_code_auto = GenSourceCode(build_module_auto);
   VLOG(6) << " auto-schedule source code:\n" << source_code_auto;
   auto source_code_manually = GenSourceCode(build_module_manually);
   VLOG(6) << " manually-schedule source code:\n" << source_code_manually;
