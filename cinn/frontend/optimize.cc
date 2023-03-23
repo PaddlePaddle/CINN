@@ -34,6 +34,7 @@ DECLARE_bool(cinn_use_common_subexpression_elimination);
 DECLARE_bool(cinn_check_fusion_accuracy_pass);
 DECLARE_bool(cinn_use_custom_call);
 DECLARE_bool(use_reduce_split_pass);
+DECLARE_bool(cinn_use_dense_merge_pass);
 
 namespace cinn {
 namespace frontend {
@@ -65,7 +66,9 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
   options.program_passes.emplace_back("DeadCodeEliminate");
 
   options.graph_passes = {"ConstantFolding"};
-  // options.graph_passes.push_back("DenseMergePass");
+  if (FLAGS_cinn_use_dense_merge_pass) {
+    options.graph_passes.push_back("DenseMergePass");
+  }
 
   if (FLAGS_cinn_use_custom_call) {
     options.graph_passes.emplace_back("TransToCustomCallPass");
