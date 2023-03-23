@@ -96,7 +96,7 @@ void TestAutoGenRuleBase::CheckFeature(const ir::IRSchedule& schedule, std::vect
   VLOG(6) << "ir_feature = [" << utils::Join<float>(ir_feature, ", ") << "]";
   CHECK_EQ(ir_feature.size(), target_feature.size());
   for (int i = 0; i < ir_feature.size(); i++) {
-    CHECK_NEAR(ir_feature[i], target_feature[i], 0.001);
+    CHECK_NEAR(ir_feature[i], target_feature[i], 0.0001);
   }
 }
 

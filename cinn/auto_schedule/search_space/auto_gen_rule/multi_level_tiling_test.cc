@@ -220,6 +220,75 @@ TEST_F(TestMultiLevelTiling, Matmul) {
   auto source_code = GenSourceCode(ir_module);
   VLOG(6) << "scheduled source code:\n" << source_code;
 
+  std::string target_source_code = R"ROC(#include <cstdint>
+
+#define CINN_WITH_CUDA
+#include "float16.h"
+using cinn::common::float16;
+
+#include "cinn_cuda_runtime_source.cuh"
+__global__
+void __launch_bounds__(1) fn_matmul_0(const float* __restrict__ X, const float* __restrict__ Y, float* __restrict__ temp_matmul_out)
+{
+  __shared__ float _X_reshape_shared_temp_buffer [ 64 ];
+  __shared__ float _Y_reshape_shared_temp_buffer [ 256 ];
+  float _temp_matmul_out_local_temp_buffer [ 256 ];
+  float* X_reshape_shared_temp_buffer = _X_reshape_shared_temp_buffer;
+  float* Y_reshape_shared_temp_buffer = _Y_reshape_shared_temp_buffer;
+  float* temp_matmul_out__reduce_init = _temp_matmul_out_local_temp_buffer;
+  float* temp_matmul_out_local_temp_buffer = _temp_matmul_out_local_temp_buffer;
+  const float* X_reshape = X;
+  const float* Y_reshape = Y;
+  if (((int)blockIdx.x < 4)) {
+    if (((int)threadIdx.x < 1)) {
+      for (int32_t i_2 = 0; i_2 < 1; i_2 += 1) {
+        for (int32_t j_2 = 0; j_2 < 1; j_2 += 1) {
+          for (int32_t i_3 = 0; i_3 < 1; i_3 += 1) {
+            for (int32_t j_3 = 0; j_3 < 1; j_3 += 1) {
+              for (int32_t i_4 = 0; i_4 < 8; i_4 += 1) {
+                for (int32_t j_4 = 0; j_4 < 32; j_4 += 1) {
+                  temp_matmul_out__reduce_init[((256 * i_3) + ((32 * i_4) + ((32 * j_3) + j_4)))] = 0.00000000f;
+                };
+              };
+            };
+          };
+          for (int32_t reduce_k_0 = 0; reduce_k_0 < 4; reduce_k_0 += 1) {
+            for (int32_t ax0_0 = 0; ax0_0 < 8; ax0_0 += 1) {
+              for (int32_t ax1_0 = 0; ax1_0 < 32; ax1_0 += 1) {
+                Y_reshape_shared_temp_buffer[((32 * ax0_0) + ax1_0)] = Y_reshape[((32 * ax0_0) + ((32 * j_2) + ((256 * reduce_k_0) + ax1_0)))];
+              };
+            };
+            for (int32_t ax0 = 0; ax0 < 8; ax0 += 1) {
+              for (int32_t ax1 = 0; ax1 < 8; ax1 += 1) {
+                X_reshape_shared_temp_buffer[((8 * ax0) + ((64 * (int)threadIdx.x) + ax1))] = X_reshape[((32 * ax0) + ((256 * (int)blockIdx.x) + ((256 * i_2) + ((8 * reduce_k_0) + ((256 * (int)threadIdx.x) + ax1)))))];
+              };
+            };
+            for (int32_t reduce_k_1 = 0; reduce_k_1 < 1; reduce_k_1 += 1) {
+              for (int32_t i_3 = 0; i_3 < 1; i_3 += 1) {
+                for (int32_t j_3 = 0; j_3 < 1; j_3 += 1) {
+                  for (int32_t reduce_k_2 = 0; reduce_k_2 < 8; reduce_k_2 += 1) {
+                    for (int32_t i_4 = 0; i_4 < 8; i_4 += 1) {
+                      for (int32_t j_4 = 0; j_4 < 32; j_4 += 1) {
+                        temp_matmul_out_local_temp_buffer[((256 * i_3) + ((32 * i_4) + ((32 * j_3) + j_4)))] = (temp_matmul_out_local_temp_buffer[((256 * i_3) + ((32 * i_4) + ((32 * j_3) + j_4)))] + (X_reshape_shared_temp_buffer[((64 * i_3) + ((8 * i_4) + ((8 * r     educe_k_1) + ((64 * (int)threadIdx.x) + reduce_k_2))))] * Y_reshape_shared_temp_buffer[((32 * j_3) + ((256 * reduce_k_1) + ((32 * reduce_k_2) + j_4)))]));
+                      };
+                    };
+                  };
+                };
+              };
+            };
+          };
+          for (int32_t ax0_1 = 0; ax0_1 < 8; ax0_1 += 1) {
+            for (int32_t ax1_1 = 0; ax1_1 < 32; ax1_1 += 1) {
+              temp_matmul_out[((32 * ax0_1) + ((256 * (int)blockIdx.x) + ((256 * i_2) + ((32 * j_2) + ((256 * (int)threadIdx.x) + ax1_1)))))] = temp_matmul_out_local_temp_buffer[((32 * ax0_1) + ax1_1)];
+            };
+          };
+        };
+      };
+    };
+  };
+})ROC";
+  CHECK_EQ(source_code, target_source_code);
+
   // execute and check precision
   CheckResult(
       GenExecutableKernel(ir_module),
@@ -306,6 +375,74 @@ TEST_F(TestMultiLevelTiling, Pool2d) {
   auto ir_module   = BuildIRModule(new_states[0]->ir_schedule);
   auto source_code = GenSourceCode(ir_module);
   VLOG(6) << "scheduled source code:\n" << source_code;
+
+  std::string target_source_code = R"ROC(#include <cstdint>
+
+#define CINN_WITH_CUDA
+#include "float16.h"
+using cinn::common::float16;
+
+#include "cinn_cuda_runtime_source.cuh"
+__global__
+void fn_pool2d_0(const float* __restrict__ input, float* __restrict__ pad_temp_0)
+{
+  for (int32_t i = 0; i < 2; i += 1) {
+    for (int32_t j = 0; j < 8; j += 1) {
+      for (int32_t k = 0; k < 18; k += 1) {
+        for (int32_t a = 0; a < 18; a += 1) {
+          pad_temp_0[((2592 * i) + ((324 * j) + ((18 * k) + a)))] = ((((a < 17) && ((a >= 1) && ((k < 17) && (k >= 1))))) ? input[(-17 + ((2048 * i) + ((256 * j) + ((16 * k) + a))))] : -3.40282347e+38f);
+        };
+      };
+    };
+  };
+}__global__
+void __launch_bounds__(4) fn_pool2d_0_1(const float* __restrict__ input, const float* __restrict__ pad_temp_0, float* __restrict__ var_0)
+{
+  __shared__ float _pad_temp_0_shared_temp_buffer [ 256 ];
+  float _var_0_local_temp_buffer [ 16 ];
+  float* pad_temp_0_shared_temp_buffer = _pad_temp_0_shared_temp_buffer;
+  float* var_0__reduce_init = _var_0_local_temp_buffer;
+  float* var_0_local_temp_buffer = _var_0_local_temp_buffer;
+  if (((int)blockIdx.x < 16)) {
+    if (((int)threadIdx.x < 4)) {
+    {
+      for (int32_t i_2 = 0; i_2 < 1; i_2 += 1) {
+        for (int32_t j_2 = 0; j_2 < 4; j_2 += 1) {
+          for (int32_t k_2 = 0; k_2 < 1; k_2 += 1) {
+            for (int32_t a_2 = 0; a_2 < 4; a_2 += 1) {
+              var_0__reduce_init[((16 * i_2) + ((4 * j_2) + ((4 * k_2) + a_2)))] = -3.40282347e+38f;
+            };
+          };
+        };
+      };
+      for (int32_t kernel_idx = 0; kernel_idx < 3; kernel_idx += 1) {
+        for (int32_t kernel_idx_0 = 0; kernel_idx_0 < 3; kernel_idx_0 += 1) {
+          for (int32_t ax0 = 0; ax0 < 4; ax0 += 1) {
+            for (int32_t ax1 = 0; ax1 < 7; ax1 += 1) {
+              pad_temp_0_shared_temp_buffer[((64 * ax0) + ((16 * (int)threadIdx.x) + ax1))] = pad_temp_0[((((((int)blockIdx.x / 2) / 2) / 2) * 2592) + ((1296 * ((((int)blockIdx.x / 2) / 2) & 1)) + ((144 * (((int)blockIdx.x / 2) & 1)) + ((8 * ((int)blockIdx.x & 1)) + ((324 * ax0) + ((18 * kernel_idx) + ((36 * (int)threadIdx.x) + (ax1 + kernel_idx_0))))))))];
+            };
+          };
+          for (int32_t i_2 = 0; i_2 < 1; i_2 += 1) {
+            for (int32_t j_2 = 0; j_2 < 4; j_2 += 1) {
+              for (int32_t k_2 = 0; k_2 < 1; k_2 += 1) {
+                for (int32_t a_2 = 0; a_2 < 4; a_2 += 1) {
+                  var_0_local_temp_buffer[((16 * i_2) + ((4 * j_2) + ((4 * k_2) + a_2)))] = max(var_0_local_temp_buffer[((16 * i_2) + ((4 * j_2) + ((4 * k_2) + a_2)))], pad_temp_0_shared_temp_buffer[((2 * a_2) + ((256 * i_2) + ((64 * j_2) + ((16 * k_2) + (16 * (int)threadIdx.x)))))]);
+                };
+              };
+            };
+          };
+        };
+      };
+      for (int32_t ax0_0 = 0; ax0_0 < 4; ax0_0 += 1) {
+        for (int32_t ax1_0 = 0; ax1_0 < 4; ax1_0 += 1) {
+          var_0[((((((int)blockIdx.x / 2) / 2) / 2) * 512) + ((256 * ((((int)blockIdx.x / 2) / 2) & 1)) + ((32 * (((int)blockIdx.x / 2) & 1)) + ((4 * ((int)blockIdx.x & 1)) + ((64 * ax0_0) + ((8 * (int)threadIdx.x) + ax1_0))))))] = var_0_local_temp_buffer[((4 * ax0_0) + ax1_0)];
+        };
+      };
+    }
+    };
+  };
+})ROC";
+  CHECK_EQ(source_code, target_source_code);
 
   // execute and check precision
   CheckResult(GenExecutableKernel(ir_module),
