@@ -22,15 +22,15 @@ bool GetCinnCudnnDeterministic();
 
 class RandomSeed {
  public:
-  static unsigned int GetOrSet(unsigned int seed = 0);
-  static unsigned int Clear();
+  static uint64_t GetOrSet(uint64_t seed = 0);
+  static uint64_t Clear();
 
  private:
   RandomSeed()                   = default;
   RandomSeed(const RandomSeed &) = delete;
   RandomSeed &operator=(const RandomSeed &) = delete;
 
-  static unsigned int seed_;
+  static uint64_t seed_;
 };
 
 }  // namespace runtime
