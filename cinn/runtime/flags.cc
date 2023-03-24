@@ -120,16 +120,16 @@ bool GetCinnCudnnDeterministic() {
 #endif
 }
 
-uint64_t RandomSeed::seed_ = 0ULL;
+unsigned long long RandomSeed::seed_ = 0ULL;
 
-uint64_t RandomSeed::GetOrSet(uint64_t seed) {
+unsigned long long RandomSeed::GetOrSet(unsigned long long seed) {
   if (seed != 0ULL) {
     seed_ = seed;
   }
   return seed_;
 }
 
-uint64_t RandomSeed::Clear() {
+unsigned long long RandomSeed::Clear() {
   auto old_seed = seed_;
   seed_         = 0ULL;
   return old_seed;
