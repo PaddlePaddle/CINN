@@ -78,7 +78,12 @@ void BatchNormOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
     add_output("SavedMean", save_mean);
     auto save_variance = ctx.Builder()->Identity(variance);
     add_output("SavedVariance", save_variance);
-    // no change value, no need replace the old var of MeanOut and VarianceOut
+    // Just for skip error of "Variable(batch_norm2d_0.w_2@InplaceOut) not applied in cinn" when run batchnorm in
+    // paddle, remove after inpace mechanism perfect. The value should shared memory with mean and variance.
+    auto mean_out = ctx.Builder()->Identity(mean);
+    add_output("MeanOut", mean_out, true);
+    auto variance_out = ctx.Builder()->Identity(mean);
+    add_output("VarianceOut", variance_out, true);
   } else {
     VLOG(4) << "Invoke batch_norm OpMapper with train mode";
     CHECK_EQ(outs.size(), 5U) << "batch_norm in train mode should only has 5 output! Please check.";
