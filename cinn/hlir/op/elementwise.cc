@@ -1037,13 +1037,5 @@ CINN_REGISTER_HELPER(elementwise_ops) {
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForElementwise))
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElementWise);
 
-  CINN_REGISTER_OP(clip)
-      .describe("The implement of clip.")
-      .set_num_inputs(1)
-      .set_num_outputs(1)
-      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForElementwise))
-      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForElementwise))
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElementWise);
-
   return true;
 }

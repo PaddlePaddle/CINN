@@ -232,84 +232,6 @@ TEST(net_build, program_execute_reverse) {
   runtime_program->Execute();
 }
 
-TEST(net_build, program_execute_clip) {
-  const int M = 4;
-  const int N = 3;
-  const int K = 7;
-
-  const float max_val = 0.8;
-  const float min_val = 0.2;
-
-  NetBuilder builder("net_builder");
-  Placeholder input = builder.CreateInput(Float(32), {M, N, K}, "In");
-  Variable output   = builder.Clip({input}, max_val, min_val);
-  auto program      = builder.Build();
-
-#ifdef CINN_WITH_CUDA
-  Target target = common::DefaultNVGPUTarget();
-#else
-  Target target = common::DefaultHostTarget();
-#endif
-  std::unordered_set<std::string> fetch_ids;
-  auto graph = Optimize(&program, fetch_ids, target);
-
-  LOG(INFO) << graph->Visualize();
-  auto scope = BuildScope(target, graph);
-  hlir::framework::GraphCompiler gc(target, scope, graph);
-  auto runtime_program = gc.Build();
-
-  scope->Var<hlir::framework::Tensor>(std::string(input.id()));
-  scope->Var<hlir::framework::Tensor>(std::string(output->id));
-
-  auto input_tensor = scope->GetTensor(std::string(input.id()));
-  SetRandData<float>(input_tensor, target);
-  std::vector<float> input_data = GetTensorData<float>(input_tensor, target);
-
-  VLOG(6) << "Visualize input_data";
-
-  for (int m = 0; m < M; ++m) {
-    for (int n = 0; n < N; ++n) {
-      VLOG(6) << "m = " << m << ", n = " << n;
-      std::string line;
-      for (int k = 0; k < K; ++k) {
-        int index = m * (N * K) + n * K + k;
-        line += (std::to_string(input_data[index]) + ", ");
-      }
-      VLOG(6) << line;
-    }
-  }
-
-  runtime_program->Execute();
-
-  auto output_tensor                   = scope->GetTensor(std::string(output->id));
-  const std::vector<int>& output_shape = output_tensor->shape().data();
-  EXPECT_EQ(output_shape.size(), 3UL);
-  EXPECT_EQ(output_shape[0], M);
-  EXPECT_EQ(output_shape[1], N);
-  EXPECT_EQ(output_shape[2], K);
-
-  std::vector<float> output_data = GetTensorData<float>(output_tensor, target);
-
-  VLOG(6) << "Visualize output_data";
-
-  for (int m = 0; m < M; ++m) {
-    for (int n = 0; n < N; ++n) {
-      VLOG(6) << "m = " << m << ", n = " << n;
-      std::string line;
-      for (int k = 0; k < K; ++k) {
-        int index      = m * (N * K) + n * K + k;
-        float in_data  = input_data[index];
-        float out_data = output_data[index];
-        in_data        = in_data < min_val ? min_val : in_data;
-        in_data        = in_data > max_val ? max_val : in_data;
-        EXPECT_EQ(in_data, out_data);
-        line += (std::to_string(out_data) + ", ");
-      }
-      VLOG(6) << line;
-    }
-  }
-}
-
 TEST(net_build, program_execute_gather) {
   const int B     = 4;
   const int H_IN1 = 18;
@@ -432,7 +354,6 @@ TEST(net_build, program_execute_gather_nd) {
   }
 }
 
-/*
 TEST(net_build, program_execute_scatter) {
   const float default_value = 3.14;
   const int B               = 3;
@@ -445,7 +366,11 @@ TEST(net_build, program_execute_scatter) {
   Variable output    = builder.Scatter(input1, input2, {B, H_OUT}, default_value, 1);
   auto program       = builder.Build();
 
+#ifdef CINN_WITH_CUDA
+  Target target = common::DefaultNVGPUTarget();
+#else
   Target target = common::DefaultHostTarget();
+#endif
   std::unordered_set<std::string> fetch_ids;
   auto graph = Optimize(&program, fetch_ids, target);
 
@@ -459,12 +384,12 @@ TEST(net_build, program_execute_scatter) {
 
   auto input1_tensor = scope->GetTensor(std::string(input1.id()));
   SetRandData<float>(input1_tensor, target);
-  float* input1_data = input1_tensor->mutable_data<float>(target);
+  std::vector<float> input1_data = GetTensorData<float>(input1_tensor, target);
 
   auto input2_tensor = scope->GetTensor(std::string(input2.id()));
-  SetRandInt(input2_tensor, target);
-  int* input2_data = input2_tensor->mutable_data<int>(target);
-  memset(input2_data, 0, sizeof(int) * B * H_IN);
+  SetRandInt(input2_tensor, target, -1, 0, H_IN);
+
+  std::vector<int> input2_data = GetTensorData<int>(input2_tensor, target);
 
   runtime_program->Execute();
 
@@ -486,11 +411,10 @@ TEST(net_build, program_execute_scatter) {
     for (int h = 0; h < H_IN; ++h) {
       int index                                 = h + H_IN * b;
       true_data[input2_data[index] + H_OUT * b] = input1_data[index];
-      std::cout << index << " " << input2_data[index] + H_OUT * b << " " << true_data[input2_data[index] + H_OUT * b];
     }
   }
 
-  float* output_data = output_tensor->mutable_data<float>(target);
+  std::vector<float> output_data = GetTensorData<float>(output_tensor, target);
   VLOG(6) << "Visualize output_data";
   for (int b = 0; b < B; ++b) {
     for (int h = 0; h < H_OUT; ++h) {
@@ -505,8 +429,8 @@ TEST(net_build, program_execute_scatter) {
   }
 }
 
-
 TEST(net_build, program_execute_scatter_nd) {
+  Context::Global().ResetNameId();
   const float default_value = 3.14;
   const int B               = 3;
   const int H_IN            = 4;
@@ -518,7 +442,11 @@ TEST(net_build, program_execute_scatter_nd) {
   Variable output    = builder.ScatterNd(input1, input2, {B, H_OUT}, default_value, {1});
   auto program       = builder.Build();
 
+#ifdef CINN_WITH_CUDA
+  Target target = common::DefaultNVGPUTarget();
+#else
   Target target = common::DefaultHostTarget();
+#endif
   std::unordered_set<std::string> fetch_ids;
   auto graph = Optimize(&program, fetch_ids, target);
 
@@ -538,10 +466,8 @@ TEST(net_build, program_execute_scatter_nd) {
 
   runtime_program->Execute();
 
-  int* input2_data;
-  float* input1_data;
-  input2_data = input2_tensor->mutable_data<int>(target);
-  input1_data = input1_tensor->mutable_data<float>(target);
+  std::vector<float> input1_data = GetTensorData<float>(input1_tensor, target);
+  std::vector<int> input2_data   = GetTensorData<int>(input2_tensor, target);
 
   auto output_tensor                   = scope->GetTensor(std::string(output->id));
   const std::vector<int>& output_shape = output_tensor->shape().data();
@@ -564,7 +490,7 @@ TEST(net_build, program_execute_scatter_nd) {
     }
   }
 
-  float* output_data = output_tensor->mutable_data<float>(target);
+  std::vector<float> output_data = GetTensorData<float>(output_tensor, target);
   VLOG(6) << "Visualize output_data";
   for (int b = 0; b < B; ++b) {
     for (int h = 0; h < H_OUT; ++h) {
@@ -578,7 +504,6 @@ TEST(net_build, program_execute_scatter_nd) {
     }
   }
 }
-*/
 
 TEST(net_build, program_execute_cast) {
   const int B = 4;

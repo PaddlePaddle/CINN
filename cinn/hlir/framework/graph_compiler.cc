@@ -22,7 +22,7 @@
 #include "cinn/backends/codegen_cuda_dev.h"
 #include "cinn/common/context.h"
 #include "cinn/hlir/framework/instruction.h"
-#include "cinn/hlir/framework/op_lowering.h"
+#include "cinn/hlir/framework/op_lowering_util.h"
 #include "cinn/hlir/framework/tensor.h"
 #include "cinn/hlir/pe/schedule.h"
 #include "cinn/lang/lower.h"

@@ -245,7 +245,7 @@ Tensor Broadcast(const FuncOp& op,
   }
 
 HLIR_IMP_BC_PE(Add, return a + b;);
-HLIR_IMP_BC_PE(Substract, return a - b;);
+HLIR_IMP_BC_PE(Subtract, return a - b;);
 HLIR_IMP_BC_PE(Multiply, return a * b;);
 HLIR_IMP_BC_PE(Divide, return a / b;);
 HLIR_IMP_BC_PE(FloorDivide, return lang::FloorDivide(a, b););

@@ -31,7 +31,6 @@ CINN_REGISTER_HELPER(cuda_intrinsics_float16) {
   REGISTER_EXTERN_SOURCE_FUNC_2_IN_1_OUT(cinn_nvgpu_##func__##_fp16, target, float16, float16, float16);
 
   REGISTER_EXTERN_FUNC_2_IN_1_FP16(pow)
-  REGISTER_EXTERN_FUNC_2_IN_1_FP16(remainder)
   REGISTER_EXTERN_FUNC_2_IN_1_FP16(mod)
 
 #undef REGISTER_EXTERN_FUNC_2_IN_1_FP16

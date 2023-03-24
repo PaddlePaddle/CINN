@@ -114,6 +114,14 @@ class Graph : public cinn::common::Graph {
       }
     }
 
+    std::unordered_set<Node*> NodeSet() {
+      std::unordered_set<Node*> node_set;
+      for (auto node : CollectNodes()) {
+        node_set.insert(node);
+      }
+      return node_set;
+    }
+
     std::unordered_set<NodeData*> GetInputNodeDatas();
     std::unordered_set<NodeData*> GetOutputNodeDatas();
 
@@ -176,8 +184,16 @@ class Graph : public cinn::common::Graph {
   /**
    * \brief Debug the grouped graph according to user specified groups.
    */
+  std::string DebugGroupedGraph(const std::vector<Node*>& group,
+                                const std::unordered_set<std::string>& fetch_var_ids = {});
   std::string DebugGroupedGraph(const std::vector<std::vector<Node*>>& groups,
                                 const std::unordered_set<std::string>& fetch_var_ids = {});
+
+  /**
+   * \brief Genereate the python test code for group test
+   */
+  std::string GenerateGroupPythonCode(const std::vector<Node*>& group,
+                                      const std::unordered_set<std::string>& fetch_var_ids = {});
 
   /**
    * \brief Visualize the grouped graph according to fusion_groups.

@@ -74,7 +74,7 @@ void BindPE(py::module* m) {
 
   BIND_BINARY(add, Add);
   BIND_BINARY(atan2, Atan2);
-  BIND_BINARY(substract, Substract);
+  BIND_BINARY(subtract, Subtract);
   BIND_BINARY(multiply, Multiply);
   BIND_BINARY(divide, Divide);
   BIND_BINARY(floor_divide, FloorDivide);
