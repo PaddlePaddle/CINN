@@ -28,6 +28,7 @@
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
+#include "cinn/hlir/op/op_util.h"
 #include "cinn/hlir/pe/ir_schedule_pe.h"
 #include "cinn/hlir/pe/nn.h"
 #include "cinn/hlir/pe/transform.h"
@@ -198,42 +199,8 @@ std::shared_ptr<framework::OpStrategy> StrategyForOneHot(const framework::NodeAt
     *ret = common::CINNValuePack{res};
   });
 
-  framework::CINNSchedule one_hot_schedule([=](lang::Args args, lang::RetValue* ret) {
-    if (FLAGS_cinn_ir_schedule) {
-      CHECK(!args.empty()) << "The input argument of repeat schedule is empty! Please check.\n";
-      common::CINNValuePack arg_pack = args[0];
-      std::vector<Expr> vec_ast;
-      for (int i = 0; i < arg_pack.size(); i++) {
-        if (arg_pack[i].is_expr()) {
-          Expr temp = arg_pack[i];
-          vec_ast.emplace_back(temp);
-        }
-      }
-      CHECK(!vec_ast.empty());
-      ir::ModuleExpr mod_expr(vec_ast);
-      ir::IRSchedule ir_sch(mod_expr);
-      ir_sch.MergeExprs();
-      long prod_size = std::accumulate(output_shapes[0].begin(), output_shapes[0].end(), 1, std::multiplies<int>());
-      if (prod_size > 1) {
-        if (target.arch == Target::Arch::NVGPU) {
-          pe::IRCudaScheduleInjective(ir_sch, output_shapes.front(), target);
-        } else if (target.arch == Target::Arch::X86) {
-          pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target, true);
-        }
-      }
-      std::vector<common::CINNValue> res{common::CINNValue(ir_sch.GetModule().GetExprs().at(0))};
-      *ret = common::CINNValuePack{res};
-    } else {
-      CHECK(!args.empty()) << "The input argument of repeat schedule is empty! Please check.\n";
-      CINNValuePack arg_pack = args[0];
-      Expr out               = arg_pack[0];
-      CHECK(out.as_tensor());
-      *ret = arg_pack;
-    }
-  });
-
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(one_hot_compute, one_hot_schedule, "strategy.one_hot.x86", 1);
+  strategy->AddImpl(one_hot_compute, GetElementwiseScheduleFunc(output_shapes, target), "strategy.one_hot.x86", 1);
 
   return strategy;
 }

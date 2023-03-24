@@ -20,6 +20,32 @@ namespace cinn {
 namespace frontend {
 namespace paddle_mappers {
 
+void OneHotOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+  CHECK_EQ(op_desc.Input("X").size(), 1UL);
+  auto x_name = op_desc.Input("X").front();
+  CHECK_EQ(op_desc.Output("Out").size(), 1UL);
+  auto out_name = op_desc.Output("Out").front();
+
+  auto depth = utils::GetAttrOrDefault<int>(op_desc, "depth", 1);
+  auto axis  = utils::GetAttrOrDefault<int>(op_desc, "axis", -1);
+
+  auto on_value  = ctx.Builder()->FillConstant({1}, 1, cinn::UniqName(x_name + "_on_value"), "int32");
+  auto off_value = ctx.Builder()->FillConstant({1}, 0, cinn::UniqName(x_name + "_off_value"), "int32");
+
+  auto dtype_id = utils::GetAttrOrDefault<int>(op_desc, "dtype", static_cast<int>(paddle::cpp::VarDescAPI::Type::FP32));
+  auto dtype_pd = static_cast<paddle::cpp::VarDescAPI::Type>(dtype_id);
+  auto dtype_cinn = utils::CppVarType2CommonType(dtype_pd);
+  auto dtype      = common::Type2Str(dtype_cinn);
+
+  auto x       = ctx.GetVar(x_name);
+  auto x_shape = x->shape;
+  x            = ctx.Builder()->Slice(x, {static_cast<int>(x_shape.size()) - 1}, {0}, {1}, {}, {1}, {});
+  x            = ctx.Builder()->Squeeze(x, {-1});
+  auto out     = ctx.Builder()->OneHot(x, on_value, off_value, depth, axis, dtype);
+  ctx.AddVar(out_name, out);
+  ctx.AddVarModelToProgram(out_name, out->id);
+}
+
 void OneHotV2OpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
   auto x_name = op_desc.Input("X").front();
@@ -48,6 +74,7 @@ void OneHotV2OpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext&
 }  // namespace cinn
 
 CINN_REGISTER_HELPER(paddle_one_hot) {
+  CINN_REGISTER_OP_MAPPER(one_hot, cinn::frontend::paddle_mappers::OneHotOpMapper)
   CINN_REGISTER_OP_MAPPER(one_hot_v2, cinn::frontend::paddle_mappers::OneHotV2OpMapper)
   return true;
 }
