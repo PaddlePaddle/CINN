@@ -20,8 +20,6 @@
 #include <stdlib.h>
 
 #include "cinn/auto_schedule/analysis/analyze_ir.h"
-#include "cinn/auto_schedule/cost_model/feature.h"
-#include "cinn/auto_schedule/cost_model/feature_extractor.h"
 #include "cinn/backends/codegen_cuda_dev.h"
 #include "cinn/cinn.h"
 #include "cinn/frontend/optimize.h"
@@ -74,6 +72,15 @@ ir::IRSchedule TestAutoGenRuleBase::MakeIRSchedule(const frontend::Program& test
   return ir::IRSchedule(ir::ModuleExpr({std::move(bodys)}), rand_seed);
 }
 
+std::string TestAutoGenRuleBase::GetIR(const ir::IRSchedule& schedule) {
+  const auto& exprs = schedule.GetModule().GetExprs();
+  std::stringstream module_stream;
+  for (auto i = 0; i < exprs.size(); ++i) {
+    module_stream << "Expr " << i << " {\n" << exprs.at(i) << "\n}  // end Expr " << i << "\n";
+  }
+  return module_stream.str();
+}
+
 ir::Module TestAutoGenRuleBase::BuildIRModule(const ir::IRSchedule& schedule) {
   auto&& updated_bodys = schedule.GetModule().GetExprs();
   CHECK_EQ(lowered_funcs_.size(), updated_bodys.size()) << "associated exprs size not equal";
@@ -87,17 +94,6 @@ ir::Module TestAutoGenRuleBase::BuildIRModule(const ir::IRSchedule& schedule) {
   }
 
   return builder.Build();
-}
-
-void TestAutoGenRuleBase::CheckFeature(const ir::IRSchedule& schedule, std::vector<float> target_feature) {
-  FeatureExtractor extractor;
-  Feature feature               = extractor.Extract(schedule.GetModule(), target_);
-  std::vector<float> ir_feature = feature.ToFixedSizeVector();
-  VLOG(6) << "ir_feature = [" << utils::Join<float>(ir_feature, ", ") << "]";
-  CHECK_EQ(ir_feature.size(), target_feature.size());
-  for (int i = 0; i < ir_feature.size(); i++) {
-    CHECK_NEAR(ir_feature[i], target_feature[i], 0.0001);
-  }
 }
 
 std::string TestAutoGenRuleBase::GenSourceCode(const ir::Module& ir_module) {

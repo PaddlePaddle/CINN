@@ -81,7 +81,14 @@ void MultiLevelTiling::Apply(int index) {
       << "Currently index = " << index << ",  NumberApplicable() = " << num_applicable_;
 
   int apply_index = applicable_indices_[index];
-  ApplyTiling(ir_schedule_, all_block_realizes_[apply_index]);
+  std::string block_name =
+      all_block_realizes_[apply_index].As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->name;
+  Expr block_expr = all_block_realizes_[apply_index];
+  ApplyTiling(ir_schedule_, block_expr);
+  block_expr = ir_schedule_->GetBlock(block_name);
+  ApplyCacheRead(ir_schedule_, block_expr);
+  block_expr = ir_schedule_->GetBlock(block_name);
+  ApplyCacheWrite(ir_schedule_, block_expr);
 
   VLOG(4) << "Returning the result of MultiLevelTiling";
   return;

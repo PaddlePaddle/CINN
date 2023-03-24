@@ -210,84 +210,128 @@ TEST_F(TestMultiLevelTiling, Matmul) {
             RuleApplyType::kApplyAndPruneOtherRules);
   auto new_states = multi_level_tiling.ApplyOnBlock(state, default_output_names[0]);
   VLOG(6) << "After MultiLevelTiling, state:\n" << new_states[0]->DebugString();
-  std::vector<float> target_feature = {1, 15,      15,      0,       0,       0, 0,       0, 0, 0,       0, 0, 0, 0,
-                                       0, 0,       0,       16.6724, 15.2854, 0, 0,       0, 0, 0,       0, 0, 0, 0,
-                                       0, 4.39232, 1.58496, 0,       0,       0, 2.32193, 0, 0, 2.32193, 0, 0, 0, 0};
-  CheckFeature(new_states[0]->ir_schedule, target_feature);
+  std::string ir          = GetIR(new_states[0]->ir_schedule);
+  std::string expected_ir = R"ROC(Expr 0 {
+{
+  ScheduleBlock(root)
+  {
+    {
+      thread_bind[blockIdx.x] for (i_0_j_0_fused, 0, 4)
+      {
+        thread_bind[threadIdx.x] for (i_1_j_1_fused, 0, 1)
+        {
+          serial for (i_2, 0, 1)
+          {
+            serial for (j_2, 0, 1)
+            {
+              serial for (i_3, 0, 1)
+              {
+                serial for (j_3, 0, 1)
+                {
+                  serial for (i_4, 0, 8)
+                  {
+                    serial for (j_4, 0, 32)
+                    {
+                      ScheduleBlock(temp_matmul_out__reduce_init)
+                      {
+                        i0, i1 = axis.bind(((8 * i_0_j_0_fused) + ((8 * i_1_j_1_fused) + ((8 * i_2) + ((8 * i_3) + i_4)))), ((32 * j_2) + ((32 * j_3) + j_4)))
+                        {
+                          temp_matmul_out__reduce_init[i0, i1] = 0.00000000f
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              {
+                serial for (reduce_k_0, 0, 4)
+                {
+                  serial for (ax0_0, 0, 8)
+                  {
+                    serial for (ax1_0, 0, 32)
+                    {
+                      ScheduleBlock(Y_reshape_shared_temp_buffer)
+                      {
+                        v0, v1 = axis.bind(((8 * reduce_k_0) + ax0_0), ((32 * j_2) + ax1_0))
+                        attrs(compute_at_extra_var:ax0_0,ax1_0)
+                        {
+                          Y_reshape_shared_temp_buffer[v0, v1] = Y_reshape[v0, v1]
+                        }
+                      }
+                    }
+                  }
+                  serial for (ax0, 0, 8)
+                  {
+                    serial for (ax1, 0, 8)
+                    {
+                      ScheduleBlock(X_reshape_shared_temp_buffer)
+                      {
+                        v0, v1 = axis.bind((((8 * i_0_j_0_fused) + ((8 * i_1_j_1_fused) + (8 * i_2))) + ax0), ((8 * reduce_k_0) + ax1))
+                        attrs(compute_at_extra_var:ax0,ax1)
+                        {
+                          X_reshape_shared_temp_buffer[v0, v1] = X_reshape[v0, v1]
+                        }
+                      }
+                    }
+                  }
+                  serial for (reduce_k_1, 0, 1)
+                  {
+                    serial for (i_3, 0, 1)
+                    {
+                      serial for (j_3, 0, 1)
+                      {
+                        serial for (reduce_k_2, 0, 8)
+                        {
+                          serial for (i_4, 0, 8)
+                          {
+                            serial for (j_4, 0, 32)
+                            {
+                              ScheduleBlock(temp_matmul_out_local_temp_buffer)
+                              {
+                                i0, i1, i2 = axis.bind(((8 * i_0_j_0_fused) + ((8 * i_1_j_1_fused) + ((8 * i_2) + ((8 * i_3) + i_4)))), ((32 * j_2) + ((32 * j_3) + j_4)), ((8 * reduce_k_0) + ((8 * reduce_k_1) + reduce_k_2)))
+                                read_buffers(_temp_matmul_out[i0(0:32), i1(0:32)], _X[i0(0:32), i2(0:32)], _Y[i2(0:32), i1(0:32)])
+                                write_buffers(_temp_matmul_out[i0(0:32), i1(0:32)])
+                                {
+                                  temp_matmul_out_local_temp_buffer[i0, i1] = (temp_matmul_out_local_temp_buffer[i0, i1] + (X_reshape_shared_temp_buffer[i0, i2] * Y_reshape_shared_temp_buffer[i2, i1]))
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+                serial for (ax0_1, 0, 8)
+                {
+                  serial for (ax1_1, 0, 32)
+                  {
+                    ScheduleBlock(temp_matmul_out)
+                    {
+                      v0, v1 = axis.bind((((8 * i_0_j_0_fused) + ((8 * i_1_j_1_fused) + (8 * i_2))) + ax0_1), ((32 * j_2) + ax1_1))
+                      attrs(reverse_compute_at_extra_var:ax0_1,ax1_1)
+                      {
+                        temp_matmul_out[v0, v1] = temp_matmul_out_local_temp_buffer[v0, v1]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+}  // end Expr 0
+)ROC";
+  CHECK_EQ(ir, expected_ir);
 
   // build ir::Module and debug source code
   auto ir_module   = BuildIRModule(new_states[0]->ir_schedule);
   auto source_code = GenSourceCode(ir_module);
   VLOG(6) << "scheduled source code:\n" << source_code;
-
-  std::string target_source_code = R"ROC(#include <cstdint>
-
-#define CINN_WITH_CUDA
-#include "float16.h"
-using cinn::common::float16;
-
-#include "cinn_cuda_runtime_source.cuh"
-__global__
-void __launch_bounds__(1) fn_matmul_0(const float* __restrict__ X, const float* __restrict__ Y, float* __restrict__ temp_matmul_out)
-{
-  __shared__ float _X_reshape_shared_temp_buffer [ 64 ];
-  __shared__ float _Y_reshape_shared_temp_buffer [ 256 ];
-  float _temp_matmul_out_local_temp_buffer [ 256 ];
-  float* X_reshape_shared_temp_buffer = _X_reshape_shared_temp_buffer;
-  float* Y_reshape_shared_temp_buffer = _Y_reshape_shared_temp_buffer;
-  float* temp_matmul_out__reduce_init = _temp_matmul_out_local_temp_buffer;
-  float* temp_matmul_out_local_temp_buffer = _temp_matmul_out_local_temp_buffer;
-  const float* X_reshape = X;
-  const float* Y_reshape = Y;
-  if (((int)blockIdx.x < 4)) {
-    if (((int)threadIdx.x < 1)) {
-      for (int32_t i_2 = 0; i_2 < 1; i_2 += 1) {
-        for (int32_t j_2 = 0; j_2 < 1; j_2 += 1) {
-          for (int32_t i_3 = 0; i_3 < 1; i_3 += 1) {
-            for (int32_t j_3 = 0; j_3 < 1; j_3 += 1) {
-              for (int32_t i_4 = 0; i_4 < 8; i_4 += 1) {
-                for (int32_t j_4 = 0; j_4 < 32; j_4 += 1) {
-                  temp_matmul_out__reduce_init[((256 * i_3) + ((32 * i_4) + ((32 * j_3) + j_4)))] = 0.00000000f;
-                };
-              };
-            };
-          };
-          for (int32_t reduce_k_0 = 0; reduce_k_0 < 4; reduce_k_0 += 1) {
-            for (int32_t ax0_0 = 0; ax0_0 < 8; ax0_0 += 1) {
-              for (int32_t ax1_0 = 0; ax1_0 < 32; ax1_0 += 1) {
-                Y_reshape_shared_temp_buffer[((32 * ax0_0) + ax1_0)] = Y_reshape[((32 * ax0_0) + ((32 * j_2) + ((256 * reduce_k_0) + ax1_0)))];
-              };
-            };
-            for (int32_t ax0 = 0; ax0 < 8; ax0 += 1) {
-              for (int32_t ax1 = 0; ax1 < 8; ax1 += 1) {
-                X_reshape_shared_temp_buffer[((8 * ax0) + ((64 * (int)threadIdx.x) + ax1))] = X_reshape[((32 * ax0) + ((256 * (int)blockIdx.x) + ((256 * i_2) + ((8 * reduce_k_0) + ((256 * (int)threadIdx.x) + ax1)))))];
-              };
-            };
-            for (int32_t reduce_k_1 = 0; reduce_k_1 < 1; reduce_k_1 += 1) {
-              for (int32_t i_3 = 0; i_3 < 1; i_3 += 1) {
-                for (int32_t j_3 = 0; j_3 < 1; j_3 += 1) {
-                  for (int32_t reduce_k_2 = 0; reduce_k_2 < 8; reduce_k_2 += 1) {
-                    for (int32_t i_4 = 0; i_4 < 8; i_4 += 1) {
-                      for (int32_t j_4 = 0; j_4 < 32; j_4 += 1) {
-                        temp_matmul_out_local_temp_buffer[((256 * i_3) + ((32 * i_4) + ((32 * j_3) + j_4)))] = (temp_matmul_out_local_temp_buffer[((256 * i_3) + ((32 * i_4) + ((32 * j_3) + j_4)))] + (X_reshape_shared_temp_buffer[((64 * i_3) + ((8 * i_4) + ((8 * reduce_k_1) + ((64 * (int)threadIdx.x) + reduce_k_2))))] * Y_reshape_shared_temp_buffer[((32 * j_3) + ((256 * reduce_k_1) + ((32 * reduce_k_2) + j_4)))]));
-                      };
-                    };
-                  };
-                };
-              };
-            };
-          };
-          for (int32_t ax0_1 = 0; ax0_1 < 8; ax0_1 += 1) {
-            for (int32_t ax1_1 = 0; ax1_1 < 32; ax1_1 += 1) {
-              temp_matmul_out[((32 * ax0_1) + ((256 * (int)blockIdx.x) + ((256 * i_2) + ((32 * j_2) + ((256 * (int)threadIdx.x) + ax1_1)))))] = temp_matmul_out_local_temp_buffer[((32 * ax0_1) + ax1_1)];
-            };
-          };
-        };
-      };
-    };
-  };
-})ROC";
-  CHECK_EQ(source_code, target_source_code);
 
   // execute and check precision
   CheckResult(
@@ -365,84 +409,130 @@ TEST_F(TestMultiLevelTiling, Pool2d) {
             RuleApplyType::kApplyAndPruneOtherRules);
   auto new_states = multi_level_tiling.ApplyOnBlock(state, default_output_names[0]);
   VLOG(6) << "After MultiLevelTiling, state:\n" << new_states[0]->DebugString();
-  std::vector<float> target_feature = {1, 0,       0,       0,       0,       0, 0,       14.8138, 14.17,   0, 14.3399,
-                                       0, 0,       13.9249, 13.8139, 0,       0, 15.3152, 14.9916, 0,       0, 0,
-                                       0, 0,       0,       0,       0,       0, 0,       4.32193, 1.58496, 0, 0,
-                                       0, 4.08746, 0,       0,       6.02237, 0, 0,       0,       0};
-  CheckFeature(new_states[0]->ir_schedule, target_feature);
+  std::string ir = GetIR(new_states[0]->ir_schedule);
+  VLOG(0) << "ir: \n" << ir;
+  std::string expected_ir = R"ROC(Expr 0 {
+{
+  ScheduleBlock(root)
+  {
+    serial for (i, 0, 2)
+    {
+      serial for (j, 0, 8)
+      {
+        serial for (k, 0, 18)
+        {
+          serial for (a, 0, 18)
+          {
+            ScheduleBlock(pad_temp_0)
+            {
+              i0, i1, i2, i3 = axis.bind(i, j, k, a)
+              pad_temp_0[i0, i1, i2, i3] = select(((i3 < 17) and ((i3 >= 1) and ((i2 < 17) and (i2 >= 1)))), input[i0, i1, (-1 + i2), (-1 + i3)], -3.40282347e+38f)
+            }
+          }
+        }
+      }
+    }
+  }
+}
+}  // end Expr 0
+Expr 1 {
+{
+  ScheduleBlock(root_0)
+  {
+    {
+      thread_bind[blockIdx.x] for (i_0_j_0_k_0_a_0_fused, 0, 16)
+      {
+        thread_bind[threadIdx.x] for (i_1_j_1_k_1_a_1_fused, 0, 4)
+        {
+          serial for (i_2, 0, 1)
+          {
+            serial for (j_2, 0, 4)
+            {
+              serial for (k_2, 0, 1)
+              {
+                serial for (a_2, 0, 4)
+                {
+                  ScheduleBlock(var_0__reduce_init)
+                  {
+                    i0, i1, i2, i3 = axis.bind(((((i_0_j_0_k_0_a_0_fused / 2) / 2) / 2) + ((i_1_j_1_k_1_a_1_fused / 4) + i_2)), ((4 * (((i_0_j_0_k_0_a_0_fused / 2) / 2) % 2)) + j_2), ((i_1_j_1_k_1_a_1_fused % 4) + ((4 * ((i_0_j_0_k_0_a_0_fused / 2) % 2)) + k_2)), ((4 * (i_0_j_0_k_0_a_0_fused % 2)) + a_2))
+                    {
+                      var_0__reduce_init[i0, i1, i2, i3] = -3.40282347e+38f
+                    }
+                  }
+                }
+              }
+            }
+          }
+          {
+            serial for (kernel_idx, 0, 3)
+            {
+              serial for (kernel_idx_0, 0, 3)
+              {
+                serial for (ax0, 0, 4)
+                {
+                  serial for (ax1, 0, 7)
+                  {
+                    ScheduleBlock(pad_temp_0_shared_temp_buffer)
+                    {
+                      v0, v1, v2, v3 = axis.bind(((((i_0_j_0_k_0_a_0_fused / 2) / 2) / 2) + (i_1_j_1_k_1_a_1_fused / 4)), ((4 * (((i_0_j_0_k_0_a_0_fused / 2) / 2) % 2)) + ax0), ((8 * ((i_0_j_0_k_0_a_0_fused / 2) % 2)) + ((2 * (i_1_j_1_k_1_a_1_fused % 4)) + kernel_idx)), (((8 * (i_0_j_0_k_0_a_0_fused % 2)) + kernel_idx_0) + ax1))
+                      attrs(compute_at_extra_var:ax0,ax1)
+                      {
+                        pad_temp_0_shared_temp_buffer[v0, v1, v2, v3] = pad_temp_0[v0, v1, v2, v3]
+                      }
+                    }
+                  }
+                }
+                serial for (i_2, 0, 1)
+                {
+                  serial for (j_2, 0, 4)
+                  {
+                    serial for (k_2, 0, 1)
+                    {
+                      serial for (a_2, 0, 4)
+                      {
+                        ScheduleBlock(var_0_local_temp_buffer)
+                        {
+                          i0, i1, i2, i3, i4, i5 = axis.bind(((((i_0_j_0_k_0_a_0_fused / 2) / 2) / 2) + ((i_1_j_1_k_1_a_1_fused / 4) + i_2)), ((4 * (((i_0_j_0_k_0_a_0_fused / 2) / 2) % 2)) + j_2), ((i_1_j_1_k_1_a_1_fused % 4) + ((4 * ((i_0_j_0_k_0_a_0_fused / 2) % 2)) + k_2)), ((4 * (i_0_j_0_k_0_a_0_fused % 2)) + a_2), kernel_idx, kernel_idx_0)
+                          read_buffers(_var_0[i0(0:2), i1(0:8), i2(0:8), i3(0:8)], _pad_temp_0[i0(0:2), i1(0:8)])
+                          write_buffers(_var_0[i0(0:2), i1(0:8), i2(0:8), i3(0:8)])
+                          {
+                            var_0_local_temp_buffer[i0, i1, i2, i3] = cinn_max(var_0_local_temp_buffer[i0, i1, i2, i3], pad_temp_0_shared_temp_buffer[i0, i1, ((2 * i2) + i4), ((2 * i3) + i5)])
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            serial for (ax0_0, 0, 4)
+            {
+              serial for (ax1_0, 0, 4)
+              {
+                ScheduleBlock(var_0)
+                {
+                  v0, v1, v2, v3 = axis.bind(((((i_0_j_0_k_0_a_0_fused / 2) / 2) / 2) + (i_1_j_1_k_1_a_1_fused / 4)), ((4 * (((i_0_j_0_k_0_a_0_fused / 2) / 2) % 2)) + ax0_0), ((i_1_j_1_k_1_a_1_fused % 4) + (4 * ((i_0_j_0_k_0_a_0_fused / 2) % 2))), ((4 * (i_0_j_0_k_0_a_0_fused % 2)) + ax1_0))
+                  attrs(reverse_compute_at_extra_var:ax0_0,ax1_0)
+                  {
+                    var_0[v0, v1, v2, v3] = var_0_local_temp_buffer[v0, v1, v2, v3]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+}  // end Expr 1
+)ROC";
+  CHECK_EQ(ir, expected_ir);
 
   // build ir::Module and debug source code
   auto ir_module   = BuildIRModule(new_states[0]->ir_schedule);
   auto source_code = GenSourceCode(ir_module);
   VLOG(6) << "scheduled source code:\n" << source_code;
-
-  std::string target_source_code = R"ROC(#include <cstdint>
-
-#define CINN_WITH_CUDA
-#include "float16.h"
-using cinn::common::float16;
-
-#include "cinn_cuda_runtime_source.cuh"
-__global__
-void fn_pool2d_0(const float* __restrict__ input, float* __restrict__ pad_temp_0)
-{
-  for (int32_t i = 0; i < 2; i += 1) {
-    for (int32_t j = 0; j < 8; j += 1) {
-      for (int32_t k = 0; k < 18; k += 1) {
-        for (int32_t a = 0; a < 18; a += 1) {
-          pad_temp_0[((2592 * i) + ((324 * j) + ((18 * k) + a)))] = ((((a < 17) && ((a >= 1) && ((k < 17) && (k >= 1))))) ? input[(-17 + ((2048 * i) + ((256 * j) + ((16 * k) + a))))] : -3.40282347e+38f);
-        };
-      };
-    };
-  };
-}__global__
-void __launch_bounds__(4) fn_pool2d_0_1(const float* __restrict__ input, const float* __restrict__ pad_temp_0, float* __restrict__ var_0)
-{
-  __shared__ float _pad_temp_0_shared_temp_buffer [ 256 ];
-  float _var_0_local_temp_buffer [ 16 ];
-  float* pad_temp_0_shared_temp_buffer = _pad_temp_0_shared_temp_buffer;
-  float* var_0__reduce_init = _var_0_local_temp_buffer;
-  float* var_0_local_temp_buffer = _var_0_local_temp_buffer;
-  if (((int)blockIdx.x < 16)) {
-    if (((int)threadIdx.x < 4)) {
-    {
-      for (int32_t i_2 = 0; i_2 < 1; i_2 += 1) {
-        for (int32_t j_2 = 0; j_2 < 4; j_2 += 1) {
-          for (int32_t k_2 = 0; k_2 < 1; k_2 += 1) {
-            for (int32_t a_2 = 0; a_2 < 4; a_2 += 1) {
-              var_0__reduce_init[((16 * i_2) + ((4 * j_2) + ((4 * k_2) + a_2)))] = -3.40282347e+38f;
-            };
-          };
-        };
-      };
-      for (int32_t kernel_idx = 0; kernel_idx < 3; kernel_idx += 1) {
-        for (int32_t kernel_idx_0 = 0; kernel_idx_0 < 3; kernel_idx_0 += 1) {
-          for (int32_t ax0 = 0; ax0 < 4; ax0 += 1) {
-            for (int32_t ax1 = 0; ax1 < 7; ax1 += 1) {
-              pad_temp_0_shared_temp_buffer[((64 * ax0) + ((16 * (int)threadIdx.x) + ax1))] = pad_temp_0[((((((int)blockIdx.x / 2) / 2) / 2) * 2592) + ((1296 * ((((int)blockIdx.x / 2) / 2) & 1)) + ((144 * (((int)blockIdx.x / 2) & 1)) + ((8 * ((int)blockIdx.x & 1)) + ((324 * ax0) + ((18 * kernel_idx) + ((36 * (int)threadIdx.x) + (ax1 + kernel_idx_0))))))))];
-            };
-          };
-          for (int32_t i_2 = 0; i_2 < 1; i_2 += 1) {
-            for (int32_t j_2 = 0; j_2 < 4; j_2 += 1) {
-              for (int32_t k_2 = 0; k_2 < 1; k_2 += 1) {
-                for (int32_t a_2 = 0; a_2 < 4; a_2 += 1) {
-                  var_0_local_temp_buffer[((16 * i_2) + ((4 * j_2) + ((4 * k_2) + a_2)))] = max(var_0_local_temp_buffer[((16 * i_2) + ((4 * j_2) + ((4 * k_2) + a_2)))], pad_temp_0_shared_temp_buffer[((2 * a_2) + ((256 * i_2) + ((64 * j_2) + ((16 * k_2) + (16 * (int)threadIdx.x)))))]);
-                };
-              };
-            };
-          };
-        };
-      };
-      for (int32_t ax0_0 = 0; ax0_0 < 4; ax0_0 += 1) {
-        for (int32_t ax1_0 = 0; ax1_0 < 4; ax1_0 += 1) {
-          var_0[((((((int)blockIdx.x / 2) / 2) / 2) * 512) + ((256 * ((((int)blockIdx.x / 2) / 2) & 1)) + ((32 * (((int)blockIdx.x / 2) & 1)) + ((4 * ((int)blockIdx.x & 1)) + ((64 * ax0_0) + ((8 * (int)threadIdx.x) + ax1_0))))))] = var_0_local_temp_buffer[((4 * ax0_0) + ax1_0)];
-        };
-      };
-    }
-    };
-  };
-})ROC";
-  CHECK_EQ(source_code, target_source_code);
 
   // execute and check precision
   CheckResult(GenExecutableKernel(ir_module),

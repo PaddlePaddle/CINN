@@ -52,11 +52,11 @@ class TestAutoGenRuleBase : public ::testing::Test {
                                 utils::LinearRandomEngine::StateType rand_seed = -1,
                                 bool apply_manual_schedule                     = false);
 
+  // Get the IR of bodies in IRSchedule
+  std::string GetIR(const ir::IRSchedule& schedule);
+
   // build ir::Module from the original lowered funcs with their bodys updated by the schedule
   ir::Module BuildIRModule(const ir::IRSchedule& schedule);
-
-  // check the feature of the ir in IRSchedule
-  void CheckFeature(const ir::IRSchedule& schedule, std::vector<float> target_feature);
 
   // generate source code with the built ir module
   std::string GenSourceCode(const ir::Module& ir_module);
