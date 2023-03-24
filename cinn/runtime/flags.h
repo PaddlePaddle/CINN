@@ -20,5 +20,18 @@ namespace runtime {
 void SetCinnCudnnDeterministic(bool state);
 bool GetCinnCudnnDeterministic();
 
+class RandomSeed {
+ public:
+  static unsigned int GetOrSet(unsigned int seed = 0);
+  static unsigned int Clear();
+
+ private:
+  RandomSeed()                   = default;
+  RandomSeed(const RandomSeed &) = delete;
+  RandomSeed &operator=(const RandomSeed &) = delete;
+
+  static unsigned int seed_;
+};
+
 }  // namespace runtime
 }  // namespace cinn

@@ -1455,8 +1455,6 @@ void cinn_gpu_cublas_gemm(const std::vector<int> &attrs,
 
 class CurandGenerator {
  public:
-  CurandGenerator(const CurandGenerator &) = delete;
-  CurandGenerator &operator=(const CurandGenerator &) = delete;
   ~CurandGenerator() { CURAND_CALL(curandDestroyGenerator(generator_)); }
   static CurandGenerator &GetInstance() {
     static CurandGenerator instance;
@@ -1465,7 +1463,17 @@ class CurandGenerator {
   curandGenerator_t &GetGenerator() { return generator_; }
 
  private:
-  CurandGenerator() { CURAND_CALL(curandCreateGenerator(&generator_, CURAND_RNG_PSEUDO_PHILOX4_32_10)); }
+  CurandGenerator(const CurandGenerator &) = delete;
+  CurandGenerator &operator=(const CurandGenerator &) = delete;
+
+  CurandGenerator() {
+    CURAND_CALL(curandCreateGenerator(&generator_, CURAND_RNG_PSEUDO_PHILOX4_32_10));
+
+    auto global_seed = static_cast<unsigned long long>(RandomSeed::GetOrSet());
+    if (global_seed != 0ULL) {
+      CURAND_CALL(curandSetPseudoRandomGeneratorSeed(generator_, global_seed));
+    }
+  }
   curandGenerator_t generator_;
 };
 

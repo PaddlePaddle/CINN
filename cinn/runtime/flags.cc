@@ -120,5 +120,20 @@ bool GetCinnCudnnDeterministic() {
 #endif
 }
 
+unsigned int RandomSeed::seed_ = 0;
+
+unsigned int RandomSeed::GetOrSet(unsigned int seed) {
+  if (seed != 0) {
+    seed_ = seed;
+  }
+  return seed_;
+}
+
+unsigned int RandomSeed::Clear() {
+  auto old_seed = seed_;
+  seed_         = 0;
+  return old_seed;
+}
+
 }  // namespace runtime
 }  // namespace cinn
