@@ -39,7 +39,7 @@ class TestMamul(unittest.TestCase):
 
         self.engine = cinn.ExecutionEngine()
         utils.ProfilerHelper.enable_cpu()
-        self.assertTrue(utils.ProfilerHelper.is_enble_cpu())
+        self.assertTrue(utils.ProfilerHelper.is_enable_cpu())
 
     def test_matmul_basic(self):
         a, b, c, c_target, *args = create_data(self.m, self.n, self.k, self.bn)
