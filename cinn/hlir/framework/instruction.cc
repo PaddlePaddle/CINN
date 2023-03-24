@@ -55,8 +55,13 @@ class ResultsPrint {
                          !kFalse.count(FLAGS_cinn_self_check_accuracy);
 
     if (print_to_file) {
-      LOG(INFO) << "The CINN compute results will writing into file: \"" << FLAGS_cinn_self_check_accuracy << "\"";
       of_.open(FLAGS_cinn_self_check_accuracy, std::ios_base::out);
+      if (of_.is_open()) {
+        LOG(INFO) << "The CINN compute results will writing into file: \"" << FLAGS_cinn_self_check_accuracy << "\"";
+      } else if (!FLAGS_cinn_self_check_accuracy.empty()) {
+        LOG(WARNING) << "Failed to open file: \"" << FLAGS_cinn_self_check_accuracy
+                     << "\", the CINN compute result will print.";
+      }
     }
   }
 
