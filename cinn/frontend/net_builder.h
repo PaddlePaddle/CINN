@@ -698,28 +698,28 @@ class NetBuilder {
   Variable Gather(const Variable& x, const Variable& index, int axis = 0);
 
   /**
-   * @brief Output is obtained by updating the input on selected indices based on updates.
-   * @param x  The input N-D variable with ndim>=1.
-   * @param updates pdate input with updates parameter based on index. shape should be the same as input, and dim value
-   * with dim > 1 should be the same as input.
-   * @param index The index 1-D variable. The length of index cannot exceed updates’s length, and the value in index
-   * cannot exceed input’s length.
-   * @param axis  The dimension in which we index. Default: 0.
-   * @return A variable with same shape as x.
+   * @brief This function updates the input variable on selected indices with updates.
+   * @param input The N-D input variable with ndim>=1.
+   * @param updates The elements to scatter into input. It has the shape: [index.length, input.shape[0:axis],
+   * input.shape[axis:]].
+   * @param indices The 1-D index variable. The length of indices cannot exceed the length of updates, and the values in
+   * indices cannot exceed the length of input.
+   * @param axis The dimension in which we index. Default: 0.
+   * @return A variable with the same shape as input.
    */
-  Variable ScatterAssign(const Variable& x, const Variable& updates, const Variable& index, int axis = 0);
+  Variable ScatterAssign(const Variable& input, const Variable& updates, const Variable& indices, int axis = 0);
 
   /**
-   * @brief Output is obtained by adding the `input` and the `updates` on selected indices.
-   * @param x  The input N-D variable with ndim>=1.
-   * @param updates Update input with updates parameter based on index. Shape should be the same as input, and dim value
-   * with dim > 1 should be the same as input.
-   * @param index The index 1-D variable. The length of index cannot exceed updates’s length, and the value in index
-   * cannot exceed input’s length.
-   * @param axis  The dimension in which we index. Default: 0.
-   * @return A variable with same shape as x.
+   * @brief This function adds updates to the existing input variable according to indices.
+   * @param input The N-D input variable with ndim>=1.
+   * @param updates The elements to scatter into input. It has the shape: [index.length, input.shape[0:axis],
+   * input.shape[axis:]].
+   * @param indices The 1-D index variable. The length of indices cannot exceed the length of updates, and the values in
+   * indices cannot exceed the length of input.
+   * @param axis The dimension in which we index. Default: 0.
+   * @return A variable with the same shape as input.
    */
-  Variable ScatterAdd(const Variable& x, const Variable& updates, const Variable& index, int axis = 0);
+  Variable ScatterAdd(const Variable& input, const Variable& updates, const Variable& indices, int axis = 0);
 
   /**
    * @brief Replacing the value of `x` by `assign` variable on the range of `slice(x)`. In other word,

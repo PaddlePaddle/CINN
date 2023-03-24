@@ -28,7 +28,7 @@ CINNSchedule GetElementwiseScheduleFunc(const std::vector<std::vector<int>>& out
                                         bool vectorizable) {
   return CINNSchedule([=](lang::Args args, lang::RetValue* ret) {
     if (FLAGS_cinn_ir_schedule) {
-      CHECK(!args.empty()) << "The input argument of InjectiveSchedule is empty! Please check.\n";
+      CHECK(!args.empty()) << "The input argument of ElementwiseSchedule is empty! Please check.\n";
       common::CINNValuePack arg_pack = args[0];
       std::vector<Expr> vec_ast;
       for (int i = 0; i < arg_pack.size(); i++) {
