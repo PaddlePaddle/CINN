@@ -515,10 +515,27 @@ std::vector<ir::Tensor> BlockReduceAny(const ir::Tensor& A,
 
 int GetParallelThreads(const ir::Tensor& A, const std::vector<int>& axes) {
   int parallel_threads = 1;
-  for (int idx = axes.back() + 1; idx < A->shape.size(); ++idx) {
-    parallel_threads *= A->shape[idx].as_int32();
+  for (auto axis : axes) {
+    parallel_threads *= A->shape[axis].as_int32();
   }
+
   return parallel_threads;
+}
+
+int GetMaxThreads() {
+  // cudaDeviceGetAttribute ( int* value, cudaDeviceAttr attr, int  device )
+  int max_threads = 0;
+  cudaDeviceGetAttribute(&max_threads, cudaDevAttrMaxThreadsPerMultiProcessor, 0);
+
+  return max_threads;
+}
+
+int GetMaxBlocks() {
+  // cudaDeviceGetAttribute ( int* value, cudaDeviceAttr attr, int  device )
+  int max_blocks = 0;
+  cudaDeviceGetAttribute(&max_blocks, cudaDevAttrMaxBlocksPerMultiProcessor, 0);
+
+  return max_blocks;
 }
 
 using ReduceFunc =
