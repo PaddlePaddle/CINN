@@ -1462,17 +1462,21 @@ class CurandGenerator {
   }
   curandGenerator_t &GetGenerator() { return generator_; }
 
+  void SetSeed(unsigned long long seed = 0ULL) {
+    // set global seed if seed is zero
+    auto rand_seed = (seed == 0ULL) ? RandomSeed::GetOrSet() : seed;
+    if (rand_seed != 0ULL) {
+      CURAND_CALL(curandSetPseudoRandomGeneratorSeed(generator_, rand_seed));
+    }
+  }
+
  private:
   CurandGenerator(const CurandGenerator &) = delete;
   CurandGenerator &operator=(const CurandGenerator &) = delete;
 
   CurandGenerator() {
     CURAND_CALL(curandCreateGenerator(&generator_, CURAND_RNG_PSEUDO_PHILOX4_32_10));
-
-    auto global_seed = static_cast<unsigned long long>(RandomSeed::GetOrSet());
-    if (global_seed != 0ULL) {
-      CURAND_CALL(curandSetPseudoRandomGeneratorSeed(generator_, global_seed));
-    }
+    SetSeed();
   }
   curandGenerator_t generator_;
 };
@@ -1485,9 +1489,8 @@ void cinn_call_gaussian_random(void *v_args, int num_args, float mean, float std
 
   curandGenerator_t generator = CurandGenerator::GetInstance().GetGenerator();
   CURAND_CALL(curandSetStream(generator, static_cast<cudaStream_t>(stream)));
-  if (seed != 0) {
-    CURAND_CALL(curandSetPseudoRandomGeneratorSeed(generator, static_cast<unsigned long long>(seed)));
-  }
+  // avoid seed conflict, if the seed not set, here we should use global seed
+  CurandGenerator::GetInstance().SetSeed(seed);
 
   VLOG(4) << "cinn_call_gaussian_random: output_size=" << numel << ", mean=" << mean << ", std=" << std
           << ", seed=" << seed;
@@ -1511,9 +1514,8 @@ void cinn_call_uniform_random(void *v_args, int num_args, float min, float max, 
 
   curandGenerator_t generator = CurandGenerator::GetInstance().GetGenerator();
   CURAND_CALL(curandSetStream(generator, static_cast<cudaStream_t>(stream)));
-  if (seed != 0) {
-    CURAND_CALL(curandSetPseudoRandomGeneratorSeed(generator, static_cast<unsigned long long>(seed)));
-  }
+  // avoid seed conflict, if the seed not set, here we should use global seed
+  CurandGenerator::GetInstance().SetSeed(seed);
 
   VLOG(4) << "cinn_call_uniform_random: output_size=" << numel << ", min=" << min << ", max=" << max
           << ", seed=" << seed;
