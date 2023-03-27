@@ -1521,6 +1521,31 @@ void cinn_call_uniform_random(void *v_args, int num_args, float min, float max, 
   }
 }
 
+void cinn_call_randint(void *v_args, int num_args, int min, int max, int seed, void *stream) {
+  cinn_pod_value_t *args = static_cast<cinn_pod_value_t *>(v_args);
+  cinn_buffer_t *output  = args[0].operator cinn_buffer_t *();
+  cinn_type_t dtype      = output->type;
+  size_t numel           = output->num_elements();
+
+  curandGenerator_t generator = CurandGenerator::GetInstance().GetGenerator();
+  CURAND_CALL(curandSetStream(generator, static_cast<cudaStream_t>(stream)));
+  if (seed != 0) {
+    CURAND_CALL(curandSetPseudoRandomGeneratorSeed(generator, static_cast<unsigned long long>(seed)));
+  }
+
+  VLOG(4) << "cinn_call_randint: output_size=" << numel << ", min=" << min << ", max=" << max << ", seed=" << seed;
+
+  if (dtype == cinn_int32_t()) {
+    float *ptr = reinterpret_cast<float *>(output->memory);
+    CURAND_CALL(curandGenerate(generator, ptr, numel));
+  } else if (dtype == cinn_int64_t()) {
+    double *ptr = reinterpret_cast<double *>(output->memory);
+    CURAND_CALL(curandGenerateLongLong(generator, ptr, numel));
+  } else {
+    LOG(FATAL) << "randint only support int32 and int64! Please check.";
+  }
+}
+
 #ifdef CINN_WITH_CUDNN
 
 namespace {

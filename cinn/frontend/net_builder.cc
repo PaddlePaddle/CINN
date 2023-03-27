@@ -693,6 +693,18 @@ Variable NetBuilder::UniformRandom(
   return Add(uniform_mul_out, uniform_min);
 }
 
+Variable NetBuilder::RandInt(const std::vector<int>& shape, int min, int max, int seed, const std::string& dtype) {
+  CHECK_GT(max, min) << "max: " << max << "should greater than"
+                     << "min: " << min;
+  auto randint_out =
+      CustomInstr("randint", {}, {{"shape", shape}, {"min", min}, {"max", max}, {"seed", seed}, {"dtype", dtype}})
+          .front();
+  auto randint_range   = FillConstant(shape, max - min, UniqName("randint_range"), dtype);
+  auto randint_mul_out = Multiply(randint_out, randint_range);
+  auto randint_min     = FillConstant(shape, min, UniqName("randint_min"), dtype);
+  return Add(randint_mul_out, randint_min);
+}
+
 Variable NetBuilder::Cholesky(const Variable& x, bool upper) {
   return CustomInstr("cholesky", {x}, {{"upper", upper}}).front();
 }

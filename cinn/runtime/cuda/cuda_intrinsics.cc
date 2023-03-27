@@ -356,6 +356,17 @@ CINN_REGISTER_HELPER(cinn_cuda_host_api) {
       .AddInputType<void *>()  // stream
       .End();
 
+  using cinn::runtime::cuda::cinn_call_randint;
+  REGISTER_EXTERN_FUNC_HELPER(cinn_call_randint, cinn::common::DefaultHostTarget())
+      .SetRetType<void>()
+      .AddInputType<void *>()  // v_args
+      .AddInputType<int>()     // num_args
+      .AddInputType<int>()     // min
+      .AddInputType<int>()     // max
+      .AddInputType<int>()     // seed
+      .AddInputType<void *>()  // stream
+      .End();
+
   using cinn::runtime::cuda::cinn_call_cholesky_nvgpu;
   REGISTER_EXTERN_FUNC_HELPER(cinn_call_cholesky_nvgpu, cinn::common::DefaultNVGPUTarget())
       .SetRetType<void>()

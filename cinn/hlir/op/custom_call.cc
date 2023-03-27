@@ -700,6 +700,24 @@ std::vector<ir::Expr> CustomCallArgsForUniformRandom(const framework::NodeAttr &
   return args;
 }
 
+std::vector<ir::Expr> CustomCallArgsForRandInt(const framework::NodeAttr &attrs,
+                                               const std::vector<ir::Tensor> &inputs,
+                                               const std::vector<std::vector<int>> &output_shapes) {
+  CHECK_EQ(output_shapes.size(), 1UL);
+
+  auto attr_store = attrs.attr_store;
+
+  int min  = attr_store.count("min") ? absl::get<int>(attrs.attr_store.at("min")) : 0;
+  int max  = attr_store.count("max") ? absl::get<int>(attrs.attr_store.at("max")) : 0;
+  int seed = attr_store.count("seed") ? absl::get<int>(attrs.attr_store.at("seed")) : 0;
+
+  CHECK_GE(max, min) << "Arg max must greater than min, please check.";
+
+  std::vector<ir::Expr> args = {ir::Expr(min), ir::Expr(max), ir::Expr(seed)};
+
+  return args;
+}
+
 std::vector<ir::Expr> CustomCallArgsForCholesky(const framework::NodeAttr &attrs,
                                                 const std::vector<ir::Tensor> &inputs,
                                                 const std::vector<std::vector<int>> &output_shapes) {
@@ -768,6 +786,8 @@ bool RegisteryCustomCallArgsFunc() {
       "cinn_call_gaussian_random", common::DefaultNVGPUTarget(), CustomCallArgsForGaussianRandom);
   CustomCallArgsFuncRegistry::Global().Register(
       "cinn_call_uniform_random", common::DefaultNVGPUTarget(), CustomCallArgsForUniformRandom);
+  CustomCallArgsFuncRegistry::Global().Register(
+      "cinn_call_randint", common::DefaultNVGPUTarget(), CustomCallArgsForRandInt);
   CustomCallArgsFuncRegistry::Global().Register(
       "cinn_call_cholesky_nvgpu", common::DefaultNVGPUTarget(), CustomCallArgsForCholesky);
   CustomCallArgsFuncRegistry::Global().Register(

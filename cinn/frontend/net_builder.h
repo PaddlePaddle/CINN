@@ -1048,6 +1048,17 @@ class NetBuilder {
                          const std::string& dtype = "float32");
 
   /**
+   * @brief Generate random integers in the range min to max
+   * @param shape Shape of the variable to be created.
+   * @param min The lower bound of the range of random values ​​generated, min is included in the range.
+   * @param max The upper bound of the range of random values ​​generated, max is not included in the range.
+   * @param seed Random seed of generator, default is 0.
+   * @param dtype Data tpye of output variable, supported data types: int32, int64.
+   */
+  Variable RandInt(
+      const std::vector<int>& shape, int min = 0, int max = 0, int seed = 0, const std::string& dtype = "int64");
+
+  /**
    * @brief Compute cholesky decomposition of a positive definite symmetric matrix.
    * @param x Positive definite symmetric matrix.
    * @param upper When upper is true, calculate and return the upper triangular matrix.
