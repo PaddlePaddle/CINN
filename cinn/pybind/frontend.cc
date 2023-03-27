@@ -545,6 +545,7 @@ void BindFrontend(pybind11::module *m) {
            py::arg("strides")       = std::vector<int>{},
            py::arg("decrease_axis") = std::vector<int>{})
       .def("reverse", &NetBuilder::Reverse, py::arg("x"), py::arg("axis"))
+      .def("resize", &NetBuilder::Resize, py::arg("x"), py::arg("out_shape"), py::arg("mode") = "bilinear")
       .def("select", &NetBuilder::Select, py::arg("condition"), py::arg("true_value"), py::arg("false_value"))
       .def("split", &NetBuilder::Split, py::arg("x"), py::arg("num_or_sections"), py::arg("axis") = 0)
       .def("gather", &NetBuilder::Gather, py::arg("x"), py::arg("index"), py::arg("axis") = 0)

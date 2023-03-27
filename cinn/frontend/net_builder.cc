@@ -607,6 +607,10 @@ Variable NetBuilder::Repeat(const Variable& x, int repeats, int axis) {
   return CustomInstr("repeat", {x}, {{"repeats", repeats}, {"axis", axis}}).front();
 }
 
+Variable NetBuilder::Resize(const Variable& x, const std::vector<int>& out_shape, const std::string& mode) {
+  return CustomInstr("resize", {x}, {{"out_shape", out_shape}, {"mode", mode}}).front();
+}
+
 std::vector<Variable> NetBuilder::BatchNorm(const Variable& a,
                                             const Variable& scale,
                                             const Variable& bias,
