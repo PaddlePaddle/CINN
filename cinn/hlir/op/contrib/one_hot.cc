@@ -200,7 +200,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForOneHot(const framework::NodeAt
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(one_hot_compute, GetElementwiseScheduleFunc(output_shapes, target), "strategy.one_hot.x86", 1);
+  strategy->AddImpl(one_hot_compute, GetInjectiveScheduleFunc(output_shapes, target), "strategy.one_hot.x86", 1);
 
   return strategy;
 }
@@ -218,7 +218,7 @@ CINN_REGISTER_HELPER(one_hot_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForOneHot)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForOneHot))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForOneHot))
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElementWise)
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kInjective)
       .set_support_level(4);
 
   return true;
