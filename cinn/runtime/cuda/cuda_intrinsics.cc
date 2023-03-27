@@ -274,7 +274,7 @@ CINN_REGISTER_HELPER(cuda_intrinsics) {
       .AddInputType<int>()
       .End();
 
-  REGISTER_EXTERN_FUNC_HELPER(cinn_cuda_resize_bilinear, target)
+  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_cuda_resize_bilinear, target)
       .SetRetType<int>()
       .AddInputType<cinn_buffer_t *>()
       .AddInputType<int>()
@@ -288,7 +288,7 @@ CINN_REGISTER_HELPER(cuda_intrinsics) {
       .AddInputType<int>()
       .End();
 
-  REGISTER_EXTERN_FUNC_HELPER(cinn_cuda_resize_bicubic, target)
+  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_cuda_resize_bicubic, target)
       .SetRetType<int>()
       .AddInputType<cinn_buffer_t *>()
       .AddInputType<int>()

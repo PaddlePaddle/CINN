@@ -527,16 +527,16 @@ __device__ inline float cinn_cuda_index_add(const float x,
   return res;
 }
 
-__device__ inline int cinn_cuda_resize_bilinear(const int *buf,
-                                                const int c_size,
-                                                const int in_h,
-                                                const int in_w,
-                                                const int out_h,
-                                                const int out_w,
-                                                const int n,
-                                                const int c,
-                                                const int y,
-                                                const int x) {
+__device__ int cinn_cuda_resize_bilinear(const int *buf,
+                                         const int c_size,
+                                         const int in_h,
+                                         const int in_w,
+                                         const int out_h,
+                                         const int out_w,
+                                         const int n,
+                                         const int c,
+                                         const int y,
+                                         const int x) {
   float in_y   = static_cast<float>(in_h) / out_h * y;
   float in_x   = static_cast<float>(in_w) / out_w * x;
   int in_y_int = static_cast<int>(std::floor(in_y));
@@ -561,16 +561,16 @@ __device__ inline int cinn_cuda_resize_bilinear(const int *buf,
   return std::floor(value);
 }
 
-__device__ inline int cinn_cuda_resize_bicubic(const int *buf,
-                                               const int c_size,
-                                               const int in_h,
-                                               const int in_w,
-                                               const int out_h,
-                                               const int out_w,
-                                               const int n,
-                                               const int c,
-                                               const int y,
-                                               const int x) {
+__device__ int cinn_cuda_resize_bicubic(const int *buf,
+                                        const int c_size,
+                                        const int in_h,
+                                        const int in_w,
+                                        const int out_h,
+                                        const int out_w,
+                                        const int n,
+                                        const int c,
+                                        const int y,
+                                        const int x) {
   float in_y    = static_cast<float>(in_h) / out_h * y;
   float in_x    = static_cast<float>(in_w) / out_w * x;
   int in_y_int  = static_cast<int>(std::floor(in_y));
