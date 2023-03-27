@@ -46,15 +46,15 @@ inline int cinn_host_gt_num_int(
     const cinn_buffer_t* buf, const int size, const int num, const int offset, const int stride);
 
 int cinn_host_resize_bilinear(const cinn_buffer_t* buf,
-                             const int c_size,
-                             const int in_h,
-                             const int in_w,
-                             const int out_h,
-                             const int out_w,
-                             const int n,
-                             const int c,
-                             const int y,
-                             const int x);
+                              const int c_size,
+                              const int in_h,
+                              const int in_w,
+                              const int out_h,
+                              const int out_w,
+                              const int n,
+                              const int c,
+                              const int y,
+                              const int x);
 
 int cinn_host_resize_bicubic(const cinn_buffer_t* buf,
                              const int c_size,

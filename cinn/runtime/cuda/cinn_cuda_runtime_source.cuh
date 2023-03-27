@@ -113,6 +113,7 @@ __device__ inline int FN_INT32(clz)(int a) { return __clz(a); }
 __device__ inline int FN_INT32(popc)(int a) { return __popc(a); }
 __device__ inline int FN_INT32(logical_right_shift)(int a, int b) { return ((unsigned int)a >> b); }
 
+
 __device__ inline int FN_INT32(mod)(int a, int b) {
   int res = a % b;
   if ((res != 0) && ((b ^ res) < 0)) res += b;
@@ -193,6 +194,7 @@ __device__ inline float16 FN_FP16(pow)(float16 a, float16 b) {
 
 #endif
 
+
 // *************************************************************** //
 // reduce operator, need `--expt-relaxed-constexpr` option to call std function in device kernel
 #define EXPAND_REDUCE_INT32_MARCO(MARCO, ...)       \
@@ -212,18 +214,10 @@ __device__ inline int cinn_min_int32(const int left, const int right) { return m
   MARCO(max_int64, -9223372036854775808, long long int, ##__VA_ARGS__) \
   MARCO(min_int64, 9223372036854775807, long long int, ##__VA_ARGS__)
 
-__device__ inline long long int cinn_sum_int64(const long long int left, const long long int right) {
-  return left + right;
-}
-__device__ inline long long int cinn_prod_int64(const long long int left, const long long int right) {
-  return left * right;
-}
-__device__ inline long long int cinn_max_int64(const long long int left, const long long int right) {
-  return max(left, right);
-}
-__device__ inline long long int cinn_min_int64(const long long int left, const long long int right) {
-  return min(left, right);
-}
+__device__ inline long long int cinn_sum_int64(const long long int left, const long long int right) { return left + right; }
+__device__ inline long long int cinn_prod_int64(const long long int left, const long long int right) { return left * right; }
+__device__ inline long long int cinn_max_int64(const long long int left, const long long int right) { return max(left, right); }
+__device__ inline long long int cinn_min_int64(const long long int left, const long long int right) { return min(left, right); }
 
 #define EXPAND_REDUCE_FP32_MACRO(MACRO, ...)           \
   MACRO(sum_fp32, 0.0f, float, ##__VA_ARGS__)          \

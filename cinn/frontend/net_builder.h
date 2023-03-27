@@ -582,7 +582,7 @@ class NetBuilder {
    * @param mode Scale method to used [nearest, bilinear, bicubic].
    * @return The resized result.
    */
-  Variable Resize(const Variable& x, const std::vector<int> &out_shape, const std::string &mode);
+  Variable Resize(const Variable& x, const std::vector<int>& out_shape, const std::string& mode);
 
   // *******************************************
   // Broadcast operator

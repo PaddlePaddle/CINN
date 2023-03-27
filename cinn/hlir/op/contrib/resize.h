@@ -25,7 +25,11 @@ namespace cinn {
 namespace hlir {
 namespace op {
 
-ir::Tensor Resize(const ir::Tensor &x, const common::Target &target, const std::vector<int> &out_shape, const std::string &mode, const std::string &output_name);
+ir::Tensor Resize(const ir::Tensor &x,
+                  const common::Target &target,
+                  const std::vector<int> &out_shape,
+                  const std::string &mode,
+                  const std::string &output_name);
 
 }  // namespace op
 }  // namespace hlir

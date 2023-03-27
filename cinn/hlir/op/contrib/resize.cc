@@ -150,7 +150,8 @@ std::shared_ptr<framework::OpStrategy> StrategyForResize(const framework::NodeAt
     }
   }
 
-  CHECK(mode == "nearest" || mode == "bilinear" || mode == "bicubic") << "Resize only supports `nearest`, `bilinear` and `bicubic` mode.";
+  CHECK(mode == "nearest" || mode == "bilinear" || mode == "bicubic")
+      << "Resize only supports `nearest`, `bilinear` and `bicubic` mode.";
 
   framework::CINNCompute resize_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input arguments of Resize compute is empty! Please check.\n";
