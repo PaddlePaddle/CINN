@@ -41,7 +41,6 @@ __device__ inline bool FN_FP32(isnan)(float x) { return isnan(x); }
 
 __device__ inline float FN_FP32(pow)(float a, float b) { return powf(a, b); }
 
-__device__ inline float FN_FP32(remainder)(float a, float b) { return remainderf(a, b); }
 __device__ inline float FN_FP32(mod)(float a, float b) {
   float res = fmodf(a, b);
   if ((res != 0.0f) && ((res < 0.0f) != (b < 0.0f))) res += b;
@@ -86,7 +85,6 @@ __device__ inline bool FN_FP64(isinf)(double x) { return isinf(x); }
 __device__ inline bool FN_FP64(isnan)(double x) { return isnan(x); }
 
 __device__ inline double FN_FP64(pow)(double a, double b) { return pow(a, b); }
-__device__ inline double FN_FP64(remainder)(double a, double b) { return remainder(a, b); }
 __device__ inline double FN_FP64(mod)(double a, double b) {
   double res = fmod(a, b);
   if ((res != 0.0) && ((res < 0.0) != (b < 0.0))) res += b;
@@ -186,9 +184,6 @@ __device__ inline float16 FN_FP16(atanh)(float16 x) { return float16(FN_FP32(ata
 
 __device__ inline float16 FN_FP16(sigmoid)(float16 x) { return float16(FN_FP32(sigmoid)(static_cast<float>(x))); }
 
-__device__ inline float16 FN_FP16(remainder)(float16 a, float16 b) {
-  return float16(FN_FP32(remainder)(static_cast<float>(a), static_cast<float>(b)));
-}
 __device__ inline float16 FN_FP16(mod)(float16 a, float16 b) {
   return float16(FN_FP32(mod)(static_cast<float>(a), static_cast<float>(b)));
 }

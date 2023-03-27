@@ -164,10 +164,12 @@ NETBUILDER_UNARY_OP_DEF(Reciprocal, reciprocal)
     return BinaryOp(#op_type__, lhs, rhs, axis);                                         \
   }
 NETBUILDER_BINARY_OP_DEF(Add, elementwise_add)
+NETBUILDER_BINARY_OP_DEF(ElementwiseAdd, elementwise_add)
 NETBUILDER_BINARY_OP_DEF(Atan2, atan2)
 NETBUILDER_BINARY_OP_DEF(Multiply, elementwise_mul)
+NETBUILDER_BINARY_OP_DEF(ElementwiseMul, elementwise_mul)
 NETBUILDER_BINARY_OP_DEF(Divide, divide)
-NETBUILDER_BINARY_OP_DEF(Subtract, substract)
+NETBUILDER_BINARY_OP_DEF(Subtract, subtract)
 NETBUILDER_BINARY_OP_DEF(FloorDivide, floor_divide)
 NETBUILDER_BINARY_OP_DEF(Mod, mod)
 NETBUILDER_BINARY_OP_DEF(Remainder, remainder)
@@ -237,7 +239,9 @@ Variable NetBuilder::FillConstant(
   auto out =
       CustomInstr("fill_constant", {}, {{"shape", shape}, {"value", value}, {"dtype", dtype}, {"force_cpu", force_cpu}})
           .front();
-  out.set_id(cinn::utils::TransValidVarName(name));
+  if (!name.empty()) {
+    out.set_id(cinn::utils::TransValidVarName(name));
+  }
   return out;
 }
 
@@ -262,7 +266,9 @@ Variable NetBuilder::FillConstant(const std::vector<int>& shape,
   auto out =
       CustomInstr("fill_constant", {}, {{"shape", shape}, {"value", value}, {"dtype", dtype}, {"force_cpu", force_cpu}})
           .front();
-  out.set_id(cinn::utils::TransValidVarName(name));
+  if (!name.empty()) {
+    out.set_id(cinn::utils::TransValidVarName(name));
+  }
   return out;
 }
 
@@ -653,10 +659,6 @@ Variable NetBuilder::DropoutInfer(const Variable& a, float dropout_prob, const s
 Variable NetBuilder::Sum(const std::vector<Variable>& inputs) {
   return CustomInstr("sum", inputs, {}).front();
   ;
-}
-
-Variable NetBuilder::Clip(const std::vector<Variable>& inputs, const float& max_val, const float& min_val) {
-  return CustomInstr("clip", inputs, {{"max_val", max_val}, {"min_val", min_val}}).front();
 }
 
 Variable NetBuilder::Arange(const float start, const float stop, const float step, const std::string& dtype) {

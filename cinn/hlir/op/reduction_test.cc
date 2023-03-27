@@ -115,15 +115,11 @@ std::pair<ir::Module, std::string> GenReduceCode(const std::vector<int>& shape,
                            func_name,
                            target);
   }
-  for (auto& f : func) {
-    LOG(INFO) << "Test Strategy Codegen:\n" << f;
-  }
 
   Module::Builder builder(func_name + "_builder", target);
   for (auto& f : func) {
     builder.AddFunction(f);
   }
-  LOG(INFO) << "After builder.AddFunction(f)";
   // compile the module
   // Need to create a new compiler for every call of Build,
   // because the underneath jit engine does't support addIRModule repeatedly now.
@@ -142,6 +138,13 @@ std::pair<ir::Module, std::string> GenReduceCode(const std::vector<int>& shape,
   LOG(INFO) << "compiled code:\n" << source_code;
 
   return std::pair<ir::Module, std::string>(host_module, source_code);
+}
+
+TEST(Operator, Operator_Reduction_Case_Last_Dim_1) {
+  std::vector<int> shape = {10, 100, 1};
+  std::vector<int> dim   = {0, 2};
+
+  GenReduceCode(shape, dim, "reduce_cast_with_last_dim_1");
 }
 
 TEST(Operator, Operator_Reduction_Case_0) {

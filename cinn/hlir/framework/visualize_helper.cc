@@ -67,7 +67,7 @@ std::string GetFilePathForGroup(const std::vector<std::vector<Node*>>& groups,
                                                                         {"identity", "copy"},
                                                                         {"broadcast_to", "broadcast"},
                                                                         {"elementwise_add", "add"},
-                                                                        {"substract", "sub"},
+                                                                        {"subtract", "sub"},
                                                                         {"elementwise_mul", "mul"},
                                                                         {"divide", "div"},
                                                                         {"reduce_sum", "reduce"},
@@ -201,40 +201,40 @@ void Summary(const std::vector<std::vector<Node*>>& groups, const std::string& v
 }
 
 std::string DebugString(const Node* node) {
-  std::stringstream ss;
-  ss << "{";
-  bool first = true;
-  for (auto& outlink : node->outlinks_in_order()) {
+  std::vector<std::string> out_names;
+  for (auto& outlink : node->outlinks_in_order(true)) {
     auto* outnode = outlink->sink()->safe_as<NodeData>();
     if (outnode) {
-      if (!first) {
-        ss << ", ";
-      } else {
-        first = false;
-      }
-      ss << outnode->id();
+      out_names.emplace_back(outnode->id());
     }
   }
 
-  ss << "} = " << node->op()->name << "{";
-  first = true;
-  for (auto& inlink : node->inlinks_in_order()) {
+  std::vector<std::string> in_names;
+  for (auto& inlink : node->inlinks_in_order(true)) {
     auto* innode = inlink->source()->safe_as<NodeData>();
     if (innode) {
-      if (!first) {
-        ss << ", ";
-      } else {
-        first = false;
-      }
-      ss << innode->id();
+      in_names.emplace_back(innode->id());
     }
   }
-  ss << ", id=" << node->id() << ", ";
 
+  std::stringstream ss;
+  ss << cinn::utils::Join(out_names, ", ") << " = builder." << node->op()->name << "("
+     << cinn::utils::Join(in_names, ", ");
+
+  bool first = true;
   for (const auto& attr_pair : node->attrs.attr_store) {
-    ss << attr_pair.first << "=" << utils::Attribute2String(attr_pair.second) << ", ";
+    if (!first) {
+      ss << ", ";
+    } else {
+      if (!in_names.empty()) {
+        // insert a split letter before if inputs not empty
+        ss << ", ";
+      }
+      first = false;
+    }
+    ss << attr_pair.first << "=" << utils::Attribute2String(attr_pair.second);
   }
-  ss << "}";
+  ss << ")";
   return ss.str();
 }
 
