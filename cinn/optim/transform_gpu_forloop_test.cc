@@ -59,9 +59,12 @@ TEST(TransformGpuForloops, basic) {
   auto target_out = R"ROC(
 function elementwise_add (_A, _B, _C)
 {
-  if ((blockIdx.x < 10)) {
-    if ((threadIdx.x < 10)) {
-      if ((threadIdx.y < 200)) {
+  thread_bind[invalid info] for (blockIdx.x, 0, 10)
+  {
+    thread_bind[invalid info] for (threadIdx.x, 0, 10)
+    {
+      thread_bind[invalid info] for (threadIdx.y, 0, 200)
+      {
         C[((10 * blockIdx.x) + threadIdx.x), threadIdx.y] = (A[((10 * blockIdx.x) + threadIdx.x), threadIdx.y] * B[((10 * blockIdx.x) + threadIdx.x), threadIdx.y])
       }
     }
@@ -103,13 +106,14 @@ TEST(TransformGpuForloops, multiple_thread_axis) {
   auto target_source = R"ROC(
 function elementwise_add (_A, _B, _C, _D)
 {
-  if ((blockIdx.x < 10)) {
-    if ((blockIdx.y < 10)) {
-      if ((threadIdx.x < 200)) {
-        {
-          C[((10 * blockIdx.x) + blockIdx.y), threadIdx.x] = (A[((10 * blockIdx.x) + blockIdx.y), threadIdx.x] * B[((10 * blockIdx.x) + blockIdx.y), threadIdx.x])
-          D[((10 * blockIdx.x) + blockIdx.y), threadIdx.x] = (C[((10 * blockIdx.x) + blockIdx.y), threadIdx.x] + A[((10 * blockIdx.x) + blockIdx.y), threadIdx.x])
-        }
+  thread_bind[invalid info] for (blockIdx.x, 0, 10)
+  {
+    thread_bind[invalid info] for (blockIdx.y, 0, 10)
+    {
+      thread_bind[invalid info] for (threadIdx.x, 0, 200)
+      {
+        C[((10 * blockIdx.x) + blockIdx.y), threadIdx.x] = (A[((10 * blockIdx.x) + blockIdx.y), threadIdx.x] * B[((10 * blockIdx.x) + blockIdx.y), threadIdx.x])
+        D[((10 * blockIdx.x) + blockIdx.y), threadIdx.x] = (C[((10 * blockIdx.x) + blockIdx.y), threadIdx.x] + A[((10 * blockIdx.x) + blockIdx.y), threadIdx.x])
       }
     }
   }

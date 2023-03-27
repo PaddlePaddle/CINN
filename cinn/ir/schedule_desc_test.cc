@@ -95,7 +95,7 @@ std::string SourceCodeGen(const ModuleExpr& module_expr,
   std::vector<ir::LoweredFunc> updated_funcs = optim::IRCopy(lowered_funcs);
   Module::Builder builder("test_module", target);
   for (auto i = 0; i < lowered_funcs.size(); ++i) {
-    updated_funcs[i]->body = exprs.at(i);
+    updated_funcs[i]->body = optim::IRCopy(exprs.at(i));
     builder.AddFunction(updated_funcs[i]);
   }
   auto module = builder.Build();

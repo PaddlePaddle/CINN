@@ -51,8 +51,6 @@ typedef void (OpLowerer::*IRScheduleFunction)(ir::IRSchedule& ir_sch,
                                               const GroupPtr&,
                                               Node*&,
                                               Node*&);
-NodeData* GetNodeData(const Node* node);
-std::vector<NodeData*> GetAllNodeData(const Node* node);
 
 class OpLowerer {
  public:
@@ -85,9 +83,9 @@ class OpLowerer {
   DEFINE_IR_COMPUTE_SCHDULE(Reduce);
   DEFINE_IR_COMPUTE_SCHDULE(OutEWiseFusable);
 
-  std::vector<ir::Tensor> CollectInputTensor(std::vector<ir::Tensor>& func_args,
-                                             std::unordered_map<std::string, ir::Tensor>& tensor_map,
-                                             const Node* node);
+  void IRSchedule(ir::IRSchedule& ir_sch,
+                  const GroupPtr& group,
+                  const std::unordered_map<std::string, ir::Tensor>& tensor_map);
 
   Target target_;
   const absl::flat_hash_map<std::string, Type>& type_dict_;

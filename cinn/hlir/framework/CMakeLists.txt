@@ -14,6 +14,7 @@ gather_srcs(cinnapi_src SRCS
     pass.cc
     op_strategy.cc
     op_lowering.cc
+    op_lowering_util.cc
     accuracy_checker.cc
     visualize_helper.cc
 )

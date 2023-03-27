@@ -27,6 +27,7 @@
 #include "cinn/hlir/pe/transform.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_schedule.h"
+#include "cinn/optim/ir_simplify.h"
 
 DECLARE_bool(cinn_ir_schedule);
 
@@ -169,6 +170,12 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
       for (int i = 0; i < arg_pack.size(); i++) {
         if (arg_pack[i].is_expr()) {
           Expr temp = arg_pack[i];
+          // TODO(zhhsplendid): old reducetion schedule assumes all length-1
+          // for loops are simplified, but it is not after we add length-1
+          // back. Reduction schedule is complex and we haven't changed it to
+          // support the length-1 for loop yet. So we simplify here. The todo
+          // is that remove SimplifyForLoops below and change reduction schedule
+          optim::SimplifyForLoops(&temp);
           vec_ast.emplace_back(temp);
         } else if (arg_pack[i].is_tensor()) {
           Expr temp = arg_pack[i];
