@@ -24,6 +24,8 @@ from cinn.common import *
 from paddle.vision.transforms import functional as F
 
 
+@OpTestTool.skip_if(not is_compiled_with_cuda(),
+                    "x86 test will be skipped due to timeout.")
 class TestResizeOp(OpTest):
     def setUp(self):
         self.init_case()
