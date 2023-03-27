@@ -558,7 +558,7 @@ __device__ int cinn_cuda_resize_bilinear(const int *buf,
   float top    = p[0][0] * (1.0F - x_lerp) + p[0][1] * x_lerp;
   float bottom = p[1][0] * (1.0F - x_lerp) + p[1][1] * x_lerp;
   float value  = top * (1.0F - y_lerp) + bottom * y_lerp;
-  return cinn_nvgpu_floor_fp32(value);
+  return value;
 }
 
 __device__ int cinn_cuda_resize_bicubic(const int *buf,
@@ -617,7 +617,7 @@ __device__ int cinn_cuda_resize_bicubic(const int *buf,
     value += col[i] * w[1][i];
   }
 
-  return cinn_nvgpu_floor_fp32(value);
+  return value;
 }
 
 // *************************************************************** //

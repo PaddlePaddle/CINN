@@ -137,7 +137,7 @@ int cinn_host_resize_bilinear(const cinn_buffer_t* buf,
   float top    = p[0][0] * (1.0F - x_lerp) + p[0][1] * x_lerp;
   float bottom = p[1][0] * (1.0F - x_lerp) + p[1][1] * x_lerp;
   float value  = top * (1.0F - y_lerp) + bottom * y_lerp;
-  return std::floor(value);
+  return value;
 }
 
 int cinn_host_resize_bicubic(const cinn_buffer_t* buf,
@@ -197,7 +197,7 @@ int cinn_host_resize_bicubic(const cinn_buffer_t* buf,
     value += col[i] * w[1][i];
   }
 
-  return std::floor(value);
+  return value;
 }
 
 #define FN_FP32(func) cinn_host_##func##_fp32
