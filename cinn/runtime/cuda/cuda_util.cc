@@ -1549,7 +1549,7 @@ void cinn_call_randint(void *v_args, int num_args, int min, int max, int seed, v
     uint32_t *ptr = reinterpret_cast<uint32_t *>(output->memory);
     CURAND_CALL(curandGenerate(generator, ptr, numel));
   } else if (dtype == cinn_int64_t()) {
-    uint64_t *ptr = reinterpret_cast<uint64_t *>(output->memory);
+    unsigned long long *ptr = reinterpret_cast<unsigned long long *>(output->memory);
     CURAND_CALL(curandGenerateLongLong(generator, ptr, numel));
   } else {
     LOG(FATAL) << "randint only support int32 and int64! Please check.";
