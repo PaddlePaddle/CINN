@@ -20,7 +20,7 @@ namespace cinn {
 namespace frontend {
 namespace paddle_mappers {
 
-void UniformRandomOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+void RandIntOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
   auto out_name = op_desc.Output("Out").front();
 
@@ -46,6 +46,6 @@ void UniformRandomOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperCon
 }  // namespace cinn
 
 CINN_REGISTER_HELPER(paddle_randint) {
-  CINN_REGISTER_OP_MAPPER(randint, cinn::frontend::paddle_mappers::UniformRandomOpMapper)
+  CINN_REGISTER_OP_MAPPER(randint, cinn::frontend::paddle_mappers::RandIntOpMapper)
   return true;
 }
