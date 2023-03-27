@@ -1615,14 +1615,13 @@ void ScheduleImpl::FlattenLoops(const std::vector<Expr>& loops, const bool flat_
     std::vector<std::string> var_names = {};
     CHECK_GE(block_realize->iter_values.size(), loop_vars.size())
         << "the number of iter bind values must be more than loop vars!";
-    for (int idx = 0, index = 0; idx < block_realize->iter_values.size(); ++idx) {
+    for (int idx = 0; idx < block_realize->iter_values.size(); ++idx) {
       auto& iter = block_realize->iter_values[idx];
       if (iter.is_var()) {
-        CHECK_EQ(iter.as_var_ref()->name, loop_vars[index++]->name) << "loops is not the same order with tensor!";
+        CHECK_EQ(iter.as_var_ref()->name, loop_vars[idx]->name) << "loops is not the same order with tensor!";
       } else {
         CHECK(iter.As<IntImm>());
         CHECK_EQ(iter.as_int32(), 0);
-        continue;
       }
     }
 
