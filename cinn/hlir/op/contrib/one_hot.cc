@@ -218,6 +218,7 @@ CINN_REGISTER_HELPER(one_hot_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForOneHot)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForOneHot))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForOneHot))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElementWise)
       .set_support_level(4);
 
   return true;

@@ -16,13 +16,14 @@ import unittest
 import numpy as np
 from op_mapper_test import OpMapperTest, logger
 import paddle
+from paddle.fluid.framework import convert_np_dtype_to_dtype_
 
 
 class TestOneHotOp(OpMapperTest):
     def init_input_data(self):
         self.feed_data = {'x': self.random([1, 32], 'int32', low=0, high=9)}
         self.depth = 10
-        self.dtype = 5  # Float32
+        self.dtype = "float32"
         self.allow_out_of_range = False
 
     def set_op_type(self):
@@ -38,7 +39,7 @@ class TestOneHotOp(OpMapperTest):
     def set_op_attrs(self):
         return {
             "depth": self.depth,
-            "dtype": self.dtype,
+            "dtype": convert_np_dtype_to_dtype_(self.dtype),
             "allow_out_of_range": self.allow_out_of_range
         }
 
@@ -53,7 +54,7 @@ class TestOneHotOpCase1(TestOneHotOp):
     def init_input_data(self):
         self.feed_data = {'x': self.random([32, 64], 'int32')}
         self.depth = 64
-        self.dtype = 2  # Int32
+        self.dtype = "int32"
         self.allow_out_of_range = False
 
 
@@ -61,7 +62,7 @@ class TestOneHotOpCase2(TestOneHotOp):
     def init_input_data(self):
         self.feed_data = {'x': self.random([32, 64, 1], 'int64')}
         self.depth = 1
-        self.dtype = 3  # Int64
+        self.dtype = "int64"
         self.allow_out_of_range = True
 
 
@@ -69,7 +70,7 @@ class TestOneHotV2Op(OpMapperTest):
     def init_input_data(self):
         self.feed_data = {'x': self.random([1, 32], 'int32')}
         self.depth = 10
-        self.dtype = 5  # Float32
+        self.dtype = "float32"
         self.allow_out_of_range = False
 
     def set_op_type(self):
@@ -85,7 +86,7 @@ class TestOneHotV2Op(OpMapperTest):
     def set_op_attrs(self):
         return {
             "depth": self.depth,
-            "dtype": self.dtype,
+            "dtype": convert_np_dtype_to_dtype_(self.dtype),
             "allow_out_of_range": self.allow_out_of_range
         }
 
@@ -100,7 +101,7 @@ class TestOneHotV2OpCase1(TestOneHotV2Op):
     def init_input_data(self):
         self.feed_data = {'x': self.random([32, 64], 'int32')}
         self.depth = 64
-        self.dtype = 2  # Int32
+        self.dtype = "int32"
         self.allow_out_of_range = False
 
 
@@ -108,7 +109,7 @@ class TestOneHotV2OpCase2(TestOneHotV2Op):
     def init_input_data(self):
         self.feed_data = {'x': self.random([32, 64, 1], 'int64')}
         self.depth = 1
-        self.dtype = 3  # Int64
+        self.dtype = "int64"
         self.allow_out_of_range = True
 
 

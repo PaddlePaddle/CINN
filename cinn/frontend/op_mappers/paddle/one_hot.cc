@@ -37,11 +37,10 @@ void OneHotOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
   auto dtype_cinn = utils::CppVarType2CommonType(dtype_pd);
   auto dtype      = common::Type2Str(dtype_cinn);
 
-  auto x       = ctx.GetVar(x_name);
-  auto x_shape = x->shape;
-  x            = ctx.Builder()->Slice(x, {static_cast<int>(x_shape.size()) - 1}, {0}, {1}, {}, {1}, {});
-  x            = ctx.Builder()->Squeeze(x, {-1});
-  auto out     = ctx.Builder()->OneHot(x, on_value, off_value, depth, axis, dtype);
+  auto x   = ctx.GetVar(x_name);
+  x        = ctx.Builder()->Slice(x, {static_cast<int>(x->shape.size()) - 1}, {0}, {1}, {}, {1}, {});
+  x        = ctx.Builder()->Squeeze(x, {-1});
+  auto out = ctx.Builder()->OneHot(x, on_value, off_value, depth, axis, dtype);
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);
 }
