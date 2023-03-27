@@ -59,8 +59,8 @@ class TestRandIntCase1(TestRandIntOp):
     def init_input_data(self):
         self.feed_data = dict()
         self.shape = [2, 3, 4]
-        self.mean = 1
-        self.std = 9
+        self.min = 1
+        self.max = 9
         self.seed = 10
         self.dtype = "int32"
 
@@ -69,8 +69,8 @@ class TestRandIntCase2(TestRandIntOp):
     def init_input_data(self):
         self.feed_data = dict()
         self.shape = [2, 3, 4]
-        self.mean = 1
-        self.std = 9
+        self.min = 1
+        self.max = 9
         self.seed = 10
         self.dtype = "int64"
 
