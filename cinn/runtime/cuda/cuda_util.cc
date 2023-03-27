@@ -1546,10 +1546,10 @@ void cinn_call_randint(void *v_args, int num_args, int min, int max, int seed, v
   VLOG(4) << "cinn_call_randint: output_size=" << numel << ", min=" << min << ", max=" << max << ", seed=" << seed;
 
   if (dtype == cinn_int32_t()) {
-    int32_t *ptr = reinterpret_cast<int32_t *>(output->memory);
+    uint32_t *ptr = reinterpret_cast<uint32_t *>(output->memory);
     CURAND_CALL(curandGenerate(generator, ptr, numel));
   } else if (dtype == cinn_int64_t()) {
-    int64_t *ptr = reinterpret_cast<int64_t *>(output->memory);
+    uint64_t *ptr = reinterpret_cast<uint64_t *>(output->memory);
     CURAND_CALL(curandGenerateLongLong(generator, ptr, numel));
   } else {
     LOG(FATAL) << "randint only support int32 and int64! Please check.";
