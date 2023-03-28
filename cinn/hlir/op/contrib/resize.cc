@@ -57,10 +57,12 @@ ir::Tensor Resize(const ir::Tensor &input,
                   const std::string &mode,
                   const std::string &output_name) {
   int ndim = static_cast<int>(input->shape.size());
-  CHECK(ndim == 4U) << "The dimension of x must be 4";
-  CHECK(out_shape.size() == 2U) << "The length of out_shape must be 2";
+  CHECK_EQ(ndim, 4U) << "The dimension of x must be 4.";
+  CHECK_EQ(out_shape.size(), 2U) << "The length of out_shape must be 2.";
+  CHECK(out_shape[0] > 0 && out_shape[1] > 0) << "The element of out_shape must be great that 0.";
   CHECK(mode == "nearest" || mode == "bilinear" || mode == "bicubic")
       << "Resize only supports `nearest`, `bilinear` and `bicubic` mode.";
+
   std::string func_name;
 
   if (target.arch == common::Target::Arch::NVGPU) {
@@ -120,15 +122,15 @@ std::vector<std::vector<int>> InferShapeForResize(const std::vector<std::vector<
                                                   const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape[0].size(), 4U) << "The input's shape size should be 4! Please check again.";
   framework::shape_t x_shape = inputs_shape[0];
-  std::vector<int> new_shape;
+  std::vector<int> new_shape, out_shape;
   new_shape.push_back(x_shape[0]);
   new_shape.push_back(x_shape[1]);
 
   if (attrs.find("out_shape") != attrs.end()) {
-    std::vector<int> out_shape = absl::get<std::vector<int>>(attrs.at("out_shape"));
+    out_shape = absl::get<std::vector<int>>(attrs.at("out_shape"));
   }
 
-  CHECK(out_shape.size() == 2U) << "The length of out_shape must be 2";
+  CHECK_EQ(out_shape.size(), 2U) << "The length of out_shape must be 2.";
   new_shape.push_back(out_shape[0]);
   new_shape.push_back(out_shape[1]);
 
