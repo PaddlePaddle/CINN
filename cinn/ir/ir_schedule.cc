@@ -2144,9 +2144,19 @@ std::vector<Expr> IRSchedule::SamplePerfectTile(const Expr& loop,
   return factors;
 }
 
-Expr IRSchedule::SampleCategorical(const std::vector<int>& candidates, const std::vector<float>& probs) {
-  auto result = impl_->SampleCategorical(&rand_seed_, candidates, probs);
-  trace_.Append(ScheduleDesc::Step("SampleCategorical", {}, {{"candidates", candidates}, {"probs", probs}}, {result}));
+Expr IRSchedule::SampleCategorical(const std::vector<int>& candidates,
+                                   const std::vector<float>& probs,
+                                   const std::vector<int>& decision) {
+  Expr result;
+  if (decision.empty()) {
+    result = impl_->SampleCategorical(&rand_seed_, candidates, probs);
+  } else {
+    int length = decision.size();
+    Expr new_decision(decision[length]);
+    result = new_decision;
+  }
+  trace_.Append(ScheduleDesc::Step(
+      "SampleCategorical", {}, {{"candidates", candidates}, {"probs", probs}, {"decision", decision}}, {result}));
   return result;
 }
 
