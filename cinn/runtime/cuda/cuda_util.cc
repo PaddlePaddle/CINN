@@ -1539,9 +1539,7 @@ void cinn_call_randint(void *v_args, int num_args, int min, int max, int seed, v
 
   curandGenerator_t generator = CurandGenerator::GetInstance().GetGenerator();
   CURAND_CALL(curandSetStream(generator, static_cast<cudaStream_t>(stream)));
-  if (seed != 0) {
-    CURAND_CALL(curandSetPseudoRandomGeneratorSeed(generator, static_cast<unsigned long long>(seed)));
-  }
+  CurandGenerator::GetInstance().SetSeed(static_cast<unsigned long long>(seed));
 
   VLOG(4) << "cinn_call_randint: output_size=" << numel << ", min=" << min << ", max=" << max << ", seed=" << seed;
 

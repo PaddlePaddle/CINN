@@ -25,7 +25,7 @@ class TestRandIntOp(OpMapperTest):
         self.feed_data = dict()
         self.shape = [2, 3]
         self.min = 1
-        self.max = 10
+        self.max = 5
         self.seed = 10
         self.dtype = "int32"
 
