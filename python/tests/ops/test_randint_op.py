@@ -79,8 +79,8 @@ class TestRandIntCase2(TestRandIntOp):
                                                     1]]]).astype(np.int64)
         }
         self.shape = [2, 3, 4]
-        self.min = 2.0
-        self.max = 3.0
+        self.min = 2
+        self.max = 3
         self.seed = 10
         self.dtype = "int64"
 
