@@ -88,6 +88,7 @@ ir::Tensor Resize(const ir::Tensor &input,
       [=](const std::vector<Expr> &indices) {
         Expr out_y = indices[2];
         Expr out_x = indices[3];
+        Expr value;
 
         if (mode == "nearest") {
           Expr in_y = ir::Cast::Make(common::F32(), in_h) / ir::Cast::Make(common::F32(), out_h) *
@@ -97,16 +98,18 @@ ir::Tensor Resize(const ir::Tensor &input,
           Expr in_y_int                = ir::Cast::Make(common::Int(32), lang::Floor(in_y));
           Expr in_x_int                = ir::Cast::Make(common::Int(32), lang::Floor(in_x));
           std::vector<Expr> in_indices = {indices[0], indices[1], in_y_int, in_x_int};
-          return input(in_indices);
+          value                        = input(in_indices);
 
         } else if (mode == "bilinear") {
-          return lang::CallExtern(
+          value = lang::CallExtern(
               func_name, {input, input->shape[1], in_h, in_w, out_h, out_w, indices[0], indices[1], out_y, out_x});
 
         } else if (mode == "bicubic") {
-          return lang::CallExtern(
+          value = lang::CallExtern(
               func_name, {input, input->shape[1], in_h, in_w, out_h, out_w, indices[0], indices[1], out_y, out_x});
         }
+
+        return value;
       },
       common::UniqName(output_name));
 
