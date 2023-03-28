@@ -743,6 +743,7 @@ TEST_F(TestScheduleDesc, StepKind_SampleCategorical) {
   Expr ret              = ir_sch.SampleCategorical({1, 2, 3}, {1.0, 2.0, 3.0});
   std::vector<int> decision;
   Expr new_decision(decision[decision.size()]);
+  ret = new_decision;
   trace.Append(ScheduleDesc::Step("SampleCategorical",
                                   {},
                                   {{"candidates", std::vector<int>({1, 2, 3})},
