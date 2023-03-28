@@ -37,8 +37,8 @@ class TestRandIntOp(OpMapperTest):
 
     def set_op_attrs(self):
         return {
-            "min": self.min,
-            "max": self.max,
+            "low": self.min,
+            "high": self.max,
             "seed": self.seed,
             "shape": self.shape,
             "dtype": self.nptype2paddledtype(self.dtype)
