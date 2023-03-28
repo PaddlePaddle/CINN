@@ -510,6 +510,8 @@ std::string debug_cudnn_pool_mode(cudnnPoolingMode_t pool_mode) {
   switch (pool_mode) {
     case CUDNN_POOLING_MAX:
       return "max";
+    case CUDNN_POOLING_MAX_DETERMINISTIC:
+      return "max_deterministic";
     case CUDNN_POOLING_AVERAGE_COUNT_INCLUDE_PADDING:
       return "avg";
     default:
@@ -865,6 +867,10 @@ void cinn_call_cudnn_pool2d_forward(void *v_args,
   cudnnTensorFormat_t tensor_format = static_cast<cudnnTensorFormat_t>(format);
   cudnnDataType_t data_type         = convert_to_cudnn_dtype(v_args, num_args);
 
+  if (GetCinnCudnnDeterministic() && pool_mode == CUDNN_POOLING_MAX) {
+    pool_mode = CUDNN_POOLING_MAX_DETERMINISTIC;
+  }
+
   std::string hash_key =
       "pool2d forward, layout=" + debug_cudnn_tensor_format(tensor_format) +
       ", pool_type=" + debug_cudnn_pool_mode(pool_mode) + ", dtype=" + debug_cudnn_tensor_dtype(data_type) +
@@ -930,6 +936,10 @@ void cinn_call_cudnn_pool2d_backward(void *v_args,
   cudnnPoolingMode_t pool_mode      = static_cast<cudnnPoolingMode_t>(mode);
   cudnnTensorFormat_t tensor_format = static_cast<cudnnTensorFormat_t>(format);
   cudnnDataType_t data_type         = convert_to_cudnn_dtype(v_args, num_args);
+
+  if (GetCinnCudnnDeterministic() && pool_mode == CUDNN_POOLING_MAX) {
+    pool_mode = CUDNN_POOLING_MAX_DETERMINISTIC;
+  }
 
   std::string hash_key =
       "pool2d backward, layout=" + debug_cudnn_tensor_format(tensor_format) +
@@ -1481,8 +1491,6 @@ void cinn_gpu_cublas_gemm(const std::vector<int> &attrs,
 
 class CurandGenerator {
  public:
-  CurandGenerator(const CurandGenerator &) = delete;
-  CurandGenerator &operator=(const CurandGenerator &) = delete;
   ~CurandGenerator() { CURAND_CALL(curandDestroyGenerator(generator_)); }
   static CurandGenerator &GetInstance() {
     static CurandGenerator instance;
@@ -1490,8 +1498,22 @@ class CurandGenerator {
   }
   curandGenerator_t &GetGenerator() { return generator_; }
 
+  void SetSeed(unsigned long long seed = 0ULL) {
+    // set global seed if seed is zero
+    auto rand_seed = (seed == 0ULL) ? RandomSeed::GetOrSet() : seed;
+    if (rand_seed != 0ULL) {
+      CURAND_CALL(curandSetPseudoRandomGeneratorSeed(generator_, rand_seed));
+    }
+  }
+
  private:
-  CurandGenerator() { CURAND_CALL(curandCreateGenerator(&generator_, CURAND_RNG_PSEUDO_PHILOX4_32_10)); }
+  CurandGenerator(const CurandGenerator &) = delete;
+  CurandGenerator &operator=(const CurandGenerator &) = delete;
+
+  CurandGenerator() {
+    CURAND_CALL(curandCreateGenerator(&generator_, CURAND_RNG_PSEUDO_PHILOX4_32_10));
+    SetSeed();
+  }
   curandGenerator_t generator_;
 };
 
@@ -1503,9 +1525,8 @@ void cinn_call_gaussian_random(void *v_args, int num_args, float mean, float std
 
   curandGenerator_t generator = CurandGenerator::GetInstance().GetGenerator();
   CURAND_CALL(curandSetStream(generator, static_cast<cudaStream_t>(stream)));
-  if (seed != 0) {
-    CURAND_CALL(curandSetPseudoRandomGeneratorSeed(generator, static_cast<unsigned long long>(seed)));
-  }
+  // avoid seed conflict, if the seed not set, here we should use global seed
+  CurandGenerator::GetInstance().SetSeed(seed);
 
   VLOG(4) << "cinn_call_gaussian_random: output_size=" << numel << ", mean=" << mean << ", std=" << std
           << ", seed=" << seed;
@@ -1529,9 +1550,8 @@ void cinn_call_uniform_random(void *v_args, int num_args, float min, float max, 
 
   curandGenerator_t generator = CurandGenerator::GetInstance().GetGenerator();
   CURAND_CALL(curandSetStream(generator, static_cast<cudaStream_t>(stream)));
-  if (seed != 0) {
-    CURAND_CALL(curandSetPseudoRandomGeneratorSeed(generator, static_cast<unsigned long long>(seed)));
-  }
+  // avoid seed conflict, if the seed not set, here we should use global seed
+  CurandGenerator::GetInstance().SetSeed(seed);
 
   VLOG(4) << "cinn_call_uniform_random: output_size=" << numel << ", min=" << min << ", max=" << max
           << ", seed=" << seed;
