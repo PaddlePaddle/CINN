@@ -1161,10 +1161,8 @@ std::shared_ptr<OpStrategy> StrategyForScatterAssign(const framework::NodeAttr &
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(scatter_assign_compute,
-                    GetElementwiseScheduleFunc(output_shapes, target, false),
-                    "strategy.scatter_assign.x86",
-                    1);
+  strategy->AddImpl(
+      scatter_assign_compute, GetInjectiveScheduleFunc(output_shapes, target, false), "strategy.scatter_assign.x86", 1);
   return strategy;
 }
 
@@ -1269,7 +1267,7 @@ std::shared_ptr<OpStrategy> StrategyForScatterAdd(const framework::NodeAttr &att
 
   auto strategy = std::make_shared<framework::OpStrategy>();
   strategy->AddImpl(
-      scatter_add_compute, GetElementwiseScheduleFunc(output_shapes, target, false), "strategy.scatter_add.x86", 1);
+      scatter_add_compute, GetInjectiveScheduleFunc(output_shapes, target, false), "strategy.scatter_add.x86", 1);
   return strategy;
 }
 
@@ -1787,7 +1785,7 @@ CINN_REGISTER_HELPER(transform_ops) {
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForScatterAssign))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForScatterAssign))
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForScatterAssign))
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElementWise)
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kInjective)
       .set_support_level(4);
 
   CINN_REGISTER_OP(scatter_add)
@@ -1798,7 +1796,7 @@ CINN_REGISTER_HELPER(transform_ops) {
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForScatterAdd))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForScatterAdd))
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForScatterAdd))
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElementWise)
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kInjective)
       .set_support_level(4);
 
   return true;

@@ -45,7 +45,7 @@ CINNSchedule GetElementwiseScheduleFunc(const std::vector<std::vector<int>>& out
       std::vector<common::CINNValue> res{common::CINNValue(ir_sch.GetModule().GetExprs().at(0))};
       *ret = common::CINNValuePack{res};
     } else {
-      CHECK(!args.empty()) << "The input argument of InjectiveSchedule is empty! Please check.\n";
+      CHECK(!args.empty()) << "The input argument of ElementwiseSchedule is empty! Please check.\n";
       common::CINNValuePack arg_pack = args[0];
       Expr out                       = arg_pack[0];
       poly::StageMap stages          = arg_pack[1];
