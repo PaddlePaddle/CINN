@@ -59,7 +59,6 @@ class TestResizeOp(OpTest):
         res = self.get_cinn_output(
             prog, target, [x], [self.inputs["x"]], [out], passes=[])
         self.cinn_outputs = [res[0]]
-        print(res[0])
 
     def test_check_results(self):
         self.check_outputs_and_grads()
