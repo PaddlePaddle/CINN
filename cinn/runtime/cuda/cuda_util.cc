@@ -21,6 +21,7 @@
 #include <cusolverDn.h>
 #include <glog/logging.h>
 #include <thrust/device_vector.h>
+#include <thrust/host_vector.h>
 
 #include <algorithm>
 #include <string>
@@ -1205,13 +1206,13 @@ void cinn_call_cholesky_nvgpu(void *v_args, int num_args, int batch_size, int m,
   void *out_ptr = reinterpret_cast<void *>(out->memory);
   CUDA_CALL(cudaMemcpyAsync(out_ptr, x_ptr, numel * bytes, cudaMemcpyDeviceToDevice, cuda_stream));
   // Generate pointer array
-  std::vector<void *> host_out_ptr(batch_size, nullptr);
+  thrust::host_vector<void *> host_out_ptr(batch_size, nullptr);
   for (int i = 0; i < batch_size; ++i) {
     host_out_ptr[i] = reinterpret_cast<char *>(out_ptr) + i * m * m * bytes;
   }
   thrust::device_vector<void *> dev_out_ptr(host_out_ptr.begin(), host_out_ptr.end());
   // Store the return value of each matrix
-  std::vector<int> host_info(batch_size, 0);
+  thrust::host_vector<int> host_info(batch_size, 0);
   thrust::device_vector<int> dev_info(host_info.begin(), host_info.end());
 
   cusolverDnHandle_t handler = CusolverHandle::GetInstance().GetHandle();
@@ -1234,49 +1235,10 @@ void cinn_call_cholesky_nvgpu(void *v_args, int num_args, int batch_size, int m,
                                           batch_size));
   }
 
-  // Set upper/lower triangle of matrices to 0.
-  if (bits == 32) {
-    std::vector<float> matrix(batch_size * m * m, 0);
-    CUDA_CALL(cudaMemcpyAsync(matrix.data(), out_ptr, batch_size * m * m * bytes, cudaMemcpyDeviceToHost, cuda_stream));
-    CUDA_CALL(cudaStreamSynchronize(cuda_stream));
-    for (int i = 0; i < batch_size; ++i) {
-      int stride = i * m * m;
-      if (upper) {
-        for (int j = 0; j < m; j++) {
-          for (int k = 0; k < j; k++) {
-            matrix[stride + j * m + k] = 0.0f;
-          }
-        }
-      } else {
-        for (int j = 0; j < m; j++) {
-          for (int k = j + 1; k < m; k++) {
-            matrix[stride + j * m + k] = 0.0f;
-          }
-        }
-      }
-    }
-    CUDA_CALL(cudaMemcpyAsync(out_ptr, matrix.data(), batch_size * m * m * bytes, cudaMemcpyHostToDevice, cuda_stream));
-  } else if (bits == 64) {
-    std::vector<double> matrix(batch_size * m * m, 0);
-    CUDA_CALL(cudaMemcpyAsync(matrix.data(), out_ptr, batch_size * m * m * bytes, cudaMemcpyDeviceToHost, cuda_stream));
-    CUDA_CALL(cudaStreamSynchronize(cuda_stream));
-    for (int i = 0; i < batch_size; ++i) {
-      int stride = i * m * m;
-      if (upper) {
-        for (int j = 0; j < m; j++) {
-          for (int k = 0; k < j; k++) {
-            matrix[stride + j * m + k] = 0.0f;
-          }
-        }
-      } else {
-        for (int j = 0; j < m; j++) {
-          for (int k = j + 1; k < m; k++) {
-            matrix[stride + j * m + k] = 0.0f;
-          }
-        }
-      }
-    }
-    CUDA_CALL(cudaMemcpyAsync(out_ptr, matrix.data(), batch_size * m * m * bytes, cudaMemcpyHostToDevice, cuda_stream));
+  // Check result
+  thrust::copy(dev_info.begin(), dev_info.end(), host_info.begin());
+  for (int i = 0; i < host_info.size(); i++) {
+    CHECK_EQ(host_info[i], 0) << "Cholesky decomposition fail, please check the " << i + 1 << "th input matrix.";
   }
 }
 

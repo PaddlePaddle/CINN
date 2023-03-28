@@ -243,8 +243,7 @@ TEST(CustomCallUniformRandom, test_target_nvgpu) {
 }
 
 TEST(CustomCallCholesky, test) {
-  Target target      = common::DefaultTarget();
-  Target host_target = common::DefaultHostTarget();
+  Target target = common::DefaultTarget();
 
   // Batch size
   int batch_size = 1;
@@ -265,9 +264,7 @@ TEST(CustomCallCholesky, test) {
   auto* output = out.mutable_data<float>(target);
 
   // Result matrix res
-  // The results of cpu and gpu are slightly different, 0.76365214 vs 0.76365221
-  float result_host[9] = {0.98147416, 0, 0, 0.89824611, 0.76365214, 0, 0.41360193, 0.15284170, 0.055967092};
-  float result_cuda[9] = {0.98147416, 0, 0, 0.89824611, 0.76365221, 0, 0.41360193, 0.15284170, 0.055967092};
+  float result[9] = {0.98147416, 0, 0, 0.89824611, 0.76365221, 0, 0.41360193, 0.15284170, 0.055967092};
 
   int num_args               = 2;
   cinn_pod_value_t v_args[2] = {cinn_pod_value_t(x.get()), cinn_pod_value_t(out.get())};
@@ -276,7 +273,7 @@ TEST(CustomCallCholesky, test) {
 #ifdef CINN_WITH_MKL_CBLAS
     cinn_call_cholesky_host(v_args, num_args, batch_size, m, upper);
     for (int i = 0; i < batch_size * m * m; i++) {
-      ASSERT_EQ(output[i], result_host[i]) << "The output of Cholesky should be the same as result";
+      ASSERT_NEAR(output[i], result[i], 1e-5) << "The output of Cholesky should be the same as result";
     }
 #else
     LOG(INFO) << "Host Target only support on flag CINN_WITH_MKL_CBLAS ON! Please check.";
@@ -287,7 +284,7 @@ TEST(CustomCallCholesky, test) {
     std::vector<float> host_output(batch_size * m * m, 0.0f);
     cudaMemcpy(host_output.data(), output, batch_size * m * m * sizeof(float), cudaMemcpyDeviceToHost);
     for (int i = 0; i < batch_size * m * m; i++) {
-      ASSERT_NEAR(host_output[i], result_cuda[i], 1e-5) << "The output of Cholesky should be the same as result";
+      ASSERT_NEAR(host_output[i], result[i], 1e-5) << "The output of Cholesky should be the same as result";
     }
 #else
     LOG(INFO) << "NVGPU Target only support on flag CINN_WITH_CUDA ON! Please check.";
@@ -297,8 +294,7 @@ TEST(CustomCallCholesky, test) {
 
 #ifdef CINN_WITH_CUDA
 TEST(CustomCallTriangularSolve, test) {
-  Target target      = common::DefaultNVGPUTarget();
-  Target host_target = common::DefaultHostTarget();
+  Target target = common::DefaultNVGPUTarget();
 
   int batch_size     = 1;
   int m              = 3;

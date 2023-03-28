@@ -70,28 +70,19 @@ class TestCholeskyCase2(TestCholeskyOp):
         matrix = np.random.random([3, 3]).astype("float32")
         matrix_t = np.transpose(matrix, [1, 0])
         x = np.dot(matrix, matrix_t)
-        x = np.broadcast_to(x, [3, 3, 3])
+        x = x * np.ones(shape=(3, 3, 3))
         self.inputs = {"x": x}
         self.upper = False
 
 
 class TestCholeskyCase3(TestCholeskyOp):
     def init_case(self):
-        self.inputs = {
-            "x":
-            np.array([
-                [[0.96329159, 0.88160539, 0.40593964],
-                 [0.88160539, 1.39001071, 0.48823422],
-                 [0.40593964, 0.48823422, 0.19755946]],
-                [[0.96329159, 0.88160539, 0.40593964],
-                 [0.88160539, 1.39001071, 0.48823422],
-                 [0.40593964, 0.48823422, 0.19755946]],
-                [[0.96329159, 0.88160539, 0.40593964],
-                 [0.88160539, 1.39001071, 0.48823422],
-                 [0.40593964, 0.48823422, 0.19755946]],
-            ]).astype(np.float32)
-        }
-        self.upper = False
+        matrix = np.random.random([3, 3]).astype("float32")
+        matrix_t = np.transpose(matrix, [1, 0])
+        x = np.dot(matrix, matrix_t)
+        x = x * np.ones(shape=(2, 3, 3, 3))
+        self.inputs = {"x": x}
+        self.upper = True
 
 
 if __name__ == "__main__":
