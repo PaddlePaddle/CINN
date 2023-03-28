@@ -1160,9 +1160,46 @@ std::shared_ptr<OpStrategy> StrategyForScatterAssign(const framework::NodeAttr &
     *ret = CINNValuePack{res};
   });
 
+  framework::CINNSchedule scatter_assign_schedule([=](lang::Args args, lang::RetValue *ret) {
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK(!args.empty()) << "The input argument of ScatterAssign schedule is empty! Please check.";
+      CINNValuePack arg_pack = args[0];
+      std::vector<Expr> vec_ast;
+      for (int i = 0; i < arg_pack.size(); i++) {
+        if (arg_pack[i].is_expr()) {
+          Expr temp = arg_pack[i];
+          vec_ast.emplace_back(temp);
+        }
+      }
+      CHECK(!vec_ast.empty());
+      ir::ModuleExpr mod_expr(vec_ast);
+      ir::IRSchedule ir_sch(mod_expr);
+      ir_sch.MergeExprs();
+      if (target.arch == Target::Arch::NVGPU) {
+        pe::IRCudaScheduleInjective(ir_sch, output_shapes.front(), target);
+      } else if (target.arch == Target::Arch::X86) {
+        pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target, false);
+      }
+      std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
+      *ret = CINNValuePack{res};
+    } else {
+      CHECK(!args.empty()) << "The input argument of ScatterAssign schedule is empty! Please check.\n";
+      CINNValuePack arg_pack = args[0];
+      int arg_size           = arg_pack.size();
+      poly::StageMap stages  = arg_pack.back();
+      Expr out               = arg_pack[0];
+      CHECK(out.as_tensor());
+      if (target.arch == Target::Arch::NVGPU) {
+        pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes.back(), target);
+      } else if (target.arch == Target::Arch::X86) {
+        pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes.back(), target, false);
+      }
+      *ret = arg_pack;
+    }
+  });
+
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(
-      scatter_assign_compute, GetInjectiveScheduleFunc(output_shapes, target, false), "strategy.scatter_assign.x86", 1);
+  strategy->AddImpl(scatter_assign_compute, scatter_assign_schedule, "strategy.scatter_assign.x86", 1);
   return strategy;
 }
 
