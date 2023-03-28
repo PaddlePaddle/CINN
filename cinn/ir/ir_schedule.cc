@@ -2148,15 +2148,16 @@ Expr IRSchedule::SampleCategorical(const std::vector<int>& candidates,
                                    const std::vector<float>& probs,
                                    const std::vector<int>& decision) {
   Expr result;
+  std::vector<int> new_decision;
   if (decision.empty()) {
-    result = impl_->SampleCategorical(&rand_seed_, candidates, probs);
+    new_decision=decision;
+    result = Expr(decision[decision.size()]);
   } else {
-    int length = decision.size();
-    Expr new_decision(decision[length]);
-    result = new_decision;
+    result = impl_->SampleCategorical(&rand_seed_, candidates, probs);
+    new_decision.push_back(result.as_int32());
   }
   trace_.Append(ScheduleDesc::Step(
-      "SampleCategorical", {}, {{"candidates", candidates}, {"probs", probs}, {"decision", decision}}, {result}));
+      "SampleCategorical", {}, {{"candidates", candidates}, {"probs", probs}, {"decision", new_decision}}, {result}));
   return result;
 }
 
