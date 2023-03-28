@@ -30,7 +30,7 @@ class TestCholeskyOp(OpTest):
         self.init_case()
 
     def init_case(self):
-        matrix = np.random.random([3, 3]).astype("float32")
+        matrix = self.random([3, 3], "float32")
         matrix_t = np.transpose(matrix, [1, 0])
         x = np.dot(matrix, matrix_t)
         self.inputs = {"x": x}
@@ -58,7 +58,7 @@ class TestCholeskyOp(OpTest):
 
 class TestCholeskyCase1(TestCholeskyOp):
     def init_case(self):
-        matrix = np.random.random([5, 5]).astype("float64")
+        matrix = self.random([5, 5], "float64")
         matrix_t = np.transpose(matrix, [1, 0])
         x = np.dot(matrix, matrix_t)
         self.inputs = {"x": x}
@@ -67,7 +67,7 @@ class TestCholeskyCase1(TestCholeskyOp):
 
 class TestCholeskyCase2(TestCholeskyOp):
     def init_case(self):
-        matrix = np.random.random([3, 3]).astype("float32")
+        matrix = self.random([3, 3], "float32")
         matrix_t = np.transpose(matrix, [1, 0])
         x = np.dot(matrix, matrix_t)
         x = x * np.ones(shape=(3, 3, 3))
@@ -77,7 +77,7 @@ class TestCholeskyCase2(TestCholeskyOp):
 
 class TestCholeskyCase3(TestCholeskyOp):
     def init_case(self):
-        matrix = np.random.random([3, 3]).astype("float32")
+        matrix = self.random([3, 3], "float64")
         matrix_t = np.transpose(matrix, [1, 0])
         x = np.dot(matrix, matrix_t)
         x = x * np.ones(shape=(2, 3, 3, 3))
