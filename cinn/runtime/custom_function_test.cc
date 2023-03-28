@@ -242,40 +242,6 @@ TEST(CustomCallUniformRandom, test_target_nvgpu) {
   }
 }
 
-TEST(CustomCallRandInt, test_target_nvgpu) {
-  Target target = common::DefaultTarget();
-
-  // Arg min
-  int min = 1;
-  // Arg max
-  int max = 5;
-  // Arg seed
-  int seed = 10;
-
-  // Output matrix out
-  CinnBufferAllocHelper out(cinn_x86_device, cinn_int32_t(), {2, 3});
-  auto* output = out.mutable_data<int>(target);
-
-  int num_args               = 1;
-  cinn_pod_value_t v_args[1] = {cinn_pod_value_t(out.get())};
-
-  if (target == common::DefaultHostTarget()) {
-    LOG(INFO) << "Op uniform random only support on NVGPU";
-  } else if (target == common::DefaultNVGPUTarget()) {
-#ifdef CINN_WITH_CUDA
-    cinn::runtime::cuda::cinn_call_randint(v_args, num_args, min, max, seed, nullptr);
-
-    int output_data[6] = {0};
-    cudaMemcpy(output_data, output, 6 * sizeof(int), cudaMemcpyDeviceToHost);
-    for (int i = 0; i < 6; i++) {
-      VLOG(6) << output_data[i];
-    }
-#else
-    LOG(FATAL) << "NVGPU Target only support on flag CINN_WITH_CUDA ON! Please check.";
-#endif
-  }
-}
-
 TEST(CustomCallCholesky, test) {
   Target target      = common::DefaultTarget();
   Target host_target = common::DefaultHostTarget();

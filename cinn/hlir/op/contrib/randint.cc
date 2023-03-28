@@ -57,7 +57,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForRandInt(const framework::NodeA
                                                           const std::vector<Type> &out_type,
                                                           const std::vector<std::vector<int>> &output_shapes,
                                                           const Target &target) {
-  framework::CINNCompute uniform_random_compute([=](lang::Args args, lang::RetValue *ret) {
+  framework::CINNCompute randint_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(attrs.attr_store.count("shape"));
     ir::Tensor shape_tensor;
     std::string tensor_name = "randint_out";
@@ -67,7 +67,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForRandInt(const framework::NodeA
     *ret = CINNValuePack{res};
   });
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(uniform_random_compute, GetInjectiveScheduleFunc(output_shapes, target), "strategy.randint.x86", 1);
+  strategy->AddImpl(randint_compute, GetInjectiveScheduleFunc(output_shapes, target), "strategy.randint.x86", 1);
   return strategy;
 }
 

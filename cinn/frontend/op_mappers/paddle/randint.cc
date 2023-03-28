@@ -1,4 +1,4 @@
-// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+// Copyright (c) 2023 CINN Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,8 +27,8 @@ void RandIntOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& 
   auto shape_origin = utils::GetAttrOrDefault<std::vector<int64_t>>(op_desc, "shape");
   auto shape        = utils::ToShapeType(shape_origin);
 
-  auto min  = utils::GetAttrOrDefault<float>(op_desc, "low", 0);
-  auto max  = utils::GetAttrOrDefault<float>(op_desc, "high", 0);
+  auto min  = utils::GetAttrOrDefault<int>(op_desc, "low", 0);
+  auto max  = utils::GetAttrOrDefault<int>(op_desc, "high", 0);
   auto seed = utils::GetAttrOrDefault<int>(op_desc, "seed", 0);
 
   auto dtype_id = utils::GetAttrOrDefault<int>(op_desc, "dtype", static_cast<int>(paddle::cpp::VarDescAPI::Type::FP32));
