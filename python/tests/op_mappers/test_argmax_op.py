@@ -14,15 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
-import unittest
-import numpy as np
-from op_mapper_test import OpMapperTest
 import paddle
+import unittest
+from op_mapper_test import OpMapperTest
 from cinn.frontend import *
 from cinn.common import *
-
-paddle.enable_static()
 
 
 class TestArgmaxOp(OpMapperTest):
@@ -88,6 +84,23 @@ class TestArgmaxCase2(TestArgmaxOp):
         self.axis = -1
         self.shape = [2, 3, 4]
         self.input_dtype = "float32"
+        self.output_dtype = "int32"
+        self.flatten = False
+        self.keepdims = True
+        self.feed_data = {
+            'x': self.random(self.shape, self.input_dtype),
+        }
+
+
+class TestArgmaxCase3(TestArgmaxOp):
+    """
+    Test case with input_dtype float64
+    """
+
+    def init_input_data(self):
+        self.axis = -1
+        self.shape = [2, 3, 4]
+        self.input_dtype = "float64"
         self.output_dtype = "int32"
         self.flatten = False
         self.keepdims = True
