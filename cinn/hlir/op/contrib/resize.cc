@@ -57,9 +57,10 @@ ir::Tensor Resize(const ir::Tensor &input,
                   const std::string &mode,
                   const std::string &output_name) {
   int ndim = static_cast<int>(input->shape.size());
-  CHECK(ndim == 4U) << "The shape of x must be 4";
+  CHECK(ndim == 4U) << "The dimension of x must be 4";
   CHECK(out_shape.size() == 2U) << "The length of out_shape must be 2";
-
+  CHECK(mode == "nearest" || mode == "bilinear" || mode == "bicubic")
+      << "Resize only supports `nearest`, `bilinear` and `bicubic` mode.";
   std::string func_name;
 
   if (target.arch == common::Target::Arch::NVGPU) {
@@ -122,14 +123,17 @@ std::vector<std::vector<int>> InferShapeForResize(const std::vector<std::vector<
 
   if (attrs.find("out_shape") != attrs.end()) {
     std::vector<int> out_shape = absl::get<std::vector<int>>(attrs.at("out_shape"));
-    new_shape.push_back(out_shape[0]);
-    new_shape.push_back(out_shape[1]);
   }
+
+  CHECK(out_shape.size() == 2U) << "The length of out_shape must be 2";
+  new_shape.push_back(out_shape[0]);
+  new_shape.push_back(out_shape[1]);
 
   return {new_shape};
 }
 
 std::vector<Type> InferDtypeForResize(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
+  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0]};
   return res;
 }
