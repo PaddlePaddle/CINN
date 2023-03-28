@@ -748,8 +748,8 @@ TEST_F(TestScheduleDesc, StepKind_SampleCategorical) {
                                    {"probs", std::vector<float>({1.0, 2.0, 3.0})},
                                    {"decision", decision}},
                                   {ret}));
-  CheckTracingOutputs(ret, trace);
-  CheckTracingOutputs(ret, ir_sch.GetTraceDesc());
+  CheckTracingOutputs({ret}, trace);
+  CheckTracingOutputs({ret}, ir_sch.GetTraceDesc());
   CheckReplayResult(ir_sch, trace);
   CheckReplayResult(ir_sch, ir_sch.GetTraceDesc());
 }
