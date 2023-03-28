@@ -66,11 +66,10 @@ void BatchNormOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
           << ", data_layout=" << data_layout << ", is_test=" << is_test << ", trainable_stats=" << trainable_stats
           << ")";
 
-  auto outs = ctx.Builder()->BatchNorm(x, scale, bias, mean, variance, epsilon, momentum, data_layout, test_mode);
+  auto outs = ctx.Builder()->BatchNorm(x, scale, bias, mean, variance, epsilon, momentum, data_layout, false);
 
   if (test_mode) {
     VLOG(4) << "Invoke batch_norm OpMapper with test mode";
-    CHECK_EQ(outs.size(), 1U) << "batch_norm in test mode should only has one output! Please check.";
 
     add_output("Y", outs[0]);
     // batch_norm eval mode should not modify mean and variance's value
