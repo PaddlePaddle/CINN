@@ -1488,7 +1488,7 @@ void cinn_call_gaussian_random(void *v_args, int num_args, float mean, float std
   size_t numel           = output->num_elements();
 
   curandGenerator_t generator;
-  cst = curandCreateGenerator(&generator, CURAND_RNG_PSEUDO_XORWOW);
+  auto cst = curandCreateGenerator(&generator, CURAND_RNG_PSEUDO_XORWOW);
   assert(CURAND_STATUS_SUCCESS == cst);
   CURAND_CALL(curandSetStream(generator, static_cast<cudaStream_t>(stream)));
   // avoid seed conflict, if the seed not set, here we should use global seed
