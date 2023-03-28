@@ -742,12 +742,12 @@ TEST_F(TestScheduleDesc, StepKind_SampleCategorical) {
   ir::IRSchedule ir_sch = MakeIRSchedule(lowered_funcs);
   Expr ret              = ir_sch.SampleCategorical({1, 2, 3}, {1.0, 2.0, 3.0});
   std::vector<int> decision;
-  std::transform(ret.begin(), ret.end(), std::back_inserter(decision), [](Expr x) { return x.as_int32(); });
+  Expr new_decision(decision[decision.length()]);
   trace.Append(ScheduleDesc::Step("SampleCategorical",
                                   {},
                                   {{"candidates", std::vector<int>({1, 2, 3})},
                                    {"probs", std::vector<float>({1.0, 2.0, 3.0})},
-                                   {"decision", decision}},
+                                   {"decision", new_decision}},
                                   {ret}));
   CheckTracingOutputs(result, trace);
   CheckTracingOutputs(result, ir_sch.GetTraceDesc());
