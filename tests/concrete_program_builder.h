@@ -19,9 +19,12 @@
 namespace cinn {
 namespace tests {
 
-class BiasBnReLUSubGraphBuilder : public ProgramBuilder {
+/*
+ * Add --* Multiply --* Add --* Relu
+ */
+class BiasBnReLUBuilder : public ProgramBuilder {
  public:
-  BiasBnReLUSubGraphBuilder() : ProgramBuilder("bias_bn_relu_builder") {}
+  BiasBnReLUBuilder() : ProgramBuilder("bias_bn_relu_builder") {}
   frontend::Program Build(const std::vector<VariableInfo>& inputs_varinfo, const utils::AttributeMap& attrs = {}) {
     CHECK(inputs_varinfo.size() == 4);
     auto conv_output = builder_.CreateInput(inputs_varinfo[0].type, inputs_varinfo[0].shape, inputs_varinfo[0].id);
@@ -37,6 +40,11 @@ class BiasBnReLUSubGraphBuilder : public ProgramBuilder {
   }
 };
 
+/*
+ * Exp --* Add
+ *    \
+ *     --* Multiply
+ */
 class ExpTwoConsumersOpBuilder : public ProgramBuilder {
  public:
   ExpTwoConsumersOpBuilder() : ProgramBuilder("exp_two_consumers_builder") {}
@@ -50,9 +58,15 @@ class ExpTwoConsumersOpBuilder : public ProgramBuilder {
   }
 };
 
-class GatherAddSubSubGraphBuilder : public ProgramBuilder {
+/*
+ * Gather --* Add --* Subtract
+ *                    *
+ *                   /
+ *            Gather
+ */
+class GatherAddSubBuilder : public ProgramBuilder {
  public:
-  GatherAddSubSubGraphBuilder() : ProgramBuilder("gather_add_sub_builder") {}
+  GatherAddSubBuilder() : ProgramBuilder("gather_add_sub_builder") {}
   frontend::Program Build(const std::vector<VariableInfo>& inputs_varinfo, const utils::AttributeMap& attrs = {}) {
     CHECK(inputs_varinfo.size() == 2);
     auto x             = builder_.CreateInput(inputs_varinfo[0].type, inputs_varinfo[0].shape, inputs_varinfo[0].id);
@@ -67,9 +81,12 @@ class GatherAddSubSubGraphBuilder : public ProgramBuilder {
   }
 };
 
-class FillConstantAddSubGraphBuilder : public ProgramBuilder {
+/*
+ * FillConstant --* Add
+ */
+class FillConstantAddBuilder : public ProgramBuilder {
  public:
-  FillConstantAddSubGraphBuilder() : ProgramBuilder("fill_constant_add_builder") {}
+  FillConstantAddBuilder() : ProgramBuilder("fill_constant_add_builder") {}
   frontend::Program Build(const std::vector<VariableInfo>& inputs_varinfo, const utils::AttributeMap& attrs = {}) {
     CHECK(inputs_varinfo.size() == 1);
     auto x             = builder_.CreateInput(inputs_varinfo[0].type, inputs_varinfo[0].shape, inputs_varinfo[0].id);
