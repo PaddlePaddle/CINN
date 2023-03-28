@@ -150,6 +150,8 @@ class NetBuilder {
                                            const std::vector<Variable>& inputs,
                                            const AttributeMap& attrs);
 
+  Variable Load( const Variable& input, const Variable& slice );
+  Variable Store( const Variable& output, const Variable& slice, const Variable& update_value);
  protected:
   /**
    * @brief Helper function of UnaryOp.

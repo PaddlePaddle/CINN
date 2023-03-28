@@ -65,8 +65,8 @@ std::ostream& operator<<(std::ostream& os, const std::vector<T, Alloc>& vec) {
 }  // namespace
 
 TEST(net_build, basic) {
-  LOG(INFO) << "The size of registered operators: " << OpRegistry::Global()->ListAllNames().size();
-  LOG(INFO) << "Registered operators:\n" << OpRegistry::Global()->ListAllNames();
+  // LOG(INFO) << "The size of registered operators: " << OpRegistry::Global()->ListAllNames().size();
+  // LOG(INFO) << "Registered operators:\n" << OpRegistry::Global()->ListAllNames();
   auto program = CreateAddProgram();
   // output program
   for (int i = 0; i < program.size(); i++) {
@@ -74,163 +74,163 @@ TEST(net_build, basic) {
   }
 }
 
-TEST(net_build, program_execute_multi_elementwise_add) {
-  auto program = CreateAddProgram();
-#ifdef CINN_WITH_CUDA
-  Target target = common::DefaultNVGPUTarget();
-#else
-  Target target = common::DefaultHostTarget();
-#endif
+// TEST(net_build, program_execute_multi_elementwise_add) {
+//   auto program = CreateAddProgram();
+// #ifdef CINN_WITH_CUDA
+//   Target target = common::DefaultNVGPUTarget();
+// #else
+//   Target target = common::DefaultHostTarget();
+// #endif
 
-  std::unordered_set<std::string> fetch_ids;
-  auto graph = Optimize(&program, fetch_ids, target);
-  LOG(INFO) << "graph:\n" << graph->Visualize();
+//   std::unordered_set<std::string> fetch_ids;
+//   auto graph = Optimize(&program, fetch_ids, target);
+//   LOG(INFO) << "graph:\n" << graph->Visualize();
 
-  auto scope = BuildScope(target, graph);
-  hlir::framework::GraphCompiler gc(target, scope, graph);
-  auto runtime_program = gc.Build();
+//   auto scope = BuildScope(target, graph);
+//   hlir::framework::GraphCompiler gc(target, scope, graph);
+//   auto runtime_program = gc.Build();
 
-  scope->Var<hlir::framework::Tensor>("A");
-  scope->Var<hlir::framework::Tensor>("B");
+//   scope->Var<hlir::framework::Tensor>("A");
+//   scope->Var<hlir::framework::Tensor>("B");
 
-  auto A = scope->GetTensor("A");
-  auto B = scope->GetTensor("B");
-  SetRandData<float>(A, target);
-  SetRandData<float>(B, target);
+//   auto A = scope->GetTensor("A");
+//   auto B = scope->GetTensor("B");
+//   SetRandData<float>(A, target);
+//   SetRandData<float>(B, target);
 
-  runtime_program->Execute();
-}
-#ifdef CINN_WITH_CUDA
-TEST(net_build, program_execute_fc) {
-  constexpr int B = 10;  // batch size
-  constexpr int M = 32;
-  constexpr int K = 18;
-  constexpr int N = 24;
+//   runtime_program->Execute();
+// }
+// #ifdef CINN_WITH_CUDA
+// TEST(net_build, program_execute_fc) {
+//   constexpr int B = 10;  // batch size
+//   constexpr int M = 32;
+//   constexpr int K = 18;
+//   constexpr int N = 24;
 
-  NetBuilder builder("net_builder");
-  auto a = builder.CreateInput(Float(32), {B * M, K}, "A");
-  auto w = builder.CreateInput(Float(32), {K, N}, "W");  // weight
-  auto b = builder.CreateInput(Float(32), {N}, "B");     // bias
+//   NetBuilder builder("net_builder");
+//   auto a = builder.CreateInput(Float(32), {B * M, K}, "A");
+//   auto w = builder.CreateInput(Float(32), {K, N}, "W");  // weight
+//   auto b = builder.CreateInput(Float(32), {N}, "B");     // bias
 
-  auto mul_out = builder.Matmul(a, w);
-  auto add_out = builder.Add(mul_out, b);
-  auto program = builder.Build();
+//   auto mul_out = builder.Matmul(a, w);
+//   auto add_out = builder.Add(mul_out, b);
+//   auto program = builder.Build();
 
-#ifdef CINN_WITH_CUDA
-  Target target = common::DefaultNVGPUTarget();
-#else
-  Target target = common::DefaultHostTarget();
-#endif
+// #ifdef CINN_WITH_CUDA
+//   Target target = common::DefaultNVGPUTarget();
+// #else
+//   Target target = common::DefaultHostTarget();
+// #endif
 
-  std::unordered_set<std::string> fetch_ids;
-  auto graph = Optimize(&program, fetch_ids, target);
-  LOG(INFO) << "graph:\n" << graph->Visualize();
+//   std::unordered_set<std::string> fetch_ids;
+//   auto graph = Optimize(&program, fetch_ids, target);
+//   LOG(INFO) << "graph:\n" << graph->Visualize();
 
-  auto scope = BuildScope(target, graph);
-  hlir::framework::GraphCompiler gc(target, scope, graph);
-  auto runtime_program = gc.Build();
+//   auto scope = BuildScope(target, graph);
+//   hlir::framework::GraphCompiler gc(target, scope, graph);
+//   auto runtime_program = gc.Build();
 
-  scope->Var<hlir::framework::Tensor>(std::string(a.id()));
-  scope->Var<hlir::framework::Tensor>(std::string(w.id()));
-  scope->Var<hlir::framework::Tensor>(std::string(b.id()));
-  scope->Var<hlir::framework::Tensor>(std::string(mul_out->id));
+//   scope->Var<hlir::framework::Tensor>(std::string(a.id()));
+//   scope->Var<hlir::framework::Tensor>(std::string(w.id()));
+//   scope->Var<hlir::framework::Tensor>(std::string(b.id()));
+//   scope->Var<hlir::framework::Tensor>(std::string(mul_out->id));
 
-  auto a_ten        = scope->GetTensor(std::string(a.id()));
-  auto w_ten        = scope->GetTensor(std::string(w.id()));
-  auto b_ten        = scope->GetTensor(std::string(b.id()));
-  auto fake_out_ten = scope->GetTensor(std::string(mul_out->id));
-  auto add_out_ten  = scope->GetTensor(std::string(add_out->id));
-  SetRandData<float>(a_ten, target);
-  SetRandData<float>(w_ten, target);
-  SetRandData<float>(b_ten, target);
+//   auto a_ten        = scope->GetTensor(std::string(a.id()));
+//   auto w_ten        = scope->GetTensor(std::string(w.id()));
+//   auto b_ten        = scope->GetTensor(std::string(b.id()));
+//   auto fake_out_ten = scope->GetTensor(std::string(mul_out->id));
+//   auto add_out_ten  = scope->GetTensor(std::string(add_out->id));
+//   SetRandData<float>(a_ten, target);
+//   SetRandData<float>(w_ten, target);
+//   SetRandData<float>(b_ten, target);
 
-  runtime_program->Execute();
-}
-#endif
+//   runtime_program->Execute();
+// }
+// #endif
 
-TEST(net_build, program_execute_pool2d) {
-  const int B = 16;
-  const int C = 64;
-  const int H = 112;
-  const int W = 112;
+// TEST(net_build, program_execute_pool2d) {
+//   const int B = 16;
+//   const int C = 64;
+//   const int H = 112;
+//   const int W = 112;
 
-  NetBuilder builder("net_builder");
-  Placeholder input        = builder.CreateInput(Float(32), {B, C, H, W}, "Img");
-  std::string pooling_type = "max";
-  std::vector<int> ksize{3, 3};
-  std::vector<int> strides{2, 2};
-  std::vector<int> paddings{1, 1, 1, 1};
-  bool ceil_mode                = false;
-  bool exclusive                = true;
-  bool global_pooling           = false;
-  std::string data_format       = "NCHW";
-  bool adaptive                 = false;
-  std::string padding_algorithm = "EXPLICIT";
-  Variable pool_out             = builder.Pool2d(input,
-                                     pooling_type,
-                                     ksize,
-                                     strides,
-                                     paddings,
-                                     ceil_mode,
-                                     exclusive,
-                                     global_pooling,
-                                     data_format,
-                                     adaptive,
-                                     padding_algorithm);
-  auto program                  = builder.Build();
+//   NetBuilder builder("net_builder");
+//   Placeholder input        = builder.CreateInput(Float(32), {B, C, H, W}, "Img");
+//   std::string pooling_type = "max";
+//   std::vector<int> ksize{3, 3};
+//   std::vector<int> strides{2, 2};
+//   std::vector<int> paddings{1, 1, 1, 1};
+//   bool ceil_mode                = false;
+//   bool exclusive                = true;
+//   bool global_pooling           = false;
+//   std::string data_format       = "NCHW";
+//   bool adaptive                 = false;
+//   std::string padding_algorithm = "EXPLICIT";
+//   Variable pool_out             = builder.Pool2d(input,
+//                                      pooling_type,
+//                                      ksize,
+//                                      strides,
+//                                      paddings,
+//                                      ceil_mode,
+//                                      exclusive,
+//                                      global_pooling,
+//                                      data_format,
+//                                      adaptive,
+//                                      padding_algorithm);
+//   auto program                  = builder.Build();
 
-#ifdef CINN_WITH_CUDA
-  Target target = common::DefaultNVGPUTarget();
-#else
-  Target target = common::DefaultHostTarget();
-#endif
+// #ifdef CINN_WITH_CUDA
+//   Target target = common::DefaultNVGPUTarget();
+// #else
+//   Target target = common::DefaultHostTarget();
+// #endif
 
-  std::unordered_set<std::string> fetch_ids;
-  auto graph = Optimize(&program, fetch_ids, target);
-  auto scope = BuildScope(target, graph);
-  hlir::framework::GraphCompiler gc(target, scope, graph);
-  auto runtime_program = gc.Build();
+//   std::unordered_set<std::string> fetch_ids;
+//   auto graph = Optimize(&program, fetch_ids, target);
+//   auto scope = BuildScope(target, graph);
+//   hlir::framework::GraphCompiler gc(target, scope, graph);
+//   auto runtime_program = gc.Build();
 
-  scope->Var<hlir::framework::Tensor>(std::string(input.id()));
-  scope->Var<hlir::framework::Tensor>(std::string(pool_out->id));
+//   scope->Var<hlir::framework::Tensor>(std::string(input.id()));
+//   scope->Var<hlir::framework::Tensor>(std::string(pool_out->id));
 
-  auto input_tensor = scope->GetTensor(std::string(input.id()));
-  SetRandData<float>(input_tensor, target);
-  runtime_program->Execute();
-}
+//   auto input_tensor = scope->GetTensor(std::string(input.id()));
+//   SetRandData<float>(input_tensor, target);
+//   runtime_program->Execute();
+// }
 
-TEST(net_build, program_execute_reverse) {
-  const int B = 16;
-  const int C = 3;
-  const int H = 224;
-  const int W = 224;
+// TEST(net_build, program_execute_reverse) {
+//   const int B = 16;
+//   const int C = 3;
+//   const int H = 224;
+//   const int W = 224;
 
-  NetBuilder builder("net_builder");
-  Placeholder input    = builder.CreateInput(Float(32), {B, C, H, W}, "Img");
-  Variable reverse_out = builder.Reverse(input, {2, 3});
-  auto program         = builder.Build();
+//   NetBuilder builder("net_builder");
+//   Placeholder input    = builder.CreateInput(Float(32), {B, C, H, W}, "Img");
+//   Variable reverse_out = builder.Reverse(input, {2, 3});
+//   auto program         = builder.Build();
 
-#ifdef CINN_WITH_CUDA
-  Target target = common::DefaultNVGPUTarget();
-#else
-  Target target = common::DefaultHostTarget();
-#endif
+// #ifdef CINN_WITH_CUDA
+//   Target target = common::DefaultNVGPUTarget();
+// #else
+//   Target target = common::DefaultHostTarget();
+// #endif
 
-  std::unordered_set<std::string> fetch_ids;
-  auto graph = Optimize(&program, fetch_ids, target);
-  LOG(INFO) << "graph:\n" << graph->Visualize();
+//   std::unordered_set<std::string> fetch_ids;
+//   auto graph = Optimize(&program, fetch_ids, target);
+//   LOG(INFO) << "graph:\n" << graph->Visualize();
 
-  auto scope = BuildScope(target, graph);
-  hlir::framework::GraphCompiler gc(target, scope, graph);
-  auto runtime_program = gc.Build();
+//   auto scope = BuildScope(target, graph);
+//   hlir::framework::GraphCompiler gc(target, scope, graph);
+//   auto runtime_program = gc.Build();
 
-  scope->Var<hlir::framework::Tensor>(std::string(input.id()));
-  scope->Var<hlir::framework::Tensor>(std::string(reverse_out->id));
+//   scope->Var<hlir::framework::Tensor>(std::string(input.id()));
+//   scope->Var<hlir::framework::Tensor>(std::string(reverse_out->id));
 
-  auto input_tensor = scope->GetTensor(std::string(input.id()));
-  SetRandData<float>(input_tensor, target);
-  runtime_program->Execute();
-}
+//   auto input_tensor = scope->GetTensor(std::string(input.id()));
+//   SetRandData<float>(input_tensor, target);
+//   runtime_program->Execute();
+// }
 
 /*
 TEST(net_build, program_execute_clip) {

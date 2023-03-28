@@ -115,8 +115,7 @@ std::vector<ir::LoweredFunc> OpLowerer::Lower(GroupPtr& group) {
       case framework::kBroadcast:
       case framework::kInjective:
         return IRLowerOp(&OpLowerer::IRElementwiseCompute, &OpLowerer::IRElementwiseSchedule, group);
-      case framework::kReduction:
-        std::cerr << "lower reduction" << std::endl;
+      case framework::kReduction:        
         return IRLowerOp(&OpLowerer::IRReduceCompute, &OpLowerer::IRReduceSchedule, group);
       case framework::kOutFusible:
         LOG(FATAL) << "Group Pattern Kind kOutFusible Is Not Implemented!";
