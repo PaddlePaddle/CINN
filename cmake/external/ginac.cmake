@@ -18,6 +18,9 @@ ExternalProject_Add(external_ginac
   BUILD_COMMAND ""
   UPDATE_COMMAND ""
   INSTALL_COMMAND ""
+  BUILD_BYPRODUCTS ${THIRD_PARTY_PATH}/install/ginac/lib/libginac.a
+  BUILD_BYPRODUCTS ${THIRD_PARTY_PATH}/install/ginac/lib/libcln.a
+  BUILD_BYPRODUCTS ${THIRD_PARTY_PATH}/install/ginac/lib/libgmp.a
 )
 
 add_library(ginac STATIC IMPORTED GLOBAL)
