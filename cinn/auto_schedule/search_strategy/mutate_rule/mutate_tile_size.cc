@@ -43,7 +43,10 @@ std::vector<SampledTile> FindSampledTiles(const ScheduleDesc& trace) {
     if (step.type == "SamplePerfectTile") {
       std::vector<int> tile_factors = absl::get<std::vector<int>>(step.attrs.at("decision"));
       CHECK(tile_factors.size() >= 2) << "factors size must be greater equal than 2, which is " << tile_factors.size();
-      tiles.push_back(std::make_tuple(step, tile_factors, step_idx));
+      bool can_mutate = absl::get<bool>(step.attrs.at("can_mutate"));
+      if (can_mutate) {
+        tiles.push_back(std::make_tuple(step, tile_factors, step_idx));
+      }
     }
     ++step_idx;
   }
@@ -114,10 +117,8 @@ ScheduleDesc DoMutateTileSize(const ScheduleDesc& trace,
             << "factors[" << loop_x << "] = " << tile_factors[loop_x] << ", factors[" << loop_y
             << "] = " << tile_factors[loop_y];
     // Step 4. Create a new step with new tile values and return the new trace
-    int step_idx                              = std::get<2>(tile);
-    std::vector<ScheduleDesc::Step> new_steps = trace.Steps();
-    new_steps[step_idx].attrs["decision"]     = tile_factors;
-    return ScheduleDesc(std::move(new_steps));
+    int step_idx = std::get<2>(tile);
+    return trace.ForkAndUpdate(step_idx, tile_factors, true);
   }
 }
 

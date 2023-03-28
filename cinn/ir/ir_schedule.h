@@ -120,18 +120,23 @@ class IRSchedule {
    * \brief Split a for loop into multiple loops, based on the factors.
    * @param loop The loop to be splited.
    * @param factors The factors we used to split the loop.
+   * @param can_mutate Determine whether the split factors can be modified.
    * @return The splited loops.
    */
-  std::vector<Expr> Split(const Expr& loop, const std::vector<int>& factors);
+  std::vector<Expr> Split(const Expr& loop, const std::vector<int>& factors, bool can_mutate = false);
 
   /**
    * \brief Split a for loop into multiple loops, based on the factors.
    * @param block_name Name of the block we want to modify.
    * @param loop_index Index of the loop to be splited.
    * @param factors The factors we used to split the loop.
+   * @param can_mutate Determine whether the split factors can be modified.
    * @return The splited loops.
    */
-  std::vector<Expr> Split(const std::string& block_name, int loop_index, const std::vector<int>& factors);
+  std::vector<Expr> Split(const std::string& block_name,
+                          int loop_index,
+                          const std::vector<int>& factors,
+                          bool can_mutate = false);
 
   /**
    * \brief Split a for loop into multiple loops, based on the factors, only used for deserialization of trace.
@@ -168,8 +173,9 @@ class IRSchedule {
    * \brief Move a producer block's location under a specific loop.
    * @param block The block we want to move its computation location.
    * @param loop The loop we will move the block to.
+   * @param keep_unit_loops Whether to keep the unit loop.
    */
-  void ComputeAt(const Expr& block, const Expr& loop);
+  void ComputeAt(const Expr& block, const Expr& loop, bool keep_unit_loops = false);
 
   /**
    * \brief Move a block's location under a loop without considering their dependency.
@@ -182,8 +188,9 @@ class IRSchedule {
    * \brief Move a consumer block's location under a specific loop.
    * @param block The block we want to move its computation location.
    * @param loop The loop we will move the block to.
+   * @param keep_unit_loops Whether to keep the unit loop.
    */
-  void ReverseComputeAt(const Expr& block, const Expr& loop);
+  void ReverseComputeAt(const Expr& block, const Expr& loop, bool keep_unit_loops = false);
 
   /**
    * \brief Find an expr's root ScheduleBlockRealize node
@@ -375,6 +382,7 @@ class IRSchedule {
    * \param n the number of loop layers to split
    * \param max_innermost_factor the maximum factor of the innermost loop
    * \param decision the decision data of the last sample, or the artificially given decision data
+   * @param can_mutate Determine whether the decision can be modified.
    * \return the split factors of the loop (The larger the index, the inner the corresponding loop)
    * For example, return {16,64} means the loop will be like this:
    * for (i, 0, 16) {
@@ -386,7 +394,16 @@ class IRSchedule {
   std::vector<Expr> SamplePerfectTile(const Expr& loop,
                                       int n,
                                       int max_innermost_factor,
-                                      const std::vector<int>& decision = {});
+                                      const std::vector<int>& decision = {},
+                                      bool can_mutate                  = false);
+
+  /*!
+   * \brief Insert a tag to mark the beginning of post processing
+   * Because some schedules rely on the results of mutate and cannot be mutated themselves,
+   * they need to be executed after the mutate is completed.
+   * Therefore, we need post schedule rules. The schedule of these rules will be ignored during mutate.
+   */
+  void TagPostSchedule();
 
  private:
   // Init the random seed with a new seed

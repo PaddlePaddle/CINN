@@ -59,13 +59,13 @@ TEST(MutateTileSize, Basic) {
 
   // apply schedule
   auto loops   = ir_schedule.GetLoops("C");
-  auto factors = ir_schedule.SamplePerfectTile(loops[0], 2, kSize);
+  auto factors = ir_schedule.SamplePerfectTile(loops[0], 2, kSize, {}, true);
   auto splited = ir_schedule.Split(loops[0], factors);
 
   // apply mutate
   MutateTileSize mutator;
   ir::ScheduleDesc sch_desc = mutator.Apply(ir_schedule.GetTraceDesc(), &rand_seed);
-  sch_desc.Replay(&new_ir_schedule);
+  sch_desc.Replay(&new_ir_schedule, true);
   VLOG(6) << "Expr before mutate tile size: \n" << ir_schedule.GetModule().GetExprs()[0];
   VLOG(6) << "Expr after mutate tile size: \n" << new_ir_schedule.GetModule().GetExprs()[0];
 

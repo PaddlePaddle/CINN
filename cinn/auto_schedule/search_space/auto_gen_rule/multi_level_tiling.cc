@@ -141,8 +141,9 @@ void MultiLevelTiling::ApplyTiling(ir::IRSchedule* ir_schedule, ir::Expr& block_
 
     int num_split = idx->size();
     if (num_split > 1) {
-      std::vector<Expr> tile_split_factor = ir_schedule->SamplePerfectTile(Expr(ir_for), num_split, 64);
-      std::vector<Expr> splited           = ir_schedule->Split(Expr(ir_for), tile_split_factor);
+      std::vector<Expr> tile_split_factor =
+          ir_schedule->SamplePerfectTile(Expr(ir_for), num_split, 64, {}, /*can_mutate*/ true);
+      std::vector<Expr> splited = ir_schedule->Split(Expr(ir_for), tile_split_factor);
       VLOG(6) << "Finish Split for MultiLevelTiling on above loop";
       for (int j = 0; j < num_split; ++j) {
         tile_loops_[idx->at(j)].push_back(splited[j]);
@@ -294,22 +295,51 @@ void MultiLevelTiling::ApplyCacheRead(ir::IRSchedule* ir_schedule, ir::Expr& blo
 
   // Schedule
   for (int read_buffer_index : read_buffer_indexes) {
-    ir::Expr cache_block = ir_schedule->CacheRead(block_expr, read_buffer_index, config_.read_cache_memory_type);
-    // The original block expr is invalid after the CacheRead schedule,
-    // so we reacquire the block expr after the schedule according to the block name
-    block_expr                  = ir_schedule->GetBlock(block_name);
-    std::vector<Expr> for_exprs = ir_schedule->GetLoops(block_expr);
     for (int level : config_.read_cache_levels) {
+      // 1.Do CacheRead and get the cahce block
+      ir::Expr cache_block = ir_schedule->CacheRead(block_expr, read_buffer_index, config_.read_cache_memory_type);
+      std::string cache_block_name =
+          cache_block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->name;
+
+      // 2.Find target loop
       const auto loops = tile_loops_.at(level - 1);
       if (loops.size() == 0) {
         continue;
       }
       std::string target_for_loop_name = loops.back().As<ir::For>()->loop_var->name;
+
+      // 3.Place the cache_block under target_for_loop
+      // The original block expr is invalid after the CacheRead schedule,
+      // so we reacquire the block expr after the schedule according to the block name
+      block_expr                  = ir_schedule->GetBlock(block_name);
+      std::vector<Expr> for_exprs = ir_schedule->GetLoops(block_expr);
       for (const Expr& for_expr : for_exprs) {
         if (for_expr.As<ir::For>()->loop_var->name.find(target_for_loop_name) != std::string::npos) {
-          ir_schedule->ComputeAt(cache_block, for_expr);
+          ir_schedule->ComputeAt(cache_block, for_expr, true);
+          break;
         }
       }
+
+      // 4.Threads under the same block cooperative fetch data from global memory.
+      Expr new_cache_block                          = ir_schedule->GetBlock(cache_block_name);
+      auto cache_block_loops                        = ir_schedule->GetLoops(new_cache_block);
+      std::vector<std::string> compute_at_extra_var = utils::Split(
+          absl::get<std::string>(
+              new_cache_block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->attrs.at(
+                  "compute_at_extra_var")),
+          ",");
+      std::vector<Expr> buffer_loops;
+      // int nthreads = 1;
+      for (const Expr& for_expr : cache_block_loops) {
+        if (std::find(compute_at_extra_var.begin(),
+                      compute_at_extra_var.end(),
+                      for_expr.As<ir::For>()->loop_var->name) != compute_at_extra_var.end()) {
+          buffer_loops.push_back(for_expr);
+        }
+      }
+      auto fused_buffer_loop = ir_schedule->Fuse(buffer_loops);
+      // TODO(BiynXu): Implement vectorize fetching data and pass in vector length
+      ir_schedule->Annotate(ir_schedule->GetBlock(cache_block_name), ir::attr::cooperative_process, 0);
     }
   }
 }
@@ -332,7 +362,7 @@ void MultiLevelTiling::ApplyCacheWrite(ir::IRSchedule* ir_schedule, ir::Expr& bl
     std::vector<Expr> for_exprs = ir_schedule->GetLoops(derivative_block_name);
     for (const Expr& for_expr : for_exprs) {
       if (for_expr.As<ir::For>()->loop_var->name.find(target_for_loop_name) != std::string::npos) {
-        ir_schedule->ReverseComputeAt(ir_schedule->GetBlock(original_block_name), for_expr);
+        ir_schedule->ReverseComputeAt(ir_schedule->GetBlock(original_block_name), for_expr, true);
       }
     }
 

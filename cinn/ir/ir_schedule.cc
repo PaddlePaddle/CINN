@@ -79,9 +79,9 @@ class ScheduleImpl {
   Expr Fuse(const std::vector<Expr>& loops);
   Expr Fuse(const std::string& block_name, const std::vector<int>& loops_index);
   Expr Fuse(const Expr& block, const std::vector<int>& loops_index);
-  void ComputeAt(const Expr& block, const Expr& loop);
+  void ComputeAt(const Expr& block, const Expr& loop, bool keep_unit_loops);
   void SimpleComputeAt(const Expr& block, const Expr& loop);
-  void ReverseComputeAt(const Expr& block, const Expr& loop);
+  void ReverseComputeAt(const Expr& block, const Expr& loop, bool keep_unit_loops);
   Expr GetRootBlock(const Expr& expr) const;
   Expr CacheRead(const Expr& block, int read_buffer_index, const std::string& memory_type);
   Expr CacheWrite(const Expr& block, int write_buffer_index, const std::string& memory_type);
@@ -969,7 +969,7 @@ struct LoopReconstructor : public ir::IRMutator<> {
    *        - `index = -1` means inserted into the tail
    *        - otherwise, it should be a index between [0, stmts size)
    */
-  std::string MakeNewLoop(const std::vector<IterRange>& iter_ranges, int inserted_pos = -1) {
+  std::string MakeNewLoop(const std::vector<IterRange>& iter_ranges, bool keep_unit_loops, int inserted_pos = -1) {
     int n_iters = iter_ranges.size();
     std::vector<Var> loop_vars;
     std::vector<Expr> loop_extents;
@@ -980,7 +980,7 @@ struct LoopReconstructor : public ir::IRMutator<> {
     std::vector<std::string> new_var_names;
     for (int i = 0; i < n_iters; ++i) {
       const auto& range = iter_ranges[i];
-      if (range.extent != Expr(1)) {
+      if (keep_unit_loops || range.extent != Expr(1)) {
         std::string var_name = common::UniqName("ax" + std::to_string(loop_vars.size()));
         new_var_names.push_back(var_name);
         Var var(var_name, Int(32));
@@ -1134,7 +1134,7 @@ void ScheduleImpl::MergeExprs() {
   this->SetExprs(exprs);
 }
 
-void ScheduleImpl::ComputeAt(const Expr& block, const Expr& loop) {
+void ScheduleImpl::ComputeAt(const Expr& block, const Expr& loop, bool keep_unit_loops) {
   CHECK(block.As<ir::ScheduleBlockRealize>());
   CHECK(loop.As<ir::For>());
   Expr root      = this->GetRootBlock(block);
@@ -1145,7 +1145,7 @@ void ScheduleImpl::ComputeAt(const Expr& block, const Expr& loop) {
   LeafBlockRemovalPlan remove_plan(block, &reconstructor.source_expr, &reconstructor.target_expr);
   remove_plan(&root);
   auto iter_ranges          = CalculateRequiredRegions(block, loop, root, consumers);
-  std::string new_var_names = reconstructor.MakeNewLoop(iter_ranges, 0);
+  std::string new_var_names = reconstructor.MakeNewLoop(iter_ranges, keep_unit_loops, 0);
   auto sch_block_expr       = block.As<ir::ScheduleBlockRealize>()->schedule_block;
   sch_block_expr.As<ir::ScheduleBlock>()->attrs.emplace(ir::attr::compute_at_extra_var, new_var_names);
   this->Replace(reconstructor.source_expr, reconstructor.target_expr);
@@ -1238,7 +1238,7 @@ void ScheduleImpl::SimpleComputeAt(const Expr& block, const Expr& loop) {
   return;
 }
 
-void ScheduleImpl::ReverseComputeAt(const Expr& block, const Expr& loop) {
+void ScheduleImpl::ReverseComputeAt(const Expr& block, const Expr& loop, bool keep_unit_loops) {
   CHECK(block.As<ir::ScheduleBlockRealize>());
   CHECK(loop.As<ir::For>());
   Expr root      = this->GetRootBlock(block);
@@ -1249,7 +1249,7 @@ void ScheduleImpl::ReverseComputeAt(const Expr& block, const Expr& loop) {
   LeafBlockRemovalPlan remove_plan(block, &reconstructor.source_expr, &reconstructor.target_expr);
   remove_plan(&root);
   auto iter_ranges          = CalculateRequiredRegions(block, loop, root, producers, false);
-  std::string new_var_names = reconstructor.MakeNewLoop(iter_ranges);
+  std::string new_var_names = reconstructor.MakeNewLoop(iter_ranges, keep_unit_loops, -1);
   auto sch_block_expr       = block.As<ir::ScheduleBlockRealize>()->schedule_block;
   sch_block_expr.As<ir::ScheduleBlock>()->attrs.emplace(ir::attr::reverse_compute_at_extra_var, new_var_names);
   this->Replace(reconstructor.source_expr, reconstructor.target_expr);
@@ -1939,20 +1939,24 @@ Expr IRSchedule::GetBlock(const std::string& block_name) const {
   return result;
 }
 
-std::vector<Expr> IRSchedule::Split(const Expr& loop, const std::vector<int>& factors) {
-  std::vector<Expr> decision = SamplePerfectTile(loop, factors.size(), loop.As<ir::For>()->extent.as_int32(), factors);
-  auto results               = Split(loop, decision);
+std::vector<Expr> IRSchedule::Split(const Expr& loop, const std::vector<int>& factors, bool can_mutate) {
+  std::vector<Expr> decision =
+      SamplePerfectTile(loop, factors.size(), loop.As<ir::For>()->extent.as_int32(), factors, can_mutate);
+  auto results = Split(loop, decision);
   return results;
 }
 
-std::vector<Expr> IRSchedule::Split(const std::string& block_name, int loop_index, const std::vector<int>& factors) {
+std::vector<Expr> IRSchedule::Split(const std::string& block_name,
+                                    int loop_index,
+                                    const std::vector<int>& factors,
+                                    bool can_mutate) {
   std::vector<Expr> all_loops = this->GetLoops(block_name);
   Expr loop_expr;
   CHECK_LT(loop_index, (int)all_loops.size()) << "The loop index in Split should be less than total loop's number.";
   CHECK_GE(loop_index, 0) << "The loop index in Split should be >= 0.";
   loop_expr = all_loops[loop_index];
 
-  return this->Split(loop_expr, factors);
+  return this->Split(loop_expr, factors, can_mutate);
 }
 
 std::vector<Expr> IRSchedule::Split(const Expr& loop, const std::vector<Expr>& factors) {
@@ -1983,10 +1987,12 @@ Expr IRSchedule::Fuse(const Expr& block, const std::vector<int>& loops_index) {
   return result;
 }
 
-void IRSchedule::ComputeAt(const Expr& block, const Expr& loop) {
-  impl_->ComputeAt(block, loop);
-  trace_.Append(ScheduleDesc::Step(
-      "ComputeAt", {{"block", std::vector<Expr>({block})}, {"loop", std::vector<Expr>({loop})}}, {}, {}));
+void IRSchedule::ComputeAt(const Expr& block, const Expr& loop, bool keep_unit_loops) {
+  impl_->ComputeAt(block, loop, keep_unit_loops);
+  trace_.Append(ScheduleDesc::Step("ComputeAt",
+                                   {{"block", std::vector<Expr>({block})}, {"loop", std::vector<Expr>({loop})}},
+                                   {{"keep_unit_loops", keep_unit_loops}},
+                                   {}));
 }
 
 void IRSchedule::SimpleComputeAt(const Expr& block, const Expr& loop) {
@@ -1995,10 +2001,12 @@ void IRSchedule::SimpleComputeAt(const Expr& block, const Expr& loop) {
       "SimpleComputeAt", {{"block", std::vector<Expr>({block})}, {"loop", std::vector<Expr>({loop})}}, {}, {}));
 }
 
-void IRSchedule::ReverseComputeAt(const Expr& block, const Expr& loop) {
-  impl_->ReverseComputeAt(block, loop);
-  trace_.Append(ScheduleDesc::Step(
-      "ReverseComputeAt", {{"block", std::vector<Expr>({block})}, {"loop", std::vector<Expr>({loop})}}, {}, {}));
+void IRSchedule::ReverseComputeAt(const Expr& block, const Expr& loop, bool keep_unit_loops) {
+  impl_->ReverseComputeAt(block, loop, keep_unit_loops);
+  trace_.Append(ScheduleDesc::Step("ReverseComputeAt",
+                                   {{"block", std::vector<Expr>({block})}, {"loop", std::vector<Expr>({loop})}},
+                                   {{"keep_unit_loops", keep_unit_loops}},
+                                   {}));
 }
 
 Expr IRSchedule::GetRootBlock(const Expr& expr) const {
@@ -2130,10 +2138,8 @@ void IRSchedule::CopyTransformAndLoopInfo(const std::string& block_name, const s
   // don't support to trace, because we can't ensure both blocks are from the same ModuleExpr
 }
 
-std::vector<Expr> IRSchedule::SamplePerfectTile(const Expr& loop,
-                                                int n,
-                                                int max_innermost_factor,
-                                                const std::vector<int>& decision) {
+std::vector<Expr> IRSchedule::SamplePerfectTile(
+    const Expr& loop, int n, int max_innermost_factor, const std::vector<int>& decision, bool can_mutate) {
   std::vector<Expr> factors;
   std::vector<int> new_decision;
   if (decision.empty()) {
@@ -2144,13 +2150,17 @@ std::vector<Expr> IRSchedule::SamplePerfectTile(const Expr& loop,
     new_decision = decision;
     std::transform(decision.begin(), decision.end(), std::back_inserter(factors), [](int x) { return Expr(x); });
   }
-  trace_.Append(
-      ScheduleDesc::Step("SamplePerfectTile",
-                         {{"loop", std::vector<Expr>({loop})}},
-                         {{"n", n}, {"max_innermost_factor", max_innermost_factor}, {"decision", new_decision}},
-                         factors));
+  trace_.Append(ScheduleDesc::Step("SamplePerfectTile",
+                                   {{"loop", std::vector<Expr>({loop})}},
+                                   {{"n", n},
+                                    {"max_innermost_factor", max_innermost_factor},
+                                    {"decision", new_decision},
+                                    {"can_mutate", can_mutate}},
+                                   factors));
   return factors;
 }
+
+void IRSchedule::TagPostSchedule() { trace_.Append(ScheduleDesc::Step("TagPostSchedule", {}, {}, {})); }
 
 }  // namespace ir
 }  // namespace cinn

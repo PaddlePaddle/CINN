@@ -319,11 +319,6 @@ CINN_BUILD_STEP_KIND(Split)
     .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(
                 static_cast<std::vector<Expr> (IRSchedule::*)(const Expr&, const std::vector<Expr>&)>(&IRSchedule::Split))));
 
-CINN_BUILD_STEP_KIND(SplitWithName)
-    .Attrs({"block_name", "loop_index", "factors"})
-    .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(
-                    static_cast<std::vector<Expr> (IRSchedule::*)(const std::string&, int, const std::vector<int>&)>(&IRSchedule::Split))));
-
 CINN_BUILD_STEP_KIND(Fuse)
     .Inputs({"loops"})
     .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(
@@ -342,6 +337,7 @@ CINN_BUILD_STEP_KIND(FuseWithBlock)
 
 CINN_BUILD_STEP_KIND(ComputeAt)
     .Inputs({"block", "loop"})
+    .Attrs({"keep_unit_loops"})
     .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(&IRSchedule::ComputeAt)));
 
 CINN_BUILD_STEP_KIND(SimpleComputeAt)
@@ -350,6 +346,7 @@ CINN_BUILD_STEP_KIND(SimpleComputeAt)
 
 CINN_BUILD_STEP_KIND(ReverseComputeAt)
     .Inputs({"block", "loop"})
+    .Attrs({"keep_unit_loops"})
     .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(&IRSchedule::ReverseComputeAt)));
 
 CINN_BUILD_STEP_KIND(GetRootBlock)
@@ -468,8 +465,11 @@ CINN_BUILD_STEP_KIND(FlattenLoops)
 
 CINN_BUILD_STEP_KIND(SamplePerfectTile)
     .Inputs({"loop"})
-    .Attrs({"n", "max_innermost_factor", "decision"})
+    .Attrs({"n", "max_innermost_factor", "decision", "can_mutate"})
     .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(&IRSchedule::SamplePerfectTile)));
+
+CINN_BUILD_STEP_KIND(TagPostSchedule)
+    .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(&IRSchedule::TagPostSchedule)));
 
 // clang-format on
 
@@ -562,7 +562,9 @@ void ScheduleDesc::Pop() {
   }
 }
 
-void ScheduleDesc::Replay(IRSchedule* schedule) const { ReplayWithProto(this->ToProto(), schedule); }
+void ScheduleDesc::Replay(IRSchedule* schedule, bool without_post_schedule) const {
+  ReplayWithProto(this->ToProto(), schedule);
+}
 
 proto::ScheduleDesc ScheduleDesc::ToProto() const {
   // map each Expr to a formatted name (e1, e2, ...)
@@ -602,7 +604,9 @@ proto::ScheduleDesc ScheduleDesc::ToProto() const {
   return desc_proto;
 }
 
-std::vector<Expr> ScheduleDesc::ReplayWithProto(const proto::ScheduleDesc& desc_proto, IRSchedule* sch) {
+std::vector<Expr> ScheduleDesc::ReplayWithProto(const proto::ScheduleDesc& desc_proto,
+                                                IRSchedule* sch,
+                                                bool without_post_schedule) {
   VLOG(4) << "proto::ScheduleDesc:\n" << desc_proto.DebugString();
   if (desc_proto.steps().empty()) {
     LOG(WARNING) << "Input proto::ScheduleDesc is empty";
@@ -619,6 +623,9 @@ std::vector<Expr> ScheduleDesc::ReplayWithProto(const proto::ScheduleDesc& desc_
     ScheduleDesc::Step step;
     step.type = step_proto.type();
     CHECK(!step.type.empty()) << "Name of StepKind is empty";
+    if (without_post_schedule && step.type == "TagPostSchedule") {
+      break;
+    }
     const StepKindInfo* step_kind = StepKindRegistry::Global()->Find(step.type);
     CHECK(step_kind) << "Can't find StepKind:" << step.type;
 
@@ -642,6 +649,24 @@ std::vector<Expr> ScheduleDesc::ReplayWithProto(const proto::ScheduleDesc& desc_
     last_outputs = std::move(step.outputs);
   }
   return last_outputs;
+}
+
+ScheduleDesc ScheduleDesc::ForkAndUpdate(int step_idx, utils::Attribute decision, bool without_post_schedule) const {
+  int n_valid_step = 0;
+  if (!without_post_schedule) {
+    n_valid_step = steps_.size();
+  } else {
+    for (const auto& step : steps_) {
+      if (step.type != "TagPostSchedule") {
+        ++n_valid_step;
+      } else {
+        break;
+      }
+    }
+  }
+  std::vector<ScheduleDesc::Step> new_steps(steps_.begin(), steps_.begin() + n_valid_step);
+  new_steps[step_idx].attrs["decision"] = decision;
+  return ScheduleDesc(std::move(new_steps));
 }
 
 }  // namespace ir

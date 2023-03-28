@@ -50,8 +50,15 @@ class ScheduleDesc {
         : type(type_i), inputs(inputs_i), attrs(attrs_i), outputs(outputs_i) {}
   };
 
-  // Re-applied a scheduling process represented as a proto::ScheduleDesc to a new IRSchedule object
-  static std::vector<Expr> ReplayWithProto(const proto::ScheduleDesc& desc_proto, IRSchedule* sch);
+  /**
+   * \brief Re-applied a scheduling process represented as a proto::ScheduleDesc to a new IRSchedule object.
+   * @param desc_proto The proto of the ScheduleDesc to be re-applied.
+   * @param sch The original IRSchedule to be replayed the description on.
+   * @param without_post_schedule Determine whether whether to delete the post schedules.
+   */
+  static std::vector<Expr> ReplayWithProto(const proto::ScheduleDesc& desc_proto,
+                                           IRSchedule* sch,
+                                           bool without_post_schedule = false);
 
   ScheduleDesc() = default;
 
@@ -65,9 +72,12 @@ class ScheduleDesc {
   // Pop the last step
   void Pop();
 
-  // Replay this description to a new IRSchedule that is initialzied
-  // by a semantics-euqal original ModuleExpr
-  void Replay(IRSchedule* schedule) const;
+  /**
+   * \brief Replay this description to a new IRSchedule that is initialzied by a semantics-euqal original ModuleExpr.
+   * @param schedule The original IRSchedule to be replayed the description on.
+   * @param without_post_schedule Determine whether whether to delete the post schedules.
+   */
+  void Replay(IRSchedule* schedule, bool without_post_schedule = false) const;
 
   // convert to a proto::ScheduleDesc object
   proto::ScheduleDesc ToProto() const;
@@ -78,6 +88,15 @@ class ScheduleDesc {
   std::vector<Step> Steps() const { return steps_; }
 
   bool Empty() const { return steps_.empty(); }
+
+  /**
+   * \brief Fork this ScheduleDesc and update a step of the new ScheduleDesc with a new decision.
+   * @param step_idx The index of the step to be update.
+   * @param decision The new decision.
+   * @param without_post_schedule Determine whether whether to delete the post schedules.
+   * @return The new ScheduleDesc.
+   */
+  ScheduleDesc ForkAndUpdate(int step_idx, utils::Attribute decision, bool without_post_schedule) const;
 
  private:
   std::vector<Step> steps_;  // all operations are recorded in order.
