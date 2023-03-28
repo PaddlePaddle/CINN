@@ -60,7 +60,20 @@ ScheduleDesc DoMutateTileSize(const ScheduleDesc& trace,
   // Step 1. Choose 2 loops with index: 'loop_x' and 'loop_y'
   int loop_x, loop_y;
 
+  bool all_one_factors = true;
+  for (int t : tile_factors) {
+    if (t != 1) {
+      all_one_factors = false;
+      break;
+    }
+  }
+  if (all_one_factors) {
+    VLOG(6) << "Factors are all 1, unable to mutate, return the original trace";
+    return trace;
+  }
+
   while (true) {
+    VLOG(6) << "while (true) loop in DoMutateTileSize";
     loop_x = utils::SampleUniformInt(0, split_size, rand_seed);
     if (tile_factors.at(loop_x) <= 1) {
       continue;

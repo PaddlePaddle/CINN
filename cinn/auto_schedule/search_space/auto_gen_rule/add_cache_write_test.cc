@@ -119,7 +119,7 @@ TEST_F(TestAddCacheWrite, ApplyOnMatmulWithTiling) {
   ASSERT_EQ(func_bodys.size(), 1UL);
   VLOG(6) << "Original Expr:\n" << func_bodys[0];
   // Apply MultiLevelTiling before AddCacheWrite
-  MultiLevelTiling multi_level_tiling(target_);
+  MultiLevelTiling multi_level_tiling(target_, MultiLevelTiling::kConfigs.at(target_.arch));
   multi_level_tiling.Init(&ir_schedule);
   ASSERT_EQ(multi_level_tiling.NumberApplicable(), 1);
   multi_level_tiling.ApplyRandomly();

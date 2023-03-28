@@ -63,15 +63,20 @@ class AstGen {
 
   void SetBuildOptions(const isl::union_map& options);
 
+  isl::union_set domain() const;
+
  private:
   class Impl;
   std::unique_ptr<Impl> impl_;
 };
 
+void AddUnitLoopOfDomain(const isl::ast_node& node, const isl::set& domain, ir::Expr* expr);
+
 /**
  * Transform the isl ast to Expr.
  */
 void IslAstNodeToCinnExpr(const isl::ast_node& node, ir::Expr* expr);
+void IslAstNodeToCinnExpr(const isl::ast_node& node, const isl::union_set& domain, ir::Expr* expr);
 void IslAstExprToCinnExpr(const isl::ast_expr& node, ir::Expr* expr);
 
 /**

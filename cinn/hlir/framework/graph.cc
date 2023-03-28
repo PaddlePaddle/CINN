@@ -262,12 +262,15 @@ void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
     return;
   }
 
-  viz_path_ = utils::StringFormat(
-      "%s/fusion_groups_%d/", FLAGS_cinn_fusion_groups_graphviz_dir.c_str(), viz_count_.fetch_add(1));
-  VLOG(4) << "The visualized path of CINN fusion groups: " << viz_path_;
+  int viz_id = viz_count_.fetch_add(1);
+  viz_path_  = utils::StringFormat("%s/fusion_groups_%d/", FLAGS_cinn_fusion_groups_graphviz_dir.c_str(), viz_id);
   if (!MakeDirectory(viz_path_, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)) {
+    LOG_IF(WARNING, viz_id == 0) << "Failed to make directory: \"" << viz_path_
+                                 << "\", the CINN subgraph's fusion group information will not print.";
     return;
   }
+  LOG_IF(INFO, viz_id == 0) << "The CINN subgraph's fusion group information will writing into path: \""
+                            << FLAGS_cinn_fusion_groups_graphviz_dir << "\"";
 
   for (int i = 0; i < groups.size(); i++) {
     WriteToFile(viz_path_ + "test_group_" + std::to_string(i) + ".py",

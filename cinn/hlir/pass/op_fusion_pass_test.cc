@@ -111,7 +111,7 @@ TEST(OpFusionPass, Brodcast_Test_1) {
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
   hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  CHECK_EQ(graph->fusion_groups.size(), 2);
+  CHECK_EQ(graph->fusion_groups.size(), 1);
 }
 
 TEST(OpFusionPass, Brodcast_Test_2) {
@@ -131,7 +131,7 @@ TEST(OpFusionPass, Brodcast_Test_2) {
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
   hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  CHECK_EQ(graph->fusion_groups.size(), 2);
+  CHECK_EQ(graph->fusion_groups.size(), 1);
 }
 
 TEST(OpFusionPass, Reduce_Test_0) {

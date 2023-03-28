@@ -42,7 +42,7 @@ DECLARE_bool(cinn_ir_schedule);
 namespace cinn {
 namespace optim {
 
-Expr Optimize(Expr e, Target target, bool runtime_debug_info) {
+Expr Optimize(Expr e, Target target, bool runtime_debug_info, bool remove_gpu_for_loops) {
   CHECK(e.defined());
   auto copied = IRCopy(e);
 
@@ -54,8 +54,12 @@ Expr Optimize(Expr e, Target target, bool runtime_debug_info) {
   UnrollLoop(&copied);
   VectorizeLoops(&copied, target);
 #ifdef CINN_WITH_CUDA
-  if (FLAGS_cinn_ir_schedule) ir::SetCudaAxisInfo(&copied);
-  RemoveGpuForloopsAxis(&copied);
+  if (FLAGS_cinn_ir_schedule && copied.as_lowered_func()) {
+    ir::SetCudaAxisInfo(&copied);
+  }
+  if (remove_gpu_for_loops) {
+    RemoveGpuForloopsAxis(&copied);
+  }
   CudaSyncThreadsDropIfThenElse(&copied);
 #endif
 
