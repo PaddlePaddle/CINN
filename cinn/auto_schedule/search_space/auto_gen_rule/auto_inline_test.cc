@@ -294,7 +294,7 @@ TEST_F(TestAutoInline, SingleChain) {
 
   // build ir::Module and debug source code
   auto build_module_auto     = BuildIRModule(new_states[0]->ir_schedule);
-  auto build_module_manually = BuildIRModule(MakeIRSchedule(tests::BiasBnReLUBuilder().Build(inputs_varinfo), true));
+  auto build_module_manually = BuildIRModule(MakeIRSchedule(tests::BiasBnReLUBuilder().Build(inputs_varinfo), -1, true));
   auto source_code_auto      = GenSourceCode(build_module_auto);
   VLOG(6) << " auto-schedule source code:\n" << source_code_auto;
   auto source_code_manually = GenSourceCode(build_module_manually);
@@ -351,7 +351,7 @@ TEST_F(TestAutoInline, InlineToMultiConsumers) {
 
   // build ir::Module and debug source code
   auto build_module_auto     = BuildIRModule(new_states[0]->ir_schedule);
-  auto build_module_manually = BuildIRModule(MakeIRSchedule(tests::ExpTwoConsumersOpBuilder().Build(inputs_varinfo), true));
+  auto build_module_manually = BuildIRModule(MakeIRSchedule(tests::ExpTwoConsumersOpBuilder().Build(inputs_varinfo), -1, true));
   auto source_code_auto      = GenSourceCode(build_module_auto);
   VLOG(6) << " auto-schedule source code:\n" << source_code_auto;
   auto source_code_manually = GenSourceCode(build_module_manually);
@@ -412,7 +412,7 @@ TEST_F(TestAutoInline, OnlySpatialOp) {
 
   // build ir::Module and debug source code
   auto build_module_auto     = BuildIRModule(new_states[0]->ir_schedule);
-  auto build_module_manually = BuildIRModule(MakeIRSchedule(tests::GatherAddSubBuilder().Build(inputs_varinfo), true));
+  auto build_module_manually = BuildIRModule(MakeIRSchedule(tests::GatherAddSubBuilder().Build(inputs_varinfo), -1, true));
   auto source_code_auto      = GenSourceCode(build_module_auto);
   VLOG(6) << " auto-schedule source code:\n" << source_code_auto;
   auto source_code_manually = GenSourceCode(build_module_manually);
@@ -464,7 +464,7 @@ TEST_F(TestAutoInline, NoReadBufferOp) {
 
   // build ir::Module and debug source code
   auto build_module_auto     = BuildIRModule(new_states[0]->ir_schedule);
-  auto build_module_manually = BuildIRModule(MakeIRSchedule(tests::FillConstantAddBuilder().Build(inputs_varinfo), true));
+  auto build_module_manually = BuildIRModule(MakeIRSchedule(tests::FillConstantAddBuilder().Build(inputs_varinfo), -1, true));
   auto source_code_auto      = GenSourceCode(build_module_auto);
   VLOG(6) << " auto-schedule source code:\n" << source_code_auto;
   auto source_code_manually = GenSourceCode(build_module_manually);
