@@ -22,9 +22,9 @@
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
 #include "cinn/auto_schedule/search_space/auto_gen_rule/multi_level_tiling.h"
 #include "cinn/auto_schedule/search_space/auto_gen_rule/test_helper.h"
-#include "cinn/auto_schedule/tests/test_op_builder.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_schedule.h"
+#include "tests/program_builder.h"
 
 namespace cinn {
 namespace auto_schedule {
@@ -36,13 +36,15 @@ class TestMixRules : public TestAutoGenRuleBase {
 };
 
 TEST_F(TestMixRules, 2DMatmulOnMultiTilingRelated) {
-  ir::IRSchedule ir_schedule       = InitSchedule(MatmulOpBuilder({32, 32}, {32, 32})(), common::DefaultNVGPUTarget());
+  frontend::Program matmul_op = tests::OpBuilder("matmul").Build({{"X", {32, 32}}, {"Y", {32, 32}}});
+  Initialize(common::DefaultNVGPUTarget());
+  ir::IRSchedule ir_schedule       = MakeIRSchedule(matmul_op);
   std::vector<ir::Expr> func_bodys = ir_schedule.GetModule().GetExprs();
   ASSERT_EQ(func_bodys.size(), 1UL);
   VLOG(6) << "Original Expr:\n" << func_bodys[0];
 
   // Apply MultiLevelTiling
-  MultiLevelTiling multi_level_tiling(target_);
+  MultiLevelTiling multi_level_tiling(target_, MultiLevelTiling::kConfigs.at(target_.arch));
   multi_level_tiling.Init(&ir_schedule);
   ASSERT_EQ(multi_level_tiling.NumberApplicable(), 1);
   multi_level_tiling.ApplyRandomly();
@@ -68,7 +70,7 @@ TEST_F(TestMixRules, 2DMatmulOnMultiTilingRelated) {
   VLOG(6) << "scheduled source code:\n" << source_code;
   // execute and check precision
   CheckResult(GenExecutableKernel(ir_module),
-              expected_func_matmul,
+              GenExecutableKernel(BuildIRModule(MakeIRSchedule(matmul_op, /* apply_manual_schedule */ true))),
               default_input_names,
               default_output_names,
               {{32, 32}, {32, 32}},

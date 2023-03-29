@@ -45,14 +45,12 @@ TEST(const_conv, const_conv) {
   std::string src_layout = "NCHW";
   attrs["data_format"]   = src_layout;
 
-  auto c = program.conv2d(A, B, attrs);
-
+  auto c        = program.conv2d(A, B, attrs);
   Target target = common::DefaultTarget();
   program.SetInputs({A, B});
   program.Validate();
   LOG(INFO) << "Program:\n" << program;
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  LOG(INFO) << "graph:\n" << graph->Visualize();
 
   hlir::framework::ApplyPass(graph.get(), "InferShape");
   hlir::framework::ApplyPass(graph.get(), "ConstPropagate");
@@ -89,19 +87,17 @@ TEST(const_bn, const_bn) {
   Program program;
   absl::flat_hash_map<std::string, Program::attr_t> attrs;
   attrs["epsilon"] = static_cast<float>(0.001);
-
-  auto a = program.fused_batchnorm_inference(A, Scale, Bias, Mean, Variance, attrs);
+  auto a           = program.fused_batchnorm_inference(A, Scale, Bias, Mean, Variance, attrs);
 
   Target target = common::DefaultTarget();
   program.SetInputs({A, Scale, Bias, Mean, Variance});
   program.Validate();
   LOG(INFO) << "Program:\n" << program;
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  LOG(INFO) << "graph:\n" << graph->Visualize();
 
   hlir::framework::ApplyPass(graph.get(), "InferShape");
-  hlir::framework::ApplyPass(graph.get(), "ConstPropagate");
   hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
   auto scope = BuildScope(target, graph);
 
   hlir::framework::GraphCompiler gc(target, scope, graph);

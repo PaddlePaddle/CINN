@@ -1986,6 +1986,13 @@ Expr CasSimplifyMutator::SimplifyFracOp(Expr expr) {
 
           avs1.push_back(make_const(a.type(), a_d));
           if (b_d != 1) bvs1.push_back(make_const(b.type(), b_d));
+        } else if (af || bf) {
+          double value      = af->value / bf->value;
+          const auto& ftype = af ? af->type() : bf->type();
+          avs1.push_back(make_const(ftype, value));
+        } else {
+          avs1.push_back(a);
+          bvs1.push_back(b);
         }
 
         // CHECK(!af) << a << " " << b;
@@ -2016,17 +2023,17 @@ Expr CasSimplifyMutator::SimplifyFracOp(Expr expr) {
   };
 
   {
-    std::vector<Expr> a_args, b_args;
-    if (ap)
-      a_args = ap->operands();
-    else
-      a_args.push_back(a);
-    if (bp)
-      b_args = bp->operands();
-    else
-      b_args.push_back(b);
-
-    return reduce_product_div_product(a_args, b_args);
+    // TODO : fix in future.
+    // std::vector<Expr> a_args, b_args;
+    // if (ap)
+    //   a_args = ap->operands();
+    // else
+    //   a_args.push_back(a);
+    // if (bp)
+    //   b_args = bp->operands();
+    // else
+    //   b_args.push_back(b);
+    // return reduce_product_div_product(a_args, b_args);
   }
 
   // x / x

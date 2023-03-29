@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "cinn/frontend/paddle/cpp/op_desc.h"
+#include "cinn/utils/functional.h"
 #include "cinn/utils/type_defs.h"
 
 namespace cinn {
@@ -35,24 +36,31 @@ inline T GetAttrOrDefault(const paddle::cpp::OpDesc& op_desc, const std::string&
   return default_value;
 }
 
-#define EXPAND_SINGLE_NUM_TO_VECTOR(DATA_TYPE, ATTR_TYPE)                                                         \
-  template <>                                                                                                     \
-  inline std::vector<DATA_TYPE> GetAttrOrDefault(                                                                 \
-      const paddle::cpp::OpDesc& op_desc, const std::string& name, const std::vector<DATA_TYPE>& default_value) { \
-    if (op_desc.HasAttr(name)) {                                                                                  \
-      auto attr_type = op_desc.GetAttrType(name);                                                                 \
-      using AttrType = paddle::cpp::OpDescAPI::AttrType;                                                          \
-      switch (attr_type) {                                                                                        \
-        case AttrType::ATTR_TYPE##S:                                                                              \
-          return op_desc.GetAttr<std::vector<DATA_TYPE>>(name);                                                   \
-        case AttrType::ATTR_TYPE:                                                                                 \
-          return std::vector<DATA_TYPE>{op_desc.GetAttr<DATA_TYPE>(name)};                                        \
-        default:                                                                                                  \
-          LOG(FATAL) << "Op " << op_desc.Type() << "'s attribute " << name << " should be " << #ATTR_TYPE         \
-                     << "S. Please Check!";                                                                       \
-      }                                                                                                           \
-    }                                                                                                             \
-    return default_value;                                                                                         \
+#define EXPAND_SINGLE_NUM_TO_VECTOR(DATA_TYPE, ATTR_TYPE)                                                             \
+  template <>                                                                                                         \
+  inline std::vector<DATA_TYPE> GetAttrOrDefault(                                                                     \
+      const paddle::cpp::OpDesc& op_desc, const std::string& name, const std::vector<DATA_TYPE>& default_value) {     \
+    if (op_desc.HasAttr(name)) {                                                                                      \
+      auto attr_type = op_desc.GetAttrType(name);                                                                     \
+      using AttrType = paddle::cpp::OpDescAPI::AttrType;                                                              \
+      switch (attr_type) {                                                                                            \
+        case AttrType::ATTR_TYPE##S:                                                                                  \
+          return op_desc.GetAttr<std::vector<DATA_TYPE>>(name);                                                       \
+        case AttrType::ATTR_TYPE:                                                                                     \
+          return std::vector<DATA_TYPE>{op_desc.GetAttr<DATA_TYPE>(name)};                                            \
+        default:                                                                                                      \
+          if (attr_type == AttrType::BOOLEANS) {                                                                      \
+            LOG(WARNING) << "Op \"" << op_desc.Type() << "\"'s attribute \"" << name << "\" should be " << #ATTR_TYPE \
+                         << "S, but here is BOOLEANS, considering the type of python empty list in cpp are BOOLEANS," \
+                         << " here we will return a empty vector.";                                                   \
+            return {};                                                                                                \
+          } else {                                                                                                    \
+            LOG(FATAL) << "Op \"" << op_desc.Type() << "\"'s attribute \"" << name << "\" should be " << #ATTR_TYPE   \
+                       << "S. But here " << static_cast<int>(attr_type) << " Please Check!";                          \
+          }                                                                                                           \
+      }                                                                                                               \
+    }                                                                                                                 \
+    return default_value;                                                                                             \
   }
 
 EXPAND_SINGLE_NUM_TO_VECTOR(int, INT)
@@ -118,6 +126,12 @@ inline std::vector<int64_t> GetAttrOrDefault(const paddle::cpp::OpDesc& op_desc,
       }
       case AttrType::INT:
         return std::vector<int64_t>{GetAttrOrDefault<int>(op_desc, name)};
+      case AttrType::BOOLEANS: {
+        LOG(WARNING) << "Op \"" << op_desc.Type() << "\"'s attribute \"" << name << "\" should be LONGS, "
+                     << "but here is BOOLEANS, considering the type of python empty list in cpp are BOOLEANS, "
+                     << "here we will return a empty vector.";
+        return {};
+      }
       default:
         LOG(FATAL) << "Op " << op_desc.Type() << "'s attribute " << name << " should be LONGS. Please Check!";
     }
@@ -133,17 +147,6 @@ inline cinn::utils::ShapeType ToShapeType(const std::vector<T>& shape) {
 template <typename T>
 inline cinn::utils::DimType ToDimType(const T& val) {
   return static_cast<cinn::utils::DimType>(val);
-}
-
-inline std::vector<int> GetPositiveAxes(const std::vector<int>& axes, int rank) {
-  std::vector<int> new_axes(axes.size());
-  for (int i = 0; i < axes.size(); ++i) {
-    int axis = axes[i] + (axes[i] < 0 ? rank : 0);
-    CHECK(axis >= 0 && axis < rank) << "The axis should in [0, " << rank << "), but axes[" << i << "]=" << axes[i]
-                                    << " not.";
-    new_axes[i] = axis;
-  }
-  return new_axes;
 }
 
 }  // namespace utils

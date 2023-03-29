@@ -53,7 +53,8 @@ class TestAssignValueOp(OpMapperTest):
         shape = self.feed_data['x'].shape
         value_name, values = self.convert_values(dtype, self.feed_data['x'])
         return {
-            'dtype': self.nptype2paddledtype(str(dtype)),
+            'dtype': self.nptype2paddledtype(
+                str(dtype)),  # should keep the same as input
             'shape': shape,
             value_name: values,
         }

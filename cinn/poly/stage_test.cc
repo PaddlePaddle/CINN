@@ -167,23 +167,6 @@ function fn (_A, _B, _cache, _C)
 }
 
 TEST(ComputeAt, simple) {
-  /*
-  {
-    Expr n(64);
-    auto A = Placeholder<float>("A", {n, n});
-
-    auto A1 = Compute(
-        {n, n}, [&](Expr i, Expr j) { return A(i, j); }, "A1");
-    auto B = Compute(
-        {n / 2, n / 2}, [&](Expr i, Expr j) { return A1(i, j); }, "B");
-
-    B->stage()->Split(0, 16);
-
-    auto fn = Lower("fn", {A, A1, B});
-    LOG(INFO) << "fn:\n" << fn;
-  }
-   */
-
   {
     Expr n(64);
     auto A = Placeholder<float>("A", {n, n});
@@ -268,7 +251,7 @@ function fn (_A, _cache, _transformed)
     serial for (j, 0, 200)
     {
       cache[i] = A[i, j]
-      transformed[i, j] = 1.00000f
+      transformed[i, j] = 1.00000000f
     }
   }
 }
@@ -294,7 +277,7 @@ function fn (_A, _cache, _transformed)
   {
     serial for (j, 0, 200)
     {
-      transformed[i, j] = 1.00000f
+      transformed[i, j] = 1.00000000f
       cache[i] = A[i, j]
     }
   }
@@ -404,7 +387,7 @@ TEST(ComputeInline, basic) {
   stages[B2]->ComputeInline();
 
   auto inlined_B = B->inline_expanded({Expr(2), Expr(1)});
-  ASSERT_EQ("(A[2, 1] + 1.00000f)", utils::GetStreamCnt(inlined_B));
+  ASSERT_EQ("(A[2, 1] + 1.00000000f)", utils::GetStreamCnt(inlined_B));
 
   auto fn = Lower("fn", stages, {A, C});
 
@@ -417,7 +400,7 @@ function fn (_A, _C)
   {
     serial for (j, 0, 200)
     {
-      C[i, j] = (6.00000f + (2.00000f * A[i, j]))
+      C[i, j] = (6.00000000f + (2.00000000f * A[i, j]))
     }
   }
 }
@@ -461,21 +444,21 @@ function fn (_A, _C, _C1, _C2)
   {
     serial for (j, 0, 200)
     {
-      C2[i, j] = (6.00000f + (2.00000f * A[i, j]))
+      C2[i, j] = (6.00000000f + (2.00000000f * A[i, j]))
     }
   }
   serial for (i, 0, 100)
   {
     serial for (j, 0, 200)
     {
-      C1[i, j] = (4.00000f + (2.00000f * A[i, j]))
+      C1[i, j] = (4.00000000f + (2.00000000f * A[i, j]))
     }
   }
   serial for (i, 0, 100)
   {
     serial for (j, 0, 200)
     {
-      C[i, j] = (2.00000f + (2.00000f * A[i, j]))
+      C[i, j] = (2.00000000f + (2.00000000f * A[i, j]))
     }
   }
 }

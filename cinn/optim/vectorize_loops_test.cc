@@ -199,7 +199,7 @@ TEST(Vectorize, vectorize) {
     expr      = expr + 10.f * expr;
     detail::Vectorize(a, 16, &expr);
     EXPECT_EQ(GetStreamCnt(expr),
-              "(A[Ramp(((b * 2) + (0 * 2)),(1 * 2),16)] + (Broadcast(10.0000f,16) * A[Ramp(((b * 2) + (0 * 2)),(1 * "
+              "(A[Ramp(((b * 2) + (0 * 2)),(1 * 2),16)] + (Broadcast(10.0000000f,16) * A[Ramp(((b * 2) + (0 * 2)),(1 * "
               "2),16)]))");
   }
 }

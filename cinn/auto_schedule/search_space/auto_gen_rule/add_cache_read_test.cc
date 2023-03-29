@@ -21,10 +21,10 @@
 
 #include "cinn/auto_schedule/search_space/auto_gen_rule/multi_level_tiling.h"
 #include "cinn/auto_schedule/search_space/auto_gen_rule/test_helper.h"
-#include "cinn/auto_schedule/tests/test_op_builder.h"
 #include "cinn/cinn.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_schedule.h"
+#include "tests/program_builder.h"
 
 namespace cinn {
 namespace auto_schedule {
@@ -36,9 +36,11 @@ class TestAddCacheRead : public TestAutoGenRuleBase {
 };
 
 TEST_F(TestAddCacheRead, Init) {
+  Initialize(common::DefaultNVGPUTarget());
   // matmul case
-  ir::IRSchedule ir_schedule_matmul = InitSchedule(MatmulOpBuilder({32, 32}, {32, 32})(), common::DefaultNVGPUTarget());
-  std::vector<ir::Expr> func_bodys  = ir_schedule_matmul.GetModule().GetExprs();
+  ir::IRSchedule ir_schedule_matmul =
+      MakeIRSchedule(tests::OpBuilder("matmul").Build({{"X", {32, 32}}, {"Y", {32, 32}}}));
+  std::vector<ir::Expr> func_bodys = ir_schedule_matmul.GetModule().GetExprs();
   ASSERT_EQ(func_bodys.size(), 1UL);
   VLOG(6) << "Original Expr:\n" << func_bodys[0];
 
@@ -49,7 +51,8 @@ TEST_F(TestAddCacheRead, Init) {
   VLOG(6) << "Matmul Expr after AddCacheRead: " << func_bodys[0];
 
   // add case
-  ir::IRSchedule ir_schedule_add = InitSchedule(AddOpBuilder({64, 64}, {64, 64})(), common::DefaultNVGPUTarget());
+  ir::IRSchedule ir_schedule_add =
+      MakeIRSchedule(tests::OpBuilder("elementwise_add").Build({{"X", {64, 64}}, {"Y", {64, 64}}}));
   VLOG(6) << "Mat Add Expr before AddCacheRead:\n" << ir_schedule_add.GetModule().GetExprs();
   AddCacheRead add_cache_read2(target_);
   EXPECT_EQ(add_cache_read2.Init(&ir_schedule_add), RuleApplyType::kCannotApply);
@@ -57,7 +60,9 @@ TEST_F(TestAddCacheRead, Init) {
 }
 
 TEST_F(TestAddCacheRead, BasicApplyOnMatmul) {
-  ir::IRSchedule ir_schedule = InitSchedule(MatmulOpBuilder({32, 32}, {32, 32})(), common::DefaultNVGPUTarget());
+  frontend::Program matmul_op = tests::OpBuilder("matmul").Build({{"X", {32, 32}}, {"Y", {32, 32}}});
+  Initialize(common::DefaultNVGPUTarget());
+  ir::IRSchedule ir_schedule = MakeIRSchedule(matmul_op);
   SearchState state(ir_schedule, 0, {});
   std::vector<ir::Expr> func_bodys = ir_schedule.GetModule().GetExprs();
   ASSERT_EQ(func_bodys.size(), 1UL);
@@ -88,7 +93,7 @@ TEST_F(TestAddCacheRead, BasicApplyOnMatmul) {
   EXPECT_EQ(source_code_applied_on_block, source_code);
   // execute and check precision
   CheckResult(GenExecutableKernel(build_module_applied_on_block),
-              expected_func_matmul,
+              GenExecutableKernel(BuildIRModule(MakeIRSchedule(matmul_op, /* apply_manual_schedule */ true))),
               default_input_names,
               default_output_names,
               {{32, 32}, {32, 32}},
@@ -97,12 +102,14 @@ TEST_F(TestAddCacheRead, BasicApplyOnMatmul) {
 }
 
 TEST_F(TestAddCacheRead, ApplyOnMatmulWithTiling) {
-  ir::IRSchedule ir_schedule       = InitSchedule(MatmulOpBuilder({32, 32}, {32, 32})(), common::DefaultNVGPUTarget());
+  frontend::Program matmul_op = tests::OpBuilder("matmul").Build({{"X", {32, 32}}, {"Y", {32, 32}}});
+  Initialize(common::DefaultNVGPUTarget());
+  ir::IRSchedule ir_schedule       = MakeIRSchedule(matmul_op);
   std::vector<ir::Expr> func_bodys = ir_schedule.GetModule().GetExprs();
   ASSERT_EQ(func_bodys.size(), 1UL);
   VLOG(6) << "Original Expr:\n" << func_bodys[0];
   // Apply MultiLevelTiling before AddCacheRead.
-  MultiLevelTiling multi_level_tiling(target_);
+  MultiLevelTiling multi_level_tiling(target_, MultiLevelTiling::kConfigs.at(target_.arch));
   multi_level_tiling.Init(&ir_schedule);
   ASSERT_EQ(multi_level_tiling.NumberApplicable(), 1);
   multi_level_tiling.ApplyRandomly();
@@ -119,7 +126,7 @@ TEST_F(TestAddCacheRead, ApplyOnMatmulWithTiling) {
   VLOG(6) << "scheduled source code:\n" << source_code;
   // execute and check precision
   CheckResult(GenExecutableKernel(build_module),
-              expected_func_matmul,
+              GenExecutableKernel(BuildIRModule(MakeIRSchedule(matmul_op, /* apply_manual_schedule */ true))),
               {"A", "B"},
               {"C"},
               {{32, 32}, {32, 32}},
@@ -128,7 +135,7 @@ TEST_F(TestAddCacheRead, ApplyOnMatmulWithTiling) {
 
   // ApplyOnBlock
   const std::string& applied_block_name = default_output_names.back();
-  ir_schedule = InitSchedule(MatmulOpBuilder({32, 32}, {32, 32})(), common::DefaultNVGPUTarget());
+  ir_schedule                           = MakeIRSchedule(matmul_op);
   SearchState state(ir_schedule, 0, {});
   // Apply MultiLevelTiling before AddCacheRead.
   EXPECT_EQ(multi_level_tiling.AnalyseApplyType(state, applied_block_name), RuleApplyType::kApplyAndPruneOtherRules);
@@ -137,19 +144,14 @@ TEST_F(TestAddCacheRead, ApplyOnMatmulWithTiling) {
   EXPECT_EQ(exprs.size(), 1UL);
   VLOG(6) << "Expr after MultiLevelTiling applied on block: " << exprs[0];
   // Apply AddCacheRead.
-  EXPECT_EQ(add_cache_read.AnalyseApplyType(states_after_tiling[0], applied_block_name),
-            RuleApplyType::kApplyAndPruneOtherRules);
-  auto states_after_cache_read = add_cache_read.ApplyOnBlock(states_after_tiling[0], applied_block_name);
-  exprs                        = states_after_cache_read[0]->ir_schedule.GetModule().GetExprs();
-  EXPECT_EQ(exprs.size(), 1UL);
-  VLOG(6) << "Matmul Expr after AddCacheRead applied on block: " << exprs[0];
+  EXPECT_EQ(add_cache_read.AnalyseApplyType(states_after_tiling[0], applied_block_name), RuleApplyType::kCannotApply);
   // build ir::Module and debug source code
-  build_module = BuildIRModule(states_after_cache_read[0]->ir_schedule);
+  build_module = BuildIRModule(states_after_tiling[0]->ir_schedule);
   source_code  = GenSourceCode(build_module);
   VLOG(6) << "ApplyOnBlock scheduled source code:\n" << source_code;
   // execute and check precision
   CheckResult(GenExecutableKernel(build_module),
-              expected_func_matmul,
+              GenExecutableKernel(BuildIRModule(MakeIRSchedule(matmul_op, /* apply_manual_schedule */ true))),
               default_input_names,
               default_output_names,
               {{32, 32}, {32, 32}},

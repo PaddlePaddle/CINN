@@ -339,7 +339,7 @@ StrategyForBinary(elementwise_add, Add);
 StrategyForBinary(atan2, Atan2);
 StrategyForBinary(elementwise_mul, Multiply);
 
-StrategyForBinary(substract, Substract);
+StrategyForBinary(subtract, Subtract);
 StrategyForBinary(divide, Divide);
 StrategyForBinary(floor_divide, FloorDivide);
 StrategyForBinary(mod, Mod);
@@ -400,7 +400,7 @@ CINN_REGISTER_HELPER(broadcast_ops) {
   CINN_REGISTER_BINARY(atan2, Atan2);
   CINN_REGISTER_BINARY(elementwise_mul, Multiply);
 
-  CINN_REGISTER_BINARY(substract, Substract);
+  CINN_REGISTER_BINARY(subtract, Subtract);
   CINN_REGISTER_BINARY(divide, Divide);
   CINN_REGISTER_BINARY(floor_divide, FloorDivide);
   CINN_REGISTER_BINARY(mod, Mod);

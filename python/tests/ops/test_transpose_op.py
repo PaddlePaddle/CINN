@@ -31,17 +31,23 @@ class TestTransposeOp(OpTest):
         self.init_case()
 
     def init_case(self):
-        self.inputs = {"x": np.random.random([2, 3]).astype("float32")}
+        self.inputs = {"x": self.random([2, 3], "float32")}
+        self.axes = [1, 0]
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.inputs["x"], stop_gradient=True)
-        out = paddle.transpose(x, [1, 0])
+        out = paddle.transpose(x, [
+            axis + len(self.inputs["x"].shape) if axis < 0 else axis
+            for axis in self.axes
+        ])
         self.paddle_outputs = [out]
 
     def build_cinn_program(self, target):
         builder = NetBuilder("transpose_test")
-        x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
-        out = builder.transpose(x, [1, 0])
+        x = builder.create_input(
+            self.nptype2cinntype(self.inputs['x'].dtype),
+            self.inputs["x"].shape, "x")
+        out = builder.transpose(x, self.axes)
 
         prog = builder.build()
         res = self.get_cinn_output(prog, target, [x], [self.inputs["x"]],
@@ -50,6 +56,12 @@ class TestTransposeOp(OpTest):
 
     def test_check_results(self):
         self.check_outputs_and_grads(all_equal=True)
+
+
+class TestTransposeOpWithNegAxis(TestTransposeOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([10, 8, 2], "float32")}
+        self.axes = [-1, 1, -3]
 
 
 if __name__ == "__main__":

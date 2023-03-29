@@ -22,7 +22,7 @@
 #include "cinn/backends/codegen_cuda_dev.h"
 #include "cinn/common/context.h"
 #include "cinn/hlir/framework/instruction.h"
-#include "cinn/hlir/framework/op_lowering.h"
+#include "cinn/hlir/framework/op_lowering_util.h"
 #include "cinn/hlir/framework/tensor.h"
 #include "cinn/hlir/pe/schedule.h"
 #include "cinn/lang/lower.h"
@@ -737,6 +737,9 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
                                                       std::unordered_set<std::string>&& fetch_var_ids,
                                                       void* stream) {
   if (FLAGS_cinn_parallel_compile_size) {
+    // write group's information into FLAGS_cinn_fusion_groups_graphviz_dir
+    graph_->VisualizeGroupedGraph(fetch_var_ids_);
+
     if (options.with_instantiate_variables) {
       VLOG(3) << "Initantiate all variables on compile-time";
       // All variables reside in scope_, so traverse it to instantiate each one
@@ -846,13 +849,15 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
       }
     }
   }
+  // write group's information into FLAGS_cinn_fusion_groups_graphviz_dir
+  graph_->VisualizeGroupedGraph(groups, fetch_var_ids_);
+
   // use the input lowered_funcs in options firstly if exists
   const auto& lowered_funcs = options.lowered_funcs.empty() ? local_lowered_funcs : options.lowered_funcs;
   CHECK_EQ(groups.size(), lowered_funcs.size()) << "The size of groups and lowered_funcs shoule be equal";
   for (auto&& lowered_func : lowered_funcs) {
     this->ProcessFunction(lowered_func);
   }
-  graph_->VisualizeGroupedGraph(groups, fetch_var_ids_);
 
   // compile the module
   // Need to create a new compiler for every call of Build,
@@ -1089,8 +1094,8 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions(
           if (node->attrs.attr_store.find("padding_size") != node->attrs.attr_store.end()) {
             if (global_pooling == false) {
               auto padding = absl::get<std::vector<int>>(node->attrs.attr_store.at("padding_size"));
-              CHECK_EQ(padding.size(), 4UL);
               instr->attrs.insert(instr->attrs.end(), padding.begin(), padding.end());
+              if (padding.size() == 2) instr->attrs.insert(instr->attrs.end(), padding.begin(), padding.end());
             } else {
               instr->attrs.push_back(0);
               instr->attrs.push_back(0);

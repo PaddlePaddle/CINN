@@ -35,45 +35,35 @@ using ir::Module;
 
 static constexpr int DebugLogMaxLen = 30000;
 
-class SourceCodePrint {
- public:
-  static SourceCodePrint* GetInstance() {
-    static SourceCodePrint print;
-    return &print;
+SourceCodePrint::SourceCodePrint() {
+  if (!FLAGS_cinn_source_code_save_path.empty()) {
+    LOG(INFO) << "The CINN auto generated source code will writing into file: \"" << FLAGS_cinn_source_code_save_path
+              << "\"";
+    of.open(FLAGS_cinn_source_code_save_path, std::ios_base::out);
   }
+}
 
-  void write(const std::string& source_code) {
-    if (of.is_open()) {
-      VLOG(4) << "Write to " << FLAGS_cinn_source_code_save_path;
-      of << source_code << std::endl;
-    } else if (!FLAGS_cinn_source_code_save_path.empty()) {
-      LOG(WARNING) << "Failed to open " << FLAGS_cinn_source_code_save_path << ", source code will print.";
-      if (source_code.size() > DebugLogMaxLen) {
-        LOG(INFO) << "[CUDA] source code-0:\n" << source_code.substr(0, DebugLogMaxLen);
-        for (int i = 1; i * DebugLogMaxLen < source_code.size(); ++i) {
-          LOG(INFO) << "[CUDA] source code-" << i << ":\n" << source_code.substr(DebugLogMaxLen * i, DebugLogMaxLen);
-        }
-      } else {
-        LOG(INFO) << "[CUDA] source code:\n" << source_code;
+SourceCodePrint::~SourceCodePrint() {
+  if (of.is_open()) {
+    of.close();
+  }
+}
+
+void SourceCodePrint::write(const std::string& source_code) {
+  if (of.is_open()) {
+    of << source_code << std::endl;
+  } else if (!FLAGS_cinn_source_code_save_path.empty()) {
+    LOG(WARNING) << "Failed to open \"" << FLAGS_cinn_source_code_save_path << "\", source code will print.";
+    if (source_code.size() > DebugLogMaxLen) {
+      LOG(INFO) << "[CUDA] source code-0:\n" << source_code.substr(0, DebugLogMaxLen);
+      for (int i = 1; i * DebugLogMaxLen < source_code.size(); ++i) {
+        LOG(INFO) << "[CUDA] source code-" << i << ":\n" << source_code.substr(DebugLogMaxLen * i, DebugLogMaxLen);
       }
+    } else {
+      LOG(INFO) << "[CUDA] source code:\n" << source_code;
     }
   }
-
- private:
-  SourceCodePrint() {
-    if (!FLAGS_cinn_source_code_save_path.empty()) {
-      of.open(FLAGS_cinn_source_code_save_path, std::ios_base::out);
-    }
-  }
-
-  ~SourceCodePrint() {
-    if (of.is_open()) {
-      of.close();
-    }
-  };
-
-  std::ofstream of;
-};
+}
 
 void Compiler::Build(const Module& module, const std::string& code) {
   if (target_.arch == Target::Arch::NVGPU) {
@@ -122,6 +112,8 @@ void Compiler::CompileCudaModule(const Module& module, const std::string& code) 
   VLOG(3) << "[CUDA] device module:\n" << device_module;
   CodeGenCUDA_Dev codegen(target_);
   auto source_code = codegen.Compile(device_module);
+
+  VLOG(3) << "[CUDA] C:\n" << source_code;
   if (!code.empty()) source_code = code;
   SourceCodePrint::GetInstance()->write(source_code);
   using runtime::cuda::CUDAModule;

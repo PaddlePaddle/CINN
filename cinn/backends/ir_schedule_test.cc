@@ -86,7 +86,7 @@ void test_split_and_fuse1(void* _args, int32_t num_args)
   float* B = ((float*)(_B->memory));
   for (int32_t i_j_fused_0_i_j_fused_1_fused_0 = 0; i_j_fused_0_i_j_fused_1_fused_0 < 256; i_j_fused_0_i_j_fused_1_fused_0 += 1) {
     for (int32_t i_j_fused_0_i_j_fused_1_fused_1 = 0; i_j_fused_0_i_j_fused_1_fused_1 < 4; i_j_fused_0_i_j_fused_1_fused_1 += 1) {
-      B[((4 * i_j_fused_0_i_j_fused_1_fused_0) + i_j_fused_0_i_j_fused_1_fused_1)] = A[((4 * i_j_fused_0_i_j_fused_1_fused_0) + i_j_fused_0_i_j_fused_1_fused_1)];
+      B[(((i_j_fused_0_i_j_fused_1_fused_0 / 8) * 32) + (((4 * i_j_fused_0_i_j_fused_1_fused_0) + i_j_fused_0_i_j_fused_1_fused_1) & 31))] = A[(((i_j_fused_0_i_j_fused_1_fused_0 / 8) * 32) + (((4 * i_j_fused_0_i_j_fused_1_fused_0) + i_j_fused_0_i_j_fused_1_fused_1) & 31))];
     };
   };
   cinn_buffer_free((void*)(0), _B);
@@ -1048,7 +1048,7 @@ void test_compute_at3(void* _args, int32_t num_args)
       };
     };
     for (int32_t i_j_fused_1 = 0; i_j_fused_1 < 128; i_j_fused_1 += 1) {
-      C[((128 * i_j_fused_0) + i_j_fused_1)] = B[((128 * i_j_fused_0) + i_j_fused_1)];
+      C[((64 * (i_j_fused_1 / 64)) + ((((128 * i_j_fused_0) + i_j_fused_1) & 63) + (128 * i_j_fused_0)))] = B[((64 * (i_j_fused_1 / 64)) + ((((128 * i_j_fused_0) + i_j_fused_1) & 63) + (128 * i_j_fused_0)))];
     };
   };
   cinn_buffer_free((void*)(0), _B);
@@ -1238,7 +1238,7 @@ void test_compute_at6(const float* __restrict__ A, float* __restrict__ C)
   for (int32_t i_j_fused_0 = 0; i_j_fused_0 < 32; i_j_fused_0 += 1) {
     for (int32_t i_j_fused_1 = 0; i_j_fused_1 < 128; i_j_fused_1 += 1) {
       B[((64 * (i_j_fused_1 / 64)) + ((((128 * i_j_fused_0) + i_j_fused_1) & 63) + (128 * i_j_fused_0)))] = A[((64 * (i_j_fused_1 / 64)) + ((((128 * i_j_fused_0) + i_j_fused_1) & 63) + (128 * i_j_fused_0)))];
-      C[((128 * i_j_fused_0) + i_j_fused_1)] = B[((128 * i_j_fused_0) + i_j_fused_1)];
+      C[((64 * (i_j_fused_1 / 64)) + ((((128 * i_j_fused_0) + i_j_fused_1) & 63) + (128 * i_j_fused_0)))] = B[((64 * (i_j_fused_1 / 64)) + ((((128 * i_j_fused_0) + i_j_fused_1) & 63) + (128 * i_j_fused_0)))];
     };
   };
 }
@@ -1305,26 +1305,24 @@ void test_cache_read1(void* _args, int32_t num_args)
   const float* A = ((const float*)(_A->memory));
   float* B = ((float*)(_B->memory));
   float* C = ((float*)(_C->memory));
-  {
-    for (int32_t cache_ax0 = 0; cache_ax0 < 32; cache_ax0 += 1) {
-      for (int32_t cache_ax1 = 0; cache_ax1 < 32; cache_ax1 += 1) {
-        A_local_temp_buffer[((64 * cache_ax0) + cache_ax1)] = A[((64 * cache_ax0) + cache_ax1)];
-      };
+  for (int32_t cache_ax0 = 0; cache_ax0 < 32; cache_ax0 += 1) {
+    for (int32_t cache_ax1 = 0; cache_ax1 < 32; cache_ax1 += 1) {
+      A_local_temp_buffer[((64 * cache_ax0) + cache_ax1)] = A[((64 * cache_ax0) + cache_ax1)];
     };
-    for (int32_t i = 0; i < 32; i += 1) {
-      for (int32_t j = 0; j < 32; j += 1) {
-        B[((32 * i) + j)] = (2.00000f * A_local_temp_buffer[((64 * i) + j)]);
-      };
+  };
+  for (int32_t i = 0; i < 32; i += 1) {
+    for (int32_t j = 0; j < 32; j += 1) {
+      B[((32 * i) + j)] = (2.00000000f * A_local_temp_buffer[((64 * i) + j)]);
     };
-    for (int32_t cache_ax0_0 = 0; cache_ax0_0 < 16; cache_ax0_0 += 1) {
-      for (int32_t cache_ax1_0 = 0; cache_ax1_0 < 16; cache_ax1_0 += 1) {
-        B_local_temp_buffer[((32 * cache_ax0_0) + cache_ax1_0)] = B[((32 * cache_ax0_0) + cache_ax1_0)];
-      };
+  };
+  for (int32_t cache_ax0_0 = 0; cache_ax0_0 < 16; cache_ax0_0 += 1) {
+    for (int32_t cache_ax1_0 = 0; cache_ax1_0 < 16; cache_ax1_0 += 1) {
+      B_local_temp_buffer[((32 * cache_ax0_0) + cache_ax1_0)] = B[((32 * cache_ax0_0) + cache_ax1_0)];
     };
-    for (int32_t i = 0; i < 16; i += 1) {
-      for (int32_t j = 0; j < 16; j += 1) {
-        C[((16 * i) + j)] = (1.00000f + B_local_temp_buffer[((32 * i) + j)]);
-      };
+  };
+  for (int32_t i = 0; i < 16; i += 1) {
+    for (int32_t j = 0; j < 16; j += 1) {
+      C[((16 * i) + j)] = (1.00000000f + B_local_temp_buffer[((32 * i) + j)]);
     };
   };
   cinn_buffer_free((void*)(0), _B);
@@ -1391,7 +1389,7 @@ void test_cache_read2(void* _args, int32_t num_args)
   for (int32_t i = 0; i < 64; i += 1) {
     for (int32_t j = 0; j < 32; j += 1) {
       A_local_temp_buffer[((32 * i) + j)] = A[((32 * i) + j)];
-      B[((32 * i) + j)] = (2.00000f * A_local_temp_buffer[((32 * i) + j)]);
+      B[((32 * i) + j)] = (2.00000000f * A_local_temp_buffer[((32 * i) + j)]);
     };
   };
   cinn_buffer_free((void*)(0), _B);
@@ -1457,26 +1455,24 @@ void test_cache_write1(void* _args, int32_t num_args)
   const float* A = ((const float*)(_A->memory));
   float* B = ((float*)(_B->memory));
   float* C = ((float*)(_C->memory));
-  {
-    for (int32_t i = 0; i < 64; i += 1) {
-      for (int32_t j = 0; j < 32; j += 1) {
-        B_local_temp_buffer[((32 * i) + j)] = (2.00000f * A[((32 * i) + j)]);
-      };
+  for (int32_t i = 0; i < 64; i += 1) {
+    for (int32_t j = 0; j < 32; j += 1) {
+      B_local_temp_buffer[((32 * i) + j)] = (2.00000000f * A[((32 * i) + j)]);
     };
-    for (int32_t cache_ax0 = 0; cache_ax0 < 64; cache_ax0 += 1) {
-      for (int32_t cache_ax1 = 0; cache_ax1 < 32; cache_ax1 += 1) {
-        B[((32 * cache_ax0) + cache_ax1)] = B_local_temp_buffer[((32 * cache_ax0) + cache_ax1)];
-      };
+  };
+  for (int32_t cache_ax0 = 0; cache_ax0 < 64; cache_ax0 += 1) {
+    for (int32_t cache_ax1 = 0; cache_ax1 < 32; cache_ax1 += 1) {
+      B[((32 * cache_ax0) + cache_ax1)] = B_local_temp_buffer[((32 * cache_ax0) + cache_ax1)];
     };
-    for (int32_t i = 0; i < 64; i += 1) {
-      for (int32_t j = 0; j < 32; j += 1) {
-        C_local_temp_buffer[((32 * i) + j)] = (1.00000f + B[((32 * i) + j)]);
-      };
+  };
+  for (int32_t i = 0; i < 64; i += 1) {
+    for (int32_t j = 0; j < 32; j += 1) {
+      C_local_temp_buffer[((32 * i) + j)] = (1.00000000f + B[((32 * i) + j)]);
     };
-    for (int32_t cache_ax0_0 = 0; cache_ax0_0 < 64; cache_ax0_0 += 1) {
-      for (int32_t cache_ax1_0 = 0; cache_ax1_0 < 32; cache_ax1_0 += 1) {
-        C[((32 * cache_ax0_0) + cache_ax1_0)] = C_local_temp_buffer[((32 * cache_ax0_0) + cache_ax1_0)];
-      };
+  };
+  for (int32_t cache_ax0_0 = 0; cache_ax0_0 < 64; cache_ax0_0 += 1) {
+    for (int32_t cache_ax1_0 = 0; cache_ax1_0 < 32; cache_ax1_0 += 1) {
+      C[((32 * cache_ax0_0) + cache_ax1_0)] = C_local_temp_buffer[((32 * cache_ax0_0) + cache_ax1_0)];
     };
   };
   cinn_buffer_free((void*)(0), _B);
@@ -1540,7 +1536,7 @@ void test_cache_write2(void* _args, int32_t num_args)
   float* B = ((float*)(_B->memory));
   for (int32_t cache_ax0 = 0; cache_ax0 < 64; cache_ax0 += 1) {
     for (int32_t cache_ax1 = 0; cache_ax1 < 32; cache_ax1 += 1) {
-      B_local_temp_buffer[((32 * cache_ax0) + cache_ax1)] = (2.00000f * A[((32 * cache_ax0) + cache_ax1)]);
+      B_local_temp_buffer[((32 * cache_ax0) + cache_ax1)] = (2.00000000f * A[((32 * cache_ax0) + cache_ax1)]);
       B[((32 * cache_ax0) + cache_ax1)] = B_local_temp_buffer[((32 * cache_ax0) + cache_ax1)];
     };
   };
@@ -1605,28 +1601,26 @@ void test_cache_read3(const float* __restrict__ A, float* __restrict__ C)
 {
   float _B_temp_buffer [ 1024 ];
   float* B = _B_temp_buffer;
-  {
-    for (int32_t cache_ax0 = 0; cache_ax0 < 32; cache_ax0 += 1) {
-      for (int32_t cache_ax1 = 0; cache_ax1 < 32; cache_ax1 += 1) {
-        A_local_temp_buffer[((64 * cache_ax0) + cache_ax1)] = A[((64 * cache_ax0) + cache_ax1)];
-      };
+  for (int32_t cache_ax0 = 0; cache_ax0 < 32; cache_ax0 += 1) {
+    for (int32_t cache_ax1 = 0; cache_ax1 < 32; cache_ax1 += 1) {
+      A_local_temp_buffer[((64 * cache_ax0) + cache_ax1)] = A[((64 * cache_ax0) + cache_ax1)];
     };
-    for (int32_t i = 0; i < 32; i += 1) {
-      for (int32_t j = 0; j < 32; j += 1) {
-        B[((32 * i) + j)] = (2.00000f * A_local_temp_buffer[((64 * i) + j)]);
-      };
-      __syncthreads();
+  };
+  for (int32_t i = 0; i < 32; i += 1) {
+    for (int32_t j = 0; j < 32; j += 1) {
+      B[((32 * i) + j)] = (2.00000000f * A_local_temp_buffer[((64 * i) + j)]);
     };
-    for (int32_t cache_ax0_0 = 0; cache_ax0_0 < 16; cache_ax0_0 += 1) {
-      for (int32_t cache_ax1_0 = 0; cache_ax1_0 < 16; cache_ax1_0 += 1) {
-        B_local_temp_buffer[((32 * cache_ax0_0) + cache_ax1_0)] = B[((32 * cache_ax0_0) + cache_ax1_0)];
-      };
+    __syncthreads();
+  };
+  for (int32_t cache_ax0_0 = 0; cache_ax0_0 < 16; cache_ax0_0 += 1) {
+    for (int32_t cache_ax1_0 = 0; cache_ax1_0 < 16; cache_ax1_0 += 1) {
+      B_local_temp_buffer[((32 * cache_ax0_0) + cache_ax1_0)] = B[((32 * cache_ax0_0) + cache_ax1_0)];
     };
-    for (int32_t i = 0; i < 16; i += 1) {
-      __syncthreads();
-      for (int32_t j = 0; j < 16; j += 1) {
-        C[((16 * i) + j)] = (1.00000f + B_local_temp_buffer[((32 * i) + j)]);
-      };
+  };
+  for (int32_t i = 0; i < 16; i += 1) {
+    __syncthreads();
+    for (int32_t j = 0; j < 16; j += 1) {
+      C[((16 * i) + j)] = (1.00000000f + B_local_temp_buffer[((32 * i) + j)]);
     };
   };
 }
@@ -1687,28 +1681,26 @@ void test_cache_write3(const float* __restrict__ A, float* __restrict__ C)
 {
   __shared__ float _B_temp_buffer [ 2048 ];
   float* B = _B_temp_buffer;
-  {
-    for (int32_t i = 0; i < 64; i += 1) {
-      for (int32_t j = 0; j < 32; j += 1) {
-        B_local_temp_buffer[((32 * i) + j)] = (2.00000f * A[((32 * i) + j)]);
-      };
+  for (int32_t i = 0; i < 64; i += 1) {
+    for (int32_t j = 0; j < 32; j += 1) {
+      B_local_temp_buffer[((32 * i) + j)] = (2.00000000f * A[((32 * i) + j)]);
     };
-    for (int32_t cache_ax0 = 0; cache_ax0 < 64; cache_ax0 += 1) {
-      for (int32_t cache_ax1 = 0; cache_ax1 < 32; cache_ax1 += 1) {
-        B[((32 * cache_ax0) + cache_ax1)] = B_local_temp_buffer[((32 * cache_ax0) + cache_ax1)];
-      };
+  };
+  for (int32_t cache_ax0 = 0; cache_ax0 < 64; cache_ax0 += 1) {
+    for (int32_t cache_ax1 = 0; cache_ax1 < 32; cache_ax1 += 1) {
+      B[((32 * cache_ax0) + cache_ax1)] = B_local_temp_buffer[((32 * cache_ax0) + cache_ax1)];
     };
-    __syncthreads();
-    for (int32_t i = 0; i < 64; i += 1) {
-      for (int32_t j = 0; j < 32; j += 1) {
-        C_local_temp_buffer[((32 * i) + j)] = (1.00000f + B[((32 * i) + j)]);
-      };
+  };
+  __syncthreads();
+  for (int32_t i = 0; i < 64; i += 1) {
+    for (int32_t j = 0; j < 32; j += 1) {
+      C_local_temp_buffer[((32 * i) + j)] = (1.00000000f + B[((32 * i) + j)]);
     };
-    __syncthreads();
-    for (int32_t cache_ax0_0 = 0; cache_ax0_0 < 64; cache_ax0_0 += 1) {
-      for (int32_t cache_ax1_0 = 0; cache_ax1_0 < 32; cache_ax1_0 += 1) {
-        C[((32 * cache_ax0_0) + cache_ax1_0)] = C_local_temp_buffer[((32 * cache_ax0_0) + cache_ax1_0)];
-      };
+  };
+  __syncthreads();
+  for (int32_t cache_ax0_0 = 0; cache_ax0_0 < 64; cache_ax0_0 += 1) {
+    for (int32_t cache_ax1_0 = 0; cache_ax1_0 < 32; cache_ax1_0 += 1) {
+      C[((32 * cache_ax0_0) + cache_ax1_0)] = C_local_temp_buffer[((32 * cache_ax0_0) + cache_ax1_0)];
     };
   };
 }
@@ -1769,28 +1761,26 @@ void test_sync_threads(const float* __restrict__ A, float* __restrict__ C)
 {
   __shared__ float _B_temp_buffer [ 2048 ];
   float* B = _B_temp_buffer;
-  {
-    for (int32_t i = 0; i < 64; i += 1) {
-      for (int32_t j = 0; j < 32; j += 1) {
-        B_local_temp_buffer[((32 * i) + j)] = (2.00000f * A[((32 * i) + j)]);
-      };
+  for (int32_t i = 0; i < 64; i += 1) {
+    for (int32_t j = 0; j < 32; j += 1) {
+      B_local_temp_buffer[((32 * i) + j)] = (2.00000000f * A[((32 * i) + j)]);
     };
-    for (int32_t cache_ax0 = 0; cache_ax0 < 64; cache_ax0 += 1) {
-      for (int32_t cache_ax1 = 0; cache_ax1 < 32; cache_ax1 += 1) {
-        B[((32 * cache_ax0) + cache_ax1)] = B_local_temp_buffer[((32 * cache_ax0) + cache_ax1)];
-        __syncthreads();
-      };
+  };
+  for (int32_t cache_ax0 = 0; cache_ax0 < 64; cache_ax0 += 1) {
+    for (int32_t cache_ax1 = 0; cache_ax1 < 32; cache_ax1 += 1) {
+      B[((32 * cache_ax0) + cache_ax1)] = B_local_temp_buffer[((32 * cache_ax0) + cache_ax1)];
+      __syncthreads();
     };
-    for (int32_t i = 0; i < 64; i += 1) {
-      for (int32_t j = 0; j < 32; j += 1) {
-        C_local_temp_buffer[((32 * i) + j)] = (1.00000f + B[((32 * i) + j)]);
-      };
+  };
+  for (int32_t i = 0; i < 64; i += 1) {
+    for (int32_t j = 0; j < 32; j += 1) {
+      C_local_temp_buffer[((32 * i) + j)] = (1.00000000f + B[((32 * i) + j)]);
     };
-    for (int32_t cache_ax0_0 = 0; cache_ax0_0 < 64; cache_ax0_0 += 1) {
-      for (int32_t cache_ax1_0 = 0; cache_ax1_0 < 32; cache_ax1_0 += 1) {
-        __syncthreads();
-        C[((32 * cache_ax0_0) + cache_ax1_0)] = C_local_temp_buffer[((32 * cache_ax0_0) + cache_ax1_0)];
-      };
+  };
+  for (int32_t cache_ax0_0 = 0; cache_ax0_0 < 64; cache_ax0_0 += 1) {
+    for (int32_t cache_ax1_0 = 0; cache_ax1_0 < 32; cache_ax1_0 += 1) {
+      __syncthreads();
+      C[((32 * cache_ax0_0) + cache_ax1_0)] = C_local_temp_buffer[((32 * cache_ax0_0) + cache_ax1_0)];
     };
   };
 }
@@ -1852,19 +1842,17 @@ void test_cache_write4(void* _args, int32_t num_args)
   const float* A = ((const float*)(_A->memory));
   float* B = ((float*)(_B->memory));
   float* B__reduce_init = ((float*)(_B->memory));
-  {
-    for (int32_t i = 0; i < 64; i += 1) {
-      for (int32_t j = 0; j < 32; j += 1) {
-        B__reduce_init[((32 * i) + j)] = 0.00000f;
-        for (int32_t k0 = 0; k0 < 32; k0 += 1) {
-          B_local_temp_buffer[((32 * i) + j)] = (B_local_temp_buffer[((32 * i) + j)] + A[((1024 * i) + ((32 * j) + k0))]);
-        };
+  for (int32_t i = 0; i < 64; i += 1) {
+    for (int32_t j = 0; j < 32; j += 1) {
+      B__reduce_init[((32 * i) + j)] = 0.00000000f;
+      for (int32_t k0 = 0; k0 < 32; k0 += 1) {
+        B_local_temp_buffer[((32 * i) + j)] = (B_local_temp_buffer[((32 * i) + j)] + A[((1024 * i) + ((32 * j) + k0))]);
       };
     };
-    for (int32_t cache_ax0 = 0; cache_ax0 < 64; cache_ax0 += 1) {
-      for (int32_t cache_ax1 = 0; cache_ax1 < 32; cache_ax1 += 1) {
-        B[((32 * cache_ax0) + cache_ax1)] = B_local_temp_buffer[((32 * cache_ax0) + cache_ax1)];
-      };
+  };
+  for (int32_t cache_ax0 = 0; cache_ax0 < 64; cache_ax0 += 1) {
+    for (int32_t cache_ax1 = 0; cache_ax1 < 32; cache_ax1 += 1) {
+      B[((32 * cache_ax0) + cache_ax1)] = B_local_temp_buffer[((32 * cache_ax0) + cache_ax1)];
     };
   };
   cinn_buffer_free((void*)(0), _B);
@@ -1921,7 +1909,7 @@ function test_rfactor (_A, _B)
           ScheduleBlock(rf_B__reduce_init)
           {
             i0, i1 = axis.bind(i, rf_k0)
-            rf_B__reduce_init[i1, i0] = 0.00000f
+            rf_B__reduce_init[i1, i0] = 0.00000000f
           }
           serial for (j0, 0, 2)
           {
@@ -1938,7 +1926,7 @@ function test_rfactor (_A, _B)
         ScheduleBlock(B__reduce_init)
         {
           i0 = axis.bind(i)
-          B__reduce_init[i0] = 0.00000f
+          B__reduce_init[i0] = 0.00000000f
         }
         serial for (k0, 0, 16)
         {
@@ -1980,20 +1968,18 @@ void test_rfactor(void* _args, int32_t num_args)
   float* B__reduce_init = ((float*)(_B->memory));
   float* rf_B = ((float*)(rf__B->memory));
   float* rf_B__reduce_init = ((float*)(rf__B->memory));
-  {
-    for (int32_t rf_k0 = 0; rf_k0 < 16; rf_k0 += 1) {
-      for (int32_t i = 0; i < 32; i += 1) {
-        rf_B__reduce_init[((32 * rf_k0) + i)] = 0.00000f;
-        for (int32_t j0 = 0; j0 < 2; j0 += 1) {
-          rf_B[((32 * rf_k0) + i)] = (rf_B[((32 * rf_k0) + i)] + A[((32 * i) + ((16 * j0) + rf_k0))]);
-        };
+  for (int32_t rf_k0 = 0; rf_k0 < 16; rf_k0 += 1) {
+    for (int32_t i = 0; i < 32; i += 1) {
+      rf_B__reduce_init[((32 * rf_k0) + i)] = 0.00000000f;
+      for (int32_t j0 = 0; j0 < 2; j0 += 1) {
+        rf_B[((32 * rf_k0) + i)] = (rf_B[((32 * rf_k0) + i)] + A[((32 * i) + ((16 * j0) + rf_k0))]);
       };
     };
-    for (int32_t i = 0; i < 32; i += 1) {
-      B__reduce_init[i] = 0.00000f;
-      for (int32_t k0 = 0; k0 < 16; k0 += 1) {
-        B[i] = (B[i] + rf_B[((32 * k0) + i)]);
-      };
+  };
+  for (int32_t i = 0; i < 32; i += 1) {
+    B__reduce_init[i] = 0.00000000f;
+    for (int32_t k0 = 0; k0 < 16; k0 += 1) {
+      B[i] = (B[i] + rf_B[((32 * k0) + i)]);
     };
   };
   cinn_buffer_free((void*)(0), rf__B);
@@ -2051,7 +2037,7 @@ function test_rfactor (_A, _B)
           ScheduleBlock(rf_B__reduce_init)
           {
             i0, i1 = axis.bind(i, rf_j0)
-            rf_B__reduce_init[i0, i1] = 0.00000f
+            rf_B__reduce_init[i0, i1] = 0.00000000f
           }
           serial for (k0, 0, 16)
           {
@@ -2068,7 +2054,7 @@ function test_rfactor (_A, _B)
         ScheduleBlock(B__reduce_init)
         {
           i0 = axis.bind(i)
-          B__reduce_init[i0] = 0.00000f
+          B__reduce_init[i0] = 0.00000000f
         }
         serial for (j0, 0, 2)
         {
@@ -2110,20 +2096,18 @@ void test_rfactor(void* _args, int32_t num_args)
   float* B__reduce_init = ((float*)(_B->memory));
   float* rf_B = ((float*)(rf__B->memory));
   float* rf_B__reduce_init = ((float*)(rf__B->memory));
-  {
-    for (int32_t i = 0; i < 32; i += 1) {
-      for (int32_t rf_j0 = 0; rf_j0 < 2; rf_j0 += 1) {
-        rf_B__reduce_init[((2 * i) + rf_j0)] = 0.00000f;
-        for (int32_t k0 = 0; k0 < 16; k0 += 1) {
-          rf_B[((2 * i) + rf_j0)] = (rf_B[((2 * i) + rf_j0)] + A[((32 * i) + ((16 * rf_j0) + k0))]);
-        };
+  for (int32_t i = 0; i < 32; i += 1) {
+    for (int32_t rf_j0 = 0; rf_j0 < 2; rf_j0 += 1) {
+      rf_B__reduce_init[((2 * i) + rf_j0)] = 0.00000000f;
+      for (int32_t k0 = 0; k0 < 16; k0 += 1) {
+        rf_B[((2 * i) + rf_j0)] = (rf_B[((2 * i) + rf_j0)] + A[((32 * i) + ((16 * rf_j0) + k0))]);
       };
     };
-    for (int32_t i = 0; i < 32; i += 1) {
-      B__reduce_init[i] = 0.00000f;
-      for (int32_t j0 = 0; j0 < 2; j0 += 1) {
-        B[i] = (B[i] + rf_B[((2 * i) + j0)]);
-      };
+  };
+  for (int32_t i = 0; i < 32; i += 1) {
+    B__reduce_init[i] = 0.00000000f;
+    for (int32_t j0 = 0; j0 < 2; j0 += 1) {
+      B[i] = (B[i] + rf_B[((2 * i) + j0)]);
     };
   };
   cinn_buffer_free((void*)(0), rf__B);
@@ -2179,7 +2163,7 @@ function test_rfactor (_A, _B, _C)
             ScheduleBlock(rf_C__reduce_init)
             {
               i0, i1, i2 = axis.bind(i, j, rf_k0)
-              rf_C__reduce_init[i2, i0, i1] = 0.00000f
+              rf_C__reduce_init[i2, i0, i1] = 0.00000000f
             }
             ScheduleBlock(rf_C)
             {
@@ -2196,7 +2180,7 @@ function test_rfactor (_A, _B, _C)
           ScheduleBlock(C__reduce_init)
           {
             i0, i1 = axis.bind(i, j)
-            C__reduce_init[i0, i1] = 0.00000f
+            C__reduce_init[i0, i1] = 0.00000000f
           }
           serial for (k0, 0, 16)
           {
@@ -2241,21 +2225,19 @@ void test_rfactor(void* _args, int32_t num_args)
   float* C__reduce_init = ((float*)(_C->memory));
   float* rf_C = ((float*)(rf__C->memory));
   float* rf_C__reduce_init = ((float*)(rf__C->memory));
-  {
-    for (int32_t rf_k0 = 0; rf_k0 < 16; rf_k0 += 1) {
-      for (int32_t i = 0; i < 32; i += 1) {
-        for (int32_t j = 0; j < 2; j += 1) {
-          rf_C__reduce_init[((2 * i) + ((64 * rf_k0) + j))] = 0.00000f;
-          rf_C[((2 * i) + ((64 * rf_k0) + j))] = fma(A[((16 * i) + rf_k0)], B[((2 * rf_k0) + j)], rf_C[((2 * i) + ((64 * rf_k0) + j))]);
-        };
-      };
-    };
+  for (int32_t rf_k0 = 0; rf_k0 < 16; rf_k0 += 1) {
     for (int32_t i = 0; i < 32; i += 1) {
       for (int32_t j = 0; j < 2; j += 1) {
-        C__reduce_init[((2 * i) + j)] = 0.00000f;
-        for (int32_t k0 = 0; k0 < 16; k0 += 1) {
-          C[((2 * i) + j)] = (C[((2 * i) + j)] + rf_C[((2 * i) + ((64 * k0) + j))]);
-        };
+        rf_C__reduce_init[((2 * i) + ((64 * rf_k0) + j))] = 0.00000000f;
+        rf_C[((2 * i) + ((64 * rf_k0) + j))] = fma(A[((16 * i) + rf_k0)], B[((2 * rf_k0) + j)], rf_C[((2 * i) + ((64 * rf_k0) + j))]);
+      };
+    };
+  };
+  for (int32_t i = 0; i < 32; i += 1) {
+    for (int32_t j = 0; j < 2; j += 1) {
+      C__reduce_init[((2 * i) + j)] = 0.00000000f;
+      for (int32_t k0 = 0; k0 < 16; k0 += 1) {
+        C[((2 * i) + j)] = (C[((2 * i) + j)] + rf_C[((2 * i) + ((64 * k0) + j))]);
       };
     };
   };
@@ -2320,7 +2302,7 @@ void test_compute_inline1(void* _args, int32_t num_args)
   for (int32_t i = 0; i < 32; i += 1) {
     for (int32_t j = 0; j < 32; j += 1) {
       for (int32_t k = 0; k < 32; k += 1) {
-        C[((1024 * i) + ((32 * j) + k))] = (2.00000f * (1.00000f + A[((32 * i) + ((1024 * j) + k))]));
+        C[((1024 * i) + ((32 * j) + k))] = fma(2.00000000f, A[((32 * i) + ((1024 * j) + k))], 2.00000000f);
       };
     };
   };
@@ -2388,7 +2370,7 @@ void test_compute_inline2(void* _args, int32_t num_args)
   for (int32_t i = 0; i < 32; i += 1) {
     for (int32_t j = 0; j < 32; j += 1) {
       for (int32_t k = 0; k < 32; k += 1) {
-        C[((1024 * i) + ((32 * j) + k))] = (2.00000f * (1.00000f + A[((1024 * i) + ((32 * j) + k))]));
+        C[((1024 * i) + ((32 * j) + k))] = fma(2.00000000f, A[((1024 * i) + ((32 * j) + k))], 2.00000000f);
       };
     };
   };
@@ -2447,7 +2429,7 @@ void test_compute_inline3(const float* __restrict__ A, float* __restrict__ C)
   for (int32_t i = 0; i < 32; i += 1) {
     for (int32_t j = 0; j < 32; j += 1) {
       for (int32_t k = 0; k < 32; k += 1) {
-        C[((1024 * i) + ((32 * j) + k))] = (2.00000f * (1.00000f + A[((32 * i) + ((1024 * j) + k))]));
+        C[((1024 * i) + ((32 * j) + k))] = (2.00000000f + (2.00000000f * A[((32 * i) + ((1024 * j) + k))]));
       };
     };
   };
@@ -2505,7 +2487,7 @@ void test_compute_inline4(const float* __restrict__ A, float* __restrict__ C)
   for (int32_t i = 0; i < 32; i += 1) {
     for (int32_t j = 0; j < 32; j += 1) {
       for (int32_t k = 0; k < 32; k += 1) {
-        C[((1024 * i) + ((32 * j) + k))] = (2.00000f * (1.00000f + A[((1024 * i) + ((32 * j) + k))]));
+        C[((1024 * i) + ((32 * j) + k))] = (2.00000000f + (2.00000000f * A[((1024 * i) + ((32 * j) + k))]));
       };
     };
   };
@@ -2576,25 +2558,23 @@ void test_copytransform1(void* _args, int32_t num_args)
   const float* A = ((const float*)(_A->memory));
   float* B = ((float*)(_B->memory));
   float* C = ((float*)(_C->memory));
-  {
-    for (int32_t i_0 = 0; i_0 < 4; i_0 += 1) {
-      for (int32_t i_1 = 0; i_1 < 8; i_1 += 1) {
-        for (int32_t j_0 = 0; j_0 < 8; j_0 += 1) {
-          for (int32_t j_1 = 0; j_1 < 4; j_1 += 1) {
-            for (int32_t k = 0; k < 32; k += 1) {
-              B[((8192 * i_0) + ((1024 * i_1) + ((128 * j_0) + ((32 * j_1) + k))))] = (1.00000f + A[((8192 * i_0) + ((1024 * i_1) + ((128 * j_0) + ((32 * j_1) + k))))]);
-            };
+  for (int32_t i_0 = 0; i_0 < 4; i_0 += 1) {
+    for (int32_t i_1 = 0; i_1 < 8; i_1 += 1) {
+      for (int32_t j_0 = 0; j_0 < 8; j_0 += 1) {
+        for (int32_t j_1 = 0; j_1 < 4; j_1 += 1) {
+          for (int32_t k = 0; k < 32; k += 1) {
+            B[((8192 * i_0) + ((1024 * i_1) + ((128 * j_0) + ((32 * j_1) + k))))] = (1.00000000f + A[((8192 * i_0) + ((1024 * i_1) + ((128 * j_0) + ((32 * j_1) + k))))]);
           };
         };
       };
     };
-    for (int32_t i_0 = 0; i_0 < 4; i_0 += 1) {
-      for (int32_t i_1 = 0; i_1 < 8; i_1 += 1) {
-        for (int32_t j_0 = 0; j_0 < 8; j_0 += 1) {
-          for (int32_t j_1 = 0; j_1 < 4; j_1 += 1) {
-            for (int32_t k = 0; k < 32; k += 1) {
-              C[((8192 * i_0) + ((1024 * i_1) + ((128 * j_0) + ((32 * j_1) + k))))] = (2.00000f * B[((256 * i_0) + ((32 * i_1) + ((4096 * j_0) + ((1024 * j_1) + k))))]);
-            };
+  };
+  for (int32_t i_0 = 0; i_0 < 4; i_0 += 1) {
+    for (int32_t i_1 = 0; i_1 < 8; i_1 += 1) {
+      for (int32_t j_0 = 0; j_0 < 8; j_0 += 1) {
+        for (int32_t j_1 = 0; j_1 < 4; j_1 += 1) {
+          for (int32_t k = 0; k < 32; k += 1) {
+            C[((8192 * i_0) + ((1024 * i_1) + ((128 * j_0) + ((32 * j_1) + k))))] = (2.00000000f * B[((256 * i_0) + ((32 * i_1) + ((4096 * j_0) + ((1024 * j_1) + k))))]);
           };
         };
       };
@@ -2665,23 +2645,21 @@ void test_copytransform2(void* _args, int32_t num_args)
   const float* A = ((const float*)(_A->memory));
   float* B = ((float*)(_B->memory));
   float* C = ((float*)(_C->memory));
-  {
-    for (int32_t i_0 = 0; i_0 < 4; i_0 += 1) {
-      for (int32_t i_1 = 0; i_1 < 8; i_1 += 1) {
-        for (int32_t j = 0; j < 64; j += 1) {
-          for (int32_t k = 0; k < 128; k += 1) {
-            B[((65536 * i_0) + ((8192 * i_1) + ((128 * j) + k)))] = (1.00000f + A[((65536 * i_0) + ((8192 * i_1) + ((128 * j) + k)))]);
-          };
+  for (int32_t i_0 = 0; i_0 < 4; i_0 += 1) {
+    for (int32_t i_1 = 0; i_1 < 8; i_1 += 1) {
+      for (int32_t j = 0; j < 64; j += 1) {
+        for (int32_t k = 0; k < 128; k += 1) {
+          B[((65536 * i_0) + ((8192 * i_1) + ((128 * j) + k)))] = (1.00000000f + A[((65536 * i_0) + ((8192 * i_1) + ((128 * j) + k)))]);
         };
       };
     };
-    for (int32_t i_0 = 0; i_0 < 4; i_0 += 1) {
-      for (int32_t i_1 = 0; i_1 < 8; i_1 += 1) {
-        for (int32_t j_0 = 0; j_0 < 8; j_0 += 1) {
-          for (int32_t j_1 = 0; j_1 < 4; j_1 += 1) {
-            for (int32_t k = 0; k < 128; k += 1) {
-              C[((32768 * i_0) + ((4096 * i_1) + ((512 * j_0) + ((128 * j_1) + k))))] = (2.00000f * B[((65536 * i_0) + ((8192 * i_1) + ((512 * j_0) + ((128 * j_1) + k))))]);
-            };
+  };
+  for (int32_t i_0 = 0; i_0 < 4; i_0 += 1) {
+    for (int32_t i_1 = 0; i_1 < 8; i_1 += 1) {
+      for (int32_t j_0 = 0; j_0 < 8; j_0 += 1) {
+        for (int32_t j_1 = 0; j_1 < 4; j_1 += 1) {
+          for (int32_t k = 0; k < 128; k += 1) {
+            C[((32768 * i_0) + ((4096 * i_1) + ((512 * j_0) + ((128 * j_1) + k))))] = (2.00000000f * B[((65536 * i_0) + ((8192 * i_1) + ((512 * j_0) + ((128 * j_1) + k))))]);
           };
         };
       };
@@ -2841,27 +2819,25 @@ void TestIrSchedule_ReduceSum(void* _args, int32_t num_args)
   const float* A = ((const float*)(_A->memory));
   float* B = ((float*)(_B->memory));
   float* B__reduce_init = ((float*)(_B->memory));
-  {
-    for (int32_t i_0 = 0; i_0 < 8; i_0 += 1) {
-      for (int32_t i_1 = 0; i_1 < 4; i_1 += 1) {
-        B__reduce_init[((4 * i_0) + i_1)] = 0.00000f;
+  for (int32_t i_0 = 0; i_0 < 8; i_0 += 1) {
+    for (int32_t i_1 = 0; i_1 < 4; i_1 += 1) {
+      B__reduce_init[((4 * i_0) + i_1)] = 0.00000000f;
+    };
+  };
+  for (int32_t reduce_axis_k_0 = 0; reduce_axis_k_0 < 32; reduce_axis_k_0 += 1) {
+    for (int32_t ax0 = 0; ax0 < 32; ax0 += 1) {
+      for (int32_t ax1 = 0; ax1 < 2; ax1 += 1) {
+        A_shared_temp_buffer[((64 * ax0) + ((2 * reduce_axis_k_0) + ax1))] = A[((64 * ax0) + ((2 * reduce_axis_k_0) + ax1))];
       };
     };
-    for (int32_t reduce_axis_k_0 = 0; reduce_axis_k_0 < 32; reduce_axis_k_0 += 1) {
-      for (int32_t ax0 = 0; ax0 < 32; ax0 += 1) {
-        for (int32_t ax1 = 0; ax1 < 2; ax1 += 1) {
-          A_shared_temp_buffer[((64 * ax0) + ((2 * reduce_axis_k_0) + ax1))] = A[((64 * ax0) + ((2 * reduce_axis_k_0) + ax1))];
+    for (int32_t i_0 = 0; i_0 < 8; i_0 += 1) {
+      for (int32_t reduce_axis_k_1 = 0; reduce_axis_k_1 < 2; reduce_axis_k_1 += 1) {
+        for (int32_t i_1 = 0; i_1 < 4; i_1 += 1) {
+          B_local_temp_buffer[((4 * i_0) + i_1)] = (B_local_temp_buffer[((4 * i_0) + i_1)] + A_shared_temp_buffer[((256 * i_0) + ((64 * i_1) + ((2 * reduce_axis_k_0) + reduce_axis_k_1)))]);
         };
       };
-      for (int32_t i_0 = 0; i_0 < 8; i_0 += 1) {
-        for (int32_t reduce_axis_k_1 = 0; reduce_axis_k_1 < 2; reduce_axis_k_1 += 1) {
-          for (int32_t i_1 = 0; i_1 < 4; i_1 += 1) {
-            B_local_temp_buffer[((4 * i_0) + i_1)] = (B_local_temp_buffer[((4 * i_0) + i_1)] + A_shared_temp_buffer[((256 * i_0) + ((64 * i_1) + ((2 * reduce_axis_k_0) + reduce_axis_k_1)))]);
-          };
-        };
-        for (int32_t ax0_0 = 0; ax0_0 < 4; ax0_0 += 1) {
-          B[((4 * i_0) + ax0_0)] = B_local_temp_buffer[((4 * i_0) + ax0_0)];
-        };
+      for (int32_t ax0_0 = 0; ax0_0 < 4; ax0_0 += 1) {
+        B[((4 * i_0) + ax0_0)] = B_local_temp_buffer[((4 * i_0) + ax0_0)];
       };
     };
   };
@@ -2912,6 +2888,7 @@ TEST(IrSchedule, GetChildBlocks) {
   std::string expected_expr = R"ROC(ScheduleBlock(B)
 {
   i0, i1, i2 = axis.bind(i, j, (0 + ax0))
+  attrs(compute_at_extra_var:ax0)
   B[i0, i1, i2] = A[i0, i1, i2]
 }, ScheduleBlock(C)
 {

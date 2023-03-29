@@ -47,9 +47,7 @@ SearchSpace::SearchSpace(const TuneTask& tune_task, utils::LinearRandomEngine::S
   // initialize a set of rules and they are commonly used by all states
   // TODO(zhhsplendid): pass correct output names to AutoInline
   sketch_rules_.emplace_back(new AutoInline(target, tune_task_.output_names));
-  sketch_rules_.emplace_back(new MultiLevelTiling(target));
-  sketch_rules_.emplace_back(new AddCacheRead(target));
-  sketch_rules_.emplace_back(new AddCacheWrite(target));
+  sketch_rules_.emplace_back(new MultiLevelTiling(target, MultiLevelTiling::kConfigs.at(target.arch)));
   sketch_rules_.emplace_back(new AutoUnroll(target));
   sketch_rules_.emplace_back(new SkipRule(target));
 }
@@ -164,7 +162,7 @@ std::vector<SearchState> SearchSpace::InitSketchWithRandomPrunedStrategy() {
   int total_steps                         = 0, steps;
   std::string block_name;
   while ("" != (block_name = block_sampler->NextBlock()) && total_steps < init_sketch_random_depth_) {
-    steps = utils::SampleUniformInt(0, init_rules.size(), &rand_seed_);
+    steps = utils::SampleUniformInt(1, init_rules.size() + 1, &rand_seed_);
     if (total_steps + steps > init_sketch_random_depth_) {
       steps = init_sketch_random_depth_ - total_steps;
     }

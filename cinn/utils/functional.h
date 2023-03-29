@@ -119,5 +119,9 @@ inline uint64_t HashCombine(uint64_t seed, const T &value) {
   return seed ^ (std::hash<T>()(value) + 0x9e3779b9 + (seed << 6) + (seed >> 2));
 }
 
+std::vector<int> GetPositiveAxes(const std::vector<int> &axes, int rank);
+
+int GetPositiveAxes(int axes, int rank);
+
 }  // namespace utils
 }  // namespace cinn

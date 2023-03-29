@@ -82,10 +82,12 @@ namespace frontend {
 // Variable BINARY_OP(const Variable& lhs, const Variable& rhs, int axis = -1);
 #define NETBUILDER_BINARY_OP_FOREACH(macro__) \
   macro__(Add) \
+  macro__(ElementwiseAdd) \
   macro__(Atan2) \
   macro__(Subtract) \
   macro__(Divide) \
   macro__(Multiply) \
+  macro__(ElementwiseMul) \
   macro__(FloorDivide) \
   macro__(Mod) \
   macro__(Remainder) \
@@ -282,15 +284,6 @@ class NetBuilder {
                         float dropout_prob                        = 0.5f,
                         const std::string& dropout_implementation = "downgrade_in_infer");
 
-  /**
-   * @brief The clip operator limits the value of given input within an interval `[min, max]`.
-   * @param x Input N-D variable of scale operator.
-   * @param max The minimum value to clip by.
-   * @param min The maximum value to clip by
-   * @return Output of clip with the same shape and data type as input.
-   */
-  Variable Clip(const std::vector<Variable>& x, const float& max, const float& min);
-
   Variable GatherNd(const Variable& x, const Variable& index);
 
   Variable Scatter(const Variable& src, const Variable& index, const Variable& out, const int& axis = 0);
@@ -366,18 +359,20 @@ class NetBuilder {
    */
   template <typename T>
   std::enable_if_t<std::is_arithmetic<T>::value, Variable> Constant(const T& value,
-                                                                    const std::string& name,
+                                                                    const std::string& name  = "",
                                                                     const std::string& dtype = "") {
     auto true_dtype = dtype.empty() ? common::Type2Str(common::type_of<T>()) : dtype;
     auto out        = CustomInstr("const_scalar", {}, {{"value", value}, {"dtype", true_dtype}}).front();
 
-    out.set_id(name);
+    if (!name.empty()) {
+      out.set_id(name);
+    }
     return out;
   }
 
   template <typename T>
   std::enable_if_t<cinn::utils::IsVector<T>::value, Variable> Constant(const T& value,
-                                                                       const std::string& name,
+                                                                       const std::string& name  = "",
                                                                        const std::string& dtype = "") {
     CHECK(!value.empty()) << "The value of Constant should not be None or empty list! Please check.";
 
@@ -400,7 +395,9 @@ class NetBuilder {
     auto out        = Reshape(assign_out, real_shape);
 
     // set the name correctly
-    out.set_id(name);
+    if (!name.empty()) {
+      out.set_id(name);
+    }
     return out;
   }
 
@@ -420,6 +417,21 @@ class NetBuilder {
                         bool force_cpu = false);
 
   /**
+   * @brief The op return a variable with the specific string value, shape and type.
+   * @param shape Shape of the variable to be created.
+   * @param str_value The constant string value used to initialize the variable to be created.
+   * @param name The name of the output variable.
+   * @param dtype Data type of the output variable.
+   * @param force_cpu Whether the variable should force placed in cpu, default in device memory. Default is false.
+   * @return The result variable.
+   */
+  Variable FillConstant(const cinn::utils::ShapeType& shape,
+                        const std::string& str_value,
+                        const std::string& name,
+                        const std::string& dtype,
+                        bool force_cpu = false);
+
+  /**
    * @brief The op return a variable with the specific value, shape and type, the type is infered from value.
    * @param shape Shape of the variable to be created.
    * @param value The constant value used to initialize the variable to be created.
@@ -428,7 +440,10 @@ class NetBuilder {
    * @return The result variable.
    */
   template <typename T = float>
-  Variable FillConstant(const cinn::utils::ShapeType& shape, T value, const std::string& name, bool force_cpu = false) {
+  Variable FillConstant(const cinn::utils::ShapeType& shape,
+                        T value,
+                        const std::string& name = "",
+                        bool force_cpu          = false) {
     return FillConstant(shape, static_cast<float>(value), name, common::Type2Str(common::type_of<T>()), force_cpu);
   }
 
@@ -982,7 +997,7 @@ class NetBuilder {
    * Defalut “NCHW”.
    * @return `Sorted variable index`.
    */
-  Variable ArgSort(const Variable& operand, const int& axis, const bool& is_ascend = true);
+  std::vector<Variable> ArgSort(const Variable& operand, const int& axis, const bool& is_ascend = true);
 
   /**
    * @brief Sort Variable x along the given axis and return sorted variable. The original Variable x will not be
@@ -1057,14 +1072,6 @@ class NetBuilder {
    */
   Variable TriangularSolve(
       const Variable& input1, const Variable& input2, bool left_side, bool upper, bool transpose_a, bool unit_diagonal);
-
-  /**
-   * @brief l2-Norm
-   * @param x The input operand to be normed.
-   * @param axis The axis on which to apply normalization.
-   * @param epsilon The epsilon value is used to avoid division by zero.
-   */
-  Variable Norm(const Variable& x, int axis = -1, float epsilon = 1e-12f);
 
   /**
    * @brief Return values and indices of the k largest or smallest at the optional axis.

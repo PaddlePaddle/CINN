@@ -124,9 +124,9 @@ TEST(CAS, ConvertCinnToCAS) {
 
   body = detail::ConvertCinnToCAS(body);
   body = CasSimplify(body);
-  EXPECT_EQ(GetStreamCnt(body), "(1.00000f + A[i, j] + (2.00000f * B[i, j]))");
+  EXPECT_EQ(GetStreamCnt(body), "(1.00000000f + A[i, j] + (2.00000000f * B[i, j]))");
   body = detail::ConvertCasToCinn(body);
-  EXPECT_EQ(GetStreamCnt(body), "(1.00000f + (A[i, j] + (2.00000f * B[i, j])))");
+  EXPECT_EQ(GetStreamCnt(body), "(1.00000000f + (A[i, j] + (2.00000000f * B[i, j])))");
 }
 
 TEST(CAS, FracOp) {
@@ -362,7 +362,7 @@ TEST(CAS, SimplifyMinMax) {
     LOG(INFO) << "p0 " << p0;
     auto p2 = CasSimplify(p0);
     LOG(INFO) << "simplified " << p2;
-    EXPECT_EQ(GetStreamCnt(p2), "cinn_min(7, ((x) / (2)))");
+    EXPECT_EQ(GetStreamCnt(p2), "cinn_min(7, (x / 2))");
   }
   {  // -(cinn_min(16, 3400-x-1)-1)/2 + x
     Var x   = ir::_Var_::Make("x", Int(32));
@@ -386,7 +386,7 @@ TEST(CAS, SimplifyMinMax) {
 TEST(CAS, cond) {
   {
     Expr cond = Expr(2) > Expr(1);
-    EXPECT_EQ(GetStreamCnt(CasSimplify(cond)), "1");
+    EXPECT_EQ(GetStreamCnt(CasSimplify(cond)), "true");
   }
   {
     Var a("a");
@@ -396,7 +396,7 @@ TEST(CAS, cond) {
   {
     Var a("a");
     Expr cond = (Expr(2) < Expr(1)) && (a < 20);
-    EXPECT_EQ(GetStreamCnt(CasSimplify(cond)), "0");
+    EXPECT_EQ(GetStreamCnt(CasSimplify(cond)), "false");
   }
 }
 

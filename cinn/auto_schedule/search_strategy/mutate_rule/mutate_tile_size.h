@@ -1,4 +1,4 @@
-// Copyright (c) 2022 CINN Authors. All Rights Reserved.
+// Copyright (c) 2023 CINN Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,23 +13,20 @@
 // limitations under the License.
 
 #pragma once
-#include "cinn/frontend/net_builder.h"
+
+#include "cinn/auto_schedule/search_strategy/mutate_rule/mutate_rule.h"
 
 namespace cinn {
 namespace auto_schedule {
 
-class TestProgramBuilder {
+/**
+ * The rule to mutate tile size, witch will modify the factors of the Split primitive.
+ */
+class MutateTileSize : public MutateRule {
  public:
-  virtual frontend::Program operator()() = 0;
-};
+  MutateTileSize() = default;
 
-class TestOpBuilder : public TestProgramBuilder {
- public:
-  TestOpBuilder(const std::string& name) : builder_(name) {}
-  frontend::Program operator()() { return builder_.Build(); }
-
- protected:
-  frontend::NetBuilder builder_;
+  ir::ScheduleDesc Apply(const ir::ScheduleDesc& trace, utils::LinearRandomEngine::StateType* rand_seed) override;
 };
 
 }  // namespace auto_schedule

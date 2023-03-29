@@ -45,12 +45,12 @@ using common::CINNValue;
 using framework::shape_t;
 using ir::Tensor;
 
-Tensor Argmax(const Tensor &in_tensor,
-              const common::Target &target,
-              poly::StageMap stages,
-              const int &axis,
-              const bool &keep_dims,
-              const std::string &name) {
+std::vector<ir::Tensor> Argmax(const Tensor &in_tensor,
+                               const common::Target &target,
+                               poly::StageMap stages,
+                               const int &axis,
+                               const bool &keep_dims,
+                               const std::string &name) {
   auto shape = in_tensor->shape;
   auto ndim  = shape.size();
   CHECK_GT(ndim, 0) << "tensor's dim must be more than 0";
@@ -65,7 +65,7 @@ Tensor Argmax(const Tensor &in_tensor,
   std::vector<Expr> output_shape;
   for (int i = 0; i < shape.size(); ++i) {
     CHECK(shape[i].is_constant()) << "Input tensor's shape should be constant value.";
-    if (axis == i) {
+    if (pos_axis == i) {
       if (keep_dims) {
         output_shape.push_back(Expr(1));
       }
@@ -77,21 +77,21 @@ Tensor Argmax(const Tensor &in_tensor,
     output_shape.push_back(Expr(1));
   }
 
-  auto sort_index = ArgSort(in_tensor, target, stages, pos_axis, false, name + "_index").at(0);
+  auto sort_index = ArgSort(in_tensor, target, stages, pos_axis, false, name + "_index");
   auto res        = Compute(
       output_shape,
       [=](const std::vector<Expr> &indices) {
         std::vector<Expr> eval_indices(indices);
-        if (!keep_dims) {
+        if (!keep_dims && ndim > 1) {
           eval_indices.insert(eval_indices.begin() + pos_axis, Expr(0));
         } else {
           eval_indices[pos_axis] = Expr(0);
         }
-        return sort_index(eval_indices);
+        return sort_index.at(0)(eval_indices);
       },
       name);
-  stages->InsertLazily(sort_index);
-  return res;
+  stages->InsertLazily(sort_index.at(0));
+  return {res, sort_index.at(0), sort_index.at(1)};
 }
 
 std::shared_ptr<framework::OpStrategy> StrategyForArgmax(const framework::NodeAttr &attrs,
@@ -125,10 +125,11 @@ std::shared_ptr<framework::OpStrategy> StrategyForArgmax(const framework::NodeAt
       CHECK(pack_args[1].is_string());
       tensor_name = pack_args[1].operator std::string();
     }
-    auto out_tensor = Argmax(in_tensor, target, stages, axis, keep_dims, tensor_name);
+    std::vector<ir::Tensor> out_tensor = Argmax(in_tensor, target, stages, axis, keep_dims, tensor_name);
 
-    stages->InsertLazily(out_tensor);
-    std::vector<CINNValue> cinn_values{CINNValue(out_tensor), CINNValue(stages)};
+    stages->InsertLazily(out_tensor[0]);
+    std::vector<CINNValue> cinn_values{
+        CINNValue(out_tensor[0]), CINNValue(out_tensor[1]), CINNValue(out_tensor[2]), CINNValue(stages)};
     *ret = common::CINNValuePack{cinn_values};
   });
 
@@ -147,13 +148,15 @@ std::shared_ptr<framework::OpStrategy> StrategyForArgmax(const framework::NodeAt
       ir::ModuleExpr mod_expr(vec_ast);
       ir::IRSchedule ir_sch(mod_expr);
       ir_sch.MergeExprs();
+      auto blocks = ir_sch.GetAllBlocks();
+      // TODO: It needs to be rewritten according to the reduction_max operator to improve performance.
+      // Do not use local variables, because the size will exceed the limit.
+      ir_sch.SetBuffer(blocks[0], "local");
+      ir_sch.SetBuffer(blocks[1], "local");
+
       long prod_size = std::accumulate(output_shapes[0].begin(), output_shapes[0].end(), 1, std::multiplies<int>());
-      if (prod_size > 1) {
-        if (target.arch == Target::Arch::NVGPU) {
-          pe::IRCudaScheduleInjective(ir_sch, output_shapes.front(), target);
-        } else if (target.arch == Target::Arch::X86) {
-          pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target, true);
-        }
+      if (prod_size > 1 && target.arch == Target::Arch::X86) {
+        pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target, true);
       }
       std::vector<common::CINNValue> res{common::CINNValue(ir_sch.GetModule().GetExprs().at(0))};
       *ret = common::CINNValuePack{res};
@@ -167,7 +170,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForArgmax(const framework::NodeAt
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(argmax_compute, argmax_schedule, "strategy.argmax.x86", 1);
+  strategy->AddImpl(argmax_compute, argmax_schedule, "strategy.argmax", 1);
 
   return strategy;
 }
@@ -239,6 +242,7 @@ CINN_REGISTER_HELPER(argmax_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForArgmax)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForArgmax))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForArgmax))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kNonFusible)
       .set_support_level(4);
 
   return true;
