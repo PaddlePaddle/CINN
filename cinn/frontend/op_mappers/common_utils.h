@@ -126,6 +126,12 @@ inline std::vector<int64_t> GetAttrOrDefault(const paddle::cpp::OpDesc& op_desc,
       }
       case AttrType::INT:
         return std::vector<int64_t>{GetAttrOrDefault<int>(op_desc, name)};
+      case AttrType::BOOLEANS: {
+        LOG(WARNING) << "Op \"" << op_desc.Type() << "\"'s attribute \"" << name << "\" should be LONGS, "
+                     << "but here is BOOLEANS, considering the type of python empty list in cpp are BOOLEANS, "
+                     << "here we will return a empty vector.";
+        return {};
+      }
       default:
         LOG(FATAL) << "Op " << op_desc.Type() << "'s attribute " << name << " should be LONGS. Please Check!";
     }

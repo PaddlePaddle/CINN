@@ -93,7 +93,7 @@ EXTERN_CALL_IMP(Popc, popc);
     return ir::Call::Make(a->type(), #target__, {a, b}, {}, ir::CallType::Extern);              \
   }
 
-EXTERN_BINARY_CALL_IMP(Remainder, remainder)
+EXTERN_BINARY_CALL_IMP(Remainder, mod)
 EXTERN_BINARY_CALL_IMP(LogicalRightShift, logical_right_shift)
 EXTERN_BINARY_CALL_IMP(Pow, pow)
 EXTERN_BINARY_CALL_IMP(Mod, mod)

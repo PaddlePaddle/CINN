@@ -40,8 +40,38 @@ void IrPrinter::Print(const std::vector<Expr> &exprs, const std::string &splitte
   if (!exprs.empty()) Print(exprs.back());
 }
 
-void IrPrinter::Visit(const IntImm *x) { os_ << x->value; }
-void IrPrinter::Visit(const UIntImm *x) { os_ << x->value; }
+void IrPrinter::Visit(const IntImm *x) {
+  if (x->type().is_int(64)) {
+    os_ << x->value << "ll";
+  } else if (x->type().is_int(32)) {
+    os_ << x->value;
+  } else if (x->type().is_int(16)) {
+    os_ << "(int16_t)" << x->value;
+  } else if (x->type().is_int(8)) {
+    os_ << "(int8_t)" << x->value;
+  } else {
+    LOG(FATAL) << "Not support int type: " << x->type();
+  }
+}
+void IrPrinter::Visit(const UIntImm *x) {
+  if (x->type().is_uint(64)) {
+    os_ << x->value << "ull";
+  } else if (x->type().is_uint(32)) {
+    os_ << x->value;
+  } else if (x->type().is_uint(16)) {
+    os_ << "(uint16_t)" << x->value;
+  } else if (x->type().is_uint(8)) {
+    os_ << "(uint8_t)" << x->value;
+  } else if (x->type().is_uint(1)) {
+    if (x->value) {
+      os_ << "true";
+    } else {
+      os_ << "false";
+    }
+  } else {
+    LOG(FATAL) << "Not support uint type: " << x->type();
+  }
+}
 void IrPrinter::Visit(const FloatImm *x) {
   if (x->type().is_float(16)) {
     if (std::isinf(x->value)) {

@@ -180,7 +180,6 @@ CINN_REGISTER_HELPER(host_intrinsics) {
 #define REGISTER_EXTERN_FUNC_2_IN_1_F(func__) REGISTER_EXTERN_FUNC_2_IN_1_OUT(func__, host_target, float, float, float);
 
   REGISTER_EXTERN_FUNC_2_IN_1_F(powf)
-  REGISTER_EXTERN_FUNC_2_IN_1_F(remainderf)
 
 #undef REGISTER_EXTERN_FUNC_2_IN_1_F
 
