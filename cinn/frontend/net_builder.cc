@@ -704,7 +704,7 @@ Variable NetBuilder::RandInt(const std::vector<int>& shape, int min, int max, in
   auto randint_mod   = Mod(randint_out, randint_range);
   auto randint_min   = FillConstant(shape, min, UniqName("randint_min"), dtype);
   auto randint_ret   = Add(randint_mod, randint_min);
-  return Cast(randint_ret, dtype)
+  return Cast(randint_ret, dtype);
 }
 
 Variable NetBuilder::Cholesky(const Variable& x, bool upper) {
