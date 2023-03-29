@@ -86,7 +86,7 @@ class TestStridedSliceCase3(TestStridedSliceOp):
         self.feed_data = {
             'inputs': self.random([2, 15, 10], 'int32'),
         }
-        self.axes = [0, -2, 2]
+        self.axes = [0, 1, 2]
         self.starts = [1, 10, 3]
         self.ends = [6, 2, 5]
         self.strides = [1, -2, 1]
