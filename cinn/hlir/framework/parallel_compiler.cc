@@ -167,7 +167,7 @@ void ParallelCompiler::Task::CodegenAndJit() {
     CHECK(!ptx.empty());
 
     // load cumodule
-    cumodule.reset(new CUDAModule(ptx, CUDAModule::Kind::PTX));
+    cumodule.reset(new CUDAModule(ptx, compiler.compile_to_cubin() ? CUDAModule::Kind::CUBIN : CUDAModule::Kind::PTX));
     // register kernel
     backends::RuntimeSymbols symbols;
     for (auto& fn : dmodule.functions()) {
