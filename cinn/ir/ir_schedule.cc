@@ -2150,8 +2150,8 @@ Expr IRSchedule::SampleCategorical(const std::vector<int>& candidates,
   Expr result;
   std::vector<int> new_decision;
   if (decision.empty()) {
-    new_decision=decision;
-    result = Expr(decision[decision.size()]);
+    new_decision = decision;
+    result       = Expr(decision[decision.size()]);
   } else {
     result = impl_->SampleCategorical(&rand_seed_, candidates, probs);
     new_decision.push_back(result.as_int32());
