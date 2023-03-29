@@ -293,9 +293,10 @@ TEST_F(TestAutoInline, SingleChain) {
   VLOG(6) << "Expr after AutoInline applied on block: " << exprs[0];
 
   // build ir::Module and debug source code
-  auto build_module_auto     = BuildIRModule(new_states[0]->ir_schedule);
-  auto build_module_manually = BuildIRModule(MakeIRSchedule(tests::BiasBnReLUBuilder().Build(inputs_varinfo), -1, true));
-  auto source_code_auto      = GenSourceCode(build_module_auto);
+  auto build_module_auto = BuildIRModule(new_states[0]->ir_schedule);
+  auto build_module_manually =
+      BuildIRModule(MakeIRSchedule(tests::BiasBnReLUBuilder().Build(inputs_varinfo), -1, true));
+  auto source_code_auto = GenSourceCode(build_module_auto);
   VLOG(6) << " auto-schedule source code:\n" << source_code_auto;
   auto source_code_manually = GenSourceCode(build_module_manually);
   VLOG(6) << " manually-schedule source code:\n" << source_code_manually;
@@ -350,9 +351,10 @@ TEST_F(TestAutoInline, InlineToMultiConsumers) {
   VLOG(6) << "Expr after AutoInline applied on block: " << exprs[0];
 
   // build ir::Module and debug source code
-  auto build_module_auto     = BuildIRModule(new_states[0]->ir_schedule);
-  auto build_module_manually = BuildIRModule(MakeIRSchedule(tests::ExpTwoConsumersOpBuilder().Build(inputs_varinfo), -1, true));
-  auto source_code_auto      = GenSourceCode(build_module_auto);
+  auto build_module_auto = BuildIRModule(new_states[0]->ir_schedule);
+  auto build_module_manually =
+      BuildIRModule(MakeIRSchedule(tests::ExpTwoConsumersOpBuilder().Build(inputs_varinfo), -1, true));
+  auto source_code_auto = GenSourceCode(build_module_auto);
   VLOG(6) << " auto-schedule source code:\n" << source_code_auto;
   auto source_code_manually = GenSourceCode(build_module_manually);
   VLOG(6) << " manually-schedule source code:\n" << source_code_manually;
@@ -411,9 +413,10 @@ TEST_F(TestAutoInline, OnlySpatialOp) {
   VLOG(6) << "Expr after AutoInline applied on block: " << exprs[0];
 
   // build ir::Module and debug source code
-  auto build_module_auto     = BuildIRModule(new_states[0]->ir_schedule);
-  auto build_module_manually = BuildIRModule(MakeIRSchedule(tests::GatherAddSubBuilder().Build(inputs_varinfo), -1, true));
-  auto source_code_auto      = GenSourceCode(build_module_auto);
+  auto build_module_auto = BuildIRModule(new_states[0]->ir_schedule);
+  auto build_module_manually =
+      BuildIRModule(MakeIRSchedule(tests::GatherAddSubBuilder().Build(inputs_varinfo), -1, true));
+  auto source_code_auto = GenSourceCode(build_module_auto);
   VLOG(6) << " auto-schedule source code:\n" << source_code_auto;
   auto source_code_manually = GenSourceCode(build_module_manually);
   VLOG(6) << " manually-schedule source code:\n" << source_code_manually;
@@ -463,9 +466,10 @@ TEST_F(TestAutoInline, NoReadBufferOp) {
   VLOG(6) << "Expr after AutoInline applied on block: " << exprs[0];
 
   // build ir::Module and debug source code
-  auto build_module_auto     = BuildIRModule(new_states[0]->ir_schedule);
-  auto build_module_manually = BuildIRModule(MakeIRSchedule(tests::FillConstantAddBuilder().Build(inputs_varinfo), -1, true));
-  auto source_code_auto      = GenSourceCode(build_module_auto);
+  auto build_module_auto = BuildIRModule(new_states[0]->ir_schedule);
+  auto build_module_manually =
+      BuildIRModule(MakeIRSchedule(tests::FillConstantAddBuilder().Build(inputs_varinfo), -1, true));
+  auto source_code_auto = GenSourceCode(build_module_auto);
   VLOG(6) << " auto-schedule source code:\n" << source_code_auto;
   auto source_code_manually = GenSourceCode(build_module_manually);
   VLOG(6) << " manually-schedule source code:\n" << source_code_manually;
