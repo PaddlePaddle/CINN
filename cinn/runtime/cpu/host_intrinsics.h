@@ -33,8 +33,8 @@ inline int cinn_host_find_int_nd(const cinn_buffer_t* buf, int size, int num, in
 
 inline int cinn_host_find_float_nd(const cinn_buffer_t* buf, int size, float num, int begin, int stride);
 
-#define CINN_HOST_LT_NUM(TYPE_SUFFIX, TYPE)  \
-  inline int cinn_host_lt_num_##TYPE_SUFFIX( \
+#define CINN_HOST_LT_NUM(TYPE_SUFFIX, TYPE)                                                          \
+  inline int cinn_host_lt_num_##TYPE_SUFFIX(                                                         \
       const cinn_buffer_t* buf, const int size, const TYPE num, const int offset, const int stride);
 
 CINN_HOST_LT_NUM(fp32, float)
@@ -44,8 +44,8 @@ CINN_HOST_LT_NUM(int64, int64_t)
 
 #undef CINN_HOST_LT_NUM
 
-#define CINN_HOST_GT_NUM(TYPE_SUFFIX, TYPE)  \
-  inline int cinn_host_gt_num_##TYPE_SUFFIX( \
+#define CINN_HOST_GT_NUM(TYPE_SUFFIX, TYPE)                                                          \
+  inline int cinn_host_gt_num_##TYPE_SUFFIX(                                                         \
       const cinn_buffer_t* buf, const int size, const TYPE num, const int offset, const int stride);
 
 CINN_HOST_GT_NUM(fp32, float)

@@ -238,14 +238,14 @@ CINN_REGISTER_HELPER(host_intrinsics) {
       .AddInputType<int>()
       .End();
 
-#define _REGISTER_CINN_HOST_LT_NUM(TYPE_SUFFIX, TYPE)                             \
-  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_host_lt_num_##TYPE_SUFFIX, host_target) \
-      .SetRetType<int>()                                                          \
-      .AddInputType<cinn_buffer_t*>()                                             \
-      .AddInputType<int>()                                                        \
-      .AddInputType<TYPE>()                                                       \
-      .AddInputType<int>()                                                        \
-      .AddInputType<int>()                                                        \
+#define _REGISTER_CINN_HOST_LT_NUM(TYPE_SUFFIX, TYPE)                      \
+  REGISTER_EXTERN_FUNC_HELPER(cinn_host_lt_num_##TYPE_SUFFIX, host_target) \
+      .SetRetType<int>()                                                   \
+      .AddInputType<cinn_buffer_t*>()                                      \
+      .AddInputType<int>()                                                 \
+      .AddInputType<TYPE>()                                                \
+      .AddInputType<int>()                                                 \
+      .AddInputType<int>()                                                 \
       .End();
 
   _REGISTER_CINN_HOST_LT_NUM(fp32, float);
@@ -255,14 +255,14 @@ CINN_REGISTER_HELPER(host_intrinsics) {
 
 #undef _REGISTER_CINN_HOST_LT_NUM
 
-#define _REGISTER_CINN_HOST_GT_NUM(TYPE_SUFFIX, TYPE)                             \
-  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_host_gt_num_##TYPE_SUFFIX, host_target) \
-      .SetRetType<int>()                                                          \
-      .AddInputType<cinn_buffer_t*>()                                             \
-      .AddInputType<int>()                                                        \
-      .AddInputType<TYPE>()                                                       \
-      .AddInputType<int>()                                                        \
-      .AddInputType<int>()                                                        \
+#define _REGISTER_CINN_HOST_GT_NUM(TYPE_SUFFIX, TYPE)                      \
+  REGISTER_EXTERN_FUNC_HELPER(cinn_host_gt_num_##TYPE_SUFFIX, host_target) \
+      .SetRetType<int>()                                                   \
+      .AddInputType<cinn_buffer_t*>()                                      \
+      .AddInputType<int>()                                                 \
+      .AddInputType<TYPE>()                                                \
+      .AddInputType<int>()                                                 \
+      .AddInputType<int>()                                                 \
       .End();
 
   _REGISTER_CINN_HOST_GT_NUM(fp32, float);
