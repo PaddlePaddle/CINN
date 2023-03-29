@@ -2935,7 +2935,7 @@ TEST(IrSchedule, SampleCategorical) {
       "test_samplecategorical", stages, {A, B}, {}, {}, nullptr, common::DefaultHostTarget(), true);
 
   ir::IRSchedule ir_sch(ir::ModuleExpr({funcs[0]->body}));
-  Expr result = ir_sch.SampleCategorical({1, 2, 3}, {1.0, 2.0, 3.0},{decision});
+  Expr result = ir_sch.SampleCategorical({1, 2, 3}, {1.0, 2.0, 3.0}, {decision});
   LOG(INFO) << "SampleCategorical result: " << result;
   ASSERT_EQ(result.type(), Int(32));
 }

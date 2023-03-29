@@ -1827,8 +1827,8 @@ Expr ScheduleImpl::SampleCategorical(utils::LinearRandomEngine::StateType* rand_
                                      const std::vector<float>& probs) {
   // check two sizes
   CHECK_EQ(candidates.size(), probs.size()) << "candidates and probs must have same size.";
-  int seed_idx = utils::SampleDiscreteFromDistribution<int>(probs, rand_seed);
-  auto result   = candidates[seed_idx];
+  int seed_idx = utils::SampleDiscreteFromDistribution(probs, rand_seed);
+  auto result  = candidates[seed_idx];
   Expr result_expr(result);
   return result_expr;
 }
@@ -2149,7 +2149,9 @@ Expr IRSchedule::SampleCategorical(const std::vector<int>& candidates,
     new_decision.push_back(result.as_int32());
   } else {
     new_decision = decision;
-    result       = Expr(decision[decision.size()]);
+    for (auto ndco : new_decision) {
+      result = Expr(ndco);
+    }
   }
   trace_.Append(ScheduleDesc::Step(
       "SampleCategorical", {}, {{"candidates", candidates}, {"probs", probs}, {"decision", new_decision}}, {result}));
