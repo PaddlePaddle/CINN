@@ -39,7 +39,11 @@ class TestRandIntOp(OpTest):
 
     def build_paddle_program(self, target):
         out = paddle.randint(
-            shape=self.shape, low=self.min, high=self.max, dtype=self.dtype, seed = self.seed)
+            shape=self.shape,
+            low=self.min,
+            high=self.max,
+            dtype=self.dtype,
+            seed=self.seed)
         self.paddle_outputs = [out]
 
     def build_cinn_program(self, target):
