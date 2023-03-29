@@ -52,7 +52,7 @@ class TestRandIntOp(OpMapperTest):
         # in the specific implementation, the random number results generated
         # by CINN and Paddle are not the same, but they all conform to the
         # uniform distribution.
-        self.build_cinn_program(self.target)
+        self.build_paddle_program(self.target)
 
 
 class TestRandIntCase1(TestRandIntOp):
