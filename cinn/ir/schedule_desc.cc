@@ -473,8 +473,7 @@ CINN_BUILD_STEP_KIND(SamplePerfectTile)
 
 CINN_BUILD_STEP_KIND(SampleCategorical)
     .Attrs({"candidates", "probs", "decision"})
-    .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(
-                    static_cast<Expr (IRSchedule::*)(const std::vector<int>&, const std::vector<float>&, const std::vector<int>&)>(&IRSchedule::SampleCategorical))));
+    .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(&IRSchedule::SampleCategorical)));
 // clang-format on
 
 // ------ Following codes are about member function implement of the ScheduleDesc class
