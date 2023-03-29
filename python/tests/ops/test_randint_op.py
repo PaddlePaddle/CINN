@@ -66,16 +66,10 @@ class TestRandIntCase1(TestRandIntOp):
 
 class TestRandIntCase2(TestRandIntOp):
     def init_case(self):
-        self.outputs = {
-            "out":
-            np.array([[[1, 1, 1, 1], [1, 1, 1, 1], [1, 1, 1, 1]],
-                      [[1, 1, 1, 1], [1, 1, 1, 1], [1, 1, 1,
-                                                    1]]]).astype(np.int64)
-        }
         self.shape = [2, 3, 4]
         self.min = -2
         self.max = 3
-        self.seed = 10
+        self.seed = 8
         self.dtype = "int64"
 
 
