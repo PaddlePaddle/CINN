@@ -23,12 +23,13 @@ import paddle
 class TestStridedSliceOp(OpMapperTest):
     def init_input_data(self):
         self.feed_data = {
-            'inputs': np.array([10, 5, 3], dtype='float32'),
+            'inputs': self.random([10], dtype='float32'),
         }
-        self.axes = [0, 1]
-        self.starts = [2, 2]
-        self.ends = [5, 5]
-        self.strides = [1, 1]
+        self.axes = [0]
+        self.starts = [2]
+        self.ends = [5]
+        self.strides = [1]
+        self.infer_flags = [1]
 
     def set_op_type(self):
         return "strided_slice"
@@ -45,7 +46,8 @@ class TestStridedSliceOp(OpMapperTest):
             "axes": self.axes,
             "starts": self.starts,
             "ends": self.ends,
-            "strides": self.strides
+            "strides": self.strides,
+            "infer_flags": self.infer_flags
         }
 
     def set_op_outputs(self):
@@ -55,7 +57,7 @@ class TestStridedSliceOp(OpMapperTest):
         self.check_outputs_and_grads(all_equal=True)
 
 
-class TestTileCase1(TestStridedSliceOp):
+class TestStridedSliceCase1(TestStridedSliceOp):
     def init_input_data(self):
         self.feed_data = {
             'inputs': self.random([10, 12], 'float32'),
@@ -64,35 +66,56 @@ class TestTileCase1(TestStridedSliceOp):
         self.starts = [1, 2]
         self.ends = [6, 10]
         self.strides = [1, 2]
+        self.infer_flags = [1, 1]
 
 
-# class TestTileCase2(TestStridedSliceOp):
-#     def init_input_data(self):
-#         self.feed_data = {
-#             'x': self.random([2, 10, 5], 'float32'),
-#         }
-#         self.repeat_times = [2, 2]
+class TestStridedSliceCase2(TestStridedSliceOp):
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([2, 10, 5], 'float32'),
+        }
+        self.axes = [0, 1, 2]
+        self.starts = [1, 2, 3]
+        self.ends = [6, 10, 5]
+        self.strides = [1, 2, 1]
+        self.infer_flags = [1, 1, 1]
 
-# class TestTileCase3(TestStridedSliceOp):
-#     def init_input_data(self):
-#         self.feed_data = {
-#             'x': self.random([2, 4, 15], 'float32'),
-#         }
-#         self.repeat_times = [2, 1, 4]
 
-# class TestTileCase4(TestStridedSliceOp):
-#     def init_input_data(self):
-#         self.feed_data = {
-#             'x': self.random([12, 14], 'float32'),
-#         }
-#         self.repeat_times = [2, 3]
+class TestStridedSliceCase3(TestStridedSliceOp):
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([2, 15, 10], 'int32'),
+        }
+        self.axes = [0, -2, 2]
+        self.starts = [1, 10, 3]
+        self.ends = [6, 2, 5]
+        self.strides = [1, -2, 1]
+        self.infer_flags = [1, 1, 1]
 
-# class TestTileCase5(TestStridedSliceOp):
-#     def init_input_data(self):
-#         self.feed_data = {
-#             'x': self.random([120], 'float32'),
-#         }
-#         self.repeat_times = [2, 2]
+
+class TestStridedSliceCase4(TestStridedSliceOp):
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([12, 14], 'float32'),
+        }
+        self.axes = [0, 1]
+        self.starts = [1, -2]
+        self.ends = [6, -10]
+        self.strides = [2, -2]
+        self.infer_flags = [1, -1]
+
+
+class TestStridedSliceCase5(TestStridedSliceOp):
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([120], 'float32'),
+        }
+        self.axes = [0]
+        self.starts = [-1]
+        self.ends = [-120]
+        self.strides = [-4]
+        self.infer_flags = [-1]
+
 
 if __name__ == "__main__":
     unittest.main()
