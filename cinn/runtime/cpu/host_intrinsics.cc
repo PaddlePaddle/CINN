@@ -256,7 +256,7 @@ CINN_REGISTER_HELPER(host_intrinsics) {
 #undef _REGISTER_CINN_HOST_LT_NUM
 
 #define _REGISTER_CINN_HOST_GT_NUM(TYPE_SUFFIX, TYPE)                             \
-  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_cuda_gt_num_##TYPE_SUFFIX, host_target) \
+  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_host_gt_num_##TYPE_SUFFIX, host_target) \
       .SetRetType<int>()                                                          \
       .AddInputType<cinn_buffer_t*>()                                             \
       .AddInputType<int>()                                                        \
