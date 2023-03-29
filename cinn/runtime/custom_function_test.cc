@@ -263,8 +263,13 @@ TEST(CustomCallCholesky, test) {
   CinnBufferAllocHelper out(cinn_x86_device, cinn_float32_t(), {m, m});
   auto* output = out.mutable_data<float>(target);
 
-  // Result matrix res
-  float result[9] = {0.98147416, 0, 0, 0.89824611, 0.76365221, 0, 0.41360193, 0.15284170, 0.055967092};
+  // Result matrix
+  // In the calculation result of MKL, the matrix !upper part is the same as the original input
+  float host_result[9] = {
+      0.98147416, 0.88160539, 0.40593964, 0.89824611, 0.76365221, 0.48823422, 0.41360193, 0.15284170, 0.055967092};
+  // In the calculation results of cuSOLVER, the upper and lower triangles of the matrix are the same
+  float gpu_result[9] = {
+      0.98147416, 0.89824611, 0.41360193, 0.89824611, 0.76365221, 0.15284170, 0.41360193, 0.15284170, 0.055967092};
 
   int num_args               = 2;
   cinn_pod_value_t v_args[2] = {cinn_pod_value_t(x.get()), cinn_pod_value_t(out.get())};
@@ -273,7 +278,7 @@ TEST(CustomCallCholesky, test) {
 #ifdef CINN_WITH_MKL_CBLAS
     cinn_call_cholesky_host(v_args, num_args, batch_size, m, upper);
     for (int i = 0; i < batch_size * m * m; i++) {
-      ASSERT_NEAR(output[i], result[i], 1e-5) << "The output of Cholesky should be the same as result";
+      ASSERT_NEAR(output[i], host_result[i], 1e-5) << "The output of Cholesky should be the same as result";
     }
 #else
     LOG(INFO) << "Host Target only support on flag CINN_WITH_MKL_CBLAS ON! Please check.";
@@ -284,7 +289,7 @@ TEST(CustomCallCholesky, test) {
     std::vector<float> host_output(batch_size * m * m, 0.0f);
     cudaMemcpy(host_output.data(), output, batch_size * m * m * sizeof(float), cudaMemcpyDeviceToHost);
     for (int i = 0; i < batch_size * m * m; i++) {
-      ASSERT_NEAR(host_output[i], result[i], 1e-5) << "The output of Cholesky should be the same as result";
+      ASSERT_NEAR(host_output[i], gpu_result[i], 1e-5) << "The output of Cholesky should be the same as result";
     }
 #else
     LOG(INFO) << "NVGPU Target only support on flag CINN_WITH_CUDA ON! Please check.";
