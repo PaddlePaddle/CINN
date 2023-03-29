@@ -55,20 +55,21 @@ void BatchNormOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
   auto mean        = ctx.GetVar(mean_name);
   auto variance    = ctx.GetVar(variance_name);
 
-  auto is_test         = utils::GetAttrOrDefault<bool>(op_desc, "is_test", false);
-  auto trainable_stats = utils::GetAttrOrDefault<bool>(op_desc, "trainable_statistics", false);
-  bool test_mode       = is_test && (!trainable_stats);
+  auto is_test          = utils::GetAttrOrDefault<bool>(op_desc, "is_test", false);
+  auto trainable_stats  = utils::GetAttrOrDefault<bool>(op_desc, "trainable_statistics", false);
+  auto use_global_stats = utils::GetAttrOrDefault<bool>(op_desc, "use_global_stats", false);
+  bool use_run_stat     = (is_test && (!trainable_stats)) || use_global_stats;
 
   VLOG(4) << "Try compute batch_norm(X:" << x_name << ", Scale:" << scale_name << ", Bias:" << bias_name
           << ","
              ", Mean:"
           << mean_name << ", Variance:" << variance_name << ", epsilon=" << epsilon << ", momentum=" << momentum
-          << ", data_layout=" << data_layout << ", is_test=" << is_test << ", trainable_stats=" << trainable_stats
-          << ")";
+          << ", data_layout=" << data_layout << ", is_test=" << is_test << ", trainable_statistics=" << trainable_stats
+          << ", use_global_stats=" << use_global_stats << ")";
 
-  auto outs = ctx.Builder()->BatchNorm(x, scale, bias, mean, variance, epsilon, momentum, data_layout, false);
+  auto outs = ctx.Builder()->BatchNorm(x, scale, bias, mean, variance, epsilon, momentum, data_layout, use_run_stat);
 
-  if (test_mode) {
+  if (use_run_stat) {
     VLOG(4) << "Invoke batch_norm OpMapper with test mode";
 
     add_output("Y", outs[0]);
@@ -81,7 +82,7 @@ void BatchNormOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
     // paddle, remove after inpace mechanism perfect. The value should shared memory with mean and variance.
     auto mean_out = ctx.Builder()->Identity(mean);
     add_output("MeanOut", mean_out, true);
-    auto variance_out = ctx.Builder()->Identity(mean);
+    auto variance_out = ctx.Builder()->Identity(variance);
     add_output("VarianceOut", variance_out, true);
   } else {
     VLOG(4) << "Invoke batch_norm OpMapper with train mode";
