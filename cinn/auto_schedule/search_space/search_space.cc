@@ -21,8 +21,6 @@
 #include <vector>
 
 #include "cinn/auto_schedule/cost_model/expr_cost_model.h"
-#include "cinn/auto_schedule/search_space/auto_gen_rule/add_cache_read.h"
-#include "cinn/auto_schedule/search_space/auto_gen_rule/add_cache_write.h"
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_inline.h"
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_unroll.h"
