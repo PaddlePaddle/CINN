@@ -98,23 +98,14 @@ class OpMapperTest(OpTest):
         """
         raise Exception("Not implemented.")
 
-    def skip_check_outputs(self) -> set:
+    def skip_check_outputs(self) -> list:
         """Skip check some output because some paddle's op outputs are useless, CINN will not support these.
         ```
         # skip check the result of output 'Out'
         return {'Out'}
         ```
         """
-        return set()
-
-    def set_inplace_outputs(self) -> dict:
-        """Map from inplace output parameter name to input parameter name.\n
-        For example, if the op's output 'MeanOut' should share the memory with the input 'Mean', here should return
-        ```
-        return {'MeanOut' : 'Mean'}
-        ```
-        """
-        return dict()
+        return list()
 
     def __set_paddle_op(self):
         # paddle C++ op type
@@ -127,12 +118,9 @@ class OpMapperTest(OpTest):
         self.output_dtypes = self.set_op_outputs()
         # list of outputs which will be skip
         self.skip_outputs = self.skip_check_outputs()
-        # dict of inplace var
-        self.inplace_outputs = self.set_inplace_outputs()
         # collect some important infomation
         self.input_arg_map = self.__get_arguments_map(self.inputs)
         self.fetch_targets = list()
-        self.skip_check_list = list()
         self.op_desc = None
 
     def __check_valid(self):
@@ -174,18 +162,6 @@ class OpMapperTest(OpTest):
                 msg="The dtype of input {} in feed_data is error".format(
                     var.name))
 
-        for out_name, in_name in self.inplace_outputs.items():
-            self.assertNotIn(
-                out_name,
-                self.output_dtypes,
-                msg=
-                "The {} should not declare twice because it's a inplace output, you should remove it from \"set_op_outputs\""
-                .format(out_name))
-            self.assertIn(
-                in_name,
-                self.inputs,
-                msg="The inplace var should existed in op' inputs dict")
-
     def __get_arguments_map(self, param_maps):
         arg_maps = dict()
         for args in param_maps.values():
@@ -211,17 +187,6 @@ class OpMapperTest(OpTest):
     def __init_paddle_op(self):
         self.__set_paddle_op()
         self.__check_valid()
-
-    def __remove_skip_outputs(self, results):
-        check_outputs = list()
-        for i in range(len(self.fetch_targets)):
-            if self.fetch_targets[i].name not in self.skip_check_list:
-                check_outputs.append(results[i])
-                logger.debug(msg="{}, shape={}, dtype={}:\n{}".format(
-                    self.fetch_targets[i].name, results[i].shape,
-                    str(results[i].dtype), results[i]))
-
-        return check_outputs
 
     def debug_info(self, info_dict: dict, title: str):
         if logger.isEnabledFor(logging.DEBUG):
@@ -253,18 +218,10 @@ class OpMapperTest(OpTest):
                 self.outputs[var_name] = list()
                 for dtype in dtypes:
                     out_var = helper.create_variable_for_type_inference(dtype)
-                    self.fetch_targets.append(out_var)
+                    if var_name not in self.skip_outputs:
+                        # skip obtain the result in skip_outputs
+                        self.fetch_targets.append(out_var)
                     self.outputs[var_name].append(out_var)
-                    if var_name in self.skip_outputs:
-                        self.skip_check_list.append(out_var.name)
-
-            # inplace output
-            for out_name, in_name in self.inplace_outputs.items():
-                self.outputs[out_name] = self.inputs[in_name]
-                for var in self.inputs[in_name]:
-                    self.fetch_targets.append(var)
-                    if out_name in self.skip_outputs:
-                        self.skip_check_list.append(var.name)
 
             self.op_desc = helper.append_op(
                 type=self.op_type,
@@ -277,14 +234,13 @@ class OpMapperTest(OpTest):
         exe = paddle.static.Executor(self.place)
         exe.run(startup_program)
 
-        results = exe.run(
-            main_program,
-            self.feed_data,
-            fetch_list=self.fetch_targets,
-            return_numpy=True)
+        self.paddle_outputs = exe.run(
+            main_program, self.feed_data, fetch_list=self.fetch_targets)
 
-        logger.debug(msg="Paddle result:")
-        self.paddle_outputs = self.__remove_skip_outputs(results)
+        self.debug_info({
+            self.fetch_targets[i].name: self.paddle_outputs[i]
+            for i in range(len(self.fetch_targets))
+        }, "Paddle result")
 
     def build_cinn_program(self, target):
         scope = Scope()
@@ -334,7 +290,7 @@ class OpMapperTest(OpTest):
         ]
 
         # run and get result
-        results = self.get_cinn_output(
+        self.cinn_outputs = self.get_cinn_output(
             prog,
             target,
             cinn_inputs,
@@ -343,8 +299,11 @@ class OpMapperTest(OpTest):
             passes=list(),
             scope=scope)
 
-        logger.debug(msg="CINN result:")
-        self.cinn_outputs = self.__remove_skip_outputs(results)
+        self.debug_info({
+            self.fetch_targets[i].name + "/" + convertor.get_cinn_name(
+                self.fetch_targets[i].name): self.cinn_outputs[i]
+            for i in range(len(self.fetch_targets))
+        }, "CINN result")
 
     @staticmethod
     def paddleddtype2nptype(dtype):
