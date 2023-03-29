@@ -607,6 +607,11 @@ class FusionMergePassHelper : public FusionHelperBase {
       CHECK_EQ(fusionable_consumers.size(), 1) << "Find more than one consumer can fuse to " << producer->group_id;
     }
 
+    // 1 to 1 fusion.
+    if (fusionable_consumers.size() == 1) {
+      return;
+    }
+
     // if is const op
     if (is_const_group(this, producer)) {
       std::unordered_set<GroupPtr, Hasher, Comparator> candidates;
@@ -639,30 +644,23 @@ class FusionMergePassHelper : public FusionHelperBase {
       return;
     }
 
-    // 1 to 1 fusion.
-    if (producer->consumer_groups.size() == 1) {
-      return;
-    } else {
-      std::unordered_set<GroupPtr, Hasher, Comparator> candidates;
-      for (auto& consumer : fusionable_consumers) {
-        if (consumer->op_pattern_kind == framework::kElementWise) {
-          candidates.insert(consumer);
-          continue;
-        }
-
-        auto shape0 = this->GetNodeDataShape(*producer->output_nodes.begin());
-        auto shape1 = this->GetNodeDataShape(*consumer->output_nodes.begin());
-
-        if (std::accumulate(shape0.begin(), shape0.end(), 1, std::multiplies<int>()) ==
-            std::accumulate(shape1.begin(), shape1.end(), 1, std::multiplies<int>())) {
-          candidates.insert(consumer);
-        }
+    std::vector<GroupPtr> candidates;
+    for (auto& consumer : fusionable_consumers) {
+      auto shape0 = this->GetNodeDataShape(*producer->output_nodes.begin());
+      auto shape1 = this->GetNodeDataShape(*consumer->output_nodes.begin());
+      if (consumer->op_pattern_kind == framework::kReduction ||
+          std::accumulate(shape0.begin(), shape0.end(), 1, std::multiplies<int>()) ==
+              std::accumulate(shape1.begin(), shape1.end(), 1, std::multiplies<int>())) {
+        candidates.push_back(consumer);
       }
+    }
+    sort(candidates.begin(), candidates.end(), [](auto&& lhs, auto&& rhs) {
+      return lhs->op_pattern_kind < rhs->op_pattern_kind;
+    });
 
-      fusionable_consumers.clear();
-      if (candidates.size()) {
-        fusionable_consumers.insert(*candidates.begin());
-      }
+    fusionable_consumers.clear();
+    if (candidates.size()) {
+      fusionable_consumers.insert(*candidates.begin());
     }
   }
 
