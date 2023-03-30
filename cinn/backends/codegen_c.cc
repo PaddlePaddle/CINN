@@ -483,7 +483,12 @@ void CodeGenC::Visit(const ir::Load *op) {
   } else if (op->is_addr_tensor()) {
     auto *tensor = op->tensor.As<ir::_Tensor_>();
     os() << tensor->name << "[";
-    Print(op->index());
+    // Print(op->index());
+    os() << op->indices.front();
+    for( int i = 1; i < op->indices.size(); ++i )
+    { 
+       os() << "][" << op->indices[i];
+    }
     os() << "]";
   } else {
     IrPrinter::Visit(op);
@@ -496,7 +501,12 @@ void CodeGenC::Visit(const ir::Store *op) {
   auto *tensor = op->tensor.As<ir::_Tensor_>();
   CHECK(tensor);
   os() << tensor->name << "[";
-  Print(op->index());
+  // Print(op->index());
+    os() << op->indices.front();
+    for( int i = 1; i < op->indices.size(); ++i )
+    { 
+       os() << "][" << op->indices[i];
+    }
   os() << "]";
   os() << " = ";
   Print(op->value);
