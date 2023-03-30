@@ -123,8 +123,8 @@ void Compiler::CompileCudaModule(const Module& module, const std::string& code) 
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
 
-  // TODO(Superjomn) Whether to support multiple CUDA modules?
-  cuda_module_.reset(new CUDAModule(ptx, CUDAModule::Kind::PTX));
+  cuda_module_.reset(
+      new CUDAModule(ptx, compiler.compile_to_cubin() ? CUDAModule::Kind::CUBIN : CUDAModule::Kind::PTX));
 
   RuntimeSymbols symbols;
 

@@ -31,6 +31,8 @@ namespace nvrtc {
  */
 class Compiler {
  public:
+  Compiler();
+
   /**
    * Compile the \p code and get PTX string.
    * @param code The CUDA source code.
@@ -38,6 +40,11 @@ class Compiler {
    * @return Compiled PTX code string.
    */
   std::string operator()(const std::string& code, bool include_headers = true);
+
+  /** Compile into cubin or not
+   * @return Compile into cubin or not.
+   */
+  bool compile_to_cubin();
 
  private:
   /**
@@ -53,11 +60,16 @@ class Compiler {
   std::vector<std::string> FindCINNRuntimeIncludePaths();
 
   /**
-   * Compile CUDA source code and get PTX.
+   * Compile CUDA source code and get PTX or CUBIN.
    * @param code source code string.
-   * @return PTX string.
+   * @return PTX or CUBIN string.
    */
-  std::string CompilePTX(const std::string& code, bool include_headers);
+  std::string CompileCudaSource(const std::string& code, bool include_headers);
+
+  /**
+   * whether to compile the source code into cubin, only works with cuda version > 11.1
+   */
+  bool compile_to_cubin_{false};
 };
 
 }  // namespace nvrtc
