@@ -391,9 +391,9 @@ EXPAND_REDUCE_FP16_MACRO(CINN_BLOCK_REDUCE_IMPL)
 #undef CINN_BLOCK_REDUCE_IMPL
 
 #define BLOCK_SHUFFLE_IMPL(REDUCE_TYPE, INITIAL_VALUE, DTYPE)                                   \
-  __device__ inline DTYPE block_shuffle_##REDUCE_TYPE(const DTYPE *buf, int line, int stride) { \
+  __device__ inline DTYPE block_shuffle_##REDUCE_TYPE(const DTYPE *buf, int stride, int count) {\
     DTYPE val = (DTYPE)(INITIAL_VALUE);                                                         \
-    for (int idx = threadIdx.x; idx < line; idx += stride) {                                    \
+    for (int idx = threadIdx.x, loop = 0 ; loop < count; ++loop, idx += stride) {               \
       val = cinn_##REDUCE_TYPE(val, buf[idx]);                                                  \
     }                                                                                           \
     return val;                                                                                 \
