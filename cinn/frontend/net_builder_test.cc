@@ -1211,11 +1211,7 @@ TEST(net_build, program_argmax_case2) {
   Variable output   = builder.Argmax(input, 1, false);
   auto program      = builder.Build();
 
-#ifdef CINN_WITH_CUDA
-  Target target = common::DefaultNVGPUTarget();
-#else
   Target target = common::DefaultHostTarget();
-#endif
   std::unordered_set<std::string> fetch_ids;
   auto graph = Optimize(&program, fetch_ids, target);
 
