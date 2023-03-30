@@ -21,8 +21,6 @@
 #include <vector>
 
 #include "cinn/auto_schedule/cost_model/expr_cost_model.h"
-#include "cinn/auto_schedule/search_space/auto_gen_rule/add_cache_read.h"
-#include "cinn/auto_schedule/search_space/auto_gen_rule/add_cache_write.h"
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_inline.h"
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_unroll.h"
@@ -47,9 +45,7 @@ SearchSpace::SearchSpace(const TuneTask& tune_task, utils::LinearRandomEngine::S
   // initialize a set of rules and they are commonly used by all states
   // TODO(zhhsplendid): pass correct output names to AutoInline
   sketch_rules_.emplace_back(new AutoInline(target, tune_task_.output_names));
-  sketch_rules_.emplace_back(new MultiLevelTiling(target));
-  sketch_rules_.emplace_back(new AddCacheRead(target));
-  sketch_rules_.emplace_back(new AddCacheWrite(target));
+  sketch_rules_.emplace_back(new MultiLevelTiling(target, MultiLevelTiling::kConfigs.at(target.arch)));
   sketch_rules_.emplace_back(new AutoUnroll(target));
   sketch_rules_.emplace_back(new SkipRule(target));
 }
