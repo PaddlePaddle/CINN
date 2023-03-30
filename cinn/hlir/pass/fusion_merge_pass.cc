@@ -607,11 +607,6 @@ class FusionMergePassHelper : public FusionHelperBase {
       CHECK_EQ(fusionable_consumers.size(), 1) << "Find more than one consumer can fuse to " << producer->group_id;
     }
 
-    // 1 to 1 fusion.
-    if (fusionable_consumers.size() == 1) {
-      return;
-    }
-
     // if is const op
     if (is_const_group(this, producer)) {
       std::unordered_set<GroupPtr, Hasher, Comparator> candidates;
@@ -641,6 +636,11 @@ class FusionMergePassHelper : public FusionHelperBase {
       }
 
       fusionable_consumers = candidates;
+      return;
+    }
+
+    // 1 to 1 fusion.
+    if (producer->consumer_groups.size() == 1) {
       return;
     }
 
