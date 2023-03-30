@@ -28,6 +28,9 @@ class TestUniformRandomOp(OpMapperTest):
         self.max = 1.0
         self.seed = 10
         self.dtype = "float32"
+        self.diag_num = 2
+        self.diag_step = 1
+        self.diag_val = 1.0
 
     def set_op_type(self):
         return "uniform_random"
@@ -41,7 +44,10 @@ class TestUniformRandomOp(OpMapperTest):
             "min": self.min,
             "max": self.max,
             "seed": self.seed,
-            "dtype": self.nptype2paddledtype(self.dtype)
+            "dtype": self.nptype2paddledtype(self.dtype),
+            "diag_num": self.diag_num,
+            "diag_step": self.diag_step,
+            "diag_val": self.diag_val
         }
 
     def set_op_outputs(self):

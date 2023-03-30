@@ -681,8 +681,14 @@ Variable NetBuilder::GaussianRandom(
       .front();
 }
 
-Variable NetBuilder::UniformRandom(
-    const std::vector<int>& shape, float min, float max, int seed, const std::string& dtype) {
+Variable NetBuilder::UniformRandom(const std::vector<int>& shape,
+                                   float min,
+                                   float max,
+                                   int seed,
+                                   const std::string& dtype,
+                                   int diag_num,
+                                   int diag_step,
+                                   float diag_val) {
   auto uniform_out =
       CustomInstr(
           "uniform_random", {}, {{"shape", shape}, {"min", min}, {"max", max}, {"seed", seed}, {"dtype", dtype}})
@@ -690,7 +696,18 @@ Variable NetBuilder::UniformRandom(
   auto uniform_range   = FillConstant(shape, max - min, UniqName("uniform_range"), dtype);
   auto uniform_mul_out = Multiply(uniform_out, uniform_range);
   auto uniform_min     = FillConstant(shape, min, UniqName("uniform_min"), dtype);
-  return Add(uniform_mul_out, uniform_min);
+  auto uniform_res     = Add(uniform_mul_out, uniform_min);
+  if (diag_num > 0) {
+    int numel = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<int>());
+    CHECK_GT(numel, (diag_num - 1) * (diag_step + 1)) << "(diag_num - 1) * (diag_step + 1) should smaller than numel!";
+    auto diag_index =
+        Arange(0.0f, static_cast<float>(diag_num * diag_step + 1), static_cast<float>(diag_step + 1), "int32");
+    auto diag_val_tensor = FillConstant(diag_index->shape, diag_val, dtype);
+    auto uniform_flatten = Reshape(uniform_res, {-1});
+    auto uniform_scatter = ScatterAssign(uniform_flatten, diag_val_tensor, diag_index);
+    uniform_res          = Reshape(uniform_scatter, shape);
+  }
+  return uniform_res;
 }
 
 Variable NetBuilder::Cholesky(const Variable& x, bool upper) {

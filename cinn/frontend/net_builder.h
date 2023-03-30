@@ -1045,7 +1045,10 @@ class NetBuilder {
                          float min                = -1.0f,
                          float max                = 1.0f,
                          int seed                 = 0,
-                         const std::string& dtype = "float32");
+                         const std::string& dtype = "float32",
+                         int diag_num             = 0,
+                         int diag_step            = 0,
+                         float diag_val           = 1.0f);
 
   /**
    * @brief Compute cholesky decomposition of a positive definite symmetric matrix.
