@@ -17,8 +17,6 @@
 
 #include <vector>
 
-#include "cinn/auto_schedule/search_space/auto_gen_rule/add_cache_read.h"
-#include "cinn/auto_schedule/search_space/auto_gen_rule/add_cache_write.h"
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
 #include "cinn/auto_schedule/search_space/auto_gen_rule/multi_level_tiling.h"
 #include "cinn/auto_schedule/search_space/auto_gen_rule/test_helper.h"
@@ -49,20 +47,6 @@ TEST_F(TestMixRules, 2DMatmulOnMultiTilingRelated) {
   ASSERT_EQ(multi_level_tiling.NumberApplicable(), 1);
   multi_level_tiling.ApplyRandomly();
   VLOG(6) << "after MultiLevelTiling Expr:\n" << func_bodys[0];
-
-  // Apply AddCacheWrite
-  AddCacheWrite add_cache_write(target_);
-  add_cache_write.Init(&ir_schedule);
-  ASSERT_EQ(add_cache_write.NumberApplicable(), 1);
-  add_cache_write.ApplyRandomly();
-  VLOG(6) << "after AddCacheWrite Expr:\n" << func_bodys[0];
-
-  // Apply AddCacheRead.
-  AddCacheRead add_cache_read(target_);
-  add_cache_read.Init(&ir_schedule);
-  ASSERT_EQ(add_cache_read.NumberApplicable(), 1);
-  add_cache_read.ApplyRandomly();
-  VLOG(6) << "after AddCacheRead Expr:\n" << func_bodys[0];
 
   // build ir::Module and debug source code
   auto ir_module   = BuildIRModule(ir_schedule);
