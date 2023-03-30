@@ -320,9 +320,9 @@ struct Let : public ExprNode<Let> {
 
 struct LocalTemp : public ExprNode<LocalTemp>{
   Expr symbol;
-  int local_size;
+  std::vector<int> local_size;
  
-  static Expr Make(Expr v, int size) {
+  static Expr Make(Expr v, std::vector<int> size) {
     auto *n = make_shared<LocalTemp>();    
     n->symbol = v;
     n->local_size = size;
@@ -338,6 +338,104 @@ struct LocalTemp : public ExprNode<LocalTemp>{
   static const IrNodeTy _node_type_ = IrNodeTy::LocalTemp;
 
 
+};
+
+struct ReduceMax : public ExprNode<ReduceMax>{
+  Expr input;
+  int axis;
+ 
+  static Expr Make(Expr in, int axis) {
+    auto *n = make_shared<ReduceMax>();    
+    n->input = in;
+    n->axis = axis;
+    n->set_type(n->input->type());
+    return Expr(n);
+  }
+
+  Type type() const override {
+    return input.type();
+  }
+  void Verify() const override {}
+
+  static const IrNodeTy _node_type_ = IrNodeTy::LocalTemp;
+
+};
+
+
+
+
+struct LoadIndex : public ExprNode<LoadIndex>{
+  Expr index_expr;
+  
+  std::vector<int> reduce_range;
+  std::vector<int> flatten_range;
+  int reduce_block;
+  int flatten_block;
+
+ 
+  static Expr Make(Expr id_expr, std::vector<int> reduce_range, std::vector<int> flatten_range, int reduce_block, int flatten_block) {
+    auto *n = make_shared<LoadIndex>();    
+    n->index_expr = id_expr;
+    n->reduce_range = reduce_range;
+    n->flatten_range = flatten_range;
+    n->reduce_block = reduce_block;
+    n->flatten_block = flatten_block;
+    n->set_type(n->index_expr.type());
+
+    return Expr(n);
+  }
+
+  Type type() const override {
+    return index_expr.type();
+  }
+  void Verify() const override {}
+
+  static const IrNodeTy _node_type_ = IrNodeTy::LoadIndex;
+
+
+};
+
+struct BlockLoad : public ExprNode<BlockLoad>{
+  Expr input;
+  Expr load_index;
+ 
+  static Expr Make(Expr in, Expr index) {
+    auto *n = make_shared<BlockLoad>();    
+    n->input = in;
+    n->load_index = index;
+    n->set_type(n->input->type());
+    return Expr(n);
+  }
+
+  Type type() const override {
+    return input.type();
+  }
+  void Verify() const override {}
+
+  static const IrNodeTy _node_type_ = IrNodeTy::BlockLoad;
+};
+
+
+struct BlockStore : public ExprNode<BlockStore>{
+  Expr input;
+  Expr load_index;
+  Expr value;
+ 
+  static Expr Make(Expr in, Expr index, Expr value) {
+    auto *n = make_shared<BlockStore>();    
+    n->input = in;
+    n->load_index = index;
+    n->value = value;
+    n->set_type(n->input->type());
+    return Expr(n);
+  }
+
+  Type type() const override {
+    return input.type();
+  }
+  void Verify() const override {}
+
+  static const IrNodeTy _node_type_ = IrNodeTy::BlockStore;
 };
 
 enum CallType : int {

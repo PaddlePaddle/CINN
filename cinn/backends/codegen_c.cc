@@ -187,6 +187,21 @@ void CodeGenC::Visit(const ir::Not *op) {
 }
 void CodeGenC::Visit(const ir::LocalTemp* op) 
 { IrPrinter::Visit( op ); }
+
+void CodeGenC::Visit(const ir::LoadIndex* op) 
+{ IrPrinter::Visit( op ); }
+
+void CodeGenC::Visit(const ir::ReduceMax* op) 
+{ IrPrinter::Visit( op ); }
+
+void CodeGenC::Visit(const ir::BlockLoad* op) 
+{ IrPrinter::Visit( op ); }
+
+void CodeGenC::Visit(const ir::BlockStore* op) 
+{ IrPrinter::Visit( op ); }
+
+
+
 void CodeGenC::Visit(const ir::Cast *op) { PrintCastExpr(op->type(), op->v()); }
 void CodeGenC::Visit(const ir::For *op) {
   // std::cerr << "visit loop" << std::endl;

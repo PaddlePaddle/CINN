@@ -73,6 +73,19 @@ void IRMutator<T>::Visit(const StringImm *expr, T op) {}
 template <typename T>
 void IRMutator<T>::Visit(const LocalTemp *expr, T op) {}
 
+
+template <typename T>
+void IRMutator<T>::Visit(const LoadIndex *expr, T op) {}
+
+template <typename T>
+void IRMutator<T>::Visit(const BlockLoad *expr, T op) {}
+
+template <typename T>
+void IRMutator<T>::Visit(const BlockStore *expr, T op) {}
+
+template <typename T>
+void IRMutator<T>::Visit(const ReduceMax *expr, T op) {}
+
 template <typename T>
 void IRMutator<T>::Visit(const Cast *expr, T op) {
   auto *node = op->template As<Cast>();

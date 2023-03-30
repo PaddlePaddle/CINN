@@ -110,6 +110,10 @@ class ScheduleBlockRealize;
   macro__(ScheduleBlock)                    \
   macro__(ScheduleBlockRealize)             \
   macro__(LocalTemp)                        \
+  macro__(LoadIndex)                        \
+  macro__(ReduceMax)                        \
+  macro__(BlockLoad)                        \
+  macro__(BlockStore)                       \
 
 
 #define NODETY_FORALL(__m)              \

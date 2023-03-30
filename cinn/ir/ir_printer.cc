@@ -423,9 +423,35 @@ void IrPrinter::Visit(const LocalTemp *x) {
   os() << "\n";
   os() << x->type() << " ";
   Print(x->symbol);
-  os() << "[";
-  os() << x->local_size;
-  os() << "];\n";
+  for( size_t i = 0; i < x->local_size.size(); ++i) 
+  {
+    os() << "[";
+    os() << x->local_size[i];
+    os() << "]";
+  }
+  os() << ";\n";
+}
+
+void IrPrinter::Visit(const LoadIndex *x) { 
+  os() << "reduce reange " << x->reduce_range.front() << "\t" << x->reduce_range.back() << "\n";
+  os() << "flatten range " << x->flatten_range.front() << "\t" << x->flatten_range.back() << "\n";
+  os() << "reduce " << x->reduce_block << "\t" << x->flatten_block << "\n";
+  os() << "expr " << x->index_expr << "\n";
+}
+
+void IrPrinter::Visit(const ReduceMax *x) {
+  os() << "reduce max, input" << x->input << "\t" << x->axis << "\n";  
+}
+
+void IrPrinter::Visit(const BlockLoad *x) {
+  os() << x->input << "\n";
+  Visit( x->load_index.As<LoadIndex>() );
+}
+
+void IrPrinter::Visit(const BlockStore *x) {
+  os() << x->input << "\n";
+  Visit( x->load_index.As<LoadIndex>() );
+  Visit(x->value.As<ReduceMax>() );
 }
 
 void IrPrinter::Visit(const FracOp *x) {
