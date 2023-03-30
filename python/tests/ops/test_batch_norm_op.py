@@ -188,10 +188,8 @@ class TestBatchNormInferOp(OpTest):
     def init_case(self):
         self.num_channels = 16
         self.inputs = {
-            "x":
-            self.random([2, self.num_channels, 8, 8], "float32", 0.0, 1.0),
-            "dout":
-            self.random([2, self.num_channels, 8, 8], "float32", 1e-7, 1e-6),
+            "x": self.random([2, self.num_channels, 8, 8], "float32", 0.0,
+                             1.0),
         }
 
     def build_paddle_program(self, target):
@@ -218,7 +216,7 @@ class TestBatchNormInferOp(OpTest):
         variance = builder.fill_constant([self.num_channels], 1.0, 'variance',
                                          'float32')
 
-        out = builder.batchnorm(x, scale, bias, mean, variance, is_test=True)
+        out = builder.batchnorm(x, scale, bias, mean, variance, is_test=False)
 
         prog = builder.build()
         forward_res = self.get_cinn_output(
@@ -226,8 +224,7 @@ class TestBatchNormInferOp(OpTest):
         self.cinn_outputs = [forward_res[0]]
 
     def test_check_results(self):
-        # TODO: the result of batch norm with test mode are error
-        self.check_outputs_and_grads(max_relative_error=1e+5)
+        self.check_outputs_and_grads()
 
 
 if __name__ == "__main__":
