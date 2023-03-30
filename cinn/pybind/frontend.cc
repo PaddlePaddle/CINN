@@ -122,7 +122,10 @@ void BindFrontend(pybind11::module *m) {
       .def("get_attr_int32s", &Instruction::GetAttrs<std::vector<int>>)
       .def("get_attr_fp32s", &Instruction::GetAttrs<std::vector<float>>)
       .def("get_attr_strs", &Instruction::GetAttrs<std::vector<std::string>>)
-      .def("__str__", [](Instruction &self) { return utils::GetStreamCnt(self); });
+      .def("__str__", [](Instruction &self) { return utils::GetStreamCnt(self); })
+      .def("get_op_type", [](Instruction &self) { return self->op_type; })
+      .def("get_inputs", [](Instruction &self) { return self->inputs; })
+      .def("get_outputs", [](Instruction &self) { return self->outputs; });
 
   m->def("get_default_program_pass", []() { return DefaultTrainingOptimizeOptions().program_passes; })
       .def("get_default_graph_pass", []() { return DefaultTrainingOptimizeOptions().graph_passes; })
