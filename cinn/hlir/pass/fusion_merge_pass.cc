@@ -646,15 +646,19 @@ class FusionMergePassHelper : public FusionHelperBase {
 
     std::vector<GroupPtr> candidates;
     for (auto& consumer : fusionable_consumers) {
+      if (consumer->op_pattern_kind == framework::kElementWise || consumer->op_pattern_kind == framework::kReduction) {
+        candidates.push_back(consumer);
+        continue;
+      }
+
       auto shape0 = this->GetNodeDataShape(*producer->output_nodes.begin());
       auto shape1 = this->GetNodeDataShape(*consumer->output_nodes.begin());
-      if (consumer->op_pattern_kind == framework::kReduction ||
-          std::accumulate(shape0.begin(), shape0.end(), 1, std::multiplies<int>()) ==
-              std::accumulate(shape1.begin(), shape1.end(), 1, std::multiplies<int>())) {
+      if (std::accumulate(shape0.begin(), shape0.end(), 1, std::multiplies<int>()) ==
+          std::accumulate(shape1.begin(), shape1.end(), 1, std::multiplies<int>())) {
         candidates.push_back(consumer);
       }
     }
-    sort(candidates.begin(), candidates.end(), [](auto&& lhs, auto&& rhs) {
+    sort(candidates.begin(), candidates.end(), [](const auto& lhs, const auto& rhs) {
       return lhs->op_pattern_kind < rhs->op_pattern_kind;
     });
 
