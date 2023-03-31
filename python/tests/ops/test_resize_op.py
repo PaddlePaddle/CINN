@@ -45,9 +45,9 @@ class TestResizeOp(OpTest):
         self.out_shape = [4, 4]
         self.mode = "nearest"
         #test paddle resize
-        fake_img = (np.random.rand(256, 300, 3) * 255.).astype('uint8')
-        converted_img = F.resize(fake_img, 224)
-        print(converted_img.size)
+        # fake_img = (np.random.rand(256, 300, 3) * 255.).astype('uint8')
+        # converted_img = F.resize(fake_img, 224)
+        # print(converted_img.size)
 
     def build_paddle_program(self, target):
         y = paddle.to_tensor(self.outputs["y"], stop_gradient=False)
@@ -63,6 +63,7 @@ class TestResizeOp(OpTest):
         res = self.get_cinn_output(
             prog, target, [x], [self.inputs["x"]], [out], passes=[])
         self.cinn_outputs = [res[0]]
+        print(res[0])
 
     def test_check_results(self):
         self.check_outputs_and_grads()
