@@ -115,13 +115,15 @@ std::vector<std::vector<int>> InferShapeForResize(const std::vector<std::vector<
                                                   const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape[0].size(), 4U) << "The input's shape size should be 4! Please check again.";
 
-  std::vector<int> out_shape;
   CHECK(attrs.find("out_shape") != attrs.end())
       << "Cannot find \"out_shape\" attribute in \"resize\" op, Please Check.";
+  std::vector<int> out_shape;
   out_shape = absl::get<std::vector<int>>(attrs.at("out_shape"));
   CHECK_EQ(out_shape.size(), 2U) << "The length of out_shape must be 2.";
   CHECK(out_shape[0] > 0 && out_shape[1] > 0) << "The element of out_shape must be great that 0.";
 
+  CHECK(attrs.find("mode") != attrs.end()) << "Cannot find \"mode\" attribute in \"resize\" op, Please Check.";
+  std::string mode = absl::get<std::string>(attrs.at("mode"));
   CHECK(mode == "nearest" || mode == "bilinear" || mode == "bicubic")
       << "Resize only supports `nearest`, `bilinear` and `bicubic` mode.";
 
