@@ -12,14 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cinn/common/target.h"
-
+#ifdef CINN_WITH_CUDA
 #include <cuda_runtime_api.h>
 #include <driver_types.h>
+#endif
 #include <glog/logging.h>
 
 #include <sstream>
 
+#include "cinn/common/target.h"
 #include "cinn/runtime/cinn_runtime.h"
 
 namespace cinn {

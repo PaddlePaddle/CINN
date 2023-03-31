@@ -606,6 +606,9 @@ std::vector<ir::Tensor> ReduceInternal(const ir::Tensor& A,
 
     reduce_shape.emplace_back(last_reduce_size / loop_size);
     reduce_shape.emplace_back(loop_size);
+    if (loop_size == 1) {
+      return {};
+    }
     break;
   }
 
@@ -636,7 +639,11 @@ std::vector<ir::Tensor> ReduceInternal(const ir::Tensor& A,
     if (GetParallelSize(A, axes) >= common::GetMaxThreads()) {                                                  \
       return {Reduce##name(A, axes, keep_dim, output_name)};                                                    \
     } else {                                                                                                    \
-      return ReduceInternal(A, axes, keep_dim, output_name, Reduce##name, initial, reduce_type);                \
+      auto rs = ReduceInternal(A, axes, keep_dim, output_name, Reduce##name, initial, reduce_type);             \
+      if (rs.size() == 0) {                                                                                     \
+        return {Reduce##name(A, axes, keep_dim, output_name)};                                                  \
+      } else                                                                                                    \
+        return rs;                                                                                              \
     }                                                                                                           \
   }
 

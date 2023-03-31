@@ -553,31 +553,42 @@ void IRCudaScheduleBlockShuffleReduce(ir::IRSchedule &ir_sch,
   {
     // simplify reshape index
     auto hand_write_simplify = [](std::vector<ir::Expr> loops, ir::Expr block) {
-      auto schedule_realize         = block.As<ir::ScheduleBlockRealize>();
-      auto schedule_block           = block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>();
-      std::vector<ir::Expr> strides = {ir::Expr(1)};
+      auto schedule_realize = block.As<ir::ScheduleBlockRealize>();
+      auto schedule_block   = block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>();
+
+      int stride = 1;
+      std::unordered_map<std::string, ir::Expr> var_strides;
       for (int idx = loops.size() - 1; idx > 0; --idx) {
-        strides.insert(strides.begin(), ir::Expr(strides.front().as_int32() * GetLoopExtent(loops[idx])));
+        stride = stride * GetLoopExtent(loops[idx]);
+
+        auto var               = loops[idx - 1].As<ir::For>()->loop_var;
+        var_strides[var->name] = ir::Expr(stride);
       }
-      CHECK_EQ(strides.size(), loops.size());
 
       ir::Expr index = ir::Expr(schedule_block->iter_vars.back());
       for (int idx = 0; idx < schedule_block->iter_vars.size() - 1; ++idx) {
-        index = index + ir::Expr(schedule_block->iter_vars[idx]) * strides[idx];
-      }
+        auto var = schedule_realize->iter_values[idx].as_var();
+        if (!var) {
+          continue;
+        }
 
-      // schedule_realize->iter_values.push_back(Expr(_var));
-      // schedule_block->iter_vars.push_back(ir::Var(index));
+        if (!var_strides.count(var->name)) {
+          continue;
+        }
+
+        auto stride = var_strides.find(var->name)->second;
+        index       = index + ir::Expr(schedule_block->iter_vars[idx]) * stride;
+      }
 
       auto exprs = ir::CollectIRNodesInOrder(block, [&](const Expr *x) { return x->As<ir::Load>(); });
       CHECK_EQ(exprs.size(), 1);
       auto load     = exprs.front().As<ir::Load>();
       load->indices = {index};
     };
-
     hand_write_simplify(ir_sch.GetLoops(reshape->name), ir_sch.GetBlock(reshape->name));
     auto block = ir_sch.GetBlock(reshape->name);
     ir_sch.ComputeInline(block);
+    VLOG(4) << "After simplify reshape index : " << ir_sch.GetModule().GetExprs().at(0);
   }
 
   // internal bind shared
@@ -586,6 +597,7 @@ void IRCudaScheduleBlockShuffleReduce(ir::IRSchedule &ir_sch,
     ir_sch.SetBuffer(block, "shared");
   }
 
+  //
   auto get_loop_index = [&internal](ir::Expr inner_loop, ir::Expr block) {
     auto loop_var         = inner_loop.As<ir::For>()->loop_var;
     auto schedule_realize = block.As<ir::ScheduleBlockRealize>();
@@ -630,8 +642,7 @@ void IRCudaScheduleBlockShuffleReduce(ir::IRSchedule &ir_sch,
     LOG(FATAL) << "Can't find var in tensor indeces!";
   };
   auto loop_var_count = get_loop_index(ir_sch.GetLoops(reduce_out->name).back(), ir_sch.GetBlock(reduce_out->name));
-
-  // fuse loop to bind gpu block.
+  // fuse loop to bind gpu block.x
   if (loop_var_count > 1) {
     auto internal_loops = ir_sch.GetLoops(internal->name);
     std::vector<ir::Expr> fuse_internal_loops(internal_loops.begin(), internal_loops.begin() + loop_var_count);
@@ -642,18 +653,25 @@ void IRCudaScheduleBlockShuffleReduce(ir::IRSchedule &ir_sch,
     ir_sch.Fuse(fuse_reduce_out_loops);
   }
 
+  VLOG(4) << "After fuse loop for blockIdx.x : " << ir_sch.GetModule().GetExprs().at(0);
   // fuse reduce tail to bind gpu thread.
-  if (ir_sch.GetLoops(reduce_out->name).size() > (loop_var_count ? 2 : 1)) {
+  if (ir_sch.GetLoops(reduce_out->name + "__reduce_init").size() > (loop_var_count ? 2 : 1)) {
+    int start_index = loop_var_count == 0 ? 0 : 1;
+    // first reduce step:
+    // [block.x, thread.y, tail] or [thread.y, tail]
     auto internal_loops = ir_sch.GetLoops(internal->name + "__reduce_init");
-    std::vector<ir::Expr> fuse_internal_loops(internal_loops.begin() + 2, internal_loops.end());
+    std::vector<ir::Expr> fuse_internal_loops(internal_loops.begin() + start_index + 1, internal_loops.end());
     ir_sch.Fuse(fuse_internal_loops);
 
+    // second reduce step:
+    // [block.x, tail] or [tail]
     auto reduce_out_loops = ir_sch.GetLoops(reduce_out->name + "__reduce_init");
-    std::vector<ir::Expr> fuse_reduce_out_loops(reduce_out_loops.begin() + 1, reduce_out_loops.end());
+    std::vector<ir::Expr> fuse_reduce_out_loops(reduce_out_loops.begin() + start_index, reduce_out_loops.end());
     ir_sch.Fuse(fuse_reduce_out_loops);
   }
 
-  // split reduce output
+  VLOG(4) << "After fuse tail loop for threadIdx.x : " << ir_sch.GetModule().GetExprs().at(0);
+  // split reduce loop to bind thread.y
   {
     if (loop_var_count > 0) {
       auto reduce_out_loops = ir_sch.GetLoops(reduce_out->name + "__reduce_init");
@@ -664,47 +682,57 @@ void IRCudaScheduleBlockShuffleReduce(ir::IRSchedule &ir_sch,
     }
   }
 
-  LOG(INFO) << ir_sch.GetModule().GetExprs().at(0);
+  std::vector<int> axis_in_nroder;
   // split internal tail to bind thread
   {
     auto start_index = loop_var_count == 0 ? 0 : 1;
-    auto i_loops     = ir_sch.GetLoops(internal->name);
-    auto r_loops     = ir_sch.GetLoops(reduce_out->name);
+    auto i_loops     = ir_sch.GetLoops(internal->name + "__reduce_init");
+    auto r_loops     = ir_sch.GetLoops(reduce_out->name + "__reduce_init");
+    // bind blockIdx.x
     if (loop_var_count) {
       ir_sch.Bind(i_loops[0], "blockIdx.x");
-      i_loops = ir_sch.GetLoops(internal->name);
+      i_loops = ir_sch.GetLoops(internal->name + "__reduce_init");
 
       ir_sch.Bind(r_loops[0], "blockIdx.x");
-      r_loops = ir_sch.GetLoops(reduce_out->name);
+      r_loops = ir_sch.GetLoops(reduce_out->name + "__reduce_init");
+
+      axis_in_nroder.push_back(0);
     }
     // bind threadIdx.y
     {
       ir_sch.Bind(i_loops[start_index], "threadIdx.y");
-      i_loops = ir_sch.GetLoops(internal->name);
+      i_loops = ir_sch.GetLoops(internal->name + "__reduce_init");
 
       ir_sch.Bind(r_loops[start_index], "threadIdx.y");
-      r_loops = ir_sch.GetLoops(reduce_out->name);
+      r_loops = ir_sch.GetLoops(reduce_out->name + "__reduce_init");
+
+      axis_in_nroder.push_back(start_index);
     }
 
     auto bind_thread = [&](int tail) {
       if (GetLoopExtent(i_loops[start_index + 1]) > tail) {
         ir_sch.Split(i_loops[start_index + 1], {-1, tail});
-        i_loops = ir_sch.GetLoops(internal->name);
+        i_loops = ir_sch.GetLoops(internal->name + "__reduce_init");
 
         ir_sch.Split(r_loops[start_index + 1], {-1, tail});
-        r_loops = ir_sch.GetLoops(reduce_out->name);
+        r_loops = ir_sch.GetLoops(reduce_out->name + "__reduce_init");
 
         ir_sch.Bind(i_loops[start_index + 1], "blockIdx.y");
         ir_sch.Bind(r_loops[start_index + 1], "blockIdx.y");
 
         ir_sch.Bind(i_loops[start_index + 2], "threadIdx.x");
         ir_sch.Bind(r_loops[start_index + 2], "threadIdx.x");
+
+        axis_in_nroder.insert(axis_in_nroder.end() - 1, start_index + 1);
+        axis_in_nroder.insert(axis_in_nroder.end() - 1, start_index + 2);
       } else {
         ir_sch.Bind(i_loops[start_index + 1], "threadIdx.x");
         ir_sch.Bind(r_loops[start_index + 1], "threadIdx.x");
+
+        axis_in_nroder.insert(axis_in_nroder.end() - 1, start_index + 1);
       }
     };
-    // split and bind threadIdx.x
+    // split and bind blockIdx.y/threadIdx.x
     if (GetLoopExtent(i_loops[start_index]) > 32) {
       bind_thread(8);
     } else if (GetLoopExtent(i_loops[start_index]) > 16) {
@@ -715,14 +743,24 @@ void IRCudaScheduleBlockShuffleReduce(ir::IRSchedule &ir_sch,
       bind_thread(64);
     }
   }
+  VLOG(4) << "After split tail loop for threadIdx.x : " << ir_sch.GetModule().GetExprs().at(0);
+  // do reorder
+  {
+    ir_sch.Reorder(internal->name + "__reduce_init", axis_in_nroder);
+    ir_sch.Reorder(reduce_out->name + "__reduce_init", axis_in_nroder);
+  }
   // unroll last dim
   {
     auto i_loops = ir_sch.GetLoops(internal->name);
-    if (GetLoopExtent(i_loops.back()) <= 64) {
+    if (ir_sch.GetLoops(internal->name + "__reduce_init").size() < i_loops.size() &&
+        GetLoopExtent(i_loops.back()) <= 64) {
       ir_sch.Unroll(i_loops.back());
     }
+
     auto r_loops = ir_sch.GetLoops(reduce_out->name);
-    ir_sch.Unroll(r_loops.back());
+    if (ir_sch.GetLoops(reduce_out->name + "__reduce_init").size() < r_loops.size()) {
+      ir_sch.Unroll(r_loops.back());
+    }
   }
   VLOG(3) << "After IRCudaScheduleBlockShuffleReduce : " << ir_sch.GetModule().GetExprs().at(0);
 }
