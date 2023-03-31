@@ -705,7 +705,6 @@ Variable NetBuilder::Cholesky(const Variable& x, bool upper) {
   auto index     = Arange(0.0f, static_cast<float>(m * m), 1.0f, "int32");
   auto index_row = Mod(index, m_tensor);
   auto index_col = FloorDivide(index, m_tensor);
-  auto diff      = Subtract(index_row, index_col);
   auto mask      = upper ? GreaterEqual(index_row, index_col) : LessEqual(index_row, index_col);
   auto mask_mat  = Reshape(mask, {m, m});
   auto mask_full = BroadcastTo(mask_mat, x->shape);
