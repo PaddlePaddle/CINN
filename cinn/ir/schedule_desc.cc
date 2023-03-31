@@ -471,6 +471,9 @@ CINN_BUILD_STEP_KIND(SamplePerfectTile)
 CINN_BUILD_STEP_KIND(TagPostSchedule)
     .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(&IRSchedule::TagPostSchedule)));
 
+CINN_BUILD_STEP_KIND(SampleCategorical)
+    .Attrs({"candidates", "probs", "decision"})
+    .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(&IRSchedule::SampleCategorical)));
 // clang-format on
 
 // ------ Following codes are about member function implement of the ScheduleDesc class

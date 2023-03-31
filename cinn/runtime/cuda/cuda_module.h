@@ -36,7 +36,8 @@ namespace cuda {
 class CUDAModule {
  public:
   enum class Kind {
-    PTX = 0,
+    PTX   = 0,
+    CUBIN = 1,
   };
 
   CUDAModule(const std::string& data, Kind kind);

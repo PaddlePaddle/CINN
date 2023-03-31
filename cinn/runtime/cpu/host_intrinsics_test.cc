@@ -109,13 +109,13 @@ TEST(find_value_nd, basic) {
   }
 }
 
-TEST(cinn_host_lt_num_float, basic) {
+TEST(cinn_host_lt_num_fp32, basic) {
   Expr M(10), N(20);
   Placeholder<float> x("x", {M, N});
   auto y = Compute(
       {N},
       [&](Expr j) {
-        return CallExtern("cinn_host_lt_num_float", {x, M, x({Expr(0), j}), j, N});
+        return CallExtern("cinn_host_lt_num_fp32", {x, M, x({Expr(0), j}), j, N});
       },
       "y");
 
@@ -156,13 +156,13 @@ TEST(cinn_host_lt_num_float, basic) {
   }
 }
 
-TEST(cinn_host_gt_num_float, basic) {
+TEST(cinn_host_gt_num_fp32, basic) {
   Expr M(10), N(20);
   Placeholder<float> x("x", {M, N});
   auto y = Compute(
       {N},
       [&](Expr j) {
-        return CallExtern("cinn_host_gt_num_float", {x, M, x({Expr(0), j}), j, N});
+        return CallExtern("cinn_host_gt_num_fp32", {x, M, x({Expr(0), j}), j, N});
       },
       "y");
 

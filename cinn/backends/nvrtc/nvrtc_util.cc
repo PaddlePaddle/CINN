@@ -23,13 +23,27 @@
 #include "cinn/common/common.h"
 #include "cinn/utils/string.h"
 
+DECLARE_bool(nvrtc_compile_to_cubin);
+
 namespace cinn {
 namespace backends {
 namespace nvrtc {
 
 std::string Compiler::operator()(const std::string& code, bool include_headers) {
-  return CompilePTX(code, include_headers);
+  return CompileCudaSource(code, include_headers);
 }
+
+Compiler::Compiler() {
+  if (FLAGS_nvrtc_compile_to_cubin) {
+#if CUDA_VERSION >= 11010
+    compile_to_cubin_ = true;
+#endif
+  }
+  VLOG(4) << "FLAGS_nvrtc_compile_to_cubin: " << FLAGS_nvrtc_compile_to_cubin
+          << ", compile_to_cubin_: " << compile_to_cubin_;
+}
+
+bool Compiler::compile_to_cubin() { return compile_to_cubin_; }
 
 std::vector<std::string> Compiler::FindCUDAIncludePaths() {
   const std::string delimiter = "/";
@@ -56,7 +70,7 @@ std::vector<std::string> Compiler::FindCUDAIncludePaths() {
 
 std::vector<std::string> Compiler::FindCINNRuntimeIncludePaths() { return {Context::Global().runtime_include_dir()}; }
 
-std::string Compiler::CompilePTX(const std::string& code, bool include_headers) {
+std::string Compiler::CompileCudaSource(const std::string& code, bool include_headers) {
   const auto& header_gen = JitSafeHeaderGenerator::GetInstance();
   std::vector<std::string> compile_options;
   std::vector<const char*> param_cstrings{};
@@ -72,8 +86,11 @@ std::string Compiler::CompilePTX(const std::string& code, bool include_headers) 
     LOG(WARNING) << "cannot detect compute capability from your device, "
                  << "fall back to compute_30.";
   }
-
-  compile_options.push_back("-arch=compute_" + cc);
+  if (compile_to_cubin_) {
+    compile_options.push_back("-arch=sm_" + cc);
+  } else {
+    compile_options.push_back("-arch=compute_" + cc);
+  }
   compile_options.push_back("-std=c++14");
   compile_options.push_back("-default-device");
 
@@ -107,15 +124,20 @@ std::string Compiler::CompilePTX(const std::string& code, bool include_headers) 
     CHECK_EQ(compile_res, NVRTC_SUCCESS) << log;
   }
 
-  size_t ptx_size;
-  NVRTC_CALL(nvrtcGetPTXSize(prog, &ptx_size));
+  size_t size;
+  std::string data;
+  if (compile_to_cubin_) {
+    NVRTC_CALL(nvrtcGetCUBINSize(prog, &size));
+    data.resize(size);
+    NVRTC_CALL(nvrtcGetCUBIN(prog, &data[0]));
+  } else {
+    NVRTC_CALL(nvrtcGetPTXSize(prog, &size));
+    data.resize(size);
+    NVRTC_CALL(nvrtcGetPTX(prog, &data[0]));
+  }
 
-  std::string ptx;
-  ptx.resize(ptx_size);
-  NVRTC_CALL(nvrtcGetPTX(prog, &ptx[0]));
   NVRTC_CALL(nvrtcDestroyProgram(&prog));
-
-  return ptx;
+  return data;
 }
 
 }  // namespace nvrtc

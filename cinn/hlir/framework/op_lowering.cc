@@ -259,6 +259,7 @@ std::vector<Expr> OpLowerer::IRElementwiseCompute(poly::StageMap& stages,
 
   std::vector<Expr> ast_exprs;
   for (auto& node : sub_group->nodes) {
+    VLOG(4) << "Lower op: " << node->op()->name;
     auto node_data = GetNodeData(node);
     CHECK_EQ(GetAllNodeData(node).size(), 1U);
     std::vector<common::CINNValue> cinn_inputs;

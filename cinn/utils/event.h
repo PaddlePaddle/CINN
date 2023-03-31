@@ -74,11 +74,11 @@ class Summary {
   };
 
   struct Item {
-    const HostEvent* event;
+    HostEvent info;
     Raito sub_raito{0.0};    // percentage of EventType
     Raito total_raito{0.0};  // precentage of total process
 
-    Item(const HostEvent& e) : event(&e) {}
+    Item(const HostEvent& e) : info(e) {}
     bool operator<(const Item& other) const { return total_raito.value > other.total_raito.value; }
   };
 
