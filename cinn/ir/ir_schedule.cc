@@ -1086,8 +1086,10 @@ void ScheduleImpl::SetBuffer(Expr& block, const std::string& memory_type, bool f
 
   auto exprs = this->GetModule().GetExprs();
   for (auto& it_expr : exprs) {
-    auto find_tensor = ir::CollectIRNodesWithoutTensor(
-        it_expr, [&](const Expr* x) { return x->as_tensor() && x->as_tensor()->name == tensor.as_tensor_ref()->name; });
+    auto find_tensor = ir::CollectIRNodesWithoutTensor(it_expr, [&](const Expr* x) {
+      return x->as_tensor() && (x->as_tensor()->name == tensor.as_tensor_ref()->name ||
+                                x->as_tensor()->name == tensor.as_tensor_ref()->name + "__reduce_init");
+    });
     for (auto& t : find_tensor) {
       CHECK(t.as_tensor());
       t.as_tensor_ref()->Bind(tensor.as_tensor_ref()->buffer);
