@@ -296,16 +296,17 @@ void MultiLevelTiling::ApplyCacheRead(ir::IRSchedule* ir_schedule, ir::Expr& blo
   // Schedule
   for (int read_buffer_index : read_buffer_indexes) {
     for (int level : config_.read_cache_levels) {
-      // 1.Do CacheRead and get the cahce block
-      ir::Expr cache_block = ir_schedule->CacheRead(block_expr, read_buffer_index, config_.read_cache_memory_type);
-      std::string cache_block_name =
-          cache_block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->name;
-
-      // 2.Find target loop
+      // 1.find target loop
       const auto loops = tile_loops_.at(level - 1);
       if (loops.size() == 0) {
         continue;
       }
+
+      // 2.Do CacheRead and get the cahce block
+      ir::Expr cache_block = ir_schedule->CacheRead(block_expr, read_buffer_index, config_.read_cache_memory_type);
+      std::string cache_block_name =
+          cache_block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->name;
+
       std::string target_for_loop_name = loops.back().As<ir::For>()->loop_var->name;
 
       // 3.Place the cache_block under target_for_loop
