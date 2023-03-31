@@ -115,7 +115,7 @@ class Node : public common::GraphNode {
   inline uint32_t num_inputs() { return is_variable() ? 1 : this->op()->num_inputs; }
 
   template <class... Args>
-  static NodePtr Create(Args &&... args) {
+  static NodePtr Create(Args &&...args) {
     return common::Shared<Node>(new Node(std::forward<Args>(args)...));
   }
 

@@ -72,14 +72,22 @@ DEFINE_bool(cinn_ir_schedule,
 
 DEFINE_bool(use_reduce_split_pass, BoolFromEnv("FLAGS_use_reduce_split_pass", false), "Whether use reduce split pass.");
 
+DEFINE_bool(cinn_use_dense_merge_pass,
+            BoolFromEnv("FLAGS_cinn_use_dense_merge_pass", false),
+            "Whether use dense merge pass.");
+
+DEFINE_bool(nvrtc_compile_to_cubin,
+            BoolFromEnv("FLAGS_nvrtc_compile_to_cubin", false),
+            "Whether nvrtc compile cuda source into cubin instead of ptx (only works after cuda-11.1).");
+
 // FLAGS for performance analysis and accuracy debug
 DEFINE_bool(cinn_sync_run,
             BoolFromEnv("FLAGS_cinn_sync_run", false),
             "Whether sync all devices after each instruction run, which is used for debug.");
 
-DEFINE_bool(cinn_self_check_accuracy,
-            BoolFromEnv("FLAGS_cinn_self_check_accuracy", false),
-            "Whether self-check accuracy after each instruction run, which is used for debug.");
+DEFINE_string(cinn_self_check_accuracy,
+              StringFromEnv("FLAGS_cinn_self_check_accuracy", ""),
+              "Whether self-check accuracy after each instruction run, which is used for debug.");
 
 DEFINE_int64(cinn_self_check_accuracy_num,
              Int64FromEnv("FLAGS_cinn_self_check_accuracy_num", 0L),
@@ -118,6 +126,21 @@ bool GetCinnCudnnDeterministic() {
   LOG(FATAL) << "CINN is compiled without cuDNN, this api is invalid!";
   return false;
 #endif
+}
+
+unsigned long long RandomSeed::seed_ = 0ULL;
+
+unsigned long long RandomSeed::GetOrSet(unsigned long long seed) {
+  if (seed != 0ULL) {
+    seed_ = seed;
+  }
+  return seed_;
+}
+
+unsigned long long RandomSeed::Clear() {
+  auto old_seed = seed_;
+  seed_         = 0ULL;
+  return old_seed;
 }
 
 }  // namespace runtime

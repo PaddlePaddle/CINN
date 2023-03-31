@@ -104,6 +104,9 @@ class ScheduleImpl {
   void FlattenLoops(const std::vector<Expr>& loops, const bool force_flat = false);
   void CopyTransformAndLoopInfo(const Expr& block, const Expr& block_target);
   void CopyTransformAndLoopInfo(const std::string& block_name, const std::string& block_target_name);
+  Expr SampleCategorical(utils::LinearRandomEngine::StateType* rand_seed,
+                         const std::vector<int>& candidates,
+                         const std::vector<float>& probs);
 
  private:
   void Replace(const Expr& src_sref, const Expr& tgt_stmt);
@@ -1615,14 +1618,13 @@ void ScheduleImpl::FlattenLoops(const std::vector<Expr>& loops, const bool flat_
     std::vector<std::string> var_names = {};
     CHECK_GE(block_realize->iter_values.size(), loop_vars.size())
         << "the number of iter bind values must be more than loop vars!";
-    for (int idx = 0, index = 0; idx < block_realize->iter_values.size(); ++idx) {
+    for (int idx = 0; idx < block_realize->iter_values.size(); ++idx) {
       auto& iter = block_realize->iter_values[idx];
       if (iter.is_var()) {
-        CHECK_EQ(iter.as_var_ref()->name, loop_vars[index++]->name) << "loops is not the same order with tensor!";
+        CHECK_EQ(iter.as_var_ref()->name, loop_vars[idx]->name) << "loops is not the same order with tensor!";
       } else {
         CHECK(iter.As<IntImm>());
         CHECK_EQ(iter.as_int32(), 0);
-        continue;
       }
     }
 
@@ -1844,6 +1846,17 @@ std::vector<Expr> ScheduleImpl::SamplePerfectTile(utils::LinearRandomEngine::Sta
     result_expr.push_back(Expr(factor));
   }
   result_expr.push_back(Expr(innermost_factor));
+  return result_expr;
+}
+
+Expr ScheduleImpl::SampleCategorical(utils::LinearRandomEngine::StateType* rand_seed,
+                                     const std::vector<int>& candidates,
+                                     const std::vector<float>& probs) {
+  // check two sizes
+  CHECK_EQ(candidates.size(), probs.size()) << "candidates and probs must have same size.";
+  int seed_idx = utils::SampleDiscreteFromDistribution(probs, rand_seed);
+  auto result  = candidates[seed_idx];
+  Expr result_expr(result);
   return result_expr;
 }
 
@@ -2151,6 +2164,25 @@ std::vector<Expr> IRSchedule::SamplePerfectTile(const Expr& loop,
                          {{"n", n}, {"max_innermost_factor", max_innermost_factor}, {"decision", new_decision}},
                          factors));
   return factors;
+}
+
+Expr IRSchedule::SampleCategorical(const std::vector<int>& candidates,
+                                   const std::vector<float>& probs,
+                                   const std::vector<int>& decision) {
+  Expr result;
+  std::vector<int> new_decision;
+  if (decision.empty()) {
+    result = impl_->SampleCategorical(&rand_seed_, candidates, probs);
+    new_decision.push_back(result.as_int32());
+  } else {
+    new_decision = decision;
+    for (auto ndco : new_decision) {
+      result = Expr(ndco);
+    }
+  }
+  trace_.Append(ScheduleDesc::Step(
+      "SampleCategorical", {}, {{"candidates", candidates}, {"probs", probs}, {"decision", new_decision}}, {result}));
+  return result;
 }
 
 }  // namespace ir

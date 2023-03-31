@@ -37,6 +37,8 @@ static constexpr int DebugLogMaxLen = 30000;
 
 SourceCodePrint::SourceCodePrint() {
   if (!FLAGS_cinn_source_code_save_path.empty()) {
+    LOG(INFO) << "The CINN auto generated source code will writing into file: \"" << FLAGS_cinn_source_code_save_path
+              << "\"";
     of.open(FLAGS_cinn_source_code_save_path, std::ios_base::out);
   }
 }
@@ -49,10 +51,9 @@ SourceCodePrint::~SourceCodePrint() {
 
 void SourceCodePrint::write(const std::string& source_code) {
   if (of.is_open()) {
-    VLOG(4) << "Write to " << FLAGS_cinn_source_code_save_path;
     of << source_code << std::endl;
   } else if (!FLAGS_cinn_source_code_save_path.empty()) {
-    LOG(WARNING) << "Failed to open " << FLAGS_cinn_source_code_save_path << ", source code will print.";
+    LOG(WARNING) << "Failed to open \"" << FLAGS_cinn_source_code_save_path << "\", source code will print.";
     if (source_code.size() > DebugLogMaxLen) {
       LOG(INFO) << "[CUDA] source code-0:\n" << source_code.substr(0, DebugLogMaxLen);
       for (int i = 1; i * DebugLogMaxLen < source_code.size(); ++i) {
@@ -122,8 +123,8 @@ void Compiler::CompileCudaModule(const Module& module, const std::string& code) 
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
 
-  // TODO(Superjomn) Whether to support multiple CUDA modules?
-  cuda_module_.reset(new CUDAModule(ptx, CUDAModule::Kind::PTX));
+  cuda_module_.reset(
+      new CUDAModule(ptx, compiler.compile_to_cubin() ? CUDAModule::Kind::CUBIN : CUDAModule::Kind::PTX));
 
   RuntimeSymbols symbols;
 

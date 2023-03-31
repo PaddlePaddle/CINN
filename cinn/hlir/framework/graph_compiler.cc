@@ -28,6 +28,7 @@
 #include "cinn/lang/lower.h"
 #include "cinn/optim/transform_gpu_forloop.h"
 #include "cinn/poly/stage.h"
+#include "cinn/utils/profiler.h"
 
 DECLARE_bool(cinn_ir_schedule);
 DECLARE_int32(cinn_parallel_compile_size);
@@ -719,6 +720,7 @@ void GraphCompiler::ProcessFunction(const std::vector<ir::LoweredFunc>& lowered_
 }
 
 std::unique_ptr<Program> GraphCompiler::Build(const std::string& code) {
+  utils::RecordEvent("GraphCompiler::Build", utils::EventType::kGraph);
   GraphCompiler::CompileOptions options;
   options.attached_code              = code;
   options.with_instantiate_variables = true;
@@ -737,8 +739,12 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
                                                       std::unordered_set<std::string>&& fetch_var_ids,
                                                       void* stream) {
   if (FLAGS_cinn_parallel_compile_size) {
+    // write group's information into FLAGS_cinn_fusion_groups_graphviz_dir
+    graph_->VisualizeGroupedGraph(fetch_var_ids_);
+
     if (options.with_instantiate_variables) {
       VLOG(3) << "Initantiate all variables on compile-time";
+      utils::RecordEvent("GraphCompiler MutableData", utils::EventType::kOrdinary);
       // All variables reside in scope_, so traverse it to instantiate each one
       for (auto& name : scope_->var_names()) {
         auto* var    = scope_->Var<Tensor>(std::string({name.data(), name.size()}));
@@ -755,12 +761,12 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
     }
 
     VLOG(2) << "Compile With Parallel Compiler!";
+    utils::RecordEvent("GraphCompiler CompileResult", utils::EventType::kOrdinary);
     ParallelCompiler::CompileOptions option;
     option.lowered_funcs = options.lowered_funcs;
 
     parallel_compiler_ = std::make_shared<ParallelCompiler>(scope_, graph_, option, target_);
     auto instructions  = (*parallel_compiler_.get())();
-    graph_->VisualizeGroupedGraph(fetch_var_ids);
 
     if (options.remove_unused_variables) {
       RemoveInvalidVariables(instructions);
@@ -809,6 +815,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   // if the input lowered_funcs is empty, we will use the defalut lowering process to generate
   std::vector<std::vector<ir::LoweredFunc>> local_lowered_funcs;
   if (options.lowered_funcs.empty()) {
+    utils::RecordEvent("GraphCompiler LoweredFuncs", utils::EventType::kOrdinary);
     // lowering of new fusion pass is not compatible with the groups from the input options,
     // thus process it seperately
     if (!graph_->fusion_groups.empty()) {
@@ -847,13 +854,18 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
       }
     }
   }
+  // write group's information into FLAGS_cinn_fusion_groups_graphviz_dir
+  graph_->VisualizeGroupedGraph(groups, fetch_var_ids_);
+
   // use the input lowered_funcs in options firstly if exists
   const auto& lowered_funcs = options.lowered_funcs.empty() ? local_lowered_funcs : options.lowered_funcs;
   CHECK_EQ(groups.size(), lowered_funcs.size()) << "The size of groups and lowered_funcs shoule be equal";
-  for (auto&& lowered_func : lowered_funcs) {
-    this->ProcessFunction(lowered_func);
+  {
+    utils::RecordEvent("GraphCompiler ProcessFunction", utils::EventType::kOrdinary);
+    for (auto&& lowered_func : lowered_funcs) {
+      this->ProcessFunction(lowered_func);
+    }
   }
-  graph_->VisualizeGroupedGraph(groups, fetch_var_ids_);
 
   // compile the module
   // Need to create a new compiler for every call of Build,
@@ -863,16 +875,20 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   auto build_module = m_builder_.Build();
   VLOG(3) << "End of m_builder_.Build()";
   if (this->target_.arch == Target::Arch::X86) {
+    utils::RecordEvent("GraphCompiler CodeGenCX86", utils::EventType::kOrdinary);
     CodeGenCX86 codegen(this->target_, CodeGenCX86::Feature::AVX512);
     codegen.SetInlineBuiltinCodes(false);
     auto out = codegen.Compile(build_module, CodeGenC::OutputKind::CImpl);
     VLOG(3) << "[X86] C Code is:\n" << out;
   }
 
-  compiler_->Build(build_module, options.attached_code);
-  VLOG(3) << "End of compiler_->Build";
-  auto instructions = BuildInstructions(groups, options.groups.empty() ? graph_->fusion_groups : options.groups);
+  {
+    utils::RecordEvent("GraphCompiler BackendsBuild", utils::EventType::kOrdinary);
+    compiler_->Build(build_module, options.attached_code);
+    VLOG(3) << "End of compiler_->Build";
+  }
 
+  auto instructions = BuildInstructions(groups, options.groups.empty() ? graph_->fusion_groups : options.groups);
   VLOG(3) << "End of BuildInstructions";
   if (options.remove_unused_variables) {
     RemoveInvalidVariables(instructions);
@@ -884,6 +900,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
 
   if (options.with_instantiate_variables) {
     VLOG(3) << "Initantiate all variables on compile-time";
+    utils::RecordEvent("GraphCompiler MutableData", utils::EventType::kOrdinary);
     // All variables reside in scope_, so traverse it to instantiate each one
     for (auto& name : scope_->var_names()) {
       auto* var    = scope_->Var<Tensor>(std::string({name.data(), name.size()}));
@@ -971,6 +988,7 @@ void GraphCompiler::BuildCublasInstr(const Node& node, Instruction* instr) const
 
 std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions(
     const std::vector<std::vector<Node*>>& groups, const std::vector<std::shared_ptr<Graph::Group>>& fusion_groups) {
+  utils::RecordEvent("GraphCompiler BuildInstructions", utils::EventType::kOrdinary);
   std::vector<std::unique_ptr<Instruction>> instructions;
   auto topo_order = graph_->topological_order();
   auto& nodes     = std::get<0>(topo_order);
@@ -1236,6 +1254,7 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions(
 
 void GraphCompiler::RemoveInvalidVariables(const std::vector<std::unique_ptr<Instruction>>& instructions) {
   // mark all variables are invalid initially
+  utils::RecordEvent("GraphCompiler RemoveInvalidVariables", utils::EventType::kOrdinary);
   std::unordered_set<std::string> invalid_variables;
   auto var_names = scope_->var_names();
   invalid_variables.reserve(var_names.size());
@@ -1295,6 +1314,7 @@ static void BufferFreeWithCallback(void* args, int num_args) {
 void GraphCompiler::AnalyzeVariableLifeTime(const std::vector<std::unique_ptr<Instruction>>& instructions,
                                             std::unordered_map<int, std::vector<std::string>>* step2malloc,
                                             std::unordered_map<int, std::vector<std::string>>* step2free) {
+  utils::RecordEvent("GraphCompiler AnalyzeVariableLifeTime", utils::EventType::kOrdinary);
   absl::flat_hash_map<std::string, int> variable_last_used, variable_first_used;
   for (auto step = 0; step < instructions.size(); ++step) {
     const auto& instr = instructions.at(step);
@@ -1324,6 +1344,7 @@ void GraphCompiler::AnalyzeVariableLifeTime(const std::vector<std::unique_ptr<In
 }
 
 void GraphCompiler::InsertBufferHandlers(std::vector<std::unique_ptr<Instruction>>* instructions) {
+  utils::RecordEvent("GraphCompiler InsertBufferHandlers", utils::EventType::kOrdinary);
   std::unordered_map<int, std::vector<std::string>> step2malloc, step2free;
   AnalyzeVariableLifeTime(*instructions, &step2malloc, &step2free);
 
@@ -1398,6 +1419,7 @@ std::vector<std::string> GraphCompiler::OpGetOutputNames(const Node* node) const
 }
 
 std::shared_ptr<Scope> BuildScope(Target target, const std::shared_ptr<Graph>& graph, std::shared_ptr<Scope> scope) {
+  utils::RecordEvent("GraphCompiler BuildScope", utils::EventType::kOrdinary);
   auto& shape_dict = graph->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
   auto& dtype_dict = graph->GetAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
   if (!scope) scope = std::make_shared<Scope>();
@@ -1425,6 +1447,7 @@ std::vector<ir::LoweredFunc> GetFuncFromImpl(const std::shared_ptr<OpImpl>& impl
                                              const std::vector<std::string>& input_output_nodes,
                                              const std::string& node_id,
                                              const Target& target) {
+  utils::RecordEvent("GraphCompiler GetFuncFromImpl", utils::EventType::kOrdinary);
   // 1.Call Op's Compute function, using the default stages and LowerVec to get IR tree.
   common::CINNValuePack C = impl->fcompute(cinn_inputs);
 

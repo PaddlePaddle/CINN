@@ -14,16 +14,71 @@
 
 #include "cinn/hlir/framework/instruction.h"
 
+#include <fstream>
+#include <sstream>
+
 #include "cinn/common/test_helper.h"
 #include "cinn/hlir/framework/accuracy_checker.h"
 #include "cinn/utils/profiler.h"
 
 DECLARE_bool(cinn_sync_run);
-DECLARE_bool(cinn_self_check_accuracy);
+DECLARE_string(cinn_self_check_accuracy);
 
 namespace cinn {
 namespace hlir {
 namespace framework {
+
+namespace details {
+class ResultsPrint {
+ public:
+  static ResultsPrint* GetInstance() {
+    static ResultsPrint print;
+    return &print;
+  }
+
+  void write(const std::string& result_str) {
+    if (of_.is_open()) {
+      of_ << result_str << std::endl;
+    } else if (!FLAGS_cinn_self_check_accuracy.empty()) {
+      std::cerr << result_str << std::endl;
+    } else {
+      VLOG(2) << result_str << std::endl;
+    }
+  }
+
+  static const std::unordered_set<std::string> kFalse;
+  static const std::unordered_set<std::string> kTrue;
+
+ private:
+  ResultsPrint() {
+    bool print_to_file = !FLAGS_cinn_self_check_accuracy.empty() && !kTrue.count(FLAGS_cinn_self_check_accuracy) &&
+                         !kFalse.count(FLAGS_cinn_self_check_accuracy);
+
+    if (print_to_file) {
+      of_.open(FLAGS_cinn_self_check_accuracy, std::ios_base::out);
+      if (of_.is_open()) {
+        LOG(INFO) << "The CINN compute results will writing into file: \"" << FLAGS_cinn_self_check_accuracy << "\"";
+      } else if (!FLAGS_cinn_self_check_accuracy.empty()) {
+        LOG(WARNING) << "Failed to open file: \"" << FLAGS_cinn_self_check_accuracy
+                     << "\", the CINN compute result will print.";
+      }
+    }
+  }
+
+  ~ResultsPrint() {
+    if (of_.is_open()) {
+      of_.close();
+    }
+  }
+
+  std::ofstream of_;
+};
+
+// from gflag FlagValue::ParseFrom:
+// https://github.com/gflags/gflags/blob/master/src/gflags.cc#L292
+const std::unordered_set<std::string> ResultsPrint::kFalse = {"0", "f", "false", "n", "no"};
+const std::unordered_set<std::string> ResultsPrint::kTrue  = {"1", "t", "true", "y", "yes"};
+}  // namespace details
 
 void Instruction::UpdateArgsCache(const std::map<std::string, cinn_pod_value_t>* name2podargs) {
   int cache_size = size();
@@ -217,8 +272,10 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
 #endif
   utils::ProfilerRangePop();
 
-  if (FLAGS_cinn_self_check_accuracy) {
-    CheckResults(name2podargs, stream);
+  if (!FLAGS_cinn_self_check_accuracy.empty()) {
+    if (!details::ResultsPrint::kFalse.count(FLAGS_cinn_self_check_accuracy)) {
+      CheckResults(name2podargs, stream);
+    }
   }
   // TODO(thisjiang): revert while flags correct
   //   if (FLAGS_cinn_sync_run) {
@@ -246,9 +303,10 @@ void Instruction::CheckResults(const std::map<std::string, cinn_pod_value_t>* na
 
   AccuracyChecker checker(target_, scope_);
 
-  std::cerr << "Instruction {" << std::endl;
+  std::stringstream ss;
+  ss << "Instruction {" << std::endl;
   for (size_t i = 0; i < fn_names_.size(); ++i) {
-    std::cerr << "  Function " << fn_names_[i] << ":" << std::endl;
+    ss << "  Function " << fn_names_[i] << ":" << std::endl;
 
     auto in_arg = in_args_[i];
     std::sort(in_arg.begin(), in_arg.end());
@@ -259,7 +317,7 @@ void Instruction::CheckResults(const std::map<std::string, cinn_pod_value_t>* na
       } else {
         result_str = checker(in_name);
       }
-      std::cerr << "    input: " << result_str << std::endl;
+      ss << "    input: " << result_str << std::endl;
     }
 
     auto out_arg = out_args_[i];
@@ -271,10 +329,12 @@ void Instruction::CheckResults(const std::map<std::string, cinn_pod_value_t>* na
       } else {
         result_str = checker(out_name);
       }
-      std::cerr << "    output: " << result_str << std::endl;
+      ss << "    output: " << result_str << std::endl;
     }
   }
-  std::cerr << "}" << std::endl;
+  ss << "}" << std::endl;
+
+  details::ResultsPrint::GetInstance()->write(ss.str());
 }
 
 }  // namespace framework

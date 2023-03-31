@@ -74,12 +74,280 @@ void Compile(NetBuilder& net_builder) {
   }
 }
 
+TEST(OpFusionPass, Reduce_With_Last_Axis_1) {
+  NetBuilder net_builder("Reduce_With_Last_Axis_1");
+  // create model
+  {
+    auto A = net_builder.CreateInput(Float(32), {10, 100, 1}, "A");
+    auto B = net_builder.ReduceSum(A, {0, 2});
+  }
+  Compile(net_builder);
+}
+
+TEST(OpFusionPass, Reduce_Fuse_Broadcast_With_Output) {
+  NetBuilder net_builder("Reduce_Fuse_Broadcast_With_Output");
+  auto layer_norm_51__tmp_1 = net_builder.CreateInput(Float(32), {256}, "layer_norm_51__tmp_1");
+  auto var_3216             = net_builder.CreateInput(Float(32), {256, 60}, "var_3216");
+  auto var_3202             = net_builder.CreateInput(Float(32), {1, 60}, "var_3202");
+  auto var_3212             = net_builder.CreateInput(Float(32), {256, 60}, "var_3212");
+
+  auto var_3206         = net_builder.Reshape(layer_norm_51__tmp_1, {256, 1});
+  auto composite_tmp_8  = net_builder.FillConstant<float>({256, 1}, 1e-5, "composite_tmp_8");
+  auto var_3214         = net_builder.Add(var_3206, composite_tmp_8);
+  auto composite_tmp_10 = net_builder.FillConstant<float>({256, 1}, 1.0, "composite_tmp_10");
+  auto var_3220         = net_builder.Divide(composite_tmp_10, var_3214);
+  auto var_3226         = net_builder.Sqrt(var_3220);
+  auto var_3224         = net_builder.Scale(var_3220, -1.0, 0.0, true);
+  auto var_3366         = net_builder.BroadcastTo(var_3224, {256, 60});
+  auto var_3228         = net_builder.Multiply(var_3366, var_3216);
+  auto var_3368         = net_builder.BroadcastTo(var_3202, {256, 60});
+  auto var_3236         = net_builder.Multiply(var_3228, var_3212);
+  auto var_3244         = net_builder.Multiply(var_3236, var_3368);
+  auto var_3252         = net_builder.ReduceSum(var_3244, {1}, true);
+  auto var_3232         = net_builder.Scale(var_3226, 0.0166667, 0.0, true);
+
+  Compile(net_builder);
+}
+
+TEST(OpFusionPass, Reduce_Fuse_Broadcast_Layernorm) {
+  int h = 32, w = 1024;
+  NetBuilder net_builder("Reduce_Fuse_Broadcast_Layernorm");
+  // create model
+  {
+    // x
+    auto A = net_builder.CreateInput(Float(32), {h, w}, "A");
+    // x * x
+    auto B = net_builder.Multiply(A, A);
+    // sum x
+    auto C = net_builder.ReduceSum(A, {1});
+    // sum x*x
+    auto D = net_builder.ReduceSum(B, {1});
+    // constant w
+    auto E = net_builder.FillConstant<float>({h}, 1024.0f, "E");
+    // mean
+    auto F  = net_builder.Divide(C, E);
+    auto FF = net_builder.BroadcastTo(F, {h, w}, {0});
+    // mean x*x
+    auto G = net_builder.Divide(D, E);
+    // mean * mean
+    auto H = net_builder.Multiply(F, F);
+    // var^2
+    auto I = net_builder.Subtract(G, H);
+    // eps
+    auto J = net_builder.FillConstant<float>({h}, 1e-10f, "J");
+    // eps + delta
+    auto K = net_builder.Add(I, J);
+    // var
+    auto L  = net_builder.Sqrt(K);
+    auto LL = net_builder.BroadcastTo(L, {h, w}, {0});
+    // x - mean
+    auto M = net_builder.Subtract(A, FF);
+    // /var
+    auto N = net_builder.Divide(M, LL);
+  }
+
+  Compile(net_builder);
+}
+
+TEST(OpFusionPass, Reduce_Fuse_Broadcast_Softmax) {
+  int h = 32, w = 1024;
+  NetBuilder net_builder("Reduce_Fuse_Broadcast_Softmax");
+  // create model
+  {
+    // softmax
+    auto A = net_builder.CreateInput(Float(32), {h, w}, "A");
+    // redece max
+    auto B = net_builder.ReduceMax(A, {1});
+    // broadcast
+    auto C = net_builder.BroadcastTo(B, {h, w}, {0});
+    // x - max(x)
+    auto D = net_builder.Subtract(A, C);
+    // exp(x)
+    auto E = net_builder.Exp(D);
+    // reduce sum
+    auto F = net_builder.ReduceSum(E, {1});
+    // broadcast
+    auto G = net_builder.BroadcastTo(F, {h, w}, {0});
+    // exp(x)/sum(exp(x))
+    auto H = net_builder.Divide(E, G);
+  }
+
+  Compile(net_builder);
+}
+
+TEST(OpFusionPass, Reduce_Fuse_Broadcast_1) {
+  int h = 32, w = 32;
+  NetBuilder net_builder("Reduce_Fuse_Broadcast_1");
+  // create model
+  {
+    auto A = net_builder.CreateInput(Float(32), {h * w}, "A");
+    auto B = net_builder.ReduceSum(A, {0});
+    auto C = net_builder.BroadcastTo(B, {h * w}, {0});
+  }
+
+  Compile(net_builder);
+}
+
+TEST(OpFusionPass, Reduce_Fuse_Broadcast_2) {
+  int h = 32, w = 32;
+  NetBuilder net_builder("Reduce_Fuse_Broadcast_2");
+  // create model
+  {
+    auto A = net_builder.CreateInput(Float(32), {h, w}, "A");
+    auto B = net_builder.ReduceSum(A, {0, 1});
+    auto C = net_builder.BroadcastTo(B, {h, w}, {1});
+  }
+
+  Compile(net_builder);
+}
+
+TEST(OpFusionPass, Reduce_Fuse_Broadcast_3) {
+  int h = 32, w = 32;
+  NetBuilder net_builder("Reduce_Fuse_Broadcast_3");
+  // create model
+  {
+    auto A = net_builder.CreateInput(Float(32), {h, h, w}, "A");
+    auto B = net_builder.ReduceSum(A, {1, 2});
+    auto C = net_builder.BroadcastTo(B, {h, h, w}, {0});
+  }
+
+  Compile(net_builder);
+}
+
+TEST(OpFusionPass, Reduce_Fuse_Broadcast_4) {
+  int h = 32, w = 32;
+  NetBuilder net_builder("Reduce_Fuse_Broadcast_4");
+  // create model
+  {
+    auto A = net_builder.CreateInput(Float(32), {h, h, w}, "A");
+    auto B = net_builder.ReduceSum(A, {1, 2});
+    auto C = net_builder.BroadcastTo(B, {h, h, w}, {1});
+  }
+
+  Compile(net_builder);
+}
+
+TEST(OpFusionPass, Reduce_Fuse_Broadcast_5) {
+  int h = 32, w = 32;
+  NetBuilder net_builder("Reduce_Fuse_Broadcast_5");
+  // create model
+  {
+    auto A = net_builder.CreateInput(Float(32), {h, h, w}, "A");
+    auto B = net_builder.ReduceSum(A, {1, 2});
+    auto C = net_builder.BroadcastTo(B, {h, h, w}, {0});
+    auto D = net_builder.ReduceSum(C, {1, 2});
+    auto E = net_builder.BroadcastTo(D, {h, h, w}, {0});
+  }
+
+  Compile(net_builder);
+}
+
+TEST(OpFusionPass, Reduce_Fuse_Broadcast_6) {
+  int h = 32, w = 32;
+  NetBuilder net_builder("Reduce_Fuse_Broadcast_6");
+  // create model
+  {
+    auto A = net_builder.CreateInput(Float(32), {h, h, w}, "A");
+    auto B = net_builder.ReduceSum(A, {1, 2});
+    auto C = net_builder.BroadcastTo(B, {h, h, w}, {0});
+    auto D = net_builder.CreateInput(Float(32), {h, w}, "B");
+    auto E = net_builder.BroadcastTo(D, {h, h, w}, {1, 2});
+    auto F = net_builder.Add(C, E);
+  }
+  Compile(net_builder);
+}
+
+TEST(OP_LOWERING, Reduce_Dim_Equal_One_0) {
+  NetBuilder net_builder("Reduce_Dim_Equal_One_0");
+  {
+    auto A = net_builder.CreateInput(Float(32), {1, 1000}, "A");
+    auto B = net_builder.CreateInput(Float(32), {1, 1000}, "B");
+    auto C = net_builder.Add(A, B);
+    auto D = net_builder.ReduceSum(C, {1}, false);
+    auto E = net_builder.ReduceSum(C, {1}, false);
+    auto F = net_builder.Add(D, E);
+  }
+
+  Compile(net_builder);
+}
+
+TEST(OP_LOWERING, Reduce_Dim_Equal_One_1) {
+  NetBuilder net_builder("Reduce_Dim_Equal_One_1");
+  {
+    auto A = net_builder.CreateInput(Float(32), {32, 32}, "A");
+    auto B = net_builder.ReduceSum(A, {0, 1}, false);
+  }
+
+  Compile(net_builder);
+}
+
+TEST(OP_LOWERING, Reduce_Dim_Equal_One_2) {
+  NetBuilder net_builder("Reduce_Dim_Equal_One_2");
+  {
+    auto A = net_builder.CreateInput(Float(32), {32, 1024}, "A");
+    auto B = net_builder.ReduceSum(A, {1}, false);
+  }
+
+  Compile(net_builder);
+}
+
+TEST(OP_LOWERING, Reduce_Dim_Equal_One_3) {
+  NetBuilder net_builder("Reduce_Dim_Equal_One_3");
+  {
+    auto A = net_builder.CreateInput(Float(32), {32, 1024}, "A");
+    auto B = net_builder.ReduceSum(A, {0, 1}, false);
+  }
+
+  Compile(net_builder);
+}
+
+TEST(OP_LOWERING, Reduce_Dim_Equal_One_4) {
+  NetBuilder net_builder("Reduce_Dim_Equal_One_4");
+  {
+    auto A = net_builder.CreateInput(Float(32), {32, 32, 1024}, "A");
+    auto B = net_builder.ReduceSum(A, {0, 2}, false);
+  }
+
+  Compile(net_builder);
+}
+
+TEST(OP_LOWERING, Reduce_Dim_Equal_One_5) {
+  NetBuilder net_builder("Reduce_Dim_Equal_One_5");
+  {
+    auto A = net_builder.CreateInput(Float(32), {32, 32, 32, 256}, "A");
+    auto B = net_builder.ReduceSum(A, {0, 2, 3}, false);
+  }
+
+  Compile(net_builder);
+}
+
+TEST(OP_LOWERING, Reduce_Dim_Equal_One_6) {
+  NetBuilder net_builder("Reduce_Dim_Equal_One_6");
+  {
+    auto A = net_builder.CreateInput(Float(32), {32, 32, 256}, "A");
+    auto B = net_builder.ReduceSum(A, {1, 2});
+  }
+
+  Compile(net_builder);
+}
+
+TEST(OP_LOWERING, Reduce_Dim_Equal_One_7) {
+  NetBuilder net_builder("Reduce_Dim_Equal_One_7");
+  {
+    auto A = net_builder.CreateInput(Float(32), {1, 1, 1024}, "A");
+    auto B = net_builder.ReduceSum(A, {2}, false);
+  }
+
+  Compile(net_builder);
+}
+
 TEST(OP_LOWERING, Reduce_Keep_Dim_Fuse_Elementwise_0) {
   NetBuilder net_builder("Reduce_Keep_Dim_Fuse_Elementwise_0");
   {
     auto A = net_builder.CreateInput(Float(32), {16, 64, 1024}, "A");
     auto B = net_builder.ReduceSum(A, {2}, true);
   }
+
   Compile(net_builder);
 }
 

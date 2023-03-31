@@ -63,47 +63,39 @@ inline int cinn_host_find_float_nd(const cinn_buffer_t* buf, int size, float num
 
 #undef __cinn_host_find_kernel
 
-#define __cinn_host_lt_num_kernel(buf, size, num, offset, stride, type)    \
-  do {                                                                     \
-    int out = 0;                                                           \
-    for (int i = (size - 1) * stride + offset; i >= offset; i -= stride) { \
-      if (reinterpret_cast<type*>(buf->memory)[i] < num) out++;            \
-    }                                                                      \
-    return out;                                                            \
-  } while (0)
+#define CINN_HOST_LT_NUM(TYPE_SUFFIX, TYPE)                                                           \
+  inline int cinn_host_lt_num_##TYPE_SUFFIX(                                                          \
+      const cinn_buffer_t* buf, const int size, const TYPE num, const int offset, const int stride) { \
+    int out = 0;                                                                                      \
+    for (int i = (size - 1) * stride + offset; i >= offset; i -= stride) {                            \
+      if (reinterpret_cast<TYPE*>(buf->memory)[i] < num) out++;                                       \
+    }                                                                                                 \
+    return out;                                                                                       \
+  }
 
-inline int cinn_host_lt_num_float(
-    const cinn_buffer_t* buf, const int size, const float num, const int offset, const int stride) {
-  __cinn_host_lt_num_kernel(buf, size, num, offset, stride, float);
-}
+CINN_HOST_LT_NUM(fp32, float)
+CINN_HOST_LT_NUM(fp64, double)
+CINN_HOST_LT_NUM(int32, int)
+CINN_HOST_LT_NUM(int64, int64_t)
 
-inline int cinn_host_lt_num_int(
-    const cinn_buffer_t* buf, const int size, const int num, const int offset, const int stride) {
-  __cinn_host_lt_num_kernel(buf, size, num, offset, stride, int);
-}
+#undef CINN_HOST_LT_NUM
 
-#undef __cinn_host_lt_num_kernel
+#define CINN_HOST_GT_NUM(TYPE_SUFFIX, TYPE)                                                           \
+  inline int cinn_host_gt_num_##TYPE_SUFFIX(                                                          \
+      const cinn_buffer_t* buf, const int size, const TYPE num, const int offset, const int stride) { \
+    int out = 0;                                                                                      \
+    for (int i = (size - 1) * stride + offset; i >= offset; i -= stride) {                            \
+      if (reinterpret_cast<TYPE*>(buf->memory)[i] > num) out++;                                       \
+    }                                                                                                 \
+    return out;                                                                                       \
+  }
 
-#define __cinn_host_gt_num_kernel(buf, size, num, offset, stride, type)    \
-  do {                                                                     \
-    int out = 0;                                                           \
-    for (int i = (size - 1) * stride + offset; i >= offset; i -= stride) { \
-      if (reinterpret_cast<type*>(buf->memory)[i] > num) out++;            \
-    }                                                                      \
-    return out;                                                            \
-  } while (0)
+CINN_HOST_GT_NUM(fp32, float)
+CINN_HOST_GT_NUM(fp64, double)
+CINN_HOST_GT_NUM(int32, int)
+CINN_HOST_GT_NUM(int64, int64_t)
 
-inline int cinn_host_gt_num_float(
-    const cinn_buffer_t* buf, const int size, const float num, const int offset, const int stride) {
-  __cinn_host_gt_num_kernel(buf, size, num, offset, stride, float);
-}
-
-inline int cinn_host_gt_num_int(
-    const cinn_buffer_t* buf, const int size, const int num, const int offset, const int stride) {
-  __cinn_host_gt_num_kernel(buf, size, num, offset, stride, int);
-}
-
-#undef __cinn_host_gt_num_kernel
+#undef CINN_HOST_GT_NUM
 
 #define FN_FP32(func) cinn_host_##func##_fp32
 
@@ -246,41 +238,39 @@ CINN_REGISTER_HELPER(host_intrinsics) {
       .AddInputType<int>()
       .End();
 
-  REGISTER_EXTERN_FUNC_HELPER(cinn_host_lt_num_int, host_target)
-      .SetRetType<int>()
-      .AddInputType<cinn_buffer_t*>()
-      .AddInputType<int>()
-      .AddInputType<int>()
-      .AddInputType<int>()
-      .AddInputType<int>()
+#define _REGISTER_CINN_HOST_LT_NUM(TYPE_SUFFIX, TYPE)                      \
+  REGISTER_EXTERN_FUNC_HELPER(cinn_host_lt_num_##TYPE_SUFFIX, host_target) \
+      .SetRetType<int>()                                                   \
+      .AddInputType<cinn_buffer_t*>()                                      \
+      .AddInputType<int>()                                                 \
+      .AddInputType<TYPE>()                                                \
+      .AddInputType<int>()                                                 \
+      .AddInputType<int>()                                                 \
       .End();
 
-  REGISTER_EXTERN_FUNC_HELPER(cinn_host_lt_num_float, host_target)
-      .SetRetType<int>()
-      .AddInputType<cinn_buffer_t*>()
-      .AddInputType<int>()
-      .AddInputType<float>()
-      .AddInputType<int>()
-      .AddInputType<int>()
+  _REGISTER_CINN_HOST_LT_NUM(fp32, float);
+  _REGISTER_CINN_HOST_LT_NUM(fp64, double);
+  _REGISTER_CINN_HOST_LT_NUM(int32, int);
+  _REGISTER_CINN_HOST_LT_NUM(int64, int64_t);
+
+#undef _REGISTER_CINN_HOST_LT_NUM
+
+#define _REGISTER_CINN_HOST_GT_NUM(TYPE_SUFFIX, TYPE)                      \
+  REGISTER_EXTERN_FUNC_HELPER(cinn_host_gt_num_##TYPE_SUFFIX, host_target) \
+      .SetRetType<int>()                                                   \
+      .AddInputType<cinn_buffer_t*>()                                      \
+      .AddInputType<int>()                                                 \
+      .AddInputType<TYPE>()                                                \
+      .AddInputType<int>()                                                 \
+      .AddInputType<int>()                                                 \
       .End();
 
-  REGISTER_EXTERN_FUNC_HELPER(cinn_host_gt_num_int, host_target)
-      .SetRetType<int>()
-      .AddInputType<cinn_buffer_t*>()
-      .AddInputType<int>()
-      .AddInputType<int>()
-      .AddInputType<int>()
-      .AddInputType<int>()
-      .End();
+  _REGISTER_CINN_HOST_GT_NUM(fp32, float);
+  _REGISTER_CINN_HOST_GT_NUM(fp64, double);
+  _REGISTER_CINN_HOST_GT_NUM(int32, int);
+  _REGISTER_CINN_HOST_GT_NUM(int64, int64_t);
 
-  REGISTER_EXTERN_FUNC_HELPER(cinn_host_gt_num_float, host_target)
-      .SetRetType<int>()
-      .AddInputType<cinn_buffer_t*>()
-      .AddInputType<int>()
-      .AddInputType<float>()
-      .AddInputType<int>()
-      .AddInputType<int>()
-      .End();
+#undef _REGISTER_CINN_HOST_GT_NUM
 
   using cinn::runtime::cinn_call_cholesky_host;
   REGISTER_EXTERN_FUNC_HELPER(cinn_call_cholesky_host, host_target)

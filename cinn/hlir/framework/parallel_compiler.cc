@@ -130,6 +130,9 @@ void ParallelCompiler::Task::Lowering() {
       continue;
     }
     auto& group = graph->fusion_groups[idx];
+    VLOG(1) << "=============================================";
+    VLOG(1) << "Lowering Group:\n" << graph->DebugGroupedGraph(group->CollectNodes());
+    VLOG(1) << "=============================================";
     lowered_funcs.emplace_back(std::move(op_lowerer.Lower(group)));
     CHECK_EQ(lowered_funcs.back().size(), 1) << "Lowerd Function Is Not Equal 1!";
   }
@@ -164,7 +167,7 @@ void ParallelCompiler::Task::CodegenAndJit() {
     CHECK(!ptx.empty());
 
     // load cumodule
-    cumodule.reset(new CUDAModule(ptx, CUDAModule::Kind::PTX));
+    cumodule.reset(new CUDAModule(ptx, compiler.compile_to_cubin() ? CUDAModule::Kind::CUBIN : CUDAModule::Kind::PTX));
     // register kernel
     backends::RuntimeSymbols symbols;
     for (auto& fn : dmodule.functions()) {

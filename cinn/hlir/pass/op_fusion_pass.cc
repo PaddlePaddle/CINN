@@ -223,12 +223,7 @@ class OpFusionPassHelper : public FusionHelperBase {
              if (is_same_size(helper, producer, consumer)) {
                return true;
              }
-
-             if (helper->IsConstOp(producer) && !helper->output_nodes_set_.count(producer)) {
-               return true;
-             }
-
-             return false;
+             return !helper->output_nodes_set_.count(producer);
            }},
           // horizontal or vertical relation, check with same output shape with horizontal relation or with last
           // successive dimension less than 1024 for gpu.
@@ -249,7 +244,13 @@ class OpFusionPassHelper : public FusionHelperBase {
           // horizontal or vertical relation(Broadcast + *Elementwise*), check with same output shape.
           {framework::kElementWise, is_same_size},
           // must be horizontal, as Broadcast + Broadcast is not allowed.
-          {framework::kBroadcast, is_same_size},
+          {framework::kBroadcast,
+           [](const FusionHelperBase* helper, const Node* producer, const GroupPtr& consumer) -> bool {
+             if (is_same_size(helper, producer, consumer)) {
+               return true;
+             }
+             return !helper->output_nodes_set_.count(producer);
+           }},
           // horizontal or vertical relation(Broadcast + Reduce).
           {framework::kReduction, horizontal_or_vertical_reduce_relation},
           // can be horizontal or can compute inline, check with same output shape or just one consumer.
@@ -268,11 +269,7 @@ class OpFusionPassHelper : public FusionHelperBase {
           // horizontal or vertical relation(Reduce + Elementwise*), check without last dimension in reduce.
           {framework::kElementWise, without_last_dimension_in_reduce},
           // must be horizontal relation, check with same output shape and without last dimension in reduce.
-          {framework::kBroadcast,
-           [](const FusionHelperBase* helper, const Node* producer, const GroupPtr& consumer) -> bool {
-             return is_same_size(helper, producer, consumer) &&
-                    without_last_dimension_in_reduce(helper, producer, consumer);
-           }},
+          {framework::kBroadcast, reduce_fuse_broadcast},
           // must be horizontal relation and with same reduce attr.
           {framework::kReduction, reduce_fuse_reduce},
           // no_fuse
@@ -305,7 +302,7 @@ class OpFusionPassHelper : public FusionHelperBase {
     {
       FusionRelation relation;
       // producer -> consumer
-      relation.op_kind = {framework::kElementWise};
+      relation.op_kind = {framework::kElementWise, framework::kBroadcast};
       // producer -> fusion
       relation.fusion_op_kind = {
           // horizontal or vertical relation, check has same shape.
