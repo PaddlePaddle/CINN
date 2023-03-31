@@ -113,6 +113,8 @@ __device__ inline int FN_INT32(clz)(int a) { return __clz(a); }
 __device__ inline int FN_INT32(popc)(int a) { return __popc(a); }
 __device__ inline int FN_INT32(logical_right_shift)(int a, int b) { return ((unsigned int)a >> b); }
 
+__device__ inline int FN_INT32(max)(int a, int b) { return max(a, b); }
+__device__ inline int FN_INT32(min)(int a, int b) { return min(a, b); }
 
 __device__ inline int FN_INT32(mod)(int a, int b) {
   int res = a % b;
@@ -539,8 +541,8 @@ __device__ int cinn_cuda_resize_bilinear(const int *buf,
                                          const int x) {
   float in_y   = static_cast<float>(in_h) / out_h * y;
   float in_x   = static_cast<float>(in_w) / out_w * x;
-  int in_y_int = static_cast<int>(cinn_nvgpu_floor_fp32(in_y));
-  int in_x_int = static_cast<int>(cinn_nvgpu_floor_fp32(in_x));
+  int in_y_int = static_cast<int>(FN_FP32(floor)(in_y));
+  int in_x_int = static_cast<int>(FN_FP32(floor)(in_x));
   float y_lerp = in_y - in_y_int;
   float x_lerp = in_x - in_x_int;
   float p[2][2];
@@ -549,8 +551,8 @@ __device__ int cinn_cuda_resize_bilinear(const int *buf,
     for (int j = 0; j < 2; ++j) {
       int near_y = in_y_int + i;
       int near_x = in_x_int + j;
-      near_y     = cinn_max_fp32(cinn_min_fp32(near_y, in_h - 1), 0);
-      near_x     = cinn_max_fp32(cinn_min_fp32(near_x, in_w - 1), 0);
+      near_y     = FN_INT32(max)(FN_INT32(min)(near_y, in_h - 1), 0);
+      near_x     = FN_INT32(max)(FN_INT32(min)(near_x, in_w - 1), 0);
       p[i][j]    = buf[n * c_size * in_h * in_w + c * in_h * in_w + near_y * in_w + near_x];
     }
   }
@@ -583,8 +585,8 @@ __device__ int cinn_cuda_resize_bicubic(const int *buf,
     for (int j = 0; j < 4; ++j) {
       int near_y = in_y_int + i - 1;
       int near_x = in_x_int + j - 1;
-      near_y     = cinn_max_fp32(cinn_min_fp32(near_y, in_h - 1), 0);
-      near_x     = cinn_max_fp32(cinn_min_fp32(near_x, in_w - 1), 0);
+      near_y     = FN_INT32(max)(FN_INT32(min)(near_y, in_h - 1), 0);
+      near_x     = FN_INT32(max)(FN_INT32(min)(near_x, in_w - 1), 0);
       p[i][j]    = buf[n * c_size * in_h * in_w + c * in_h * in_w + near_y * in_w + near_x];
     }
   }

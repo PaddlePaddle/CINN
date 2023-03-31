@@ -56,13 +56,6 @@ ir::Tensor Resize(const ir::Tensor &input,
                   const std::vector<int> &out_shape,
                   const std::string &mode,
                   const std::string &output_name) {
-  int ndim = static_cast<int>(input->shape.size());
-  CHECK_EQ(ndim, 4U) << "The dimension of x must be 4.";
-  CHECK_EQ(out_shape.size(), 2U) << "The length of out_shape must be 2.";
-  CHECK(out_shape[0] > 0 && out_shape[1] > 0) << "The element of out_shape must be great that 0.";
-  CHECK(mode == "nearest" || mode == "bilinear" || mode == "bicubic")
-      << "Resize only supports `nearest`, `bilinear` and `bicubic` mode.";
-
   std::string func_name;
 
   if (target.arch == common::Target::Arch::NVGPU) {
@@ -121,16 +114,21 @@ ir::Tensor Resize(const ir::Tensor &input,
 std::vector<std::vector<int>> InferShapeForResize(const std::vector<std::vector<int>> &inputs_shape,
                                                   const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape[0].size(), 4U) << "The input's shape size should be 4! Please check again.";
+
+  std::vector<int> out_shape;
+  CHECK(attrs.find("out_shape") != attrs.end())
+      << "Cannot find \"out_shape\" attribute in \"resize\" op, Please Check.";
+  out_shape = absl::get<std::vector<int>>(attrs.at("out_shape"));
+  CHECK_EQ(out_shape.size(), 2U) << "The length of out_shape must be 2.";
+  CHECK(out_shape[0] > 0 && out_shape[1] > 0) << "The element of out_shape must be great that 0.";
+
+  CHECK(mode == "nearest" || mode == "bilinear" || mode == "bicubic")
+      << "Resize only supports `nearest`, `bilinear` and `bicubic` mode.";
+
   framework::shape_t x_shape = inputs_shape[0];
-  std::vector<int> new_shape, out_shape;
+  std::vector<int> new_shape;
   new_shape.push_back(x_shape[0]);
   new_shape.push_back(x_shape[1]);
-
-  if (attrs.find("out_shape") != attrs.end()) {
-    out_shape = absl::get<std::vector<int>>(attrs.at("out_shape"));
-  }
-
-  CHECK_EQ(out_shape.size(), 2U) << "The length of out_shape must be 2.";
   new_shape.push_back(out_shape[0]);
   new_shape.push_back(out_shape[1]);
 
@@ -139,6 +137,7 @@ std::vector<std::vector<int>> InferShapeForResize(const std::vector<std::vector<
 
 std::vector<Type> InferDtypeForResize(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
+  CHECK(inputs_type[0] == Int(32)) << "Resize only supports int32 type input.";
   std::vector<Type> res{inputs_type[0]};
   return res;
 }
@@ -190,37 +189,29 @@ std::shared_ptr<framework::OpStrategy> StrategyForResize(const framework::NodeAt
   });
 
   framework::CINNSchedule resize_schedule([=](lang::Args args, lang::RetValue *ret) {
-    if (FLAGS_cinn_ir_schedule) {
-      CHECK(!args.empty()) << "The input argument of resize schedule is empty! Please check.\n";
-      common::CINNValuePack arg_pack = args[0];
-      std::vector<Expr> vec_ast;
-      for (int i = 0; i < arg_pack.size(); i++) {
-        if (arg_pack[i].is_expr()) {
-          Expr temp = arg_pack[i];
-          vec_ast.emplace_back(temp);
-        }
+    CHECK(!args.empty()) << "The input argument of resize schedule is empty! Please check.\n";
+    common::CINNValuePack arg_pack = args[0];
+    std::vector<Expr> vec_ast;
+    for (int i = 0; i < arg_pack.size(); i++) {
+      if (arg_pack[i].is_expr()) {
+        Expr temp = arg_pack[i];
+        vec_ast.emplace_back(temp);
       }
-      CHECK(!vec_ast.empty());
-      ir::ModuleExpr mod_expr(vec_ast);
-      ir::IRSchedule ir_sch(mod_expr);
-      ir_sch.MergeExprs();
-      long prod_size = std::accumulate(output_shapes[0].begin(), output_shapes[0].end(), 1, std::multiplies<int>());
-      if (prod_size > 1) {
-        if (target.arch == Target::Arch::NVGPU) {
-          pe::IRCudaScheduleInjective(ir_sch, output_shapes.front(), target);
-        } else if (target.arch == Target::Arch::X86) {
-          pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target, true);
-        }
-      }
-      std::vector<common::CINNValue> res{common::CINNValue(ir_sch.GetModule().GetExprs().at(0))};
-      *ret = common::CINNValuePack{res};
-    } else {
-      CHECK(!args.empty()) << "The input argument of resize schedule is empty! Please check.\n";
-      CINNValuePack arg_pack = args[0];
-      Expr out               = arg_pack[0];
-      CHECK(out.as_tensor());
-      *ret = arg_pack;
     }
+    CHECK(!vec_ast.empty());
+    ir::ModuleExpr mod_expr(vec_ast);
+    ir::IRSchedule ir_sch(mod_expr);
+    ir_sch.MergeExprs();
+    long prod_size = std::accumulate(output_shapes[0].begin(), output_shapes[0].end(), 1, std::multiplies<int>());
+    if (prod_size > 1) {
+      if (target.arch == Target::Arch::NVGPU) {
+        pe::IRCudaScheduleInjective(ir_sch, output_shapes.front(), target);
+      } else if (target.arch == Target::Arch::X86) {
+        pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target, true);
+      }
+    }
+    std::vector<common::CINNValue> res{common::CINNValue(ir_sch.GetModule().GetExprs().at(0))};
+    *ret = common::CINNValuePack{res};
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
