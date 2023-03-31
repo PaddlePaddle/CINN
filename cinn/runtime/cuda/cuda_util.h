@@ -46,7 +46,7 @@ void cinn_call_gaussian_random(void* v_args, int num_args, float mean, float std
 
 void cinn_call_uniform_random(void* v_args, int num_args, float min, float max, int seed, void* stream = nullptr);
 
-void cinn_call_randint(void* v_args, int num_args, int min, int max, int seed, void* stream = nullptr);
+void cinn_call_randint(void* v_args, int num_args, int seed, void* stream = nullptr);
 
 void cinn_call_cholesky_nvgpu(void* v_args, int num_args, int batch_size, int m, bool upper, void* stream = nullptr);
 

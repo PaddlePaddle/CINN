@@ -707,13 +707,9 @@ std::vector<ir::Expr> CustomCallArgsForRandInt(const framework::NodeAttr &attrs,
 
   auto attr_store = attrs.attr_store;
 
-  int min  = attr_store.count("min") ? absl::get<int>(attrs.attr_store.at("min")) : 0;
-  int max  = attr_store.count("max") ? absl::get<int>(attrs.attr_store.at("max")) : 0;
   int seed = attr_store.count("seed") ? absl::get<int>(attrs.attr_store.at("seed")) : 0;
 
-  CHECK_GE(max, min) << "Arg max must greater than min, please check.";
-
-  std::vector<ir::Expr> args = {ir::Expr(min), ir::Expr(max), ir::Expr(seed)};
+  std::vector<ir::Expr> args = {ir::Expr(seed)};
 
   return args;
 }

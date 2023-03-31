@@ -694,12 +694,9 @@ Variable NetBuilder::UniformRandom(
 }
 
 Variable NetBuilder::RandInt(const std::vector<int>& shape, int min, int max, int seed, const std::string& dtype) {
+  auto randint_out = CustomInstr("randint", {}, {{"shape", shape}, {"seed", seed}, {"dtype", dtype}}).front();
   CHECK_GT(max, min) << "max: " << max << "should greater than"
                      << "min: " << min;
-  CHECK(dtype == "int32" || dtype == "int64") << "randint dtype must be int32 or int64 but received dtype = " << dtype;
-  auto randint_out =
-      CustomInstr("randint", {}, {{"shape", shape}, {"min", min}, {"max", max}, {"seed", seed}, {"dtype", dtype}})
-          .front();
   auto randint_range = FillConstant(shape, max - min, UniqName("randint_range"), dtype);
   auto randint_mod   = Mod(randint_out, randint_range);
   auto randint_min   = FillConstant(shape, min, UniqName("randint_min"), dtype);

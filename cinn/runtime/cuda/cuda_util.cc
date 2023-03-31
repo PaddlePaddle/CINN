@@ -1531,7 +1531,7 @@ void cinn_call_uniform_random(void *v_args, int num_args, float min, float max, 
   }
 }
 
-void cinn_call_randint(void *v_args, int num_args, int min, int max, int seed, void *stream) {
+void cinn_call_randint(void *v_args, int num_args, int seed, void *stream) {
   cinn_pod_value_t *args = static_cast<cinn_pod_value_t *>(v_args);
   cinn_buffer_t *output  = args[0].operator cinn_buffer_t *();
   cinn_type_t dtype      = output->type;
@@ -1541,15 +1541,17 @@ void cinn_call_randint(void *v_args, int num_args, int min, int max, int seed, v
   CURAND_CALL(curandSetStream(generator, static_cast<cudaStream_t>(stream)));
   CurandGenerator::GetInstance().SetSeed(static_cast<unsigned long long>(seed));
 
-  VLOG(4) << "cinn_call_randint: output_size=" << numel << ", min=" << min << ", max=" << max << ", seed=" << seed;
+  VLOG(4) << "cinn_call_randint: output_size=" << numel << ", seed=" << seed;
 
   if (dtype == cinn_int32_t()) {
     uint32_t *ptr = reinterpret_cast<uint32_t *>(output->memory);
     CURAND_CALL(curandGenerate(generator, ptr, numel));
   } else if (dtype == cinn_int64_t()) {
-    CURAND_CALL(curandCreateGenerator(&generator, CURAND_RNG_QUASI_SOBOL64));
+    curandGenerator_t generator_int64;
+    CURAND_CALL(curandCreateGenerator(&generator_int64, CURAND_RNG_QUASI_SOBOL64));
     unsigned long long *ptr = reinterpret_cast<unsigned long long *>(output->memory);
-    CURAND_CALL(curandGenerateLongLong(generator, ptr, numel));
+    CURAND_CALL(curandGenerateLongLong(generator_int64, ptr, numel));
+    CURAND_CALL(curandDestroyGenerator(generator_int64));
   } else {
     LOG(FATAL) << "randint only support int32 and int64! Please check.";
   }

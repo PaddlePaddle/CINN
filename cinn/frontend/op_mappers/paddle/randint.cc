@@ -24,17 +24,25 @@ void RandIntOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& 
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
   auto out_name = op_desc.Output("Out").front();
 
+  CHECK(op_desc.HasAttr("shape")) << "Cannot find attribute \"shape\" in paddle op \"randint\"! Please check.";
   auto shape_origin = utils::GetAttrOrDefault<std::vector<int64_t>>(op_desc, "shape");
   auto shape        = utils::ToShapeType(shape_origin);
 
-  auto min  = utils::GetAttrOrDefault<int>(op_desc, "low", 0);
+  CHECK(op_desc.HasAttr("low")) << "Cannot find attribute \"low\" in paddle op \"randint\"! Please check.";
+  auto min = utils::GetAttrOrDefault<int>(op_desc, "low", 0);
+
+  CHECK(op_desc.HasAttr("high")) << "Cannot find attribute \"high\" in paddle op \"randint\"! Please check.";
   auto max  = utils::GetAttrOrDefault<int>(op_desc, "high", 0);
   auto seed = utils::GetAttrOrDefault<int>(op_desc, "seed", 0);
 
-  auto dtype_id = utils::GetAttrOrDefault<int>(op_desc, "dtype", static_cast<int>(paddle::cpp::VarDescAPI::Type::FP32));
-  auto dtype_pd = static_cast<paddle::cpp::VarDescAPI::Type>(dtype_id);
+  auto dtype_id =
+      utils::GetAttrOrDefault<int>(op_desc, "dtype", static_cast<int>(paddle::cpp::VarDescAPI::Type::INT64));
+  auto dtype_pd   = static_cast<paddle::cpp::VarDescAPI::Type>(dtype_id);
   auto dtype_cinn = utils::CppVarType2CommonType(dtype_pd);
   auto dtype      = common::Type2Str(dtype_cinn);
+  CHECK(dtype_id == static_cast<int>(paddle::cpp::VarDescAPI::Type::INT64) ||
+        dtype_id == static_cast<int>(paddle::cpp::VarDescAPI::Type::INT32))
+      << "the indices dtype must be int32 or int64, but got dtype = " << dtype;
 
   auto out = ctx.Builder()->RandInt(shape, min, max, seed, dtype);
   ctx.AddVar(out_name, out);

@@ -361,8 +361,6 @@ CINN_REGISTER_HELPER(cinn_cuda_host_api) {
       .SetRetType<void>()
       .AddInputType<void *>()  // v_args
       .AddInputType<int>()     // num_args
-      .AddInputType<int>()     // min
-      .AddInputType<int>()     // max
       .AddInputType<int>()     // seed
       .AddInputType<void *>()  // stream
       .End();

@@ -84,6 +84,7 @@ std::vector<Type> InferDtypeForRandInt(const std::vector<Type> &inputs_type, con
   if (attrs.find("dtype") != attrs.end()) {
     dtype = absl::get<std::string>(attrs.at("dtype"));
   }
+  CHECK(dtype == "int32" || dtype == "int64") << "randint dtype must be int32 or int64 but received dtype = " << dtype;
   std::vector<Type> res{common::Str2Type(dtype)};
   return res;
 }
@@ -100,7 +101,7 @@ CINN_REGISTER_HELPER(randint_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForRandInt)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForRandInt))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForRandInt))
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElementWise)
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kNonFusible)
       .set_support_level(4);
 
   return true;
