@@ -569,6 +569,9 @@ std::vector<ir::Tensor> ReduceInternal(const ir::Tensor& A,
   std::transform(
       A->shape.begin(), A->shape.end(), std::back_inserter(inshape), [](ir::Expr expr) { return expr.as_int32(); });
   auto reduce_shape = GetFirstStepReduceShape(inshape, axes);
+  if (reduce_shape.size() == 0) {
+    return {};
+  }
   // reshape input
   auto reshape = pe::Reshape(A, reduce_shape, output_name + "_reshape");
   // do first step reduce
