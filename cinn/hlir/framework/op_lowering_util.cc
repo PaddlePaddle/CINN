@@ -13,6 +13,8 @@
 // limitations under the License.
 
 #include "cinn/hlir/framework/op_lowering_util.h"
+
+#include "cinn/hlir/pe/nn_util.h"
 #ifdef CINN_WITH_CUDA
 #include "cinn/runtime/cuda/float16.h"
 #endif
@@ -395,60 +397,27 @@ void LoopAssignReduceWithoutLast(ir::IRSchedule& ir_sch,
                                  const std::vector<int>& inshape,
                                  const std::vector<int>& axes,
                                  const common::Target& target) {
-  CHECK(axes.size());
-  int lane            = 1;
-  int max_num_threads = target.max_num_threads();
-  for (int idx = axes.back() + 1; idx < inshape.size(); ++idx) {
-    lane *= inshape[idx];
-  }
-  CHECK_LE(lane, max_num_threads / 2) << "Parallel threads must less equal max_num_threads/2 on gpu!";
-  int pos   = 0;
-  int index = axes.size() - 1;
-  for (; index >= 0; --index) {
-    if (index + 1 < axes.size() && axes[index] != axes[index + 1] - 1) {
-      pos = axes[index + 1];
-      break;
-    }
-
-    lane *= inshape[axes[index]];
-    if (lane > max_num_threads / 2) {
-      pos = axes[index];
-      break;
-    }
-
-    if (index == 0) {
-      pos = axes[0];
-    }
-  }
-
-  if (lane > max_num_threads / 2) {
-    int prefix = inshape[axes[index]];
-    int tail   = lane / prefix;
-    for (int idx = max_num_threads / tail; idx > (max_num_threads / 2) / tail; --idx) {
-      if (prefix % idx == 0) {
-        ir_sch.Split(block_name, axes[index], {-1, idx});
-        break;
+  auto reduce_shape = pe::GetFirstStepReduceShape(inshape, axes);
+  // remove loop size = 1 and remove axis in axes.
+  std::vector<int> nshape, naxes = axes;
+  for (int idx = 0; idx < reduce_shape.size(); ++idx) {
+    if (reduce_shape[idx] == 1) {
+      auto iter = std::find(naxes.begin(), naxes.end(), idx);
+      if (iter != naxes.end()) {
+        naxes.erase(iter);
       }
-      CHECK_GT(idx - 1, (max_num_threads / 2) / tail) << "idx should greater than (max_num_threads / 2) / tail.";
+      for (auto& axis : naxes) {
+        if (axis > idx) {
+          --axis;
+        }
+      }
+    } else {
+      nshape.push_back(reduce_shape[idx]);
     }
   }
 
-  // insert 1
-  for (int idx = 0; idx < axes.size() - 1 - index; ++idx) {
-    auto loops = ir_sch.GetLoops(block_name);
-    ir_sch.Split(block_name, pos, {-1, ir::GetLoopExtent(loops[pos])});
-  }
-  LoopOrderAssignReduce(ir_sch, block_name, axes, target);
-  // return insert 1
-  int start_index = ir_sch.GetLoops(block_name).size() - axes.size();
-  for (int idx = 0; idx < axes.size(); ++idx) {
-    auto loops = ir_sch.GetLoops(block_name);
-    if (ir::GetLoopExtent(loops[start_index]) == 1) {
-      ir_sch.Fuse({loops[start_index - 1], loops[start_index]});
-    } else {
-      ++start_index;
-    }
-  }
+  ir_sch.Split(block_name, 0, nshape);
+  LoopOrderAssignReduce(ir_sch, block_name, naxes, target);
 }
 
 void LoopAssignReduceWithLast(ir::IRSchedule& ir_sch,
@@ -730,9 +699,7 @@ void LoopAssignReduce(ir::IRSchedule& ir_sch,
 
   // node output is same shape with reduce input.
   if (WithoutLastDimInReduce(shape, axes)) {
-    auto nloops = ir_sch.GetLoops(node_data->id());
-    ir_sch.Split(nloops.back(), shape);
-    // if using block shuffle
+    // if using two strep reduce.
     if (tensor_map.count(reducer_data->id() + "_1")) {
       LoopAssignReduceWithoutLast(ir_sch, node_data->id(), shape, axes, target);
       auto nloops = ir_sch.GetLoops(node_data->id());
@@ -745,8 +712,10 @@ void LoopAssignReduce(ir::IRSchedule& ir_sch,
       // copy loop info form rloops.
       copy_loop_info(nloops, rloops);
     } else {
-      LoopOrderAssignReduce(ir_sch, node_data->id(), axes, target);
       auto nloops = ir_sch.GetLoops(node_data->id());
+      ir_sch.Split(nloops.back(), shape);
+      LoopOrderAssignReduce(ir_sch, node_data->id(), axes, target);
+      nloops      = ir_sch.GetLoops(node_data->id());
       auto rloops = ir_sch.GetLoops(tensor_map.find(reducer_data->id())->second->name);
       if (nloops.size() < rloops.size()) {
         ir_sch.Split(nloops[0], {1, -1});

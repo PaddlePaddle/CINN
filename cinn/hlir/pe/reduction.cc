@@ -19,9 +19,9 @@
 #include <algorithm>
 
 #include "cinn/common/ir_util.h"
-#include "cinn/common/target.h"
 #include "cinn/hlir/pe/broadcast.h"
 #include "cinn/hlir/pe/elementwise.h"
+#include "cinn/hlir/pe/nn_util.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/tensor.h"
 #include "cinn/lang/builtin.h"
@@ -565,58 +565,10 @@ std::vector<ir::Tensor> ReduceInternal(const ir::Tensor& A,
                                        ReduceFunc reduce_func,
                                        ir::Expr initial,
                                        std::string reduce_type) {
-  // post parallel size
-  int post_parallel_size = GetPostParallelSize(A, axes);
-  // the size to unfold las reduce axis
-  int unfold_size = common::GetMaxThreads() / GetParallelSize(A, axes);
-
-  // fuse reduce axis.
-  int insert_zero_num  = 0;
-  int last_axis_index  = axes.size() - 1;
-  int last_reduce_size = A->shape[axes.back()].as_int32();
-  for (; last_axis_index >= 1; --last_axis_index) {
-    if (axes[last_axis_index] - 1 != axes[last_axis_index - 1]) {
-      break;
-    }
-    ++insert_zero_num;
-    int index = axes[last_axis_index - 1];
-    last_reduce_size *= A->shape[index].as_int32();
-  }
-
-  std::vector<int> reduce_shape;
-  for (int idx = 0; idx < axes[last_axis_index]; ++idx) {
-    reduce_shape.push_back(A->shape[idx].as_int32());
-  }
-
-  // insert 1 to keep dimension size.
-  for (int idx = 0; idx < insert_zero_num; ++idx) {
-    reduce_shape.emplace_back(1);
-  }
-
-  // set loop size set.
-  static std::vector<int> loop_size_set = {64, 48, 32, 24, 16, 12, 8, 4, 2, 1};
-  for (auto loop_size : loop_size_set) {
-    if (last_reduce_size < loop_size || unfold_size < loop_size) {
-      continue;
-    }
-
-    if (last_reduce_size % loop_size != 0) {
-      continue;
-    }
-
-    reduce_shape.emplace_back(last_reduce_size / loop_size);
-    reduce_shape.emplace_back(loop_size);
-    if (loop_size == 1) {
-      return {};
-    }
-    break;
-  }
-
-  // std::vector<ir::Expr> tail;
-  for (int idx = axes.back() + 1; idx < A->shape.size(); ++idx) {
-    reduce_shape.push_back(A->shape[idx].as_int32());
-  }
-
+  std::vector<int> inshape;
+  std::transform(
+      A->shape.begin(), A->shape.end(), std::back_inserter(inshape), [](ir::Expr expr) { return expr.as_int32(); });
+  auto reduce_shape = GetFirstStepReduceShape(inshape, axes);
   // reshape input
   auto reshape = pe::Reshape(A, reduce_shape, output_name + "_reshape");
   // do first step reduce
