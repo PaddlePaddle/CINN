@@ -1486,7 +1486,7 @@ class CurandQUASI64Generator {
  public:
   ~CurandQUASI64Generator() { CURAND_CALL(curandDestroyGenerator(generator_)); }
   static CurandQUASI64Generator &GetInstance() {
-    static CurandIntegerGenerator instance;
+    static CurandQUASI64Generator instance;
     return instance;
   }
   curandGenerator_t &GetGenerator() { return generator_; }
