@@ -950,9 +950,6 @@ void MergeReduceToReduce(ir::IRSchedule& ir_sch,
             auto n_tensor = tensor_map.find(node_data->id() + "_0")->second;
             auto m_tensor = tensor_map.find(master_data->id() + "_0")->second;
 
-            // auto n_block = ir_sch.GetBlock(n_tensor->name);
-            // auto m_block = ir_sch.GetBlock(m_tensor->name);
-
             auto n_loops = ir_sch.GetLoops(n_tensor->name + "__reduce_init");
             auto m_loops = ir_sch.GetLoops(m_tensor->name + "__reduce_init");
 

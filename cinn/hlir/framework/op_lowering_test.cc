@@ -74,6 +74,49 @@ void Compile(NetBuilder& net_builder) {
   }
 }
 
+TEST(OP_LOWERING, Reduce_Without_Last_Axis_3) {
+  int h = 128, w = 128;
+  NetBuilder net_builder("Reduce_Without_Last_Axis_3");
+  // create model
+  {
+    auto A = net_builder.CreateInput(Float(32), {h, w}, "A");
+    auto B = net_builder.CreateInput(Float(32), {h, w}, "B");
+    auto C = net_builder.Add(A, B);
+    auto E = net_builder.ReduceSum(C, {0});
+    auto F = net_builder.ReduceSum(C, {0});
+    auto G = net_builder.Add(E, F);
+  }
+
+  Compile(net_builder);
+}
+
+TEST(OP_LOWERING, Reduce_Without_Last_Axis_2) {
+  int h = 128, w = 128;
+  NetBuilder net_builder("Reduce_Without_Last_Axis_2");
+  // create model
+  {
+    auto A = net_builder.CreateInput(Float(32), {h, w}, "A");
+    auto B = net_builder.CreateInput(Float(32), {h * 2, w}, "B");
+    auto E = net_builder.ReduceSum(A, {0});
+    auto F = net_builder.ReduceSum(B, {0});
+    auto G = net_builder.Add(E, F);
+  }
+
+  Compile(net_builder);
+}
+
+TEST(OpFusionPass, Reduce_Without_Last_Axis_1) {
+  NetBuilder net_builder("Reduce_Without_Last_Axis_1");
+  // create model
+  {
+    auto A = net_builder.CreateInput(Float(32), {128, 1024}, "A");
+    auto B = net_builder.ReduceSum(A, {0});
+    auto C = net_builder.ReduceSum(A, {0});
+    auto D = net_builder.ReduceSum(A, {0});
+  }
+  Compile(net_builder);
+}
+
 TEST(OpFusionPass, Reduce_With_Last_Axis_1) {
   NetBuilder net_builder("Reduce_With_Last_Axis_1");
   // create model
