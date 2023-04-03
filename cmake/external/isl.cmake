@@ -20,6 +20,7 @@ ExternalProject_Add(external_isl
   BUILD_COMMAND ""
   UPDATE_COMMAND ""
   INSTALL_COMMAND ""
+  BUILD_BYPRODUCTS ${THIRD_PARTY_PATH}/install/isl/lib/libisl.a
 )
 
 add_library(isl STATIC IMPORTED GLOBAL)

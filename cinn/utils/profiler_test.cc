@@ -23,7 +23,7 @@ TEST(RecordEvent, HOST) {
   using cinn::utils::ProfilerHelper;
   using cinn::utils::RecordEvent;
 
-  ProfilerHelper::Enable_CPU();
+  ProfilerHelper::EnableCPU();
 
   LOG(INFO) << "Usage 1: RecordEvent for HOST";
   std::vector<EventType> types = {

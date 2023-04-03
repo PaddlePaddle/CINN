@@ -37,9 +37,19 @@ class ProfilerHelper {
  public:
   static ProfilerState g_state;
 
-  static void Enable() { g_state = ProfilerState::kAll; }
-  static void Enable_CPU() { g_state = ProfilerState::kCPU; }
-  static void Enable_CUDA() { g_state = ProfilerState::kCUDA; }
+  static void EnableAll() { g_state = ProfilerState::kAll; }
+  static void EnableCPU() { g_state = ProfilerState::kCPU; }
+  static void EnableCUDA() { g_state = ProfilerState::kCUDA; }
+
+  static bool IsEnable() { return ProfilerHelper::g_state != ProfilerState::kDisabled; }
+
+  static bool IsEnableCPU() {
+    return ProfilerHelper::g_state == ProfilerState::kAll || ProfilerHelper::g_state == ProfilerState::kCPU;
+  }
+
+  static bool IsEnableCUDA() {
+    return ProfilerHelper::g_state == ProfilerState::kAll || ProfilerHelper::g_state == ProfilerState::kCUDA;
+  }
 };
 
 class RecordEvent {
@@ -65,16 +75,6 @@ void ProfilerStop();
 void ProfilerRangePush(const std::string& name);
 
 void ProfilerRangePop();
-
-inline bool is_profiler_enable() { return ProfilerHelper::g_state != ProfilerState::kDisabled; }
-
-inline bool is_cpu_enable() {
-  return ProfilerHelper::g_state == ProfilerState::kAll || ProfilerHelper::g_state == ProfilerState::kCPU;
-}
-
-inline bool is_cuda_enable() {
-  return ProfilerHelper::g_state == ProfilerState::kAll || ProfilerHelper::g_state == ProfilerState::kCUDA;
-}
 
 }  // namespace utils
 }  // namespace cinn

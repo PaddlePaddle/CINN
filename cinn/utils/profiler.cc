@@ -32,9 +32,9 @@ namespace utils {
 ProfilerState ProfilerHelper::g_state = ProfilerState::kDisabled;
 
 RecordEvent::RecordEvent(const std::string& name, EventType type) {
-  if (!is_profiler_enable()) return;
+  if (!ProfilerHelper::IsEnable()) return;
 
-  if (is_cpu_enable()) {
+  if (ProfilerHelper::IsEnableCPU()) {
     call_back_ = [this, tik = std::chrono::steady_clock::now(), annotation = std::move(name), type]() {
       auto tok                               = std::chrono::steady_clock::now();
       std::chrono::duration<double> duration = (tok - tik) * 1e3;  // ms
@@ -42,19 +42,19 @@ RecordEvent::RecordEvent(const std::string& name, EventType type) {
     };
   }
 
-  if (is_cuda_enable()) {
+  if (ProfilerHelper::IsEnableCUDA()) {
     ProfilerRangePush(name);
   }
 }
 
 void RecordEvent::End() {
-  if (!is_profiler_enable()) return;
+  if (!ProfilerHelper::IsEnable()) return;
 
-  if (is_cpu_enable() && call_back_ != nullptr) {
+  if (ProfilerHelper::IsEnableCPU() && call_back_ != nullptr) {
     call_back_();
   }
 
-  if (is_cuda_enable()) {
+  if (ProfilerHelper::IsEnableCUDA()) {
     ProfilerRangePop();
   }
 }

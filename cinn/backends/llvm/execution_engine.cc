@@ -63,6 +63,7 @@
 #include "cinn/backends/llvm/runtime_symbol_registry.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/runtime/intrinsic.h"
+#include "cinn/utils/profiler.h"
 
 namespace cinn::backends {
 namespace {
@@ -155,6 +156,7 @@ std::unique_ptr<llvm::MemoryBuffer> NaiveObjectCache::getObject(const llvm::Modu
 
 template <typename CodeGenT>
 void ExecutionEngine::Link(const ir::Module &module) {
+  utils::RecordEvent("ExecutionEngine Link", utils::EventType::kOrdinary);
   llvm::SMDiagnostic error;
   auto ctx        = std::make_unique<llvm::LLVMContext>();
   auto m          = llvm::parseAssemblyString(AsStringRef(backends::kRuntimeLlvmIr), error, *ctx);
@@ -193,6 +195,7 @@ void ExecutionEngine::Link(const ir::Module &module) {
 }
 
 bool ExecutionEngine::AddModule(std::unique_ptr<llvm::Module> module, std::unique_ptr<llvm::LLVMContext> context) {
+  utils::RecordEvent("ExecutionEngine AddModule", utils::EventType::kOrdinary);
   module->setDataLayout(jit_->getDataLayout());
   if (false) {
     VLOG(3) << "======= dump jit lib ==========";
@@ -216,6 +219,7 @@ void ExecutionEngine::ExportObject(const std::string &path) {
 }
 
 void *ExecutionEngine::Lookup(absl::string_view name) {
+  utils::RecordEvent("ExecutionEngine Lookup", utils::EventType::kOrdinary);
   std::lock_guard<std::mutex> lock(mu_);
   if (auto symbol = jit_->lookup(AsStringRef(name))) {
     return reinterpret_cast<void *>(symbol->getAddress());
@@ -226,6 +230,7 @@ void *ExecutionEngine::Lookup(absl::string_view name) {
 }
 
 void ExecutionEngine::RegisterRuntimeSymbols() {
+  utils::RecordEvent("ExecutionEngine RegisterRuntimeSymbols", utils::EventType::kOrdinary);
   const auto &registry = GlobalSymbolRegistry::Global();
   auto *session        = &jit_->getExecutionSession();
   for (const auto &sym : registry.All()) {

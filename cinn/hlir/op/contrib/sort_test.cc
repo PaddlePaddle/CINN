@@ -107,7 +107,7 @@ void TestGenerateCodeCpu_Sort(void* _args, int32_t num_args)
   int32_t* test_sort_out_index_temp = ((int32_t*)(_test_sort_out_index_temp->memory));
   for (int32_t i = 0; i < 4; i += 1) {
     for (int32_t j = 0; j < 28; j += 1) {
-      test_sort_out_index_temp[((28 * i) + j)] = cinn_host_lt_num_float(_in, 28, in[((28 * i) + j)], (28 * i), 1);
+      test_sort_out_index_temp[((28 * i) + j)] = cinn_host_lt_num_int32(_in, 28, in[((28 * i) + j)], (28 * i), 1);
     };
   };
   for (int32_t i = 0; i < 4; i += 1) {
