@@ -206,12 +206,13 @@ class Graph : public cinn::common::Graph {
   void VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
                              const std::unordered_set<std::string>& fetch_var_ids = {});
 
- private:
+
   void VisualizeGroups(const std::vector<std::vector<Node*>>& groups,
                        const std::unordered_set<std::string>& fetch_var_ids = {});
 
   std::vector<std::vector<Node*>> FusionGroupsToGroups();
 
+private:
   std::string viz_path_;
   static std::atomic_size_t viz_count_;
 

@@ -154,15 +154,15 @@ class OpFusionPassHelper : public FusionHelperBase {
                 << " -> Consumer Op: " << consumer->id() << ", Op Pattern: " << GetOpKind(consumer);
         bool can_fuse = true;
         // checkout producer node outputs are all in fusion op
-        for (auto& link : producer_data->outlinks()) {
-          auto consumer_node = link->sink()->safe_as<Node>();
-          CHECK(consumer_node);
-          // if fusion group can't find node, can't merge
-          if (consumer_fusion->nodes_set.find(consumer_node) == consumer_fusion->nodes_set.end()) {
-            can_fuse = false;
-            break;
-          }
-        }
+        // for (auto& link : producer_data->outlinks()) {
+        //   auto consumer_node = link->sink()->safe_as<Node>();
+        //   CHECK(consumer_node);
+        //   // if fusion group can't find node, can't merge
+        //   if (consumer_fusion->nodes_set.find(consumer_node) == consumer_fusion->nodes_set.end()) {
+        //     can_fuse = false;
+        //     break;
+        //   }
+        // }
 
         if (!can_fuse || !CanFuse(producer, consumer)) continue;
         VLOG(3) << "Fuse Op " << producer->id() << " into Op " << consumer->id();
