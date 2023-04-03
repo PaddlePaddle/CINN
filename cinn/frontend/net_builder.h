@@ -1056,7 +1056,7 @@ class NetBuilder {
    * @param dtype Data tpye of output variable, supported data types: int32, int64.
    */
   Variable RandInt(
-      const std::vector<int>& shape, int min = 0, int max = 0, int seed = 0, const std::string& dtype = "int64");
+      const std::vector<int>& shape, int min = 0, int max = 0, int seed = 1, const std::string& dtype = "int64");
 
   /**
    * @brief Compute cholesky decomposition of a positive definite symmetric matrix.

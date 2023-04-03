@@ -734,7 +734,7 @@ void BindFrontend(pybind11::module *m) {
            &NetBuilder::RandInt,
            py::arg("shape"),
            py::arg("min")   = 0,
-           py::arg("max")   = 0,
+           py::arg("max")   = 1,
            py::arg("seed")  = 0,
            py::arg("dtype") = "int64")
       .def("cholesky", &NetBuilder::Cholesky, py::arg("x"), py::arg("upper") = false)

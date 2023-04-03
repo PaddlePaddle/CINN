@@ -32,7 +32,7 @@ void RandIntOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& 
   auto min = utils::GetAttrOrDefault<int>(op_desc, "low", 0);
 
   CHECK(op_desc.HasAttr("high")) << "Cannot find attribute \"high\" in paddle op \"randint\"! Please check.";
-  auto max  = utils::GetAttrOrDefault<int>(op_desc, "high", 0);
+  auto max  = utils::GetAttrOrDefault<int>(op_desc, "high", 1);
   auto seed = utils::GetAttrOrDefault<int>(op_desc, "seed", 0);
 
   auto dtype_id =
