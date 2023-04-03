@@ -1462,12 +1462,24 @@ class CurandGenerator {
   }
   curandGenerator_t &GetGenerator() { return generator_; }
 
-  void SetSeed(unsigned long long seed = 0ULL) {
+  CurandGenerator &SetSeed(unsigned long long seed = 0ULL) {
     // set global seed if seed is zero
     auto rand_seed = (seed == 0ULL) ? RandomSeed::GetOrSet() : seed;
-    if (rand_seed != 0ULL) {
+    if (rand_seed != 0ULL && rand_seed != seed_) {
       CURAND_CALL(curandSetPseudoRandomGeneratorSeed(generator_, rand_seed));
+      VLOG(4) << "Change curand random seed from: " << seed_ << " to: " << rand_seed;
+      seed_ = rand_seed;
     }
+    return *this;
+  }
+
+  CurandGenerator &SetStream(cudaStream_t stream) {
+    if (stream != nullptr && stream != stream_) {
+      CURAND_CALL(curandSetStream(generator_, stream));
+      VLOG(4) << "Change curand generator stream from: " << stream_ << " to: " << stream;
+      stream_ = stream;
+    }
+    return *this;
   }
 
  private:
@@ -1476,9 +1488,14 @@ class CurandGenerator {
 
   CurandGenerator() {
     CURAND_CALL(curandCreateGenerator(&generator_, CURAND_RNG_PSEUDO_PHILOX4_32_10));
+    CURAND_CALL(curandGenerateSeeds(generator_));
+    CURAND_CALL(curandSetGeneratorOrdering(generator_, CURAND_ORDERING_PSEUDO_SEEDED));
+
     SetSeed();
   }
   curandGenerator_t generator_;
+  unsigned long long seed_ = 0ULL;
+  cudaStream_t stream_     = nullptr;
 };
 
 void cinn_call_gaussian_random(void *v_args, int num_args, float mean, float std, int seed, void *stream) {
@@ -1487,10 +1504,9 @@ void cinn_call_gaussian_random(void *v_args, int num_args, float mean, float std
   cinn_type_t dtype      = output->type;
   size_t numel           = output->num_elements();
 
-  curandGenerator_t generator = CurandGenerator::GetInstance().GetGenerator();
-  CURAND_CALL(curandSetStream(generator, static_cast<cudaStream_t>(stream)));
   // avoid seed conflict, if the seed not set, here we should use global seed
-  CurandGenerator::GetInstance().SetSeed(seed);
+  auto &generator =
+      CurandGenerator::GetInstance().SetStream(static_cast<cudaStream_t>(stream)).SetSeed(seed).GetGenerator();
 
   VLOG(4) << "cinn_call_gaussian_random: output_size=" << numel << ", mean=" << mean << ", std=" << std
           << ", seed=" << seed;
@@ -1512,10 +1528,9 @@ void cinn_call_uniform_random(void *v_args, int num_args, float min, float max, 
   cinn_type_t dtype      = output->type;
   size_t numel           = output->num_elements();
 
-  curandGenerator_t generator = CurandGenerator::GetInstance().GetGenerator();
-  CURAND_CALL(curandSetStream(generator, static_cast<cudaStream_t>(stream)));
   // avoid seed conflict, if the seed not set, here we should use global seed
-  CurandGenerator::GetInstance().SetSeed(seed);
+  auto &generator =
+      CurandGenerator::GetInstance().SetStream(static_cast<cudaStream_t>(stream)).SetSeed(seed).GetGenerator();
 
   VLOG(4) << "cinn_call_uniform_random: output_size=" << numel << ", min=" << min << ", max=" << max
           << ", seed=" << seed;
