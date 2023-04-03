@@ -702,7 +702,7 @@ Variable NetBuilder::UniformRandom(const std::vector<int>& shape,
     CHECK_GT(numel, (diag_num - 1) * (diag_step + 1)) << "(diag_num - 1) * (diag_step + 1) should smaller than numel!";
     auto diag_index =
         Arange(0.0f, static_cast<float>(diag_num * diag_step + 1), static_cast<float>(diag_step + 1), "int32");
-    auto diag_val_tensor = FillConstant(diag_index->shape, diag_val, dtype);
+    auto diag_val_tensor = FillConstant(diag_index->shape, diag_val, "diag_val", dtype);
     auto uniform_flatten = Reshape(uniform_res, {-1});
     auto uniform_scatter = ScatterAssign(uniform_flatten, diag_val_tensor, diag_index);
     uniform_res          = Reshape(uniform_scatter, shape);
