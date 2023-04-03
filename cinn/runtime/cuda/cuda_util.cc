@@ -1482,19 +1482,20 @@ class CurandGenerator {
 };
 
 class CurandQUASI64Generator {
+  // generate 64-bit QUASI values
  public:
-  ~CurandGenerator() { CURAND_CALL(curandDestroyGenerator(generator_)); }
-  static CurandGenerator &GetInstance() {
+  ~CurandQUASI64Generator() { CURAND_CALL(curandDestroyGenerator(generator_)); }
+  static CurandQUASI64Generator &GetInstance() {
     static CurandIntegerGenerator instance;
     return instance;
   }
   curandGenerator_t &GetGenerator() { return generator_; }
 
  private:
-  CurandGenerator(const CurandGenerator &) = delete;
-  CurandGenerator &operator=(const CurandGenerator &) = delete;
+  CurandQUASI64Generator(const CurandQUASI64Generator &) = delete;
+  CurandQUASI64Generator &operator=(const CurandQUASI64Generator &) = delete;
 
-  CurandGenerator() { CURAND_CALL(curandCreateGenerator(&generator_, CURAND_RNG_QUASI_SOBOL64)); }
+  CurandQUASI64Generator() { CURAND_CALL(curandCreateGenerator(&generator_, CURAND_RNG_QUASI_SOBOL64)); }
   curandGenerator_t generator_;
 };
 
@@ -1560,20 +1561,17 @@ void cinn_call_randint(void *v_args, int num_args, int seed, void *stream) {
 
   VLOG(4) << "cinn_call_randint: output_size=" << numel << ", seed=" << seed;
 
-  // if (dtype == cinn_int32_t()) {
-  //   uint32_t *ptr = reinterpret_cast<uint32_t *>(output->memory);
-  //   CURAND_CALL(curandGenerate(generator, ptr, numel));
-  // } else if (dtype == cinn_int64_t()) {
-  //   curandGenerator_t generator_int64;
-  //   CURAND_CALL(curandCreateGenerator(&generator_int64, CURAND_RNG_QUASI_SOBOL64));
-  //   unsigned long long *ptr = reinterpret_cast<unsigned long long *>(output->memory);
-  //   CURAND_CALL(curandGenerateLongLong(generator_int64, ptr, numel));
-  //   CURAND_CALL(curandDestroyGenerator(generator_int64));
-  // } else {
-  //   LOG(FATAL) << "randint only support int32 and int64! Please check.";
-  // }
-  uint32_t *ptr = reinterpret_cast<uint32_t *>(output->memory);
-  CURAND_CALL(curandGenerate(generator, ptr, numel));
+  if (dtype == cinn_int32_t()) {
+    uint32_t *ptr = reinterpret_cast<uint32_t *>(output->memory);
+    CURAND_CALL(curandGenerate(generator, ptr, numel));
+  } else if (dtype == cinn_int64_t()) {
+    curandGenerator_t generator_int64 = CurandQUASI64Generator::GetInstance().GetGenerator();
+    ;
+    unsigned long long *ptr = reinterpret_cast<unsigned long long *>(output->memory);
+    CURAND_CALL(curandGenerateLongLong(generator_int64, ptr, numel));
+  } else {
+    LOG(FATAL) << "randint only support int32 and int64! Please check.";
+  }
 }
 
 #ifdef CINN_WITH_CUDNN
