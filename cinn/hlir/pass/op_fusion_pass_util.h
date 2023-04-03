@@ -251,6 +251,105 @@ CONDITION_FUNC(horizontal_with_same_size) {
   return false;
 }
 
+CONDITION_FUNC(reduce_fuse_broadcast) {
+  if (horizontal_with_same_size(helper, producer, consumer)) {
+    return true;
+  }
+
+  if (is_horizontal_relation(helper, producer, consumer)) {
+    return false;
+  }
+
+  if (helper->target_ != common::DefaultNVGPUTarget()) {
+    return true;
+  }
+
+  auto rinput_shape = helper->GetNodeInputShape(producer);
+  auto reduce_axes  = absl::get<std::vector<int>>(producer->attrs.attr_store.at("dim"));
+  auto keep_dim     = absl::get<bool>(producer->attrs.attr_store.at("keep_dim"));
+  for (auto& axis : reduce_axes) {
+    if (axis == -1) {
+      axis = rinput_shape.size() - 1;
+    }
+  }
+
+  int reduce_size = rinput_shape.back();
+  for (auto idx = reduce_axes.size() - 1; idx >= 1; --idx) {
+    if (reduce_axes[idx] != reduce_axes[idx - 1] + 1) {
+      return false;
+    }
+    reduce_size *= rinput_shape[idx - 1];
+  }
+
+  if (reduce_size > helper->target_.max_num_threads()) {
+    return false;
+  }
+
+  auto routput_shape = helper->GetNodeDataShape(producer);
+  auto find_reducer  = [&](const Node* node, const Node* reducer, const std::unordered_set<Node*>& nodes_set) {
+    std::queue<const Node*> candidates;
+    candidates.push(node);
+
+    while (!candidates.empty()) {
+      auto candidate = candidates.front();
+      candidates.pop();
+
+      for (auto producer : helper->GetProducerNode(candidate)) {
+        if (producer == reducer) {
+          return true;
+        }
+
+        if (nodes_set.count(producer)) {
+          candidates.push(producer);
+        }
+      }
+    }
+
+    return false;
+  };
+
+  for (auto node : consumer->nodes_set) {
+    if (helper->GetOpKind(node) != kBroadcast) {
+      continue;
+    }
+
+    if (!find_reducer(node, producer, consumer->nodes_set)) {
+      continue;
+    }
+
+    auto shape = absl::get<std::vector<int>>(node->attrs.attr_store.at("out_shape"));
+    auto axes  = absl::get<std::vector<int>>(node->attrs.attr_store.at("broadcast_axes"));
+    for (auto& axis : axes) {
+      if (axis == -1) {
+        axis = shape.size() - 1;
+      }
+    }
+
+    if (rinput_shape != shape) {
+      return false;
+    }
+    // if keep dim = true.
+    if (rinput_shape == shape && keep_dim) {
+      return true;
+    } else {
+      // if routput_shape = [1]
+      if (routput_shape.size() == 1 && routput_shape[0] == 1) {
+        return true;
+      }
+      // check [reduce_axes, axes] = {0, 1, 2, 3, 4, 5, 6, ...}
+      for (int idx = 0; idx < rinput_shape.size(); ++idx) {
+        if (!(std::find(axes.begin(), axes.end(), idx) == axes.end()) ^
+            std::find(reduce_axes.begin(), reduce_axes.end(), idx) == reduce_axes.end()) {
+          return false;
+        }
+      }
+      return true;
+    }
+    return false;
+  }
+  return false;
+}
+
 #undef CONDITION_FUNC
 
 }  // namespace pass
