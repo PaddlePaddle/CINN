@@ -1245,6 +1245,7 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
 
       ir_sch.ComputeInline(block);
       nodes_inline.insert(node);
+      VLOG(4) << " CONTINUE " << node->op()->name;
       continue;
     }
     // find master to computeat.
@@ -1262,9 +1263,38 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
         ir_sch.FlattenLoops(loops, false);
       }
     }
+    VLOG(3) << "Loop fusion, ir is: \n" << ir_sch.GetModule().GetExprs().at(0);
+    VLOG(4) << " FUSION " << node->op()->name;
     // do loop fuse.
     LoopComputeAt(ir_sch, node, master ? master : nodes_in_order.front(), group, this->shape_dict_, tensor_map);
+    // do vectorize
+    VLOG(4) << "Op Pattern : " << group->op_pattern_kind;
+    if (group->op_pattern_kind == framework::kElementWise || group->op_pattern_kind == framework::kInjective ||
+        group->op_pattern_kind == framework::kBroadcast) {
+      auto loops = ir_sch.GetLoops(GetNodeData(node)->id());
+      VLOG(4) << "Op Pattern : " << loops.size();
+      if (loops.size() >= 1) {
+        VLOG(4) << "Before vectorize, ir is: \n" << ir_sch.GetModule().GetExprs().at(0);
+        auto loop_inner  = loops.back();
+        int vector_width = 1;
+        auto psize       = ir::GetLoopExtent(loop_inner);
+        if (psize % 4 == 0) {
+          vector_width = 4;
+        } else if (psize % 2 == 0) {
+          vector_width = 2;
+        }
+        if (vector_width > 1) {
+          auto splited = ir_sch.Split(loop_inner, {-1, vector_width});
+          splited[0].As<ir::For>()->set_bind_info(loop_inner.As<ir::For>()->bind_info());
+          splited[1].As<ir::For>()->set_serial();
+          ir_sch.Vectorize(splited[1], vector_width);
+        }
+        VLOG(4) << "After vectorize, ir is: \n" << ir_sch.GetModule().GetExprs().at(0);
+      }
+    }
   }
+
+  VLOG(3) << "Before Sync IRLowerOp schedule, ir is: \n" << ir_sch.GetModule().GetExprs().at(0);
 
   SyncThreadWithShared(ir_sch, nodes_inline, nodes_set, this->shape_dict_, tensor_map);
 }
