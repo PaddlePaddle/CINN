@@ -776,6 +776,20 @@ class NetBuilder {
   Variable Cast(const Variable& x, const std::string& dtype);
 
   /**
+   * @brief This OP takes in the Variable `x` with `x.dtype` and casts it to the output with dtype.
+   * The output data shape will be calculated according to the type of input data and the specified output data type.
+   * Assuming that the input data type is "T" and it's shape is [...], the output data type is specified as "S".
+   * If the "T" is larger than "S", then the shape changes from [...] to [..., sizeof(T)/sizeof(S)].
+   * If "T" is smaller than "S", this operator requires that the rightmost dimension must be equal to
+   * sizeof(S)/sizeof(T) and the shape then goes from [..., sizeof(S)/sizeof(T)] to [...].
+   * It’s meaningless if the output dtype equals the input `dtype`, but it’s fine if you do so.
+   * @param x An input N-D variable.
+   * @param dtype Data type of the output.
+   * @return A variable with the same data buffer as input’s, but shape may different.
+   */
+  Variable BitcastConvert(const Variable& x, const std::string& dtype);
+
+  /**
    *  @brief Returns a one-hot tensor where the locations repsented by indices take value `on_value`,
    *  other locations take value `off_value`.
    *  @param on_value Value to fill at indices. Its shape must be [1].
