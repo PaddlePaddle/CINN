@@ -101,7 +101,7 @@ void process_reduce_max( std::map<std::string, InputNode>* input_map, hlir::fram
     std::string temp_max_name = "tmp_max";
     Var temp_max_var( temp_max_name, type_of<float>() );
     
-    int warp_round = 2;
+    int warp_round = 4;
     int thread_round = 4;
     auto temp_max_out = LocalTemp::Make( temp_max_var, {warp_round});
 
@@ -179,7 +179,7 @@ void process_sub( std::map<std::string, InputNode>* input_map, hlir::framework::
 
     Var loop_var("i");
     Var loop_var_j("j");
-    int warp_round = 2;
+    int warp_round = 4;
     int thread_round = 4;
     Expr inf(-100000.0);
     std::string temp_max_name = "sub_tmp";
@@ -258,7 +258,7 @@ void process_exp( std::map<std::string, InputNode>* input_map, hlir::framework::
     Var loop_var("i");
     Var loop_var_j("j");
     Expr inf(-100000.0);
-    int warp_round = 2;
+    int warp_round = 4;
     int thread_round = 4;
     std::string temp_max_name = "exp";
     Var temp_max_var( temp_max_name, type_of<float>() );
@@ -326,7 +326,7 @@ void process_reduce_sum( std::map<std::string, InputNode>* input_map, hlir::fram
 
     Var loop_var("i");
     Var loop_var_j("j");
-    int warp_round = 2;
+    int warp_round = 4;
     int thread_round = 4;
     Expr zero(0.0);
     std::string temp_max_name = "tmp_sum";
@@ -406,7 +406,7 @@ void process_divide( std::map<std::string, InputNode>* input_map, hlir::framewor
 
     Var loop_var("i");
     Var loop_var_j("j");
-    int warp_round = 2;
+    int warp_round = 4;
     int thread_round = 4;
     Expr inf(-100000.0);
     std::string temp_max_name = "div_tmp";
@@ -483,7 +483,7 @@ TEST(IrManul, basic) {
 
     // add input data
     int reduce_block = 128;
-    int flatten_block = 16;
+    int flatten_block = 32;
     
     std::vector<int> reduce_range;
     std::vector<int> flatten_range;
@@ -548,9 +548,9 @@ TEST(IrManul, basic) {
 
     auto warp_id = threadidx / expr_thread_per_warp;
 
-    auto xid = warp_id * Expr(2) + index_i;
+    auto xid = warp_id * Expr(4) + index_i;
     auto inner_id = threadidx % expr_thread_per_warp;
-    auto inner_index = block_id *Expr(2048) +  xid * Expr(4) * expr_thread_per_warp + inner_id + index_j * expr_thread_per_warp;
+    auto inner_index = block_id *Expr(4096) +  xid * Expr(4) * expr_thread_per_warp + inner_id + index_j * expr_thread_per_warp;
 
     // auto inner_index =   blockIdx.x * 1024 + (threadIdx.x / 32) * 128 + threadIdx.x % 32;
     // auto inner_index = block_id * Expr(1024) +  (threadidx / Expr(32) ) * Expr(128) +  threadidx % Expr(32) + index_j * expr_thread_per_warp;
@@ -741,7 +741,7 @@ __global__ void softmax_test(half  *d_in, half  *d_out ) {
   cudaMalloc((void **)&d_a,N*sizeof(common::float16));
 
   const int num_warps = 8;
-  const int block_num = 128 * 12 * 128 / num_warps / 2;
+  const int block_num = 128 * 12 * 128 / num_warps / 4;
   const int NUM_PER_BLOCK = N / block_num;
   const int NUM_PER_THREAD = NUM_PER_BLOCK/THREAD_PER_BLOCK;
   common::float16 *out=( common::float16 *)malloc(N *sizeof(common::float16));
