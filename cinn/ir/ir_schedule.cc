@@ -1349,6 +1349,13 @@ void ScheduleImpl::ComputeInline(const Expr& schedule_block) {
   CHECK(schedule_block.As<ir::ScheduleBlockRealize>());
   Expr root  = this->GetRootBlock(schedule_block);
   Expr store = CheckComputeInlineValidationAndGetStore(schedule_block, root);
+
+  ComputeInlineChecker checker(store);
+  checker(&root);
+  if (checker.ShouldSkip()) {
+    return;
+  }
+
   ComputeInliner inliner(store.As<ir::Store>()->tensor.as_tensor_ref(), store);
   CHECK(inliner.BodyPatternAllowInline());
   // Create a plan that removes the block to be inlined

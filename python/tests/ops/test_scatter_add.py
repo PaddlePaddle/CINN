@@ -141,5 +141,43 @@ class TestScatterAddCase5(TestScatterAddOp):
         self.axis = 0
 
 
+class TestScatterAddCase6(TestScatterAddOp):
+    def build_cinn_program(self, target):
+        builder = NetBuilder("scatter_add")
+        x = builder.create_input(Float(64), self.inputs["x"].shape, "x")
+        y = builder.create_input(Float(32), self.inputs["y"].shape, "y")
+        x1 = builder.cast(x, dtype="float32")  # newly added
+        index = builder.create_input(
+            Int(32), self.inputs["index"].shape, "index")
+        out = builder.scatter_add(x1, y, index, self.axis)
+
+        prog = builder.build()
+        res = self.get_cinn_output(prog, target, [x, y, index], [
+            self.inputs["x"].astype("float64"), self.inputs["y"],
+            self.inputs["index"]
+        ], [out])
+
+        self.cinn_outputs = [res[0]]
+
+
+class TestScatterAddCase7(TestScatterAddOp):
+    def build_cinn_program(self, target):
+        builder = NetBuilder("scatter_add")
+        x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
+        y = builder.create_input(Float(64), self.inputs["y"].shape, "y")
+        y1 = builder.cast(y, dtype="float32")  # newly added
+        index = builder.create_input(
+            Int(32), self.inputs["index"].shape, "index")
+        out = builder.scatter_add(x, y1, index, self.axis)
+
+        prog = builder.build()
+        res = self.get_cinn_output(prog, target, [x, y, index], [
+            self.inputs["x"], self.inputs["y"].astype("float64"),
+            self.inputs["index"]
+        ], [out])
+
+        self.cinn_outputs = [res[0]]
+
+
 if __name__ == "__main__":
     unittest.main()

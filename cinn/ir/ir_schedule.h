@@ -540,5 +540,27 @@ class LeafBlockRemovalPlan : public ir::IRMutator<> {
   Expr* target_expr_;
 };
 
+class ComputeInlineChecker : public ir::IRMutator<> {
+ public:
+  ComputeInlineChecker(const Expr& store) : store_(store) {}
+
+  void operator()(Expr* expr) { IRMutator::Visit(expr, expr); }
+
+  bool ShouldSkip() { return should_skip; }
+
+ private:
+  void Visit(const ir::Load* expr, Expr* op) {
+    if ((store_.As<ir::Store>()->tensor).as_tensor_ref()->name == expr->tensor.as_tensor_ref()->name) {
+      should_skip = false;
+      return;
+    }
+    IRMutator::Visit(expr, op);
+  }
+
+ private:
+  bool should_skip{true};
+  const Expr& store_;
+};
+
 }  // namespace ir
 }  // namespace cinn
