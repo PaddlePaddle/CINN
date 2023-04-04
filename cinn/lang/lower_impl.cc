@@ -24,6 +24,7 @@
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/tensor.h"
+#include "cinn/optim/remove_nested_block.h"
 #include "cinn/optim/replace_var_with_expr.h"
 #include "cinn/optim/transform_polyfor_to_for.h"
 #include "cinn/poly/stage.h"
@@ -654,21 +655,24 @@ std::vector<ir::LoweredFunc> LowerImpl::operator()() {
       func           = ir::_LoweredFunc_::Make(fn_name_, func_args, func_iterator, temp_buffers);
     }
 
-    // some necessary modification.
-    // ptim::ComputeInlineExpand(&func->body, stages_, &all_tensor_map);
-    // auto res =
-    //    optim::Optimize(func, target_, FLAGS_cinn_runtime_display_debug_info, /* remove_gpu_for_loops = */ false);
-    optim::TransformPolyForToFor(&func->body);
-    func->body = ir::Block::Make({func->body});
+    if (support_ir_schedule_) {
+      optim::TransformPolyForToFor(&func->body);
+      optim::RemoveNestedBlock(&func->body);
+      func->body = ir::Block::Make({func->body});
+      result.push_back(ir::LoweredFunc(func.get()));
+      num_func++;
+    } else {
+      optim::ComputeInlineExpand(&func->body, stages_, &all_tensor_map);
+      auto res =
+          optim::Optimize(func, target_, FLAGS_cinn_runtime_display_debug_info, /* remove_gpu_for_loops = */ false);
 
-    /*
-    if (cuda_axis_info_.size() > num_func && cuda_axis_info_[num_func].valid()) {
-      auto* res_func           = res.as_lowered_func();
-      res_func->cuda_axis_info = cuda_axis_info_[num_func];
+      if (cuda_axis_info_.size() > num_func && cuda_axis_info_[num_func].valid()) {
+        auto* res_func           = res.as_lowered_func();
+        res_func->cuda_axis_info = cuda_axis_info_[num_func];
+      }
+      result.push_back(ir::LoweredFunc(res.get()));
+      num_func++;
     }
-    */
-    result.push_back(ir::LoweredFunc(func.get()));
-    num_func++;
   }
   return result;
 }
