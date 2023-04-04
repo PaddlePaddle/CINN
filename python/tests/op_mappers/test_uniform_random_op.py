@@ -28,7 +28,7 @@ class TestUniformRandomOp(OpMapperTest):
         self.max = 1.0
         self.seed = 10
         self.dtype = "float32"
-        self.diag_num = 2
+        self.diag_num = 0
         self.diag_step = 1
         self.diag_val = 1.0
 
@@ -69,6 +69,9 @@ class TestUniformRandomCase1(TestUniformRandomOp):
         self.max = 5.5
         self.seed = 10
         self.dtype = "float32"
+        self.diag_num = 3
+        self.diag_step = 3
+        self.diag_val = 1.0
 
 
 class TestUniformRandomCase2(TestUniformRandomOp):
@@ -79,6 +82,9 @@ class TestUniformRandomCase2(TestUniformRandomOp):
         self.max = 10.0
         self.seed = 10
         self.dtype = "float64"
+        self.diag_num = 24
+        self.diag_step = 0
+        self.diag_val = 1.0
 
 
 if __name__ == "__main__":
