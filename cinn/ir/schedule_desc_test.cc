@@ -578,10 +578,10 @@ TEST_F(TestScheduleDesc, StepKind_ComputeInline) {
 TEST_F(TestScheduleDesc, StepKind_ReverseComputeInline) {
   lowered_funcs         = LowerCompute({32, 32, 32}, target, true, "elementwise-add_const");
   ir::IRSchedule ir_sch = MakeIRSchedule(lowered_funcs);
-  auto block_b          = ir_sch.GetBlock("B");
-  trace.Append(ScheduleDesc::Step("GetBlock", {}, {{"block_name", std::string("B")}}, {block_b}));
-  ir_sch.ReverseComputeInline(block_b);
-  trace.Append(ScheduleDesc::Step("ReverseComputeInline", {{"schedule_block", std::vector<Expr>({block_b})}}, {}, {}));
+  auto block_c          = ir_sch.GetBlock("C");
+  trace.Append(ScheduleDesc::Step("GetBlock", {}, {{"block_name", std::string("C")}}, {block_c}));
+  ir_sch.ReverseComputeInline(block_c);
+  trace.Append(ScheduleDesc::Step("ReverseComputeInline", {{"schedule_block", std::vector<Expr>({block_c})}}, {}, {}));
   CheckReplayResult(ir_sch, trace);
   CheckReplayResult(ir_sch, ir_sch.GetTraceDesc());
 }
