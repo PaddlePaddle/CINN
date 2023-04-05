@@ -1,4 +1,4 @@
-// Copyright (c) 2022 CINN Authors. All Rights Reserved.
+// Copyright (c) 2023 CINN Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,8 +37,6 @@
 #include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
 
-DECLARE_bool(cinn_ir_schedule);
-
 namespace cinn {
 namespace hlir {
 namespace op {
@@ -65,11 +63,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForBitcastConvert(const framework
     CINNValuePack pack_args = args[0];
     CHECK_GE(pack_args.size(), 1U) << "1 input tensor for " << op_name << " compute";
     std::string tensor_name = UniqName(op_name + "_Out");
-    if (FLAGS_cinn_ir_schedule) {
-      CHECK_EQ(pack_args.size(), 2U);
-      tensor_name = pack_args[1].operator std::string();
-    }
-    Expr A_expr = pack_args[0];
+    Expr A_expr             = pack_args[0];
     CHECK(A_expr.as_tensor());
     ir::Tensor A = A_expr.as_tensor_ref();
     auto out     = BitcastConvert(A, out_type[0], tensor_name);
