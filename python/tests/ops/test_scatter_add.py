@@ -179,5 +179,15 @@ class TestScatterAddCase7(TestScatterAddOp):
         self.cinn_outputs = [res[0]]
 
 
+class TestScatterAddCase8(TestScatterAddCase7):
+    def init_case(self):
+        self.axis = 0
+        self.inputs = {
+            "x": np.random.random([10, 5]).astype("float32"),
+            "y": np.random.random([10, 5]).astype("float32"),
+            "index": np.array([0, 5, 0, 9, 0, 1, 2, 3, 4, 5]).astype("int32")
+        }
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -542,14 +542,13 @@ class LeafBlockRemovalPlan : public ir::IRMutator<> {
 
 class ComputeInlineChecker : public ir::IRMutator<> {
  public:
-  ComputeInlineChecker(const Expr& store) : store_(store) {}
+  ComputeInlineChecker(const IRSchedule& schedule, const Expr& block) : ir_schedule_(schedule), block_(block) {}
 
-  void operator()(Expr* expr) { IRMutator::Visit(expr, expr); }
-
-  bool ShouldSkip() { return should_skip; }
+  bool Check();
 
  private:
   void Visit(const ir::Load* expr, Expr* op) {
+    // Check there is Load Expr corresponds to Store Expr
     if ((store_.As<ir::Store>()->tensor).as_tensor_ref()->name == expr->tensor.as_tensor_ref()->name) {
       should_skip = false;
       return;
@@ -559,7 +558,9 @@ class ComputeInlineChecker : public ir::IRMutator<> {
 
  private:
   bool should_skip{true};
-  const Expr& store_;
+  const IRSchedule& ir_schedule_;
+  const Expr& block_;
+  Expr store_;
 };
 
 }  // namespace ir

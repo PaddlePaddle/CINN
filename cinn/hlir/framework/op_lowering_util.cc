@@ -1283,7 +1283,8 @@ void SyncThreadWithShared(ir::IRSchedule& ir_sch,
                           const std::unordered_set<Node*>& nodes_inline,
                           const std::unordered_set<Node*>& nodes_set,
                           const absl::flat_hash_map<std::string, shape_t>& shape_dict,
-                          const std::unordered_map<std::string, ir::Tensor>& tensor_map) {
+                          const std::unordered_map<std::string, ir::Tensor>& tensor_map,
+                          bool may_fuse_loop) {
   auto exprs_inorder    = ir_sch.GetAllBlocks();
   auto node_data_set    = GetNodeDataSet(nodes_set);
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
@@ -1331,11 +1332,13 @@ void SyncThreadWithShared(ir::IRSchedule& ir_sch,
       master_shape = shape_dict.at(master->inlinks_in_order()[0]->source()->id());
     }
 
-    auto node_size   = std::accumulate(node_shape.begin(), node_shape.end(), 1, std::multiplies<int>());
-    auto master_size = std::accumulate(master_shape.begin(), master_shape.end(), 1, std::multiplies<int>());
+    if (may_fuse_loop) {
+      auto node_size   = std::accumulate(node_shape.begin(), node_shape.end(), 1, std::multiplies<int>());
+      auto master_size = std::accumulate(master_shape.begin(), master_shape.end(), 1, std::multiplies<int>());
 
-    if (node_size == master_size) {
-      continue;
+      if (node_size == master_size) {
+        continue;
+      }
     }
 
     {
