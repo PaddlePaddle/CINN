@@ -86,8 +86,7 @@ void SyncThreadWithShared(ir::IRSchedule& ir_sch,
                           const std::unordered_set<Node*>& nodes_inline,
                           const std::unordered_set<Node*>& nodes_set,
                           const absl::flat_hash_map<std::string, shape_t>& shape_dict,
-                          const std::unordered_map<std::string, ir::Tensor>& tensor_map,
-                          bool may_fuse_loop = true);
+                          const std::unordered_map<std::string, ir::Tensor>& tensor_map);
 
 }  // namespace framework
 }  // namespace hlir

@@ -542,25 +542,28 @@ class LeafBlockRemovalPlan : public ir::IRMutator<> {
 
 class ComputeInlineChecker : public ir::IRMutator<> {
  public:
-  ComputeInlineChecker(const IRSchedule& schedule, const Expr& block) : ir_schedule_(schedule), block_(block) {}
+  ComputeInlineChecker(IRSchedule& schedule, Expr& block) : ir_schedule_(schedule), block_(block) {}
 
   bool Check();
+
+  void BuildDataDependency();
 
  private:
   void Visit(const ir::Load* expr, Expr* op) {
     // Check there is Load Expr corresponds to Store Expr
     if ((store_.As<ir::Store>()->tensor).as_tensor_ref()->name == expr->tensor.as_tensor_ref()->name) {
-      should_skip = false;
+      should_skip_ = false;
       return;
     }
     IRMutator::Visit(expr, op);
   }
 
  private:
-  bool should_skip{true};
-  const IRSchedule& ir_schedule_;
-  const Expr& block_;
+  IRSchedule& ir_schedule_;
+  Expr& block_;
+
   Expr store_;
+  bool should_skip_{true};
 };
 
 }  // namespace ir
