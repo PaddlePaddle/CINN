@@ -114,6 +114,7 @@ class ScheduleBlockRealize;
   macro__(ReduceMax)                        \
   macro__(BlockLoad)                        \
   macro__(BlockStore)                       \
+  macro__(Sqrt)                             \
 
 
 #define NODETY_FORALL(__m)              \

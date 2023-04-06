@@ -340,6 +340,27 @@ struct LocalTemp : public ExprNode<LocalTemp>{
 
 };
 
+
+
+struct Sqrt : public ExprNode<Sqrt>{
+  Expr symbol;  
+ 
+  static Expr Make(Expr v) {
+    auto *n = make_shared<Sqrt>();    
+    n->symbol = v;    
+    n->set_type(n->symbol->type());
+    return Expr(n);
+  }
+
+  Type type() const override {
+    return symbol.type();
+  }
+  void Verify() const override {}
+
+  static const IrNodeTy _node_type_ = IrNodeTy::Sqrt;
+};
+
+
 struct ReduceMax : public ExprNode<ReduceMax>{
   Expr input;
   int axis;

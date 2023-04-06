@@ -159,6 +159,7 @@ VisitCountMemberPattern(Free, mem_free);
 VisitCountMemberPattern(Load, mem_read);
 VisitCountMemberPattern(Store, mem_write);
 VisitCountMemberPattern(LocalTemp, bool_op);
+VisitCountMemberPattern(Sqrt, bool_op);
 VisitCountMemberPattern(LoadIndex, bool_op);
 VisitCountMemberPattern(ReduceMax, bool_op);
 VisitCountMemberPattern(BlockLoad, bool_op);

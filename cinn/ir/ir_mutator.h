@@ -73,6 +73,8 @@ void IRMutator<T>::Visit(const StringImm *expr, T op) {}
 template <typename T>
 void IRMutator<T>::Visit(const LocalTemp *expr, T op) {}
 
+template <typename T>
+void IRMutator<T>::Visit(const Sqrt *expr, T op) {}
 
 template <typename T>
 void IRMutator<T>::Visit(const LoadIndex *expr, T op) {}

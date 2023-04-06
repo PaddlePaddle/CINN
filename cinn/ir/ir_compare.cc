@@ -191,6 +191,13 @@ bool IrEqualVisitor::Visit(const LocalTemp* lhs, const Expr* other)
   return false;
 }
 
+bool IrEqualVisitor::Visit(const Sqrt* lhs, const Expr* other)
+{
+  std::cerr << "not impl ir equal visit";
+  return false;
+}
+
+
 bool IrEqualVisitor::Visit(const LoadIndex* lhs, const Expr* other)
 {
   std::cerr << "not impl ir equal visit";

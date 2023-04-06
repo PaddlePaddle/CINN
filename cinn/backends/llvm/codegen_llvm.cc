@@ -230,6 +230,12 @@ llvm::Value *CodeGenLLVM::Visit(const ir::LocalTemp *op) {
   return llvm::ConstantInt::get(type, 1, true);
 }
 
+llvm::Value *CodeGenLLVM::Visit(const ir::Sqrt *op) {
+  std::cerr << "not impl in llvm gen";
+  auto *type = b_->getIntNTy(op->type().bits());
+  return llvm::ConstantInt::get(type, 1, true);
+}
+
 llvm::Value *CodeGenLLVM::Visit(const ir::LoadIndex *op) {
   std::cerr << "not impl in llvm gen";
   auto *type = b_->getIntNTy(op->type().bits());

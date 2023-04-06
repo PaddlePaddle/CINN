@@ -432,6 +432,12 @@ void IrPrinter::Visit(const LocalTemp *x) {
   os() << ";\n";
 }
 
+void IrPrinter::Visit(const Sqrt *x) {
+  os() << "sqrtf(";
+  Print(x->symbol);  
+  os() << ");\n";
+}
+
 void IrPrinter::Visit(const LoadIndex *x) { 
   os() << "reduce reange " << x->reduce_range.front() << "\t" << x->reduce_range.back() << "\n";
   os() << "flatten range " << x->flatten_range.front() << "\t" << x->flatten_range.back() << "\n";

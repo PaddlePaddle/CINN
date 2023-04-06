@@ -63,6 +63,12 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     return LocalTemp::Make( sym, op->local_size);
   }
 
+  Expr Visit( const Sqrt* op) override {
+    auto sym = Visit( &op->symbol);
+
+    return Sqrt::Make( sym );
+  }
+
   Expr Visit( const BlockLoad* op) override {
     auto sym = Visit( &op->input);
 

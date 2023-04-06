@@ -188,6 +188,9 @@ void CodeGenC::Visit(const ir::Not *op) {
 void CodeGenC::Visit(const ir::LocalTemp* op) 
 { IrPrinter::Visit( op ); }
 
+void CodeGenC::Visit(const ir::Sqrt* op) 
+{ IrPrinter::Visit( op ); }
+
 void CodeGenC::Visit(const ir::LoadIndex* op) 
 { IrPrinter::Visit( op ); }
 
