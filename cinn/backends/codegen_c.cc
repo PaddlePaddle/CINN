@@ -205,7 +205,18 @@ void CodeGenC::Visit(const ir::BlockStore* op)
 
 
 
-void CodeGenC::Visit(const ir::Cast *op) { PrintCastExpr(op->type(), op->v()); }
+void CodeGenC::Visit(const ir::Cast *op) { 
+  // PrintCastExpr(op->type(), op->v()); 
+  //IrPrinter::Visit( op );
+  os() << "static_cast<half>(";
+  Print( op->v() ) ;
+  
+  // auto v = op->v().As<ir::Load>();
+
+  // Visit(v);
+
+  os() << ")";
+  }
 void CodeGenC::Visit(const ir::For *op) {
   // std::cerr << "visit loop" << std::endl;
   Expr extent  = op->extent;
@@ -464,27 +475,7 @@ void CodeGenC::Visit(const ir::_Module_ *op) { CINN_NOT_IMPLEMENTED }
 void CodeGenC::Visit(const ir::_Var_ *op) { os() << op->name; }
 
 void CodeGenC::Visit(const ir::Load *op) {
-  Expr dense_strided_ramp = detail::StridedRampBase(op->index(), 1);
-  if (dense_strided_ramp.defined()) {  // Loading a continuous Ramp address.
-    CHECK(op->type().is_vector());
-    PrintStackVecType(op->type().ElementOf(), op->index().type().lanes());
-    os() << "::"
-         << "Load(";
-    os() << op->tensor.As<ir::_Tensor_>()->name;
-    os() << ",";
-    Print(dense_strided_ramp);
-    os() << ")";
-  } else if (op->index().type().is_vector()) {
-    // gather
-    CHECK(op->type().is_vector());
-    PrintStackVecType(op->type().ElementOf(), op->index().type().lanes());
-    os() << "::Load(";
-    os() << op->tensor.As<ir::_Tensor_>()->name;
-    os() << ",";
-    Print(op->index());
-    os() << ")";
-  } else if (op->is_addr_tensor()) {
-    auto *tensor = op->tensor.As<ir::_Tensor_>();
+  auto *tensor = op->tensor.As<ir::_Tensor_>();
     os() << tensor->name << "[";
     // Print(op->index());
     os() << op->indices.front();
@@ -493,9 +484,38 @@ void CodeGenC::Visit(const ir::Load *op) {
        os() << "][" << op->indices[i];
     }
     os() << "]";
-  } else {
-    IrPrinter::Visit(op);
-  }
+  // Expr dense_strided_ramp = detail::StridedRampBase(op->index(), 1);
+  // if (dense_strided_ramp.defined()) {  // Loading a continuous Ramp address.
+  //   CHECK(op->type().is_vector());
+  //   PrintStackVecType(op->type().ElementOf(), op->index().type().lanes());
+  //   os() << "::"
+  //        << "Load(";
+  //   os() << op->tensor.As<ir::_Tensor_>()->name;
+  //   os() << ",";
+  //   Print(dense_strided_ramp);
+  //   os() << ")";
+  // } else if (op->index().type().is_vector()) {
+  //   // gather
+  //   CHECK(op->type().is_vector());
+  //   PrintStackVecType(op->type().ElementOf(), op->index().type().lanes());
+  //   os() << "::Load(";
+  //   os() << op->tensor.As<ir::_Tensor_>()->name;
+  //   os() << ",";
+  //   Print(op->index());
+  //   os() << ")";
+  // } else if (op->is_addr_tensor()) {
+  //   auto *tensor = op->tensor.As<ir::_Tensor_>();
+  //   os() << tensor->name << "[";
+  //   // Print(op->index());
+  //   os() << op->indices.front();
+  //   for( int i = 1; i < op->indices.size(); ++i )
+  //   { 
+  //      os() << "][" << op->indices[i];
+  //   }
+  //   os() << "]";
+  // } else {
+  //   IrPrinter::Visit(op);
+  // }
 }
 
 void CodeGenC::Visit(const ir::Store *op) {

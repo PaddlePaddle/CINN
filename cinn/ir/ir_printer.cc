@@ -252,8 +252,13 @@ void IrPrinter::Visit(const Call *x) {
   os_ << ")";
 }
 void IrPrinter::Visit(const Cast *x) {
-  os() << x->type();
-  os() << "(";
+  // os() << x->type();
+  // os() << "(";
+  // os() << x->v();
+  // os() << ")";
+
+  os() << "reinterpret_cast<half>(";
+  
   os() << x->v();
   os() << ")";
 }

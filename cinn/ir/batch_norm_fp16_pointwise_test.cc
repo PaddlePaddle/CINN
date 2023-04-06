@@ -45,7 +45,7 @@ namespace ir {
 
 bool check( common::float16 *out, common::float16 *res,int n){
     for(int i=0;i<n;i++){
-        if( abs( static_cast<float>(out[i]) -  static_cast<float>(res[i]) ) > 1e-5 )
+        if( abs( static_cast<float>(out[i]) -  static_cast<float>(res[i]) ) > 1e-5)
             return false;
     }
     return true;
@@ -57,7 +57,7 @@ int reduce_axis( const std::vector<int>& first, const std::vector<int>& second)
     if( first[0] == 1 && second[0] != 1)
     {
         return 0;
-    }
+    }    
     if( first[1] != 1 && second[1] == 1)
     {
         return 1;
@@ -65,6 +65,23 @@ int reduce_axis( const std::vector<int>& first, const std::vector<int>& second)
     throw std::runtime_error("reduce_axis: error");
 } 
 
+int is_same( const std::vector<int>& first, const std::vector<int>& second )
+{   
+    if( first.size() == second.size() )
+    {
+        for( size_t i = 0; i < first.size(); ++i )
+        {
+            if( first[i] != second[i] )
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+    
+    return false;
+}
 
 struct InputNode
 {
@@ -198,7 +215,7 @@ void process_sub( std::map<std::string, InputNode>* input_map, hlir::framework::
     int thread_round = 8;
     Expr inf(-100000.0);
     
-    std::string temp_max_name = vec_in_names[0] + "_" + vec_in_names[1] +  "_mul_tmp";
+    std::string temp_max_name = vec_in_names[0] + "_" + vec_in_names[1] +  "_sub_tmp";
     Var temp_max_var( temp_max_name, type_of<float>() );
     auto temp_max_out = LocalTemp::Make( temp_max_var, {warp_round, thread_round});
 
@@ -246,7 +263,7 @@ void process_sub( std::map<std::string, InputNode>* input_map, hlir::framework::
     code_dev->ss_ << std::endl;
 
 
-    (*input_map)[out_name] = InputNode( temp_max_name, sub, {1, 4});
+    (*input_map)[out_name] = InputNode( temp_max_name, sub, {1, 8});
 
 }
 
@@ -314,7 +331,7 @@ void process_exp( std::map<std::string, InputNode>* input_map, hlir::framework::
     code_dev->Print( max_outer_for);
     code_dev->ss_ << std::endl;
 
-    (*input_map)[out_name] = InputNode( "exp", exp, {1, 4});
+    (*input_map)[out_name] = InputNode( "exp", exp, {1, 8});
 
 }
 
@@ -383,7 +400,7 @@ void process_sqrt( std::map<std::string, InputNode>* input_map, hlir::framework:
     code_dev->Print( max_outer_for);
     code_dev->ss_ << std::endl;
 
-    (*input_map)[out_name] = InputNode( "sqrt", exp, {1, 4});
+    (*input_map)[out_name] = InputNode( "sqrt", exp, {1, 8});
 
 }
 
@@ -495,12 +512,18 @@ void process_divide( std::map<std::string, InputNode>* input_map, hlir::framewor
     InputNode& second_input = input_map->at( vec_in_names[1]);
 
     bool is_scalar = false;
+    int broadcast_axis = -1;
     if( second_input.in_dim.size() == 0)
     {
         is_scalar = true;
+    }    
+    
+    if( first_input.in_dim.size() ==1 )
+    {
+        broadcast_axis = 1;
     }
-    //int broadcast_axis = reduce_axis( first_input.in_dim, second_input.in_dim);
-
+    //int 
+    std::cerr << "broadcast " << broadcast_axis << std::endl;
     
     Var loop_var("i");
     Var loop_var_j("j");
@@ -511,7 +534,16 @@ void process_divide( std::map<std::string, InputNode>* input_map, hlir::framewor
     Var temp_max_var( temp_max_name, type_of<float>() );
     auto temp_max_out = LocalTemp::Make( temp_max_var, {warp_round, thread_round});
 
-    auto t_load = ir::Load::Make( ir::Tensor( *(first_input.in_ptr) ), { Expr(loop_var), Expr(loop_var_j) });
+    Expr  t_load; 
+
+    if( broadcast_axis != -1 )
+    {
+        t_load = ir::Load::Make( ir::Tensor( *(first_input.in_ptr) ), { Expr(loop_var) });
+    }
+    else
+    {
+        t_load = ir::Load::Make( ir::Tensor( *(first_input.in_ptr) ), { Expr(loop_var), Expr(loop_var_j) });
+    }
 
     
     Expr t2_load;
@@ -519,7 +551,8 @@ void process_divide( std::map<std::string, InputNode>* input_map, hlir::framewor
     if( is_scalar )
     {
         t2_load = Var( second_input.name, type_of<float>());
-    }  else
+    } 
+     else
     {
         t2_load = ir::Load::Make( ir::Tensor( *(second_input.in_ptr) ), { Expr(loop_var), Expr(loop_var_j) });
     }  
@@ -596,7 +629,19 @@ void process_add( std::map<std::string, InputNode>* input_map, hlir::framework::
     }
     //int broadcast_axis = reduce_axis( first_input.in_dim, second_input.in_dim);
 
-    
+    int broadcast_first = -1;
+    int broadcast_second = -1;
+    if( first_input.in_dim.size() == 1)
+    {
+        broadcast_first = 1;
+    }
+
+    if( second_input.in_dim.size() == 1 )
+    {
+        broadcast_second = 1;
+    }
+
+    std::cerr << broadcast_first << "\t" << broadcast_second << std::endl;
     Var loop_var("i");
     Var loop_var_j("j");
     int warp_round = 1;
@@ -606,7 +651,15 @@ void process_add( std::map<std::string, InputNode>* input_map, hlir::framework::
     Var temp_max_var( temp_max_name, type_of<float>() );
     auto temp_max_out = LocalTemp::Make( temp_max_var, {warp_round, thread_round});
 
-    auto t_load = ir::Load::Make( ir::Tensor( *(first_input.in_ptr) ), { Expr(loop_var), Expr(loop_var_j) });
+    Expr t_load; 
+    
+    if( broadcast_first == -1){
+        t_load = ir::Load::Make( ir::Tensor( *(first_input.in_ptr) ), { Expr(loop_var), Expr(loop_var_j) });
+    }
+    else{
+        t_load = ir::Load::Make( ir::Tensor( *(first_input.in_ptr) ), { Expr(loop_var) });
+    }
+
 
     
     Expr t2_load;
@@ -614,15 +667,16 @@ void process_add( std::map<std::string, InputNode>* input_map, hlir::framework::
     if( is_scalar )
     {
         t2_load = Var( second_input.name, type_of<float>());
-    }  else
-    {
-        t2_load = ir::Load::Make( ir::Tensor( *(second_input.in_ptr) ), { Expr(loop_var), Expr(loop_var) });
+    }  else if( broadcast_second != -1)    {
+        t2_load = ir::Load::Make( ir::Tensor( *(second_input.in_ptr) ), { Expr(loop_var)});
+    } else    {
+        t2_load = ir::Load::Make( ir::Tensor( *(second_input.in_ptr) ), { Expr(loop_var), Expr(loop_var_j) });
     }  
     std::cerr << "t2 load " << t2_load << std::endl;
 
     auto out = ir::Add::Make( t_load, t2_load);
 
-    cinn::lang::Placeholder<float>* div = new cinn::lang::Placeholder<float>(temp_max_name, std::vector<int>{{1, 4}});
+    cinn::lang::Placeholder<float>* div = new cinn::lang::Placeholder<float>(temp_max_name, std::vector<int>{{1, 8}});
     auto sub_store = Store::Make( ir::Tensor(*div), out, {Expr(loop_var), Expr(loop_var_j)}); 
 
 
@@ -657,7 +711,7 @@ void process_add( std::map<std::string, InputNode>* input_map, hlir::framework::
     // printer.Print( temp_max_out );
     // printer.Print( max_outer_for );
     // std::cout << std::endl;
-
+    std::cerr << "add fin" << std::endl;
     (*input_map)[out_name] = InputNode( "add", div, {1, 8});
 
 }
@@ -689,7 +743,18 @@ void process_mul( std::map<std::string, InputNode>* input_map, hlir::framework::
     {
         is_scalar = true;
     }
-    //int broadcast_axis = reduce_axis( first_input.in_dim, second_input.in_dim);
+    
+    int broadcast_first = -1;
+    int broadcast_second = -1;
+    if( first_input.in_dim.size() == 1)
+    {
+        broadcast_first = 1;
+    }
+
+    if( second_input.in_dim.size() == 1 )
+    {
+        broadcast_second = 1;
+    }
 
     
     Var loop_var("i");
@@ -702,7 +767,14 @@ void process_mul( std::map<std::string, InputNode>* input_map, hlir::framework::
     Var temp_max_var( temp_max_name, type_of<float>() );
     auto temp_max_out = LocalTemp::Make( temp_max_var, {warp_round, thread_round});
 
-    auto t_load = ir::Load::Make( ir::Tensor( *(first_input.in_ptr) ), { Expr(loop_var), Expr(loop_var_j) });
+    Expr t_load; 
+    
+    if( broadcast_first == -1){
+        t_load = ir::Load::Make( ir::Tensor( *(first_input.in_ptr) ), { Expr(loop_var), Expr(loop_var_j) });
+    }
+    else{
+        t_load = ir::Load::Make( ir::Tensor( *(first_input.in_ptr) ), { Expr(loop_var) });
+    }
 
     
     Expr t2_load;
@@ -710,7 +782,10 @@ void process_mul( std::map<std::string, InputNode>* input_map, hlir::framework::
     if( is_scalar )
     {
         t2_load = Var( second_input.name, type_of<float>());
-    }  else
+    }  else if( broadcast_second != -1)
+    {
+        t2_load = ir::Load::Make( ir::Tensor( *(second_input.in_ptr) ), { Expr(loop_var)});
+    }    else
     {
         t2_load = ir::Load::Make( ir::Tensor( *(second_input.in_ptr) ), { Expr(loop_var), Expr(loop_var_j) });
     }  
@@ -830,7 +905,7 @@ TEST(IrManul, basic) {
     auto var = net_builder.Subtract( var_mean, pow1 );
     auto t1 = net_builder.Add( var, eps);
     auto t2 = net_builder.Sqrt( t1 );
-    auto x_hat = net_builder.Multiply( sub1, t2 );
+    auto x_hat = net_builder.Divide( sub1, t2 );
     auto t3 = net_builder.Multiply( x_hat, scale);
     auto out = net_builder.Add( t3, bias);
 
@@ -886,9 +961,9 @@ TEST(IrManul, basic) {
 
     auto xid = warp_id * Expr(1);
     auto inner_id = threadidx % expr_thread_per_warp;
-    auto inner_index = block_id *Expr(1024) +  xid * Expr(8) * expr_thread_per_warp + inner_id + index_j * expr_thread_per_warp;
+    auto inner_index = block_id *Expr(1024) +  threadidx + index_j * Expr(128);
     
-    auto inner_index2  = inner_index % Expr(64);
+    auto inner_index2  = threadidx % Expr(64);
 
     // block reduce
     auto warp_round = 1;
@@ -903,13 +978,13 @@ TEST(IrManul, basic) {
     cinn::lang::Placeholder<float> C("d_in", std::vector<int>{{10, 10}});
     cinn::lang::Placeholder<float> T("tmp", std::vector<int>{{1,4}});
     cinn::lang::Placeholder<float> mean_sum("sum_mean", std::vector<int>{{10}});
-    cinn::lang::Placeholder<float> mean_sum_tmp("sum_mean_tmp", std::vector<int>{{1,4}});
-    cinn::lang::Placeholder<float> power_sum("sum_var", std::vector<int>{{10, 10}});
-    cinn::lang::Placeholder<float> power_sum_tmp("sum_var_tmp", std::vector<int>{{1,4}});
-    cinn::lang::Placeholder<float> scale("scale", std::vector<int>{{10, 10}});
-    cinn::lang::Placeholder<float> scale_tmp("scale_tmp", std::vector<int>{{1,4}});
-    cinn::lang::Placeholder<float> bias("bias", std::vector<int>{{10, 10}});
-    cinn::lang::Placeholder<float> bias_tmp("bias_tmp", std::vector<int>{{1,4}});
+    cinn::lang::Placeholder<float> mean_sum_tmp("sum_mean_tmp", std::vector<int>{{4}});
+    cinn::lang::Placeholder<float> power_sum("sum_var", std::vector<int>{{10}});
+    cinn::lang::Placeholder<float> power_sum_tmp("sum_var_tmp", std::vector<int>{{4}});
+    cinn::lang::Placeholder<float> scale("scale", std::vector<int>{{10}});
+    cinn::lang::Placeholder<float> scale_tmp("scale_tmp", std::vector<int>{{4}});
+    cinn::lang::Placeholder<float> bias("bias", std::vector<int>{{10}});
+    cinn::lang::Placeholder<float> bias_tmp("bias_tmp", std::vector<int>{{4}});
     //Placeholder<float> A("A", std::vector<int>{{10}});
     //Var input( "input", type_of<float>( ));
     Var loop_var_j("j");
@@ -931,7 +1006,7 @@ TEST(IrManul, basic) {
 
 extern "C" {
 
-__global__ void bn_test(half  *d_in, half* sum_mean, half* sum_var, half* scale, half* bias, half  *d_out ) {
+__global__ void bn_test(half  *d_in, float* sum_mean, float* sum_var, float* scale, float* bias, half  *d_out ) {
 )ROC";
 
     cu_dev.ss_ << head << std::endl;
@@ -958,16 +1033,17 @@ __global__ void bn_test(half  *d_in, half* sum_mean, half* sum_var, half* scale,
 
     temp_name = "sum_mean_tmp";
     Var sum_mean_temp_var( temp_name, type_of<float>() );
-    temp_out = LocalTemp::Make( sum_mean_temp_var, {warp_round, thread_round});
+    temp_out = LocalTemp::Make( sum_mean_temp_var, {warp_round});
+    
     t_load = ir::Load::Make( ir::Tensor(mean_sum), { inner_index2 });
     
-    body = Store::Make( ir::Tensor(mean_sum_tmp ), t_load, {Expr(0), Expr(loop_var_j)}); 
+    body = Store::Make( ir::Tensor(mean_sum_tmp ), t_load, {Expr(0)}); 
                    
     body      = ir::Block::Make({body});
     
     load_inner_for = ir::For::Make(loop_var_j,
                                common::make_const(0),
-                               common::make_const(thread_round),
+                               common::make_const(1),
                                ir::ForType::Unrolled,
                                ir::DeviceAPI::CUDA,
                                body);
@@ -980,13 +1056,15 @@ __global__ void bn_test(half  *d_in, half* sum_mean, half* sum_var, half* scale,
 
     t_load = ir::Load::Make( ir::Tensor(power_sum), { inner_index2 });
     
-    body = Store::Make( ir::Tensor(power_sum_tmp ), t_load, {Expr(0), Expr(loop_var_j)}); 
+
+
+    body = Store::Make( ir::Tensor(power_sum_tmp ), t_load, {Expr(0)}); 
                    
     body      = ir::Block::Make({body});
     
     load_inner_for = ir::For::Make(loop_var_j,
                                common::make_const(0),
-                               common::make_const(thread_round),
+                               common::make_const(1),
                                ir::ForType::Unrolled,
                                ir::DeviceAPI::CUDA,
                                body);
@@ -995,20 +1073,20 @@ __global__ void bn_test(half  *d_in, half* sum_mean, half* sum_var, half* scale,
     //printer.Print( load_inner_for );
     temp_name = "sum_var_tmp";
     Var sum_var_temp_var( temp_name, type_of<float>() );
-    temp_out = LocalTemp::Make( sum_var_temp_var, {warp_round, thread_round});
+    temp_out = LocalTemp::Make( sum_var_temp_var, {warp_round});
     cu_dev.Print( temp_out );
     cu_dev.Print( load_inner_for );
     cu_dev.ss_ << std::endl;
 
     t_load = ir::Load::Make( ir::Tensor(scale), { inner_index2 });
     
-    body = Store::Make( ir::Tensor(scale_tmp ), t_load, {Expr(0), Expr(loop_var_j)}); 
+    body = Store::Make( ir::Tensor(scale_tmp ), t_load, {Expr(0)}); 
                    
     body      = ir::Block::Make({body});
     
     load_inner_for = ir::For::Make(loop_var_j,
                                common::make_const(0),
-                               common::make_const(thread_round),
+                               common::make_const(1),
                                ir::ForType::Unrolled,
                                ir::DeviceAPI::CUDA,
                                body);
@@ -1017,20 +1095,20 @@ __global__ void bn_test(half  *d_in, half* sum_mean, half* sum_var, half* scale,
     //printer.Print( load_inner_for );
     temp_name = "scale_tmp";
     Var scale_temp_var( temp_name, type_of<float>() );
-    temp_out = LocalTemp::Make( scale_temp_var, {warp_round, thread_round});
+    temp_out = LocalTemp::Make( scale_temp_var, {warp_round});
     cu_dev.Print( temp_out );
     cu_dev.Print( load_inner_for );
     cu_dev.ss_ << std::endl;
 
     t_load = ir::Load::Make( ir::Tensor(bias), { inner_index2 });
     
-    body = Store::Make( ir::Tensor(bias_tmp ), t_load, {Expr(0), Expr(loop_var_j)}); 
+    body = Store::Make( ir::Tensor(bias_tmp ), t_load, {Expr(0)}); 
                    
     body      = ir::Block::Make({body});
     
     load_inner_for = ir::For::Make(loop_var_j,
                                common::make_const(0),
-                               common::make_const(thread_round),
+                               common::make_const(1),
                                ir::ForType::Unrolled,
                                ir::DeviceAPI::CUDA,
                                body);
@@ -1039,7 +1117,7 @@ __global__ void bn_test(half  *d_in, half* sum_mean, half* sum_var, half* scale,
     //printer.Print( load_inner_for );
     temp_name = "bias_tmp";
     Var bias_temp_var( temp_name, type_of<float>() );
-    temp_out = LocalTemp::Make( bias_temp_var, {warp_round, thread_round});
+    temp_out = LocalTemp::Make( bias_temp_var, {warp_round});
     cu_dev.Print( temp_out );
     cu_dev.Print( load_inner_for );
     cu_dev.ss_ << std::endl;
@@ -1055,10 +1133,10 @@ __global__ void bn_test(half  *d_in, half* sum_mean, half* sum_var, half* scale,
     //std::cerr << cu_dev.ss_.str() << std::endl;
     //std::cerr << "=======" << std::endl;
     map_input["A"] = InputNode( "A", &T, {1, 8});
-    map_input["sum_mean"] = InputNode( "sum_mean", &mean_sum_tmp, {1, 8});
-    map_input["sum_var"] = InputNode( "sum_var", &power_sum_tmp, {1, 8});
-    map_input["scale"] = InputNode("scale", &scale_tmp, {1, 8});
-    map_input["bias"] = InputNode("bias", &bias_tmp, {1, 8});
+    map_input["sum_mean"] = InputNode( "sum_mean", &mean_sum_tmp, {1});
+    map_input["sum_var"] = InputNode( "sum_var", &power_sum_tmp, {1});
+    map_input["scale"] = InputNode("scale", &scale_tmp, {1});
+    map_input["bias"] = InputNode("bias", &bias_tmp, {1});
 
     for (auto* n : nodes) {
         
@@ -1118,6 +1196,9 @@ __global__ void bn_test(half  *d_in, half* sum_mean, half* sum_var, half* scale,
     // Expr block_step( 1024);
     // Expr parallel_size(4);
     // auto index_var2 = block_x_var * block_step + thread_x_var / num2 * num1 + thread_x_var % num2;
+    std::cerr << "before cast" << std::endl;
+    t_load = ir::Cast::Make( common::Type( common::Type::type_t::UInt, 1, 2), t_load);
+    std::cerr << "after cast" << std::endl;
     auto out_store = Store::Make( ir::Tensor(OUT), t_load, { Expr( inner_index ) });
 
 
@@ -1126,7 +1207,7 @@ __global__ void bn_test(half  *d_in, half* sum_mean, half* sum_var, half* scale,
     body =  ir::Block::Make( {out_store });
     load_inner_for = ir::For::Make(loop_var_j,
                                common::make_const(0),
-                               common::make_const(1),
+                               common::make_const(8),
                                ir::ForType::Unrolled,
                                ir::DeviceAPI::CUDA,
                                body);
@@ -1150,10 +1231,10 @@ __global__ void bn_test(half  *d_in, half* sum_mean, half* sum_var, half* scale,
 
 //     // std::cerr << std::endl;
 
-    cond = ir::EQ::Make( threadidx, Expr(0) );
-    filter = ir::IfThenElse::Make( cond, load_inner_for, Expr());
+    // cond = ir::EQ::Make( threadidx, Expr(0) );
+    // filter = ir::IfThenElse::Make( cond, load_inner_for, Expr());
 
-    cu_dev.Print( filter );
+    cu_dev.Print( load_inner_for );
     cu_dev.ss_ << "} \n }" << std::endl;
 
     std::cerr << cu_dev.ss_.str() << std::endl;
@@ -1167,31 +1248,31 @@ __global__ void bn_test(half  *d_in, half* sum_mean, half* sum_var, half* scale,
 
     std::cerr << "source code" << source_code << std::endl;
 
-    const int N=  1792 * 896 * 64;
+    const int N= 256 * 112 * 112 * 64;
     common::float16 *a=(common::float16 *)malloc(N*sizeof(common::float16));
     common::float16 *d_a;
     cudaMalloc((void **)&d_a,N*sizeof(common::float16));
 
     const int channel = 64;
-    common::float16 *sum_mean=(common::float16 *)malloc( channel *sizeof(common::float16));
-    common::float16 *d_sum_mean;
-    cudaMalloc((void **)&d_sum_mean, channel *sizeof(common::float16));
+    float *sum_mean=(float *)malloc( channel *sizeof(float));
+    float *d_sum_mean;
+    cudaMalloc((void **)&d_sum_mean, channel *sizeof(float));
 
 
-    common::float16 *sum_var=(common::float16 *)malloc( channel*sizeof(common::float16));
-    common::float16 *d_sum_var;
-    cudaMalloc((void **)&d_sum_var, channel*sizeof(common::float16));
+    float *sum_var=(float *)malloc( channel*sizeof(float));
+    float *d_sum_var;
+    cudaMalloc((void **)&d_sum_var, channel*sizeof(float));
 
-    common::float16 *p_scale=(common::float16 *)malloc(channel*sizeof(common::float16));
-    common::float16 *d_scale;
-    cudaMalloc((void **)&d_scale,channel*sizeof(common::float16));
+    float *p_scale=(float *)malloc(channel*sizeof(float));
+    float *d_scale;
+    cudaMalloc((void **)&d_scale,channel*sizeof(float));
 
-    common::float16 *p_bias=(common::float16 *)malloc(channel*sizeof(common::float16));
-    common::float16 *d_bias;
-    cudaMalloc((void **)&d_bias,channel*sizeof(common::float16));
+    float *p_bias=(float *)malloc(channel*sizeof(float));
+    float *d_bias;
+    cudaMalloc((void **)&d_bias,channel*sizeof(float));
 
-    const int num_warps = 8;
-    const int block_num = 896 * 64;
+    const int num_warps = 4;
+    const int block_num = 256 * 112 * 112 * 64 / 1024;
     const int NUM_PER_BLOCK = N / block_num;
     const int NUM_PER_THREAD = NUM_PER_BLOCK/THREAD_PER_BLOCK;
     common::float16 *out=( common::float16 *)malloc(N *sizeof(common::float16));
@@ -1203,34 +1284,66 @@ __global__ void bn_test(half  *d_in, half* sum_mean, half* sum_var, half* scale,
     
     srand(0);
     for(int i=0;i<N;i++){
-        a[i]= static_cast<common::float16>( rand() % 100 / 100 );
+        a[i]= static_cast<common::float16>( rand() % 100 / 100.0 );
+    }
+
+    std::cerr << a[0] << std::endl; 
+
+    for(int i=0;i< 64;i++){
+        
+        float sum1 = 0;
+        float sum2 = 0;
+        for( int k = 0; k < 256 * 112 * 112; ++k )
+        {
+            auto t = static_cast<float>(a[ i + k * 64 ]);
+
+            sum1 += t;
+            sum2 += t*t;
+        }
+
+        sum_mean[i] = sum1;
+        sum_var[i] = sum2;
     }
 
     for( int i = 0; i < channel; ++i)
     {
-        sum_mean[i] = static_cast<common::float16>( rand() % 100 / 100 );
-        sum_var[i] = static_cast<common::float16>( rand() % 100 / 100 );
-        p_scale[i] = static_cast<common::float16>( rand() % 100 / 100 );
-        p_bias[i] = static_cast<common::float16>( rand() % 100 / 100 );
+        p_scale[i] = static_cast<float>( rand() % 91 / 100.0 );
+        p_bias[i] = static_cast<float>( rand() % 151 / 100.0 );
     }
 
-    for(int i=0;i< 128 * 112 * 112;i++){
+    std::cerr << sum_mean[0] << std::endl;
+    std::cerr << sum_var[0] << std::endl;
+    std::cerr << p_scale[0] << std::endl;
+    std::cerr << p_bias[0] << std::endl;
+
+
+    for(int i=0;i< 256 * 112 * 112;i++){
         for( int k = 0; k < 64; ++k){
-            float mean = static_cast<float>(sum_mean[k]) / (128 * 112 * 112);
-            float var = static_cast<float>(sum_var[k]) / (128 * 112 * 112);
+            float mean = static_cast<float>(sum_mean[k]) / (256 * 112 * 112);
+            float var = static_cast<float>(sum_var[k]) / (256 * 112 * 112);
             
             auto sub1 = static_cast<float>(a[ i * 64 + k ]) - mean;
             var = var - mean * mean;
             auto t1 = sqrt( var + 1e-5);
-            auto t2 = sub1 * t1;
+            auto t2 = sub1 / t1;
             res[i * 64 + k] = static_cast<common::float16>(t2 * static_cast<float>(p_scale[k]) + static_cast<float>(p_bias[k]));
+
+            if( i == 0 && k % 64 == 0 )
+            {
+                std::cerr << res[ i * 64 + k] << std::endl;
+             }
+            
         }
     }
     std::cerr << "before copy" << std::endl;
     cudaMemcpy(d_a,a,N*sizeof(common::float16),cudaMemcpyHostToDevice);
+    cudaMemcpy(d_sum_mean, sum_mean, channel *sizeof( float),cudaMemcpyHostToDevice);
+    cudaMemcpy(d_sum_var, sum_var, channel *sizeof( float),cudaMemcpyHostToDevice);
+    cudaMemcpy(d_scale, p_scale, channel *sizeof( float),cudaMemcpyHostToDevice);
+    cudaMemcpy(d_bias, p_bias, channel *sizeof(float),cudaMemcpyHostToDevice);
 
     dim3 Grid( block_num, 1, 1);
-    dim3 Block( THREAD_PER_BLOCK, 1, 1);
+    dim3 Block( 128, 1, 1);
 
     void* args[] = {&d_a, &d_sum_mean, &d_sum_var, &d_scale, &d_bias, &d_out };
 
@@ -1243,10 +1356,7 @@ __global__ void bn_test(half  *d_in, half* sum_mean, half* sum_var, half* scale,
 
     std::cerr << "before copy" << std::endl;
     cudaMemcpy(out,d_out, M *sizeof( common::float16),cudaMemcpyDeviceToHost);
-    cudaMemcpy(sum_mean,d_sum_mean, channel *sizeof( common::float16),cudaMemcpyDeviceToHost);
-    cudaMemcpy(sum_var,d_sum_var, channel *sizeof( common::float16),cudaMemcpyDeviceToHost);
-    cudaMemcpy(p_scale,d_scale, channel *sizeof( common::float16),cudaMemcpyDeviceToHost);
-    cudaMemcpy(p_bias,d_bias, channel *sizeof( common::float16),cudaMemcpyDeviceToHost);
+ 
 
 
     if(check(out,res,M))printf("the ans is right\n");

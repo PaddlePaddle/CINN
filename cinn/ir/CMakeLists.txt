@@ -44,6 +44,7 @@ nv_test(test_fuse_block_model SRCS fuse_block_model_test.cc DEPS cinncore)
 nv_test(test_fuse_block_model_fp16 SRCS fuse_block_model_fp16_test.cc DEPS cinncore)
 nv_test(test_batch_norm_fp16 SRCS batch_norm_fp16_test.cc DEPS cinncore)
 nv_test(test_batch_norm_fp16_pointwise SRCS batch_norm_fp16_pointwise_test.cc DEPS cinncore)
+nv_test(test_layer_norm_fp16 SRCS layer_norm_fp16_test.cc DEPS cinncore)
 
 foreach(header ${schedule_desc_proto_HDRS})
   set(core_proto_includes "${core_proto_includes};${header}" CACHE INTERNAL "")

@@ -32,9 +32,9 @@ namespace ir {
 using common::make_shared;
 
 Expr Cast::Make(Type t, Expr v) {
-  CHECK(!t.is_unk());
-  CHECK(!(t.is_void() && !t.is_cpp_handle())) << "Void is not allowed to cast";
-  CHECK(v.defined());
+  // CHECK(!t.is_unk());
+  // CHECK(!(t.is_void() && !t.is_cpp_handle())) << "Void is not allowed to cast";
+  // CHECK(v.defined());
 
   auto node = make_shared<Cast>();
   node->v() = v;

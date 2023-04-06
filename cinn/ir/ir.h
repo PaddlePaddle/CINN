@@ -358,6 +358,8 @@ struct Sqrt : public ExprNode<Sqrt>{
   void Verify() const override {}
 
   static const IrNodeTy _node_type_ = IrNodeTy::Sqrt;
+
+
 };
 
 
