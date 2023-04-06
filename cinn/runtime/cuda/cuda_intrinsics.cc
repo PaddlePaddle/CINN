@@ -227,41 +227,39 @@ CINN_REGISTER_HELPER(cuda_intrinsics) {
       .AddInputType<int>()
       .End();
 
-  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_cuda_lt_num_int, target)
-      .SetRetType<int>()
-      .AddInputType<cinn_buffer_t *>()
-      .AddInputType<int>()
-      .AddInputType<int>()
-      .AddInputType<int>()
-      .AddInputType<int>()
+#define _REGISTER_CINN_CUDA_LT_NUM(TYPE_SUFFIX, TYPE)                        \
+  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_cuda_lt_num_##TYPE_SUFFIX, target) \
+      .SetRetType<int>()                                                     \
+      .AddInputType<cinn_buffer_t *>()                                       \
+      .AddInputType<int>()                                                   \
+      .AddInputType<TYPE>()                                                  \
+      .AddInputType<int>()                                                   \
+      .AddInputType<int>()                                                   \
       .End();
 
-  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_cuda_lt_num_float, target)
-      .SetRetType<int>()
-      .AddInputType<cinn_buffer_t *>()
-      .AddInputType<int>()
-      .AddInputType<float>()
-      .AddInputType<int>()
-      .AddInputType<int>()
+  _REGISTER_CINN_CUDA_LT_NUM(fp32, float);
+  _REGISTER_CINN_CUDA_LT_NUM(fp64, double);
+  _REGISTER_CINN_CUDA_LT_NUM(int32, int);
+  _REGISTER_CINN_CUDA_LT_NUM(int64, int64_t);
+
+#undef _REGISTER_CINN_CUDA_LT_NUM
+
+#define _REGISTER_CINN_CUDA_GT_NUM(TYPE_SUFFIX, TYPE)                        \
+  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_cuda_gt_num_##TYPE_SUFFIX, target) \
+      .SetRetType<int>()                                                     \
+      .AddInputType<cinn_buffer_t *>()                                       \
+      .AddInputType<int>()                                                   \
+      .AddInputType<TYPE>()                                                  \
+      .AddInputType<int>()                                                   \
+      .AddInputType<int>()                                                   \
       .End();
 
-  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_cuda_gt_num_int, target)
-      .SetRetType<int>()
-      .AddInputType<cinn_buffer_t *>()
-      .AddInputType<int>()
-      .AddInputType<int>()
-      .AddInputType<int>()
-      .AddInputType<int>()
-      .End();
+  _REGISTER_CINN_CUDA_GT_NUM(fp32, float);
+  _REGISTER_CINN_CUDA_GT_NUM(fp64, double);
+  _REGISTER_CINN_CUDA_GT_NUM(int32, int);
+  _REGISTER_CINN_CUDA_GT_NUM(int64, int64_t);
 
-  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_cuda_gt_num_float, target)
-      .SetRetType<int>()
-      .AddInputType<cinn_buffer_t *>()
-      .AddInputType<int>()
-      .AddInputType<float>()
-      .AddInputType<int>()
-      .AddInputType<int>()
-      .End();
+#undef _REGISTER_CINN_CUDA_GT_NUM
 
   REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_cuda_index_add, target)
       .SetRetType<float>()
@@ -380,6 +378,15 @@ CINN_REGISTER_HELPER(cinn_cuda_host_api) {
       .AddInputType<int>()     // num_args
       .AddInputType<float>()   // min
       .AddInputType<float>()   // max
+      .AddInputType<int>()     // seed
+      .AddInputType<void *>()  // stream
+      .End();
+
+  using cinn::runtime::cuda::cinn_call_randint;
+  REGISTER_EXTERN_FUNC_HELPER(cinn_call_randint, cinn::common::DefaultHostTarget())
+      .SetRetType<void>()
+      .AddInputType<void *>()  // v_args
+      .AddInputType<int>()     // num_args
       .AddInputType<int>()     // seed
       .AddInputType<void *>()  // stream
       .End();

@@ -85,7 +85,7 @@ void TestGenerateCodeCpu_Argmax_Keep(void* _args, int32_t num_args)
     for (int32_t j = 0; j < 3; j += 1) {
       for (int32_t k = 0; k < 28; k += 1) {
         for (int32_t a = 0; a < 28; a += 1) {
-          test_argmax_in_index_temp[((2352 * i) + ((784 * j) + ((28 * k) + a)))] = cinn_host_gt_num_float(_in, 3, in[((2352 * i) + ((784 * j) + ((28 * k) + a)))], ((2352 * i) + ((28 * k) + a)), 784);
+          test_argmax_in_index_temp[((2352 * i) + ((784 * j) + ((28 * k) + a)))] = cinn_host_gt_num_fp32(_in, 3, in[((2352 * i) + ((784 * j) + ((28 * k) + a)))], ((2352 * i) + ((28 * k) + a)), 784);
         };
       };
     };

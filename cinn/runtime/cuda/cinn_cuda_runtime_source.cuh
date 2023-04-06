@@ -469,47 +469,37 @@ __device__ inline int cinn_cuda_find_float_from(const float *buf, int size, floa
 
 #undef __cinn_cuda_find_from_kernel
 
-#define __cinn_cuda_lt_num_kernel(buf, size, num, offset, stride)          \
-  do {                                                                     \
-    int out = 0;                                                           \
-    for (int i = (size - 1) * stride + offset; i >= offset; i -= stride) { \
-      if (buf[i] < num) out++;                                             \
-    }                                                                      \
-    return out;                                                            \
-  } while (0)
-
-__device__ inline int cinn_cuda_lt_num_float(
-    const float *buf, const int size, const float num, const int offset, const int stride) {
-  __cinn_cuda_lt_num_kernel(buf, size, num, offset, stride);
+#define CINN_CUDA_LT_NUM(TYPE_SUFFIX, TYPE) __device__ inline int cinn_cuda_lt_num_##TYPE_SUFFIX( \
+    const TYPE *buf, const int size, const TYPE num, const int offset, const int stride) {        \
+    int out = 0;                                                                                  \
+    for (int i = (size - 1) * stride + offset; i >= offset; i -= stride) {                        \
+      if (buf[i] < num) out++;                                                                    \
+    }                                                                                             \
+    return out;                                                                                   \
 }
 
-__device__ inline int cinn_cuda_lt_num_int(
-    const int *buf, const int size, const int num, const int offset, const int stride) {
-  __cinn_cuda_lt_num_kernel(buf, size, num, offset, stride);
+CINN_CUDA_LT_NUM(fp32, float)
+CINN_CUDA_LT_NUM(fp64, double)
+CINN_CUDA_LT_NUM(int32, int)
+CINN_CUDA_LT_NUM(int64, long long int)
+
+#undef CINN_CUDA_LT_NUM
+
+#define CINN_CUDA_GT_NUM(TYPE_SUFFIX, TYPE) __device__ inline int cinn_cuda_gt_num_##TYPE_SUFFIX( \
+    const TYPE *buf, const int size, const TYPE num, const int offset, const int stride) {        \
+    int out = 0;                                                                                  \
+    for (int i = (size - 1) * stride + offset; i >= offset; i -= stride) {                        \
+      if (buf[i] > num) out++;                                                                    \
+    }                                                                                             \
+    return out;                                                                                   \
 }
 
-#undef __cinn_cuda_lt_num_kernel
+CINN_CUDA_GT_NUM(fp32, float)
+CINN_CUDA_GT_NUM(fp64, double)
+CINN_CUDA_GT_NUM(int32, int)
+CINN_CUDA_GT_NUM(int64, long long int)
 
-#define __cinn_cuda_gt_num_kernel(buf, size, num, offset, stride)          \
-  do {                                                                     \
-    int out = 0;                                                           \
-    for (int i = (size - 1) * stride + offset; i >= offset; i -= stride) { \
-      if (buf[i] > num) out++;                                             \
-    }                                                                      \
-    return out;                                                            \
-  } while (0)
-
-__device__ inline int cinn_cuda_gt_num_float(
-    const float *buf, const int size, const float num, const int offset, const int stride) {
-  __cinn_cuda_gt_num_kernel(buf, size, num, offset, stride);
-}
-
-__device__ inline int cinn_cuda_gt_num_int(
-    const int *buf, const int size, const int num, const int offset, const int stride) {
-  __cinn_cuda_gt_num_kernel(buf, size, num, offset, stride);
-}
-
-#undef __cinn_cuda_gt_num_kernel
+#undef CINN_CUDA_GT_NUM
 
 __device__ inline float cinn_cuda_index_add(const float x,
                                             const int axis_indice,

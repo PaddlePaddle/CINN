@@ -33,17 +33,27 @@ inline int cinn_host_find_int_nd(const cinn_buffer_t* buf, int size, int num, in
 
 inline int cinn_host_find_float_nd(const cinn_buffer_t* buf, int size, float num, int begin, int stride);
 
-inline int cinn_host_lt_num_float(
-    const cinn_buffer_t* buf, const int size, const float num, const int offset, const int stride);
+#define CINN_HOST_LT_NUM(TYPE_SUFFIX, TYPE)  \
+  inline int cinn_host_lt_num_##TYPE_SUFFIX( \
+      const cinn_buffer_t* buf, const int size, const TYPE num, const int offset, const int stride);
 
-inline int cinn_host_lt_num_int(
-    const cinn_buffer_t* buf, const int size, const int num, const int offset, const int stride);
+CINN_HOST_LT_NUM(fp32, float)
+CINN_HOST_LT_NUM(fp64, double)
+CINN_HOST_LT_NUM(int32, int)
+CINN_HOST_LT_NUM(int64, int64_t)
 
-inline int cinn_host_gt_num_float(
-    const cinn_buffer_t* buf, const int size, const float num, const int offset, const int stride);
+#undef CINN_HOST_LT_NUM
 
-inline int cinn_host_gt_num_int(
-    const cinn_buffer_t* buf, const int size, const int num, const int offset, const int stride);
+#define CINN_HOST_GT_NUM(TYPE_SUFFIX, TYPE)  \
+  inline int cinn_host_gt_num_##TYPE_SUFFIX( \
+      const cinn_buffer_t* buf, const int size, const TYPE num, const int offset, const int stride);
+
+CINN_HOST_GT_NUM(fp32, float)
+CINN_HOST_GT_NUM(fp64, double)
+CINN_HOST_GT_NUM(int32, int)
+CINN_HOST_GT_NUM(int64, int64_t)
+
+#undef CINN_HOST_GT_NUM
 
 int cinn_host_resize_bilinear(const cinn_buffer_t* buf,
                               const int c_size,

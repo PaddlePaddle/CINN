@@ -21,6 +21,7 @@ from cinn import runtime
 from cinn import ir
 from cinn import lang
 from cinn import Target
+from cinn import utils
 from cinn.poly import create_stages
 
 
@@ -37,6 +38,8 @@ class TestMamul(unittest.TestCase):
         self.bn = 32
 
         self.engine = cinn.ExecutionEngine()
+        utils.ProfilerHelper.enable_cpu()
+        self.assertTrue(utils.ProfilerHelper.is_enable_cpu())
 
     def test_matmul_basic(self):
         a, b, c, c_target, *args = create_data(self.m, self.n, self.k, self.bn)
@@ -48,6 +51,7 @@ class TestMamul(unittest.TestCase):
         cd = c.numpy()
         cd_target = c_target.numpy()
         self.assertTrue(np.allclose(cd, cd_target, atol=1e-4))
+        print(utils.HostEventRecorder.table())
 
     def test_matmul_tile(self):
         a, b, c, c_target, *args = create_data(self.m, self.n, self.k, self.bn)

@@ -46,7 +46,9 @@ void TestAutoGenRuleBase::Initialize(const common::Target& target) {
   backend_compier_ = backends::Compiler::Create(target);
 }
 
-ir::IRSchedule TestAutoGenRuleBase::MakeIRSchedule(const frontend::Program& test_program, bool apply_manual_schedule) {
+ir::IRSchedule TestAutoGenRuleBase::MakeIRSchedule(const frontend::Program& test_program,
+                                                   utils::LinearRandomEngine::StateType rand_seed,
+                                                   bool apply_manual_schedule) {
   Context::Global().ResetNameId();
 
   auto graph = std::make_shared<hlir::framework::Graph>(test_program, target_);
@@ -67,7 +69,16 @@ ir::IRSchedule TestAutoGenRuleBase::MakeIRSchedule(const frontend::Program& test
   for (auto&& func : lowered_funcs_) {
     bodys.emplace_back(func->body);
   }
-  return ir::IRSchedule(ir::ModuleExpr({std::move(bodys)}));
+  return ir::IRSchedule(ir::ModuleExpr({std::move(bodys)}), rand_seed);
+}
+
+std::string TestAutoGenRuleBase::GetIR(const ir::IRSchedule& schedule) {
+  const auto& exprs = schedule.GetModule().GetExprs();
+  std::stringstream module_stream;
+  for (auto i = 0; i < exprs.size(); ++i) {
+    module_stream << "Expr " << i << " {\n" << exprs.at(i) << "\n}  // end Expr " << i << "\n";
+  }
+  return module_stream.str();
 }
 
 ir::Module TestAutoGenRuleBase::BuildIRModule(const ir::IRSchedule& schedule) {

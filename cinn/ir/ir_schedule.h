@@ -388,6 +388,17 @@ class IRSchedule {
                                       int max_innermost_factor,
                                       const std::vector<int>& decision = {});
 
+  /**
+   * \brief Randomly sample an integer according to the given distribution.
+   * @param candidates Candidate set of integers.
+   * @param probs Probability distribution of candidate integer set.
+   * @param decision the decision data of the last sample, or the artificially given decision data.
+   * @return Random variables sampled.
+   */
+  Expr SampleCategorical(const std::vector<int>& candidates,
+                         const std::vector<float>& probs,
+                         const std::vector<int>& decision = {});
+
  private:
   // Init the random seed with a new seed
   void InitSeed(utils::LinearRandomEngine::StateType rand_seed);
