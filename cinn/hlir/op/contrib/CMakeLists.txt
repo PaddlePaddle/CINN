@@ -16,6 +16,7 @@ gather_srcs(cinnapi_src SRCS
         cholesky.cc
         triangular_solve.cc
         bitcast_convert.cc
+        randint.cc
         )
 
 cc_test(test_gather_nd SRCS gather_nd_test.cc DEPS cinncore)
