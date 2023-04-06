@@ -1456,8 +1456,12 @@ void cinn_gpu_cublas_gemm(const std::vector<int> &attrs,
 class CurandGenerator {
  public:
   CurandGenerator() {
-    CURAND_CALL(curandCreateGenerator(&generator_, CURAND_RNG_PSEUDO_PHILOX4_32_10));
-    SetSeed();
+    CURAND_CALL(curandCreateGenerator(&generator_, CURAND_RNG_PSEUDO_DEFAULT));
+    SetOffset();
+  }
+
+  CurandGenerator(curandRngType rng_type) {
+    CURAND_CALL(curandCreateGenerator(&generator_, rng_type));
     SetOffset();
   }
 
@@ -1499,39 +1503,33 @@ class CurandGenerator {
 
 class CurandGeneratorFactory {
  public:
-  enum CurandGeneratorType { GENERATOR_DEFAULT, GENERATOR_GAUSSIAN, GENERATOR_UNIFORM };
+  enum CurandGeneratorType {
+    GENERATOR_DEFAULT,
+    GENERATOR_GAUSSIAN,
+    GENERATOR_UNIFORM,
+    GENERATOR_RANDINT_32,
+    GENERATOR_RANDINT_64
+  };
 
   static CurandGenerator &GetGenerator(CurandGeneratorType type) {
     switch (type) {
       case GENERATOR_GAUSSIAN:
-        static CurandGenerator gaussian_generator;
+        static CurandGenerator gaussian_generator(CURAND_RNG_PSEUDO_PHILOX4_32_10);
         return gaussian_generator;
       case GENERATOR_UNIFORM:
-        static CurandGenerator uniform_generator;
+        static CurandGenerator uniform_generator(CURAND_RNG_PSEUDO_PHILOX4_32_10);
         return uniform_generator;
+      case GENERATOR_RANDINT_32:
+        static CurandGenerator randint32_generator(CURAND_RNG_PSEUDO_PHILOX4_32_10);
+        return randint32_generator;
+      case GENERATOR_RANDINT_64:
+        static CurandGenerator randint64_generator(CURAND_RNG_QUASI_SOBOL64);
+        return randint64_generator;
       default:
         static CurandGenerator default_generator;
         return default_generator;
     }
   }
-};
-
-class CurandQUASI64Generator {
-  // generate 64-bit QUASI values
- public:
-  ~CurandQUASI64Generator() { CURAND_CALL(curandDestroyGenerator(generator_)); }
-  static CurandQUASI64Generator &GetInstance() {
-    static CurandQUASI64Generator instance;
-    return instance;
-  }
-  curandGenerator_t &GetGenerator() { return generator_; }
-
- private:
-  CurandQUASI64Generator(const CurandQUASI64Generator &) = delete;
-  CurandQUASI64Generator &operator=(const CurandQUASI64Generator &) = delete;
-
-  CurandQUASI64Generator() { CURAND_CALL(curandCreateGenerator(&generator_, CURAND_RNG_QUASI_SOBOL64)); }
-  curandGenerator_t generator_;
 };
 
 void cinn_call_gaussian_random(void *v_args, int num_args, float mean, float std, int seed, void *stream) {
@@ -1592,20 +1590,23 @@ void cinn_call_randint(void *v_args, int num_args, int seed, void *stream) {
   cinn_type_t dtype      = output->type;
   size_t numel           = output->num_elements();
 
-  curandGenerator_t generator = CurandGenerator::GetInstance().GetGenerator();
-  CURAND_CALL(curandSetStream(generator, static_cast<cudaStream_t>(stream)));
-  CurandGenerator::GetInstance().SetSeed(static_cast<unsigned long long>(seed));
-
   VLOG(4) << "cinn_call_randint: output_size=" << numel << ", seed=" << seed;
 
   if (dtype == cinn_int32_t()) {
+    curandGenerator_t generator =
+        CurandGeneratorFactory::GetGenerator(CurandGeneratorFactory::CurandGeneratorType::GENERATOR_RANDINT_32)
+            .SetStream(static_cast<cudaStream_t>(stream))
+            .SetSeed(seed)
+            .GetGenerator();
     uint32_t *ptr = reinterpret_cast<uint32_t *>(output->memory);
     CURAND_CALL(curandGenerate(generator, ptr, numel));
   } else if (dtype == cinn_int64_t()) {
-    curandGenerator_t generator_int64 = CurandQUASI64Generator::GetInstance().GetGenerator();
-    ;
+    curandGenerator_t generator =
+        CurandGeneratorFactory::GetGenerator(CurandGeneratorFactory::CurandGeneratorType::GENERATOR_RANDINT_64)
+            .SetStream(static_cast<cudaStream_t>(stream))
+            .GetGenerator();
     unsigned long long *ptr = reinterpret_cast<unsigned long long *>(output->memory);
-    CURAND_CALL(curandGenerateLongLong(generator_int64, ptr, numel));
+    CURAND_CALL(curandGenerateLongLong(generator, ptr, numel));
   } else {
     LOG(FATAL) << "randint only support int32 and int64! Please check.";
   }
