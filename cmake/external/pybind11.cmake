@@ -18,7 +18,7 @@ set(PYBIND11_PYTHON_VERSION ${PY_VERSION})
 set(PYBIND_SOURCE_DIR ${THIRD_PARTY_PATH}/pybind)
 
 find_package(Python ${PY_VERSION} EXACT COMPONENTS Development)
-include_directories(${Python_INCLUDE_DIRS})
+include_directories(${PYTHON_INCLUDE_DIR})
 
 message(STATUS "pybind path: ${PYBIND_SOURCE_DIR}/src/extern_pybind/include")
 include_directories(${PYBIND_SOURCE_DIR}/src/extern_pybind/include)

@@ -34,6 +34,7 @@ PYBIND11_MODULE(core_api, m) {
   py::module pe        = m.def_submodule("pe", "namespace cinn::hlir::pe, CINN Primitive Emitters");
   py::module frontend  = m.def_submodule("frontend", "namespace cinn::frontend, CINN frontend");
   py::module framework = m.def_submodule("framework", "namespace cinn::hlir::framework, CINN framework");
+  py::module utils     = m.def_submodule("utils", "namespace cinn::utils, CINN framework");
 
   BindRuntime(&runtime);
   BindCommon(&common);
@@ -45,6 +46,7 @@ PYBIND11_MODULE(core_api, m) {
   BindPE(&pe);
   BindFrontend(&frontend);
   BindFramework(&framework);
+  BindUtils(&utils);
 }
 
 }  // namespace cinn::pybind

@@ -21,6 +21,7 @@
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/pe/broadcast.h"
 #include "cinn/utils/functional.h"
+#include "cinn/utils/profiler.h"
 
 namespace cinn {
 namespace frontend {
@@ -34,6 +35,7 @@ using utils::ShapeType;
 NetBuilder::NetBuilder(const std::string& name) : name_(name) {}
 
 Program NetBuilder::Build(bool in_reverse) {
+  utils::RecordEvent("NetBuilder::Build", utils::EventType::kProgram);
   std::vector<Instruction> instrs;
   if (in_reverse) {
     instrs.reserve(instrs_.size());
@@ -85,7 +87,7 @@ const std::vector<Variable>& NetBuilder::CustomInstr(const std::string& type,
   for (auto& kv : attrs) {
     instr.SetAttr(kv.first, kv.second);
   }
-
+  utils::RecordEvent("NetBuilder." + type, utils::EventType::kProgram);
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutputs();
@@ -691,6 +693,17 @@ Variable NetBuilder::UniformRandom(
   auto uniform_mul_out = Multiply(uniform_out, uniform_range);
   auto uniform_min     = FillConstant(shape, min, UniqName("uniform_min"), dtype);
   return Add(uniform_mul_out, uniform_min);
+}
+
+Variable NetBuilder::RandInt(const std::vector<int>& shape, int min, int max, int seed, const std::string& dtype) {
+  auto randint_out = CustomInstr("randint", {}, {{"shape", shape}, {"seed", seed}, {"dtype", dtype}}).front();
+  CHECK_GT(max, min) << "max: " << max << "should greater than"
+                     << "min: " << min;
+  auto randint_range = FillConstant(shape, max - min, UniqName("randint_range"), dtype);
+  auto randint_mod   = Mod(randint_out, randint_range);
+  auto randint_min   = FillConstant(shape, min, UniqName("randint_min"), dtype);
+  auto randint_ret   = Add(randint_mod, randint_min);
+  return randint_ret;
 }
 
 Variable NetBuilder::Cholesky(const Variable& x, bool upper) {

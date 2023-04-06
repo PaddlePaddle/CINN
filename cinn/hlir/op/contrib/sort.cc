@@ -28,6 +28,7 @@
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
+#include "cinn/hlir/op/op_util.h"
 #include "cinn/hlir/pe/elementwise.h"
 #include "cinn/hlir/pe/ir_schedule_pe.h"
 #include "cinn/hlir/pe/transform.h"
@@ -55,18 +56,16 @@ std::vector<ir::Tensor> ArgSort(const ir::Tensor &A,
   std::string find_func_name;
   std::string index_func_name;
   if (target.arch == common::Target::Arch::NVGPU) {
-    index_func_name.assign("cinn_cuda_");
     find_func_name.assign("cinn_cuda_find_int_nd");
   } else if (target.arch == common::Target::Arch::X86) {
-    index_func_name.assign("cinn_host_");
     find_func_name.assign("cinn_host_find_int_nd");
   } else {
     LOG(FATAL) << "ArgSort only supports X86 and NVGPU ! Please Check.\n";
   }
   if (is_ascend) {
-    index_func_name.append("lt_num_float");
+    index_func_name = cinn::hlir::GetExternFuncName(target, A->type(), "lt_num");
   } else {
-    index_func_name.append("gt_num_float");
+    index_func_name = cinn::hlir::GetExternFuncName(target, A->type(), "gt_num");
   }
   int pos_axis = axis;
   if (pos_axis < 0) {
