@@ -565,15 +565,60 @@ std::vector<ir::Tensor> ReduceInternal(const ir::Tensor& A,
                                        ReduceFunc reduce_func,
                                        ir::Expr initial,
                                        std::string reduce_type) {
+  int tail     = 0;
+  bool inbound = true;
   std::vector<int> inshape;
   std::transform(
       A->shape.begin(), A->shape.end(), std::back_inserter(inshape), [](ir::Expr expr) { return expr.as_int32(); });
-  auto reduce_shape = GetFirstStepReduceShape(inshape, axes);
-  if (reduce_shape.size() == 0) {
-    return {};
-  }
+  auto reduce_shape = GetFirstStepReduceShape(inshape, axes, inbound, tail);
+  CHECK_GT(reduce_shape.size(), 0);
+
   // reshape input
-  auto reshape = pe::Reshape(A, reduce_shape, output_name + "_reshape");
+  auto do_reshape_inbound = [&]() {
+    int axis = axes.back();
+    std::vector<ir::Expr> reshape_output_shape;
+    // last successive axis in reduce axes.
+    int axis_index = axes.size() - 1;
+    for (; axis_index >= 1; --axis_index) {
+      if (axes[axis_index] - 1 != axes[axis_index - 1]) {
+        break;
+      }
+    }
+    // compute reduce stride.
+    std::vector<ir::Expr> strides(1, ir::Expr(1));
+    for (int idx = axes.back(); idx > axes[axis_index]; --idx) {
+      strides.insert(strides.begin(), strides.front() * ir::Expr(inshape[idx]));
+    }
+    CHECK_EQ(strides.size(), axes.size() - axis_index);
+    std::transform(reduce_shape.begin(), reduce_shape.end(), std::back_inserter(reshape_output_shape), [](int val) {
+      return ir::Expr(val);
+    });
+    return Compute(
+        reshape_output_shape,
+        [=](const std::vector<Expr>& indexs) -> Expr {
+          // index is last axis in axes and index is last axis >= tail.
+          auto selected = ir::And::Make(ir::EQ::Make(indexs[axis], ir::Expr(reduce_shape[axis] - 1)),
+                                        ir::GE::Make(indexs[axis + 1], ir::Expr(tail)));
+          auto index    = indexs[axis] * ir::Expr(reshape_output_shape[axis + 1]) + indexs[axis + 1];
+
+          // first part index
+          std::vector<ir::Expr> tmp_indexs(indexs.begin(), indexs.begin() + axes[axis_index]);
+          // second part index
+          for (int idx = 0; idx < strides.size(); ++idx) {
+            tmp_indexs.push_back(index / strides[idx]);
+            index = index % strides[idx];
+          }
+          // third part index
+          for (int idx = axis + 2; idx < indexs.size(); ++idx) {
+            tmp_indexs.push_back(indexs[idx]);
+          }
+
+          CHECK_EQ(tmp_indexs.size(), A->shape.size()) << "Indexs size is not equal to Input shape!";
+          return ir::Select::Make(selected, A(tmp_indexs), initial);
+        },
+        UniqName(output_name + "_reshape"));
+  };
+  auto reshape = inbound ? pe::Reshape(A, reduce_shape, output_name + "_reshape") : do_reshape_inbound();
   // do first step reduce
   auto internal = reduce_func(reshape, axes, keep_dim, output_name + "_internal");
   // do second step reduce

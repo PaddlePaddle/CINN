@@ -553,6 +553,12 @@ void IRCudaScheduleBlockShuffleReduce(ir::IRSchedule &ir_sch,
   {
     // simplify reshape index
     auto hand_write_simplify = [](std::vector<ir::Expr> loops, ir::Expr block) {
+      // check exist select.
+      auto find_select = ir::CollectIRNodesInOrder(block, [&](const Expr *x) { return x->As<ir::Select>(); });
+      if (find_select.size() > 0) {
+        return;
+      }
+
       auto schedule_realize = block.As<ir::ScheduleBlockRealize>();
       auto schedule_block   = block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>();
 

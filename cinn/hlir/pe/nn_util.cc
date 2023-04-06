@@ -333,7 +333,10 @@ int GetParallelSize(const std::vector<int>& inshape, const std::vector<int>& axe
   return parallel_size;
 }
 
-std::vector<int> GetFirstStepReduceShape(const std::vector<int>& shape, const std::vector<int>& axes) {
+std::vector<int> GetFirstStepReduceShape(const std::vector<int>& shape,
+                                         const std::vector<int>& axes,
+                                         bool& inbound,
+                                         int& tail) {
   // post parallel size
   int post_parallel_size = GetPostParallelSize(shape, axes);
   // the size to unfold las reduce axis
@@ -373,10 +376,20 @@ std::vector<int> GetFirstStepReduceShape(const std::vector<int>& shape, const st
       continue;
     }
 
-    reduce_shape.emplace_back(last_reduce_size / loop_size);
-    reduce_shape.emplace_back(loop_size);
-    if (loop_size == 1) {
-      return {};
+    if (loop_size > 1) {
+      reduce_shape.emplace_back(last_reduce_size / loop_size);
+      reduce_shape.emplace_back(loop_size);
+    } else {
+      for (auto loop_size : loop_size_set) {
+        if (unfold_size < loop_size) {
+          continue;
+        }
+        tail = last_reduce_size - (last_reduce_size / loop_size) * loop_size;
+        reduce_shape.emplace_back(last_reduce_size / loop_size + 1);
+        reduce_shape.emplace_back(loop_size);
+        inbound = false;
+        break;
+      }
     }
     break;
   }

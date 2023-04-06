@@ -397,11 +397,14 @@ void LoopAssignReduceWithoutLast(ir::IRSchedule& ir_sch,
                                  const std::vector<int>& inshape,
                                  const std::vector<int>& axes,
                                  const common::Target& target) {
-  auto reduce_shape = pe::GetFirstStepReduceShape(inshape, axes);
+  int tail   = 0;
+  bool bound = true;
+  auto shape = pe::GetFirstStepReduceShape(inshape, axes, bound, tail);
+  CHECK(bound);
   // remove loop size = 1 and remove axis in axes.
   std::vector<int> nshape, naxes = axes;
-  for (int idx = 0; idx < reduce_shape.size(); ++idx) {
-    if (reduce_shape[idx] == 1) {
+  for (int idx = 0; idx < shape.size(); ++idx) {
+    if (shape[idx] == 1) {
       auto iter = std::find(naxes.begin(), naxes.end(), idx);
       if (iter != naxes.end()) {
         naxes.erase(iter);
@@ -412,7 +415,7 @@ void LoopAssignReduceWithoutLast(ir::IRSchedule& ir_sch,
         }
       }
     } else {
-      nshape.push_back(reduce_shape[idx]);
+      nshape.push_back(shape[idx]);
     }
   }
 
