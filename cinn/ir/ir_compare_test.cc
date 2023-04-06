@@ -54,7 +54,7 @@ TEST(TestIrCompare, SingleFunction) {
         ScheduleBlock(B)
         {
           i0, i1 = axis.bind(i, j)
-          B[i0, i1] = (2.00000000f + A[i0, i1])
+          B[i0, i1] = (A[i0, i1] + 2.00000000f)
         }
       }
     }
@@ -72,7 +72,7 @@ TEST(TestIrCompare, SingleFunction) {
         ScheduleBlock(B)
         {
           i0, i1 = axis.bind(i, j)
-          B[i0, i1] = (2.00000000f + A[i0, i1])
+          B[i0, i1] = (A[i0, i1] + 2.00000000f)
         }
       }
     }
@@ -90,7 +90,7 @@ TEST(TestIrCompare, SingleFunction) {
         ScheduleBlock(C)
         {
           i0, i1 = axis.bind(i, j)
-          C[i0, i1] = (2.00000000f + A[i0, i1])
+          C[i0, i1] = (A[i0, i1] + 2.00000000f)
         }
       }
     }
