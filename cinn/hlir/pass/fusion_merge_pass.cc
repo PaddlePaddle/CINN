@@ -653,15 +653,26 @@ class FusionMergePassHelper : public FusionHelperBase {
 
     std::vector<GroupPtr> candidates;
     for (auto& consumer : fusionable_consumers) {
-      if (consumer->op_pattern_kind == framework::kElementWise || consumer->op_pattern_kind == framework::kReduction) {
+      if (consumer->op_pattern_kind == framework::kElementWise) {
         candidates.push_back(consumer);
         continue;
       }
 
-      auto shape0 = this->GetNodeDataShape(*producer->output_nodes.begin());
-      auto shape1 = this->GetNodeDataShape(*consumer->output_nodes.begin());
-      if (std::accumulate(shape0.begin(), shape0.end(), 1, std::multiplies<int>()) ==
-          std::accumulate(shape1.begin(), shape1.end(), 1, std::multiplies<int>())) {
+      auto producer_output_shape       = this->GetNodeDataShape(*producer->output_nodes.begin());
+      auto consumer_output_shape       = this->GetNodeDataShape(*consumer->output_nodes.begin());
+      auto consumer_master_input_shape = this->GetNodeInputShape(*(consumer->master_nodes.begin()));
+      int producer_output_numel =
+          std::accumulate(producer_output_shape.begin(), producer_output_shape.end(), 1, std::multiplies<int>());
+      int consumer_output_numel =
+          std::accumulate(consumer_output_shape.begin(), consumer_output_shape.end(), 1, std::multiplies<int>());
+      int consumer_master_input_numel = std::accumulate(
+          consumer_master_input_shape.begin(), consumer_master_input_shape.end(), 1, std::multiplies<int>());
+      if (producer_output_numel == consumer_output_numel) {
+        candidates.push_back(consumer);
+        continue;
+      }
+
+      if (consumer->op_pattern_kind == framework::kReduction && producer_output_numel == consumer_master_input_numel) {
         candidates.push_back(consumer);
       }
     }
