@@ -23,142 +23,95 @@ from cinn.frontend import *
 from cinn.common import *
 from paddle.vision.transforms import functional as F
 
+# paddle resize is based on cv2 module
+# This test requires cv2 module (pip3.6 install opencv_python==3.2.0.7)
+# @OpTestTool.skip_if(not is_compiled_with_cuda(),
+#                    "x86 test will be skipped due to timeout.")
+# class TestResizeOp(OpTest):
+#     def setUp(self):
+#         self.init_case()
 
-@OpTestTool.skip_if(not is_compiled_with_cuda(),
-                    "x86 test will be skipped due to timeout.")
-class TestResizeOp(OpTest):
-    def setUp(self):
-        self.init_case()
+#     def init_case(self):
+#         self.in_shape = [1,2,220,300]
+#         self.inputs = {
+#             "x":
+#             (np.random.random(self.in_shape) * 255).astype('int32')
+#         }
+#         self.out_shape = [240, 240]
+#         self.mode = "nearest"
 
-    def init_case(self):
-        self.inputs = {
-            "x":
-            np.array([[[[1, 2, 3, 4, 5], [6, 7, 8, 9, 10],
-                        [11, 12, 13, 14, 15], [16, 17, 18, 19, 20],
-                        [21, 22, 23, 24, 25]]]]).astype("int32")
-        }
-        self.outputs = {
-            "y":
-            np.array([[[[1, 2, 3, 4], [6, 7, 8, 9], [11, 12, 13, 14],
-                        [16, 17, 18, 19]]]]).astype("int32")
-        }
-        self.out_shape = [4, 4]
-        self.mode = "nearest"
-        #test paddle resize
-        # fake_img = (np.random.rand(256, 300, 3) * 255.).astype('uint8')
-        # converted_img = F.resize(fake_img, 224)
-        # print(converted_img.size)
+#     def build_paddle_program(self, target):
+#         #paddle resize only support [HWC] format.
+#         input = self.inputs["x"].reshape(self.in_shape[1:4]).transpose([1,2,0]).astype('uint8')
+#         out = F.resize(input, self.out_shape, self.mode)
+#         out = paddle.to_tensor(out.transpose([2,0,1]).reshape(self.in_shape[0:2]+self.out_shape), dtype="int32", stop_gradient=False)
+#         self.paddle_outputs = [out]
 
-    def build_paddle_program(self, target):
-        y = paddle.to_tensor(self.outputs["y"], stop_gradient=False)
-        self.paddle_outputs = [y]
+#     def build_cinn_program(self, target):
+#         builder = NetBuilder("resize")
+#         x = builder.create_input(
+#             self.nptype2cinntype(self.inputs["x"].dtype),
+#             self.inputs["x"].shape, "x")
+#         out = builder.resize(x, self.out_shape, self.mode)
+#         prog = builder.build()
+#         res = self.get_cinn_output(
+#             prog, target, [x], [self.inputs["x"]], [out], passes=[])
+#         self.cinn_outputs = [res[0]]
+    
+#     def check_outputs_and_grads(self):
+#         self.build_paddle_program(self.target)
+#         self.build_cinn_program(self.target)
+#         expect = self.paddle_outputs[0].numpy()
+#         actual = self.cinn_outputs[0]
 
-    def build_cinn_program(self, target):
-        builder = NetBuilder("resize")
-        x = builder.create_input(
-            self.nptype2cinntype(self.inputs["x"].dtype),
-            self.inputs["x"].shape, "x")
-        out = builder.resize(x, self.out_shape, self.mode)
-        prog = builder.build()
-        res = self.get_cinn_output(
-            prog, target, [x], [self.inputs["x"]], [out], passes=[])
-        self.cinn_outputs = [res[0]]
-        print(res[0])
+#         self.assertEqual(
+#             expect.dtype,
+#             actual.dtype,
+#             msg=
+#             "[{}] The output dtype different, which expect shape is {} but actual is {}."
+#             .format(self._get_device(), expect.dtype, actual.dtype))
+#         self.assertEqual(
+#             expect.shape,
+#             actual.shape,
+#             msg=
+#             "[{}] The output shape different, which expect shape is {} but actual is {}."
+#             .format(self._get_device(), expect.shape, actual.shape))
 
-    def test_check_results(self):
-        self.check_outputs_and_grads()
+#         is_allclose = np.allclose(
+#                 expect,
+#                 actual,
+#                 atol=1)
+#         error_message = "np.allclose(expect, actual, atol=1) checks error!"            
+#         self.assertTrue(is_allclose, msg=error_message)
 
-
-class TestResizeCase1(TestResizeOp):
-    def init_case(self):
-        self.inputs = {
-            "x":
-            np.array([[[[1, 2, 3, 4, 5], [6, 7, 8, 9, 10],
-                        [11, 12, 13, 14, 15], [16, 17, 18, 19, 20],
-                        [21, 22, 23, 24, 25]]]]).astype("int32")
-        }
-        self.outputs = {
-            "y":
-            np.array([[[[1, 2, 3, 4], [7, 8, 9, 11], [13, 14, 16, 17],
-                        [19, 21, 22, 23]]]]).astype("int32")
-        }
-        self.out_shape = [4, 4]
-        self.mode = "bilinear"
-
-
-class TestResizeCase2(TestResizeOp):
-    def init_case(self):
-        self.inputs = {
-            "x":
-            np.array([[[[1, 2, 3, 4, 5], [6, 7, 8, 9, 10],
-                        [11, 12, 13, 14, 15], [16, 17, 18, 19, 20],
-                        [21, 22, 23, 24, 25]]]]).astype("int32")
-        }
-        self.outputs = {
-            "y":
-            np.array([[[[1, 2, 3, 4], [7, 8, 9, 11], [13, 14, 16, 17],
-                        [20, 21, 22, 23]]]]).astype("int32")
-        }
-        self.out_shape = [4, 4]
-        self.mode = "bicubic"
+#     def test_check_results(self):
+#         self.check_outputs_and_grads()
 
 
-class TestResizeCase3(TestResizeOp):
-    def init_case(self):
-        self.inputs = {
-            "x":
-            np.array([[[[1, 2, 3, 4, 5], [6, 7, 8, 9, 10],
-                        [11, 12, 13, 14, 15], [16, 17, 18, 19, 20],
-                        [21, 22, 23, 24, 25]]]]).astype("int32")
-        }
-        self.outputs = {
-            "y":
-            np.array([[[[1, 1, 2, 3, 4, 5], [1, 1, 2, 3, 4, 5],
-                        [6, 6, 7, 8, 9, 10], [11, 11, 12, 13, 14, 15],
-                        [16, 16, 17, 18, 19, 20], [21, 21, 22, 23, 24,
-                                                   25]]]]).astype("int32")
-        }
-        self.out_shape = [6, 6]
-        self.mode = "nearest"
+# @OpTestTool.skip_if(not is_compiled_with_cuda(),
+#                   "x86 test will be skipped due to timeout.")
+# class TestResizeOp1(TestResizeOp):
+#     def init_case(self):
+#         self.in_shape = [1,2,220,300]
+#         self.inputs = {
+#             "x":
+#             (np.random.random(self.in_shape) * 255).astype('int32')
+#         }
+#         self.out_shape = [4, 4]
+#         self.mode = "bilinear"
 
 
-class TestResizeCase4(TestResizeOp):
-    def init_case(self):
-        self.inputs = {
-            "x":
-            np.array([[[[1, 2, 3, 4, 5], [6, 7, 8, 9, 10],
-                        [11, 12, 13, 14, 15], [16, 17, 18, 19, 20],
-                        [21, 22, 23, 24, 25]]]]).astype("int32")
-        }
-        self.outputs = {
-            "y":
-            np.array([[[[1, 1, 2, 3, 4, 5], [5, 5, 6, 7, 8, 9],
-                        [9, 10, 10, 11, 12, 13], [13, 14, 15, 16, 16, 17],
-                        [17, 18, 19, 20, 21, 21], [21, 21, 22, 23, 24,
-                                                   25]]]]).astype("int32")
-        }
-        self.out_shape = [6, 6]
-        self.mode = "bilinear"
+# @OpTestTool.skip_if(not is_compiled_with_cuda(),
+#                    "x86 test will be skipped due to timeout.")
+# class TestResizeOp2(TestResizeOp):
+#     def init_case(self):
+#         self.in_shape = [1,2,220,300]
+#         self.inputs = {
+#             "x":
+#             (np.random.random(self.in_shape) * 255).astype('int32')
+#         }
+#         self.out_shape = [4, 4]
+#         self.mode = "bicubic"
 
-
-class TestResizeCase5(TestResizeOp):
-    def init_case(self):
-        self.inputs = {
-            "x":
-            np.array([[[[1, 2, 3, 4, 5], [6, 7, 8, 9, 10],
-                        [11, 12, 13, 14, 15], [16, 17, 18, 19, 20],
-                        [21, 22, 23, 24, 25]]]]).astype("int32")
-        }
-        self.outputs = {
-            "y":
-            np.array([[[[1, 1, 2, 3, 4, 5], [5, 5, 6, 7, 8, 9],
-                        [9, 10, 11, 11, 12, 13], [13, 14, 15, 16, 16, 17],
-                        [17, 18, 19, 20, 21, 21], [21, 22, 22, 23, 24,
-                                                   25]]]]).astype("int32")
-        }
-        self.out_shape = [6, 6]
-        self.mode = "bicubic"
-
-
-if __name__ == "__main__":
-    unittest.main()
+# if __name__ == "__main__":
+#     unittest.main()

@@ -579,7 +579,7 @@ class NetBuilder {
    * @brief Resize operator does 2D scaling to the given size.
    * @param x An input variable, the data layout of input is NCHW
    * @param out_shape The out size to which the image will be resized.
-   * @param mode Scale method to used [nearest, bilinear, bicubic].
+   * @param mode Scale method to used [nearest, bilinear, bicubic], this will default to `bilinear`.
    * @return The resized result.
    */
   Variable Resize(const Variable& x, const std::vector<int>& out_shape, const std::string& mode);

@@ -115,8 +115,11 @@ int cinn_host_resize_bilinear(const cinn_buffer_t* buf,
                               const int c,
                               const int y,
                               const int x) {
-  float in_y   = static_cast<float>(in_h) / out_h * y;
-  float in_x   = static_cast<float>(in_w) / out_w * x;
+  //same with paddle resize when use cv2 backend
+  float scale_y = static_cast<float>(in_h) / out_h;
+  float scale_x = static_cast<float>(in_w) / out_w;
+  float in_y   = (y+0.5F)*scale_y - 0.5F;
+  float in_x   = (x+0.5F)*scale_x - 0.5F;
   int in_y_int = static_cast<int>(std::floor(in_y));
   int in_x_int = static_cast<int>(std::floor(in_x));
   float y_lerp = in_y - in_y_int;
@@ -150,8 +153,11 @@ int cinn_host_resize_bicubic(const cinn_buffer_t* buf,
                              const int c,
                              const int y,
                              const int x) {
-  float in_y    = static_cast<float>(in_h) / out_h * y;
-  float in_x    = static_cast<float>(in_w) / out_w * x;
+  //same with paddle resize when use cv2 backend
+  float scale_y = static_cast<float>(in_h) / out_h;
+  float scale_x = static_cast<float>(in_w) / out_w;
+  float in_y   = (y+0.5F)*scale_y - 0.5F;
+  float in_x   = (x+0.5F)*scale_x - 0.5F;
   int in_y_int  = static_cast<int>(std::floor(in_y));
   int in_x_int  = static_cast<int>(std::floor(in_x));
   float y_fract = in_y - std::floor(in_y);
@@ -169,7 +175,7 @@ int cinn_host_resize_bicubic(const cinn_buffer_t* buf,
     }
   }
 
-  float alpha = -0.5F;
+  float alpha = -0.75F;
   float w[2][4];
 
   for (int i = 0; i < 2; ++i) {
