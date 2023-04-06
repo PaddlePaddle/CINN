@@ -1455,30 +1455,65 @@ void cinn_gpu_cublas_gemm(const std::vector<int> &attrs,
 
 class CurandGenerator {
  public:
-  ~CurandGenerator() { CURAND_CALL(curandDestroyGenerator(generator_)); }
-  static CurandGenerator &GetInstance() {
-    static CurandGenerator instance;
-    return instance;
-  }
-  curandGenerator_t &GetGenerator() { return generator_; }
-
-  void SetSeed(unsigned long long seed = 0ULL) {
-    // set global seed if seed is zero
-    auto rand_seed = (seed == 0ULL) ? RandomSeed::GetOrSet() : seed;
-    if (rand_seed != 0ULL) {
-      CURAND_CALL(curandSetPseudoRandomGeneratorSeed(generator_, rand_seed));
-    }
-  }
-
- private:
-  CurandGenerator(const CurandGenerator &) = delete;
-  CurandGenerator &operator=(const CurandGenerator &) = delete;
-
   CurandGenerator() {
     CURAND_CALL(curandCreateGenerator(&generator_, CURAND_RNG_PSEUDO_PHILOX4_32_10));
     SetSeed();
+    SetOffset();
   }
+
+  ~CurandGenerator() { CURAND_CALL(curandDestroyGenerator(generator_)); }
+
+  curandGenerator_t &GetGenerator() { return generator_; }
+
+  CurandGenerator &SetOffset(unsigned long long offset = 0ULL) {
+    CURAND_CALL(curandSetGeneratorOffset(generator_, offset));
+    VLOG(4) << "Set curand generator offset to: " << offset;
+    return *this;
+  }
+
+  CurandGenerator &SetSeed(unsigned long long seed = 0ULL) {
+    // set global seed if seed is zero
+    auto rand_seed = (seed == 0ULL) ? RandomSeed::GetOrSet() : seed;
+    if (rand_seed != 0ULL && rand_seed != seed_) {
+      CURAND_CALL(curandSetPseudoRandomGeneratorSeed(generator_, rand_seed));
+      VLOG(4) << "Change curand random seed from: " << seed_ << " to: " << rand_seed;
+      seed_ = rand_seed;
+    }
+    return *this;
+  }
+
+  CurandGenerator &SetStream(cudaStream_t stream) {
+    if (stream != nullptr && stream != stream_) {
+      CURAND_CALL(curandSetStream(generator_, stream));
+      VLOG(4) << "Change curand generator stream from: " << stream_ << " to: " << stream;
+      stream_ = stream;
+    }
+    return *this;
+  }
+
+ private:
   curandGenerator_t generator_;
+  unsigned long long seed_ = 0ULL;
+  cudaStream_t stream_     = nullptr;
+};
+
+class CurandGeneratorFactory {
+ public:
+  enum CurandGeneratorType { GENERATOR_DEFAULT, GENERATOR_GAUSSIAN, GENERATOR_UNIFORM };
+
+  static CurandGenerator &GetGenerator(CurandGeneratorType type) {
+    switch (type) {
+      case GENERATOR_GAUSSIAN:
+        static CurandGenerator gaussian_generator;
+        return gaussian_generator;
+      case GENERATOR_UNIFORM:
+        static CurandGenerator uniform_generator;
+        return uniform_generator;
+      default:
+        static CurandGenerator default_generator;
+        return default_generator;
+    }
+  }
 };
 
 void cinn_call_gaussian_random(void *v_args, int num_args, float mean, float std, int seed, void *stream) {
@@ -1487,10 +1522,11 @@ void cinn_call_gaussian_random(void *v_args, int num_args, float mean, float std
   cinn_type_t dtype      = output->type;
   size_t numel           = output->num_elements();
 
-  curandGenerator_t generator = CurandGenerator::GetInstance().GetGenerator();
-  CURAND_CALL(curandSetStream(generator, static_cast<cudaStream_t>(stream)));
-  // avoid seed conflict, if the seed not set, here we should use global seed
-  CurandGenerator::GetInstance().SetSeed(seed);
+  curandGenerator_t generator =
+      CurandGeneratorFactory::GetGenerator(CurandGeneratorFactory::CurandGeneratorType::GENERATOR_GAUSSIAN)
+          .SetStream(static_cast<cudaStream_t>(stream))
+          .SetSeed(seed)
+          .GetGenerator();
 
   VLOG(4) << "cinn_call_gaussian_random: output_size=" << numel << ", mean=" << mean << ", std=" << std
           << ", seed=" << seed;
@@ -1512,10 +1548,11 @@ void cinn_call_uniform_random(void *v_args, int num_args, float min, float max, 
   cinn_type_t dtype      = output->type;
   size_t numel           = output->num_elements();
 
-  curandGenerator_t generator = CurandGenerator::GetInstance().GetGenerator();
-  CURAND_CALL(curandSetStream(generator, static_cast<cudaStream_t>(stream)));
-  // avoid seed conflict, if the seed not set, here we should use global seed
-  CurandGenerator::GetInstance().SetSeed(seed);
+  curandGenerator_t generator =
+      CurandGeneratorFactory::GetGenerator(CurandGeneratorFactory::CurandGeneratorType::GENERATOR_UNIFORM)
+          .SetStream(static_cast<cudaStream_t>(stream))
+          .SetSeed(seed)
+          .GetGenerator();
 
   VLOG(4) << "cinn_call_uniform_random: output_size=" << numel << ", min=" << min << ", max=" << max
           << ", seed=" << seed;
