@@ -636,7 +636,7 @@ std::vector<ir::Tensor> ReduceInternal(const ir::Tensor& A,
 #define BLOCK_SHUFFLE_REDUCE(name, reduce_type, initial)                                                        \
   std::vector<ir::Tensor> BlockShuffleReduce##name(                                                             \
       const ir::Tensor& A, const std::vector<int>& axes, const bool keep_dim, const std::string& output_name) { \
-    if (GetParallelSize(A, axes) >= common::GetMaxThreads()) {                                                  \
+    if (common::GetMaxThreads() / GetParallelSize(A, axes) <= 1) {                                              \
       return {Reduce##name(A, axes, keep_dim, output_name)};                                                    \
     } else {                                                                                                    \
       auto rs = ReduceInternal(A, axes, keep_dim, output_name, Reduce##name, initial, reduce_type);             \

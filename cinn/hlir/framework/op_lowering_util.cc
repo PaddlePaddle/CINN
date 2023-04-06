@@ -685,11 +685,10 @@ void LoopAssignReduce(ir::IRSchedule& ir_sch,
     auto rloops = ir_sch.GetLoops(reducer_data->id());
 
     for (auto& loop : rloops) {
-      extend *= loop.As<ir::For>()->extent.as_int32();
-      if (extend > loops.back().As<ir::For>()->extent.as_int32()) {
+      if (extend >= loops.back().As<ir::For>()->extent.as_int32()) {
         break;
       }
-      CHECK_LE(extend, loops.back().As<ir::For>()->extent.as_int32());
+      extend *= loop.As<ir::For>()->extent.as_int32();
       factors.push_back(loop.As<ir::For>()->extent.as_int32());
     }
 
