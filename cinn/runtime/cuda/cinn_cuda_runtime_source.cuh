@@ -531,8 +531,8 @@ __device__ int cinn_cuda_resize_bilinear(const int *buf,
                                          const int x) {
   float scale_y = static_cast<float>(in_h) / out_h;
   float scale_x = static_cast<float>(in_w) / out_w;
-  float in_y   = (y+0.5F)*scale_y - 0.5F;
-  float in_x   = (x+0.5F)*scale_x - 0.5F;
+  float in_y   = (y + 0.5F) * scale_y - 0.5F;
+  float in_x   = (x + 0.5F) * scale_x - 0.5F;
   int in_y_int = static_cast<int>(FN_FP32(floor)(in_y));
   int in_x_int = static_cast<int>(FN_FP32(floor)(in_x));
   float y_lerp = in_y - in_y_int;
@@ -567,8 +567,8 @@ __device__ int cinn_cuda_resize_bicubic(const int *buf,
                                         const int x) {
   float scale_y = static_cast<float>(in_h) / out_h;
   float scale_x = static_cast<float>(in_w) / out_w;
-  float in_y   = (y+0.5F)*scale_y - 0.5F;
-  float in_x   = (x+0.5F)*scale_x - 0.5F;
+  float in_y   = (y + 0.5F) * scale_y - 0.5F;
+  float in_x   = (x + 0.5F) * scale_x - 0.5F;
   int in_y_int  = static_cast<int>(cinn_nvgpu_floor_fp32(in_y));
   int in_x_int  = static_cast<int>(cinn_nvgpu_floor_fp32(in_x));
   float y_fract = in_y - cinn_nvgpu_floor_fp32(in_y);

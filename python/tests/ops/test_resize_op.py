@@ -57,7 +57,7 @@ from paddle.vision.transforms import functional as F
 #         res = self.get_cinn_output(
 #             prog, target, [x], [self.inputs["x"]], [out], passes=[])
 #         self.cinn_outputs = [res[0]]
-    
+
 #     def check_outputs_and_grads(self):
 #         self.build_paddle_program(self.target)
 #         self.build_cinn_program(self.target)
@@ -81,12 +81,11 @@ from paddle.vision.transforms import functional as F
 #                 expect,
 #                 actual,
 #                 atol=1)
-#         error_message = "np.allclose(expect, actual, atol=1) checks error!"            
+#         error_message = "np.allclose(expect, actual, atol=1) checks error!"
 #         self.assertTrue(is_allclose, msg=error_message)
 
 #     def test_check_results(self):
 #         self.check_outputs_and_grads()
-
 
 # @OpTestTool.skip_if(not is_compiled_with_cuda(),
 #                   "x86 test will be skipped due to timeout.")
@@ -99,7 +98,6 @@ from paddle.vision.transforms import functional as F
 #         }
 #         self.out_shape = [4, 4]
 #         self.mode = "bilinear"
-
 
 # @OpTestTool.skip_if(not is_compiled_with_cuda(),
 #                    "x86 test will be skipped due to timeout.")
