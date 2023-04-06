@@ -80,6 +80,13 @@ class FusionHelperBase {
     return shape_dict_.at(node_data->id());
   }
 
+  shape_t GetNodeInputShape(const Node* node) const {
+    auto node_datas = GetProducerNodeData(node);
+    CHECK_GT(node_datas.size(), 0);
+    CHECK(shape_dict_.count(node_datas[0]->id())) << "Can't find " << node_datas[0]->id() << " 's shape!";
+    return shape_dict_.at(node_datas[0]->id());
+  }
+
   static std::vector<NodeData*> GetProducerNodeData(const Node* node) {
     std::vector<NodeData*> producer_node_data;
     for (auto& edge : node->inlinks_in_order(true)) {

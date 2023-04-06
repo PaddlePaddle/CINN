@@ -733,6 +733,13 @@ void BindFrontend(pybind11::module *m) {
            py::arg("diag_num")  = 0,
            py::arg("diag_step") = 0,
            py::arg("diag_val")  = 1.0f)
+      .def("randint",
+           &NetBuilder::RandInt,
+           py::arg("shape"),
+           py::arg("min")   = 0,
+           py::arg("max")   = 1,
+           py::arg("seed")  = 0,
+           py::arg("dtype") = "int64")
       .def("cholesky", &NetBuilder::Cholesky, py::arg("x"), py::arg("upper") = false)
       .def("triangular_solve",
            &NetBuilder::TriangularSolve,

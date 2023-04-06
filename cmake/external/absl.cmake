@@ -39,6 +39,16 @@ ExternalProject_Add(
         -DCMAKE_INSTALL_LIBDIR:PATH=${ABSL_INSTALL_DIR}/lib
         -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=ON
         -DCMAKE_BUILD_TYPE:STRING=${THIRD_PARTY_BUILD_TYPE}
+        BUILD_BYPRODUCTS ${ABSL_INSTALL_DIR}/lib/libabsl_base.a
+        BUILD_BYPRODUCTS ${ABSL_INSTALL_DIR}/lib/libabsl_hash.a
+        BUILD_BYPRODUCTS ${ABSL_INSTALL_DIR}/lib/libabsl_wyhash.a
+        BUILD_BYPRODUCTS ${ABSL_INSTALL_DIR}/lib/libabsl_city.a
+        BUILD_BYPRODUCTS ${ABSL_INSTALL_DIR}/lib/libabsl_strings.a
+        BUILD_BYPRODUCTS ${ABSL_INSTALL_DIR}/lib/libabsl_throw_delegate.a
+        BUILD_BYPRODUCTS ${ABSL_INSTALL_DIR}/lib/libabsl_bad_any_cast_impl.a
+        BUILD_BYPRODUCTS ${ABSL_INSTALL_DIR}/lib/libabsl_bad_optional_access.a
+        BUILD_BYPRODUCTS ${ABSL_INSTALL_DIR}/lib/libabsl_bad_variant_access.a
+        BUILD_BYPRODUCTS ${ABSL_INSTALL_DIR}/lib/libabsl_raw_hash_set.a
 )
 
 # It may be more convinent if we just include all absl libs
