@@ -191,13 +191,24 @@ void BindFrontend(pybind11::module *m) {
               graph_passes = default_graph_pass;
             }
 
-            frontend::ProgramPass::Apply(&self, fetch_ids, target, program_passes);
-            auto graph = std::make_shared<hlir::framework::Graph>(self, fetch_ids, target);
-            hlir::framework::ApplyPasses(graph.get(), graph_passes);
+            std::shared_ptr<hlir::framework::Graph> graph;
+            if (!passes.empty()) {
+              frontend::ProgramPass::Apply(&self, fetch_ids, target, program_passes);
+              graph = std::make_shared<hlir::framework::Graph>(self, fetch_ids, target);
+              hlir::framework::ApplyPasses(graph.get(), graph_passes);
+            } else {
+              graph = Optimize(&self, fetch_ids, target);
+            }
 
             scope = hlir::framework::BuildScope(target, graph, scope);
             hlir::framework::GraphCompiler gc(target, scope, graph);
-            auto program = gc.Build();
+
+            // Keep compile option same as paddle
+            hlir::framework::GraphCompiler::CompileOptions options;
+            options.with_instantiate_variables = true;
+            auto gc_fetch_ids                  = fetch_ids;
+            const auto &result                 = gc.Build(options, std::move(gc_fetch_ids));
+            const auto &program                = result.runtime_program;
 
             for (size_t i = 0; i < tensor_inputs.size(); i++) {
               auto in_tensor = scope->GetTensor(tensor_inputs[i]->id);
