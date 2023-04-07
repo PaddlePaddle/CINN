@@ -652,7 +652,6 @@ class FusionMergePassHelper : public FusionHelperBase {
 
       fusionable_consumers = candidates;
       return;
-      VLOG(4) << fusionable_consumers.size();
     }
 
     // 1 to 1 fusion.

@@ -1246,7 +1246,6 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
 
       ir_sch.ComputeInline(block);
       nodes_inline.insert(node);
-      VLOG(4) << " CONTINUE " << node->op()->name;
       continue;
     }
     // find master to computeat.
@@ -1307,7 +1306,6 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
   }
 
   VLOG(3) << "Before Sync IRLowerOp schedule, ir is: \n" << ir_sch.GetModule().GetExprs().at(0);
-
   SyncThreadWithShared(ir_sch, nodes_inline, nodes_set, this->shape_dict_, tensor_map);
   VLOG(4) << "After IRSchedule,  ir is: \n" << ir_sch.GetModule().GetExprs().at(0);
 }
