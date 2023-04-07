@@ -56,6 +56,10 @@ class TestNormTestMode(TestNormOp):
     def set_op_attrs(self):
         return {"axis": -1, "epsilon": 1e-10, "is_test": True}
 
+    def skip_check_outputs(self):
+        # in test mode, 'Norm' is unnecesary
+        return {"Norm"}
+
 
 if __name__ == "__main__":
     unittest.main()
