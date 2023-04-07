@@ -698,6 +698,9 @@ Variable NetBuilder::UniformRandom(
       CustomInstr(
           "uniform_random", {}, {{"shape", shape}, {"min", min}, {"max", max}, {"seed", seed}, {"dtype", dtype}})
           .front();
+  if (min == 0.0f && max == 1.0f) {
+    return uniform_out;
+  }
   auto uniform_range   = FillConstant(shape, max - min, UniqName("uniform_range"), dtype);
   auto uniform_mul_out = Multiply(uniform_out, uniform_range);
   auto uniform_min     = FillConstant(shape, min, UniqName("uniform_min"), dtype);
