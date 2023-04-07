@@ -30,7 +30,6 @@ void LookupTableOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperConte
   auto ids      = ctx.GetVar(ids_name);
   CHECK(op_desc.HasAttr("padding_idx"));
   auto padding_idx = utils::GetAttrOrDefault<int64_t>(op_desc, "padding_idx", -1);
-  auto int32_ids   = ctx.Builder()->Cast(ids, "int32");
   auto out         = ctx.Builder()->LookupTable(w, ids, padding_idx);
 
   ctx.AddVar(out_name, out);
@@ -49,7 +48,6 @@ void LookupTableV2OpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperCon
   ids           = ctx.Builder()->ExpandDims(ids, {-1});
   CHECK(op_desc.HasAttr("padding_idx"));
   auto padding_idx = utils::GetAttrOrDefault<int64_t>(op_desc, "padding_idx", -1);
-  auto int32_ids   = ctx.Builder()->Cast(ids, "int32");
   auto out         = ctx.Builder()->LookupTable(w, ids, padding_idx);
 
   ctx.AddVar(out_name, out);
