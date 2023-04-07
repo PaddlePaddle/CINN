@@ -452,6 +452,11 @@ Variable NetBuilder::Cast(const Variable& operand, const std::string& dtype) {
   return CustomInstr("cast", {operand}, {{"dtype", dtype}}).front();
 }
 
+Variable NetBuilder::BitcastConvert(const Variable& operand, const std::string& dtype) {
+  std::string input_data_type = common::Type2Str(operand->type);
+  return CustomInstr("bitcast_convert", {operand}, {{"dtype", dtype}, {"input_data_type", input_data_type}}).front();
+}
+
 Variable NetBuilder::OneHot(const Variable& indices,
                             const Variable& on_value,
                             const Variable& off_value,

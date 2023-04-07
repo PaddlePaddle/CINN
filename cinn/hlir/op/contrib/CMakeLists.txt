@@ -15,6 +15,7 @@ gather_srcs(cinnapi_src SRCS
         uniform_random.cc
         cholesky.cc
         triangular_solve.cc
+        bitcast_convert.cc
         randint.cc
         )
 
