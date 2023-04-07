@@ -20,6 +20,7 @@
 #include "cinn/optim/transform_gpu_forloop.h"
 
 DECLARE_bool(cinn_ir_schedule);
+DECLARE_bool(cinn_use_cuda_vectorize);
 
 namespace cinn {
 namespace hlir {
@@ -1263,14 +1264,20 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
         ir_sch.FlattenLoops(loops, false);
       }
     }
-    VLOG(3) << "Loop fusion, ir is: \n" << ir_sch.GetModule().GetExprs().at(0);
+    VLOG(3) << "Before loop fusion, ir is: \n" << ir_sch.GetModule().GetExprs().at(0);
     VLOG(4) << " FUSION " << node->op()->name;
     // do loop fuse.
     LoopComputeAt(ir_sch, node, master ? master : nodes_in_order.front(), group, this->shape_dict_, tensor_map);
+    VLOG(3) << "After loop fusion, ir is: \n" << ir_sch.GetModule().GetExprs().at(0);
+
     // do vectorize
+    auto all_blocks = ir_sch.GetAllBlocks();
+    VLOG(4) << "Size of blocks: " << all_blocks.size();
     VLOG(4) << "Op Pattern : " << group->op_pattern_kind;
-    if (group->op_pattern_kind == framework::kElementWise || group->op_pattern_kind == framework::kInjective ||
-        group->op_pattern_kind == framework::kBroadcast) {
+    if (FLAGS_cinn_use_cuda_vectorize &&
+        (group->op_pattern_kind == framework::kElementWise || group->op_pattern_kind == framework::kInjective ||
+         group->op_pattern_kind == framework::kBroadcast)) {
+      // auto loops = ir_sch.GetLoops(all_blocks[0]);
       auto loops = ir_sch.GetLoops(GetNodeData(node)->id());
       VLOG(4) << "Op Pattern : " << loops.size();
       if (loops.size() >= 1) {
@@ -1278,7 +1285,12 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
         auto loop_inner  = loops.back();
         int vector_width = 1;
         auto psize       = ir::GetLoopExtent(loop_inner);
-        if (psize % 4 == 0) {
+        // get dtype of vectorized var
+        auto dtype = this->type_dict_.at(GetNodeData(node)->id());
+        VLOG(4) << GetNodeData(node)->id() << " dtype " << dtype;
+        if (psize % 8 == 0 && dtype.is_float(16)) {
+          vector_width = 8;
+        } else if (psize % 4 == 0) {
           vector_width = 4;
         } else if (psize % 2 == 0) {
           vector_width = 2;
@@ -1297,6 +1309,7 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
   VLOG(3) << "Before Sync IRLowerOp schedule, ir is: \n" << ir_sch.GetModule().GetExprs().at(0);
 
   SyncThreadWithShared(ir_sch, nodes_inline, nodes_set, this->shape_dict_, tensor_map);
+  VLOG(4) << "After IRSchedule,  ir is: \n" << ir_sch.GetModule().GetExprs().at(0);
 }
 
 }  // namespace framework

@@ -303,8 +303,16 @@ struct CINN_ALIGN(2) float16 {
 #endif  // __cplusplus
 };
 
+struct CINN_ALIGN(32) float8 {
+  float x, y, z, w, v, u, t, s;
+};
+
 struct CINN_ALIGN(16) half8 {
-  float16 x0, x1, x2, x3, x4, x5, x6, x7;
+  float16 x, y, z, w, v, u, t, s;
+};
+
+struct CINN_ALIGN(8) half4 {
+  float16 x, y, z, w;
 };
 
 #ifdef __cplusplus

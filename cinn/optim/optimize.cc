@@ -52,6 +52,7 @@ Expr Optimize(Expr e, Target target, bool runtime_debug_info, bool remove_gpu_fo
   CastSimplify(&copied);
   Simplify(&copied);
   UnrollLoop(&copied);
+  VLOG(4) << "After Optimize UnrollLoop:" << copied;
   VectorizeLoops(&copied, target);
 #ifdef CINN_WITH_CUDA
   if (FLAGS_cinn_ir_schedule && copied.as_lowered_func()) {
@@ -64,13 +65,15 @@ Expr Optimize(Expr e, Target target, bool runtime_debug_info, bool remove_gpu_fo
 #endif
 
   RemoveNestedBlock(&copied);
+  VLOG(4) << "After Optimize RemoveNestedBlock:" << copied;
 
   MapExternCall(&copied, target);
   ExternCallMultiOutputShallowStore(&copied);
-
+  VLOG(4) << "After Optimize ExternCallMultiOutputShallowStore:" << copied;
   CastSimplify(&copied);
   Simplify(&copied);
   IfSimplify(&copied);
+  VLOG(4) << "After Optimize IfSimplify:" << copied;
 
   if (runtime_debug_info) {
     LOG(WARNING) << "Turn on runtime debug information output";
@@ -85,10 +88,15 @@ ir::Module Optimize(const ir::Module& module, const Target& target) {
     UnrollLoop(&copied);
     VectorizeLoops(&copied, Target());
   }
+  VLOG(4) << "After VectorizeLoops:" << copied.as_module_ref();
   RemoveScheduleBlock(&copied);
+  VLOG(4) << "After RemoveScheduleBlock:" << copied.as_module_ref();
   LowerFunctionCallBindVars(&copied);
+  VLOG(4) << "After LowerFunctionCallBindVars:" << copied.as_module_ref();
   CallArgListToPodValue(&copied);
+  VLOG(4) << "After CallArgListToPodValue:" << copied.as_module_ref();
   LowerIntrin(&copied, target);
+  VLOG(4) << "After LowerIntrin:" << copied.as_module_ref();
 
   return copied.as_module_ref();
 }

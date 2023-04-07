@@ -35,6 +35,9 @@ const std::string CodeGenCUDA_Dev::source_header_ =
 #define CINN_WITH_CUDA
 #include "float16.h"
 using cinn::common::float16;
+using cinn::common::half4;
+using cinn::common::half8;
+using cinn::common::float8;
 
 #include "cinn_cuda_runtime_source.cuh"
 )";
@@ -318,7 +321,7 @@ void CodeGenCUDA_Dev::Visit(const ir::Let *op) {
   if (op->type().is_customized() &&
       utils::Startswith(op->type().customized_type(), common::customized_type::kcuda_builtin_vector_t)) {
     os() << GetTypeRepr(op->type());
-    os() << " ";
+    os() << " " << kCKeywordRestrict << " ";
     Print(op->symbol);
     vectorized_tensor_names_.insert(utils::GetStreamCnt(op->symbol));
     os() << " = ";
@@ -329,7 +332,7 @@ void CodeGenCUDA_Dev::Visit(const ir::Let *op) {
 }
 
 bool CodeGenCUDA_Dev::PrintBuiltinVectorAccess(const ir::LoadStoreAddrMnger *op, ir::Expr index_expr) {
-  static constexpr char index2suffix[4] = {'x', 'y', 'z', 'w'};
+  static constexpr char index2suffix[8] = {'x', 'y', 'z', 'w', 'v', 'u', 't', 's'};
 
   // addr of op should be a place of tensor and the index is simple int number
   if (!op->is_addr_tensor() || !index_expr.As<ir::IntImm>()) {
@@ -345,7 +348,7 @@ bool CodeGenCUDA_Dev::PrintBuiltinVectorAccess(const ir::LoadStoreAddrMnger *op,
 
   // the index can't exceed the range of cuda built-in vector type
   int index = index_expr.As<ir::IntImm>()->value;
-  if (index < 0 || index >= 4) {
+  if (index < 0 || index >= 8) {
     return false;
   }
 

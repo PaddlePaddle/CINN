@@ -150,9 +150,9 @@ class TensorVectorizeTeller : public ir::IRMutator<const Expr *> {
     }
 
     auto dtype          = expr->type().ElementOf();
-    bool type_supported = dtype.is_float(32) || dtype.is_int(32) || dtype.is_uint(32);
+    bool type_supported = dtype.is_float(32) || dtype.is_int(32) || dtype.is_uint(32) || dtype.is_float(16);
     if (!type_supported) {
-      VLOG(5) << "Only support vectorizing int,uint,float";
+      VLOG(5) << "Only support vectorizing int,uint,float,float16, but got " << dtype;
       return false;
     }
     return true;
@@ -172,7 +172,7 @@ class CudaVectorizer : public IRMutator<Expr *> {
   std::vector<Expr> vectorized_cast_exprs_;
 
  public:
-  static constexpr int CudaVectorTypeMaxLanes = 4;
+  static constexpr int CudaVectorTypeMaxLanes = 8;
   CudaVectorizer(const Var &iter_var,
                  const int factor,
                  const absl::flat_hash_map<std::string, common::CasInterval> *var_intervals)
@@ -236,6 +236,7 @@ class CudaVectorizer : public IRMutator<Expr *> {
     GET_CUDA_VECTOR_TYPE_NAME(type.is_int(32), "int");
     GET_CUDA_VECTOR_TYPE_NAME(type.is_uint(32), "uint");
     GET_CUDA_VECTOR_TYPE_NAME(type.is_float(32), "float");
+    GET_CUDA_VECTOR_TYPE_NAME(type.is_float(16), "half");
 #undef GET_CUDA_VECTOR_TYPE_NAME
 
     // others are not implementd yet

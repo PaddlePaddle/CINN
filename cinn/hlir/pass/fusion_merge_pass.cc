@@ -400,6 +400,13 @@ class FusionMergePassHelper : public FusionHelperBase {
         continue;
       }
 
+      if (IsSimpleRecomputable(producer, consumer)) {
+        VLOG(4) << "Found SimpleRecomputable, Consumer " << consumer->group_id << " can be master fused group!";
+        fusionable_consumers.insert(consumer);
+        VLOG(4) << fusionable_consumers.size();
+        continue;
+      }
+
       if (IsDependencySimplify(producer, consumer, consumers)) {
         VLOG(4) << "IsDependencySimplify, Consumer " << consumer->group_id << " can't be master fused group!";
         continue;
@@ -416,6 +423,7 @@ class FusionMergePassHelper : public FusionHelperBase {
     if (fusionable_consumers.size()) {
       RecomputeWithCostModel(producer, fusionable_consumers);
     }
+    VLOG(4) << fusionable_consumers.size();
 
     // if fusionable consumers exist
     if (fusionable_consumers.size()) {
@@ -430,7 +438,7 @@ class FusionMergePassHelper : public FusionHelperBase {
     VLOG(3) << "VerticalFuse...!";
     GroupList fused_groups;
     GroupPtr master_fuesd_group(nullptr);
-
+    VLOG(4) << fusionable_consumers.size();
     for (auto& consumer : fusionable_consumers) {
       auto fused_group = std::make_shared<Graph::Group>();
       // update depth using consumer depth.
@@ -644,6 +652,7 @@ class FusionMergePassHelper : public FusionHelperBase {
 
       fusionable_consumers = candidates;
       return;
+      VLOG(4) << fusionable_consumers.size();
     }
 
     // 1 to 1 fusion.
@@ -682,7 +691,7 @@ class FusionMergePassHelper : public FusionHelperBase {
 
     fusionable_consumers.clear();
     if (candidates.size()) {
-      fusionable_consumers.insert(*candidates.begin());
+      fusionable_consumers.insert(candidates.begin(),  candidates.end());
     }
   }
 
@@ -736,6 +745,25 @@ class FusionMergePassHelper : public FusionHelperBase {
         if (!visited_set.count(producer)) {
           visited_set.insert(producer);
           candidates.push(producer);
+        }
+      }
+    }
+    return false;
+  }
+
+  // NOTE(zhiqiu): simple recompute, only support 1 case now for amp performance:
+  // 1. producer is one cast op
+  // 2. consumer is directly depends on producer
+  bool IsSimpleRecomputable(const GroupPtr& producer, const GroupPtr& consumer) {
+    // condition 1
+    VLOG(4) << "nodes.size():" << producer->CollectNodes().size();
+    CHECK(producer->CollectNodes().size());
+    VLOG(4) << "name:" << producer->CollectNodes()[0]->op()->name;
+    if (producer->CollectNodes().size() == 1) {
+      auto node = producer->CollectNodes()[0];
+      if (node->op()->name == "cast") {
+        if (consumer->producer_groups.count(producer)) {
+          return true;
         }
       }
     }
