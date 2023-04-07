@@ -16,6 +16,7 @@
 
 #include "cinn/hlir/framework/op_lowering_util.h"
 #include "cinn/hlir/op/external_api_registry.h"
+#include "cinn/ir/ir_schedule.h"
 #include "cinn/optim/transform_gpu_forloop.h"
 
 DECLARE_bool(cinn_ir_schedule);
@@ -1225,6 +1226,13 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
 
     // node can be inline.
     if (CanbeInline(node, consumers, reducer, nodes_in_order.front(), group, nodes_set, this->shape_dict_)) {
+      auto block = ir_sch.GetBlock(GetNodeData(node)->id());
+      ir::ComputeInlineChecker checker(ir_sch, block);
+      if (!checker.Check()) {
+        checker.BuildDataDependency();
+        continue;
+      }
+
       // if exist global reduce node.
       if (greducer) {
         auto loops = ir_sch.GetLoops(GetNodeData(node)->id());
@@ -1235,7 +1243,6 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
         }
       }
 
-      auto block = ir_sch.GetBlock(GetNodeData(node)->id());
       ir_sch.ComputeInline(block);
       nodes_inline.insert(node);
       continue;
