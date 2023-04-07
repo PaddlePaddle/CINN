@@ -105,7 +105,7 @@ TEST(OP_LOWERING, Reduce_Without_Last_Axis_2) {
   Compile(net_builder);
 }
 
-TEST(OpFusionPass, Reduce_Without_Last_Axis_1) {
+TEST(OP_LOWERING, Reduce_Without_Last_Axis_1) {
   NetBuilder net_builder("Reduce_Without_Last_Axis_1");
   // create model
   {
@@ -117,7 +117,7 @@ TEST(OpFusionPass, Reduce_Without_Last_Axis_1) {
   Compile(net_builder);
 }
 
-TEST(OpFusionPass, Reduce_With_Last_Axis_1) {
+TEST(OP_LOWERING, Reduce_With_Last_Axis_1) {
   NetBuilder net_builder("Reduce_With_Last_Axis_1");
   // create model
   {
@@ -127,7 +127,7 @@ TEST(OpFusionPass, Reduce_With_Last_Axis_1) {
   Compile(net_builder);
 }
 
-TEST(OpFusionPass, Reduce_Fuse_Broadcast_With_Output) {
+TEST(OP_LOWERING, Reduce_Fuse_Broadcast_With_Output) {
   NetBuilder net_builder("Reduce_Fuse_Broadcast_With_Output");
   auto layer_norm_51__tmp_1 = net_builder.CreateInput(Float(32), {256}, "layer_norm_51__tmp_1");
   auto var_3216             = net_builder.CreateInput(Float(32), {256, 60}, "var_3216");
@@ -152,7 +152,7 @@ TEST(OpFusionPass, Reduce_Fuse_Broadcast_With_Output) {
   Compile(net_builder);
 }
 
-TEST(OpFusionPass, Reduce_Fuse_Broadcast_Layernorm) {
+TEST(OP_LOWERING, Reduce_Fuse_Broadcast_Layernorm) {
   int h = 32, w = 1024;
   NetBuilder net_builder("Reduce_Fuse_Broadcast_Layernorm");
   // create model
@@ -192,7 +192,7 @@ TEST(OpFusionPass, Reduce_Fuse_Broadcast_Layernorm) {
   Compile(net_builder);
 }
 
-TEST(OpFusionPass, Reduce_Fuse_Broadcast_Softmax) {
+TEST(OP_LOWERING, Reduce_Fuse_Broadcast_Softmax) {
   int h = 32, w = 1024;
   NetBuilder net_builder("Reduce_Fuse_Broadcast_Softmax");
   // create model
@@ -218,7 +218,7 @@ TEST(OpFusionPass, Reduce_Fuse_Broadcast_Softmax) {
   Compile(net_builder);
 }
 
-TEST(OpFusionPass, Reduce_Fuse_Broadcast_1) {
+TEST(OP_LOWERING, Reduce_Fuse_Broadcast_1) {
   int h = 32, w = 32;
   NetBuilder net_builder("Reduce_Fuse_Broadcast_1");
   // create model
@@ -231,7 +231,7 @@ TEST(OpFusionPass, Reduce_Fuse_Broadcast_1) {
   Compile(net_builder);
 }
 
-TEST(OpFusionPass, Reduce_Fuse_Broadcast_2) {
+TEST(OP_LOWERING, Reduce_Fuse_Broadcast_2) {
   int h = 32, w = 32;
   NetBuilder net_builder("Reduce_Fuse_Broadcast_2");
   // create model
@@ -244,7 +244,7 @@ TEST(OpFusionPass, Reduce_Fuse_Broadcast_2) {
   Compile(net_builder);
 }
 
-TEST(OpFusionPass, Reduce_Fuse_Broadcast_3) {
+TEST(OP_LOWERING, Reduce_Fuse_Broadcast_3) {
   int h = 32, w = 32;
   NetBuilder net_builder("Reduce_Fuse_Broadcast_3");
   // create model
@@ -257,7 +257,7 @@ TEST(OpFusionPass, Reduce_Fuse_Broadcast_3) {
   Compile(net_builder);
 }
 
-TEST(OpFusionPass, Reduce_Fuse_Broadcast_4) {
+TEST(OP_LOWERING, Reduce_Fuse_Broadcast_4) {
   int h = 32, w = 32;
   NetBuilder net_builder("Reduce_Fuse_Broadcast_4");
   // create model
@@ -270,7 +270,7 @@ TEST(OpFusionPass, Reduce_Fuse_Broadcast_4) {
   Compile(net_builder);
 }
 
-TEST(OpFusionPass, Reduce_Fuse_Broadcast_5) {
+TEST(OP_LOWERING, Reduce_Fuse_Broadcast_5) {
   int h = 32, w = 32;
   NetBuilder net_builder("Reduce_Fuse_Broadcast_5");
   // create model
