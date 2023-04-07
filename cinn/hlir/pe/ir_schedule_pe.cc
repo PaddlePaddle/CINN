@@ -612,7 +612,9 @@ void IRCudaScheduleBlockShuffleReduce(ir::IRSchedule &ir_sch,
 
     ir::Var var_name;
     for (int idx = 0; idx < schedule_block->iter_vars.size(); ++idx) {
-      CHECK(schedule_realize->iter_values[idx].as_var());
+      if (!schedule_realize->iter_values[idx].as_var()) {
+        continue;
+      }
       if (schedule_realize->iter_values[idx].as_var()->name != loop_var->name) {
         continue;
       }
@@ -622,7 +624,6 @@ void IRCudaScheduleBlockShuffleReduce(ir::IRSchedule &ir_sch,
     }
 
     auto exprs = ir::CollectIRNodesInOrder(block, [&](const Expr *x) { return x->As<ir::Load>(); });
-    CHECK(exprs.size());
     for (auto expr : exprs) {
       auto load = expr.As<ir::Load>();
       auto t    = load->tensor.as_tensor_ref();
@@ -630,7 +631,7 @@ void IRCudaScheduleBlockShuffleReduce(ir::IRSchedule &ir_sch,
         continue;
       }
 
-      int loop_var_count = 0;
+      int index_var_count = 0;
       for (int idx = 0; idx < load->indices.size(); ++idx) {
         if (!load->indices[idx].is_var()) {
           continue;
@@ -640,9 +641,16 @@ void IRCudaScheduleBlockShuffleReduce(ir::IRSchedule &ir_sch,
           break;
         }
 
-        ++loop_var_count;
+        ++index_var_count;
       }
 
+      // remove dimension range = 1.
+      int loop_var_count = 0;
+      for (int idx = 0; idx < index_var_count; ++idx) {
+        if (internal->shape[idx].as_int32() > 1) {
+          ++loop_var_count;
+        }
+      }
       return loop_var_count;
     }
     LOG(FATAL) << "Can't find var in tensor indeces!";
