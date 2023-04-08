@@ -147,6 +147,8 @@ class TensorVectorizeTeller : public ir::IRMutator<const Expr *> {
                 << ", first:" << first_idx << ", gap:" << gap;
         return false;
       }
+      VLOG(5) << "Tensor:" << tensor->name << " is accessed sequentially, next:" << next_idx << ", first:" << first_idx
+              << ", gap:" << gap;
     }
 
     auto dtype          = expr->type().ElementOf();
