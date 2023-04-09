@@ -222,7 +222,12 @@ std::string DebugString(const Node* node) {
      << cinn::utils::Join(in_names, ", ");
 
   bool first = true;
+  std::map<std::string, std::string> attr_str_map;
   for (const auto& attr_pair : node->attrs.attr_store) {
+    attr_str_map[attr_pair.first] = utils::Attribute2String(attr_pair.second);
+  }
+
+  for (const auto& attr_pair : attr_str_map) {
     if (!first) {
       ss << ", ";
     } else {
@@ -232,7 +237,7 @@ std::string DebugString(const Node* node) {
       }
       first = false;
     }
-    ss << attr_pair.first << "=" << utils::Attribute2String(attr_pair.second);
+    ss << attr_pair.first << "=" << attr_pair.second;
   }
   ss << ")";
   return ss.str();
