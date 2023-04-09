@@ -614,6 +614,10 @@ Variable NetBuilder::Repeat(const Variable& x, int repeats, int axis) {
   return CustomInstr("repeat", {x}, {{"repeats", repeats}, {"axis", axis}}).front();
 }
 
+Variable NetBuilder::Resize(const Variable& x, const std::vector<int>& out_shape, const std::string& mode) {
+  return CustomInstr("resize", {x}, {{"out_shape", out_shape}, {"mode", mode}}).front();
+}
+
 std::vector<Variable> NetBuilder::BatchNorm(const Variable& a,
                                             const Variable& scale,
                                             const Variable& bias,
@@ -694,6 +698,9 @@ Variable NetBuilder::UniformRandom(
       CustomInstr(
           "uniform_random", {}, {{"shape", shape}, {"min", min}, {"max", max}, {"seed", seed}, {"dtype", dtype}})
           .front();
+  if (min == 0.0f && max == 1.0f) {
+    return uniform_out;
+  }
   auto uniform_range   = FillConstant(shape, max - min, UniqName("uniform_range"), dtype);
   auto uniform_mul_out = Multiply(uniform_out, uniform_range);
   auto uniform_min     = FillConstant(shape, min, UniqName("uniform_min"), dtype);
@@ -712,7 +719,23 @@ Variable NetBuilder::RandInt(const std::vector<int>& shape, int min, int max, in
 }
 
 Variable NetBuilder::Cholesky(const Variable& x, bool upper) {
-  return CustomInstr("cholesky", {x}, {{"upper", upper}}).front();
+  auto cholesky_out = CustomInstr("cholesky", {x}, {{"upper", upper}}).front();
+  // Set upper/lower triangle of matrices to 0
+  auto x_ndim = x->shape.size();
+  CHECK_GE(x_ndim, 2) << "The input matrix x shape size should >= 2! Please check again.";
+  CHECK_EQ(x->shape[x_ndim - 1], x->shape[x_ndim - 2])
+      << "The input matrix x's last 2 dimensions must be the same! Please check again.";
+  int m          = x->shape[x_ndim - 1];
+  auto m_tensor  = FillConstant({m * m}, m);
+  auto index     = Arange(0.0f, static_cast<float>(m * m), 1.0f, "int32");
+  auto index_row = Mod(index, m_tensor);
+  auto index_col = FloorDivide(index, m_tensor);
+  auto mask      = upper ? GreaterEqual(index_row, index_col) : LessEqual(index_row, index_col);
+  auto mask_mat  = Reshape(mask, {m, m});
+  auto mask_full = BroadcastTo(mask_mat, x->shape);
+  auto zeros     = FillConstant(x->shape, 0.0f, "zeros", common::Type2Str(x->type));
+  auto out       = Select(mask_full, cholesky_out, zeros);
+  return out;
 }
 
 Variable NetBuilder::TriangularSolve(
