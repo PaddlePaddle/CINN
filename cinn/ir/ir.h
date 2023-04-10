@@ -983,6 +983,8 @@ constexpr const char* auto_unroll_max_step = "auto_unroll_max_step";
 constexpr const char* compute_at_extra_var = "compute_at_extra_var";
 // record the extra loop built during ReverseComputeAt, used for calculate the size of temp buffer in post-processing
 constexpr const char* reverse_compute_at_extra_var = "reverse_compute_at_extra_var";
+// record the cooperative process info, used in post schedule rule(CooperativeProcess)
+constexpr const char* cooperative_process = "cooperative_process";
 
 }  // namespace attr
 
