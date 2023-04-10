@@ -690,7 +690,7 @@ class FusionMergePassHelper : public FusionHelperBase {
 
     fusionable_consumers.clear();
     if (candidates.size()) {
-      fusionable_consumers.insert(candidates.begin(),  candidates.end());
+      fusionable_consumers.insert(candidates.begin(), candidates.end());
     }
   }
 
