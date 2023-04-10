@@ -108,6 +108,10 @@ DEFINE_bool(auto_schedule_use_cost_model,
             "Whether to use cost model in auto schedule, this is an on-developing flag and it will be removed when "
             "cost model is stable.");
 
+DEFINE_bool(enhance_vertical_fusion_with_recompute,
+            BoolFromEnv("FLAGS_enhance_vertical_fusion_with_recompute", true),
+            "Whether to enhance check logic on vertical fusion with recompute");
+
 namespace cinn {
 namespace runtime {
 

@@ -14,6 +14,8 @@
 
 #include "cinn/hlir/pass/fusion_merge_pass_util.h"
 
+DECLARE_bool(enhance_vertical_fusion_with_recompute);
+
 namespace cinn {
 namespace hlir {
 namespace pass {
@@ -651,38 +653,62 @@ class FusionMergePassHelper : public FusionHelperBase {
       return;
     }
 
-    std::vector<GroupPtr> candidates;
-    for (auto& consumer : fusionable_consumers) {
-      if (consumer->op_pattern_kind == framework::kElementWise) {
-        candidates.push_back(consumer);
-        continue;
+    if (FLAGS_enhance_vertical_fusion_with_recompute) {
+      std::vector<GroupPtr> candidates;
+      for (auto& consumer : fusionable_consumers) {
+        if (consumer->op_pattern_kind == framework::kElementWise) {
+          candidates.push_back(consumer);
+          continue;
+        }
+
+        auto producer_output_shape       = this->GetNodeDataShape(*producer->output_nodes.begin());
+        auto consumer_output_shape       = this->GetNodeDataShape(*consumer->output_nodes.begin());
+        auto consumer_master_input_shape = this->GetNodeInputShape(*(consumer->master_nodes.begin()));
+        int producer_output_numel =
+            std::accumulate(producer_output_shape.begin(), producer_output_shape.end(), 1, std::multiplies<int>());
+        int consumer_output_numel =
+            std::accumulate(consumer_output_shape.begin(), consumer_output_shape.end(), 1, std::multiplies<int>());
+        int consumer_master_input_numel = std::accumulate(
+            consumer_master_input_shape.begin(), consumer_master_input_shape.end(), 1, std::multiplies<int>());
+        if (producer_output_numel == consumer_output_numel) {
+          candidates.push_back(consumer);
+          continue;
+        }
+
+        if (consumer->op_pattern_kind == framework::kReduction &&
+            producer_output_numel == consumer_master_input_numel) {
+          candidates.push_back(consumer);
+        }
+      }
+      sort(candidates.begin(), candidates.end(), [](const auto& lhs, const auto& rhs) {
+        return lhs->op_pattern_kind < rhs->op_pattern_kind;
+      });
+
+      fusionable_consumers.clear();
+      if (candidates.size()) {
+        fusionable_consumers.insert(*candidates.begin());
+      }
+    } else {
+      std::unordered_set<GroupPtr, Hasher, Comparator> candidates;
+      for (auto& consumer : fusionable_consumers) {
+        if (consumer->op_pattern_kind == framework::kElementWise) {
+          candidates.insert(consumer);
+          continue;
+        }
+
+        auto shape0 = this->GetNodeDataShape(*producer->output_nodes.begin());
+        auto shape1 = this->GetNodeDataShape(*consumer->output_nodes.begin());
+
+        if (std::accumulate(shape0.begin(), shape0.end(), 1, std::multiplies<int>()) ==
+            std::accumulate(shape1.begin(), shape1.end(), 1, std::multiplies<int>())) {
+          candidates.insert(consumer);
+        }
       }
 
-      auto producer_output_shape       = this->GetNodeDataShape(*producer->output_nodes.begin());
-      auto consumer_output_shape       = this->GetNodeDataShape(*consumer->output_nodes.begin());
-      auto consumer_master_input_shape = this->GetNodeInputShape(*(consumer->master_nodes.begin()));
-      int producer_output_numel =
-          std::accumulate(producer_output_shape.begin(), producer_output_shape.end(), 1, std::multiplies<int>());
-      int consumer_output_numel =
-          std::accumulate(consumer_output_shape.begin(), consumer_output_shape.end(), 1, std::multiplies<int>());
-      int consumer_master_input_numel = std::accumulate(
-          consumer_master_input_shape.begin(), consumer_master_input_shape.end(), 1, std::multiplies<int>());
-      if (producer_output_numel == consumer_output_numel) {
-        candidates.push_back(consumer);
-        continue;
+      fusionable_consumers.clear();
+      if (candidates.size()) {
+        fusionable_consumers.insert(*candidates.begin());
       }
-
-      if (consumer->op_pattern_kind == framework::kReduction && producer_output_numel == consumer_master_input_numel) {
-        candidates.push_back(consumer);
-      }
-    }
-    sort(candidates.begin(), candidates.end(), [](const auto& lhs, const auto& rhs) {
-      return lhs->op_pattern_kind < rhs->op_pattern_kind;
-    });
-
-    fusionable_consumers.clear();
-    if (candidates.size()) {
-      fusionable_consumers.insert(*candidates.begin());
     }
   }
 
