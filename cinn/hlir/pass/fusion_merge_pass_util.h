@@ -71,6 +71,35 @@ CONDITION_FUNC(is_same_size) {
   return size_0 == size_1;
 }
 
+CONDITION_FUNC(is_broadcast) {
+  if (!limit_args(helper, first, second)) {
+    return false;
+  }
+  if (is_same_size) {
+    return true;
+  }
+
+  auto is_broadcast_to = [](shape_t shape_0, shape_t shape_1) -> bool{
+    for (auto i = 0; i < shape_0.size(); ++i) {
+      bool found_dim = false;
+      for (auto j = i; j < shape_1.size(); ++j) {
+        if (shape_0[i] == shape_1[j]) {
+          found_dim = true;
+          break;
+        }
+      }
+      if (!found_dim) {
+        return false;
+      }
+    }
+    return true;
+  };
+
+  auto output_var_0 = helper->GetNodeDataShape(*first->master_nodes.begin());
+  auto output_var_1 = helper->GetNodeDataShape(*second->master_nodes.begin());
+  return is_broadcast_to(output_var_0, output_var_1) || is_broadcast_to(output_var_1, output_var_0);
+}
+
 bool is_const_group(const FusionHelperBase* helper, const std::shared_ptr<Graph::Group>& group) {
   return group->CollectNodes().size() == 1 && helper->IsConstOp(group->CollectNodes()[0]);
 };
@@ -275,6 +304,80 @@ CONDITION_FUNC(injective_horizontal_with_reduce) {
     return false;
   }
   return elementwise_fuse_reduce(helper, first, second);
+}
+
+CONDITION_FUNC(reduce_fuse_broadcast) {
+  if (is_same_size(helper, first, second)) {
+    return true;
+  }
+
+  Node* reducer = nullptr;
+  for (auto& node_in_master : first->master_nodes) {
+    if (helper->GetOpKind(node_in_master) == OpPatternKind::kReduction) {
+      reducer = node_in_master;
+      break;
+    }
+  }
+  CHECK(reducer) << "Can't find reduce op in group " << first->group_id;
+
+  auto reducer_input_shape = helper->GetNodeInputShape(reducer);
+  auto reduce_axes  = absl::get<std::vector<int>>(reducer->attrs.attr_store.at("dim"));
+  auto keep_dim     = absl::get<bool>(reducer->attrs.attr_store.at("keep_dim"));
+  for (auto& axis : reduce_axes) {
+    if (axis == -1) {
+      axis = reducer_input_shape.size() - 1;
+    }
+  }
+
+  int reduce_size = reducer_input_shape.back();
+  for (auto idx = reduce_axes.size() - 1; idx >= 1; --idx) {
+    if (reduce_axes[idx] != reduce_axes[idx - 1] + 1) {
+      return false;
+    }
+    reduce_size *= reducer_input_shape[idx - 1];
+  }
+
+  if (reduce_size > helper->target_.max_num_threads()) {
+    return false;
+  }
+
+  auto reducer_output_shape = helper->GetNodeDataShape(reducer);
+
+  for (auto node : second->fused_sub_groups[0]->nodes) {
+    if (helper->GetOpKind(node) != OpPatternKind::kBroadcast) {
+      continue;
+    }
+    Node* broadcaster = node;
+    auto broadcaster_output_shape = absl::get<std::vector<int>>(broadcaster->attrs.attr_store.at("out_shape"));
+    auto broadcast_axes  = absl::get<std::vector<int>>(broadcaster->attrs.attr_store.at("broadcast_axes"));
+    for (auto& axis : broadcast_axes) {
+      if (axis == -1) {
+        axis = broadcaster_output_shape.size() - 1;
+      }
+    }
+
+    if (reducer_input_shape != broadcaster_output_shape) {
+      return false;
+    }
+    // if keep dim = true.
+    if (keep_dim) {
+      return true;
+    } else {
+      // if reducer_output_shape = [1]
+      if (reducer_output_shape.size() == 1 && reducer_output_shape[0] == 1) {
+        return true;
+      }
+      // check [reduce_axes, broadcast_axes] = reducer_input_shape
+      for (int idx = 0; idx < reducer_input_shape.size(); ++idx) {
+        if (!(std::find(broadcast_axes.begin(), broadcast_axes.end(), idx) == broadcast_axes.end()) ^
+            std::find(reduce_axes.begin(), reduce_axes.end(), idx) == reduce_axes.end()) {
+          return false;
+        }
+      }
+      return true;
+    }
+  }
+  return false;
 }
 
 CONDITION_FUNC(reduce_fuse_reduce) {

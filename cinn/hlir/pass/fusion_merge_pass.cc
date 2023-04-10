@@ -48,7 +48,7 @@ class FusionMergePassHelper : public FusionHelperBase {
     // init input to consumers.
     InitInputToConsumers();
     // init fusion group index.
-    InitFusionGroupsAndIndex();
+    InitFusionGroupsAndIndex(); // 多包了一层group，并且更新互相之间的关系
   }
 
   GroupList operator()() {
@@ -109,7 +109,7 @@ class FusionMergePassHelper : public FusionHelperBase {
         continue;
       }
       // do horizontal fusion.
-      updated |= HorizontalFusion(producer, producer->consumer_groups);
+      updated |= HorizontalFusion(producer, producer->consumer_groups);  // vertical之后可能出现新horizontal
       updated |= VerticalFusion(producer, producer->consumer_groups);
     }
     // fuse input consumers
@@ -216,7 +216,7 @@ class FusionMergePassHelper : public FusionHelperBase {
 
         groups.push_back(candidate);
         fusionable = true;
-        break;
+        break;  // 有先后顺序（优先级）？若当前candidate 可以跟2个 Groups融合，只会放到第一个Groups中。
       }
 
       // if can't fuse to othors Groups, new Groups.
@@ -722,7 +722,7 @@ class FusionMergePassHelper : public FusionHelperBase {
     return false;
   }
 
-  bool FuseInputToConsumers() {
+  bool FuseInputToConsumers() {  // placeholder 只有数据，没有op node
     VLOG(3) << "FuseInputToConsumers...!";
     auto updated = false;
     UpdateInputToConsumers();
@@ -833,7 +833,7 @@ class FusionMergePassHelper : public FusionHelperBase {
       // horizontal
       relation.horizontal_relation = {{framework::kElementWise, is_same_size},
                                       // element-wise and broadcast op must be horizontal relation.
-                                      {OpPatternKind::kBroadcast, is_same_size},
+                                      {OpPatternKind::kBroadcast, is_broadcast},
                                       // element-wise and injective op must be horizontal relation.
                                       {OpPatternKind::kInjective, is_same_size},
                                       // element-wise and reduce op must be horizontal relation.
@@ -852,7 +852,7 @@ class FusionMergePassHelper : public FusionHelperBase {
       auto& relation = fusion_relation_map_[OpPatternKind::kBroadcast];
       // horizontal
       relation.horizontal_relation = {// broadcast and element-wise op must be horizontal relation.
-                                      {framework::kElementWise, is_same_size},
+                                      {framework::kElementWise, is_broadcast},
                                       // broadcast and broadcast op must be horizontal relation.
                                       {framework::kBroadcast, is_same_size},
                                       // broadcast and injective op must be horizontal relation.
@@ -907,7 +907,7 @@ class FusionMergePassHelper : public FusionHelperBase {
       relation.vertical_relation = {// reduce and elementwise can be horizontal/vertical relation.
                                     {OpPatternKind::kElementWise, reduce_fuse_elementwise},
                                     // reduce and broadcast op must be horizontal relation.
-                                    {OpPatternKind::kBroadcast, is_same_size},
+                                    {OpPatternKind::kBroadcast, reduce_fuse_broadcast},
                                     // reduce and injective op must be horizontal relation.
                                     {OpPatternKind::kInjective, horizontal_with_injective},
                                     // reduce and reduce must be horizontal relation.

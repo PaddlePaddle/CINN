@@ -19,6 +19,62 @@
 namespace cinn {
 namespace tests {
 
+class LayerNormBuilder : public ProgramBuilder {
+ public:
+  LayerNormBuilder() : ProgramBuilder("layer_norm_builder") {}
+  frontend::Program Build(const std::vector<VariableInfo>& inputs_varinfo, const utils::AttributeMap& attrs = {}) {
+    // int batch_size = inputs_varinfo[0][0];
+    // int seq_len = inputs_varinfo[0][1];
+    // int hidden_size = inputs_varinfo[0][2];
+    int batch_size = 128;
+    int seq_len = 512;
+    int hidden_size = 768;
+    // x
+    auto A = builder_.CreateInput(Float(32), {batch_size, seq_len, hidden_size}, "A");
+    // x * x
+    auto B = builder_.Multiply(A, A);
+    // sum x
+    auto C = builder_.ReduceSum(A, {2});
+    // sum x*x
+    auto D = builder_.ReduceSum(B, {2});
+    // constant w
+    auto E = builder_.FillConstant<float>({batch_size, seq_len}, hidden_size, "E");
+    // mean
+    auto F  = builder_.Divide(C, E);
+    auto FF = builder_.BroadcastTo(F, {batch_size, seq_len, hidden_size}, {0, 1});
+    // output mean
+    auto reshape_mean = builder_.Reshape(F, {65536});
+    auto out_mean = builder_.Identity(reshape_mean);
+    // mean x*x
+    auto G = builder_.Divide(D, E);
+    // mean * mean
+    auto H = builder_.Multiply(F, F);
+    // var^2
+    auto I = builder_.Subtract(G, H);
+    // output variance
+    auto reshape_var = builder_.Reshape(I, {65536});
+    auto out_var = builder_.Identity(reshape_var);
+    // eps
+    auto J = builder_.FillConstant<float>({batch_size, seq_len}, 1e-10f, "J");
+    // eps + delta
+    auto K = builder_.Add(I, J);
+    // var
+    auto L  = builder_.Sqrt(K);
+    auto LL = builder_.BroadcastTo(L, {batch_size, seq_len, hidden_size}, {0, 1});
+    // x - mean
+    auto M = builder_.Subtract(A, FF);
+    // /var
+    auto N = builder_.Divide(M, LL);
+    // weight
+    auto weight = builder_.FillConstant<float>({hidden_size}, 1.0, "weight");
+    auto ww = builder_.BroadcastTo(weight, {batch_size, seq_len, hidden_size}, {2});
+    auto O = builder_.Multiply(N, ww);
+    auto bias = builder_.FillConstant<float>({hidden_size}, 0.0, "bias");
+    auto bb = builder_.BroadcastTo(bias, {batch_size, seq_len, hidden_size}, {2});
+    auto P = builder_.Add(O, bb);
+  }
+};
+
 /*
  * Add --* Multiply --* Add --* Relu
  */
