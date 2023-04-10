@@ -1497,22 +1497,22 @@ class CurandGenerator {
 
 class CurandGeneratorFactory {
  public:
-  enum CurandGeneratorType {
+  enum class CurandGeneratorType {
     GENERATOR_DEFAULT,
     GENERATOR_GAUSSIAN,
     GENERATOR_UNIFORM,
     GENERATOR_RANDINT,
   };
 
-  static CurandGenerator &GetGenerator(CurandGeneratorType type) {
+  static CurandGenerator &Get(CurandGeneratorType type) {
     switch (type) {
-      case GENERATOR_GAUSSIAN:
+      case CurandGeneratorType::GENERATOR_GAUSSIAN:
         static CurandGenerator gaussian_generator(CURAND_RNG_PSEUDO_PHILOX4_32_10);
         return gaussian_generator;
-      case GENERATOR_UNIFORM:
+      case CurandGeneratorType::GENERATOR_UNIFORM:
         static CurandGenerator uniform_generator(CURAND_RNG_PSEUDO_PHILOX4_32_10);
         return uniform_generator;
-      case GENERATOR_RANDINT:
+      case CurandGeneratorType::GENERATOR_RANDINT:
         static CurandGenerator randint_generator(CURAND_RNG_PSEUDO_MT19937);
         return randint_generator;
       default:
@@ -1529,7 +1529,7 @@ void cinn_call_gaussian_random(void *v_args, int num_args, float mean, float std
   size_t numel           = output->num_elements();
 
   curandGenerator_t generator =
-      CurandGeneratorFactory::GetGenerator(CurandGeneratorFactory::CurandGeneratorType::GENERATOR_GAUSSIAN)
+      CurandGeneratorFactory::Get(CurandGeneratorFactory::CurandGeneratorType::GENERATOR_GAUSSIAN)
           .SetStream(static_cast<cudaStream_t>(stream))
           .SetSeed(seed)
           .GetGenerator();
@@ -1555,7 +1555,7 @@ void cinn_call_uniform_random(void *v_args, int num_args, float min, float max, 
   size_t numel           = output->num_elements();
 
   curandGenerator_t generator =
-      CurandGeneratorFactory::GetGenerator(CurandGeneratorFactory::CurandGeneratorType::GENERATOR_UNIFORM)
+      CurandGeneratorFactory::Get(CurandGeneratorFactory::CurandGeneratorType::GENERATOR_UNIFORM)
           .SetStream(static_cast<cudaStream_t>(stream))
           .SetSeed(seed)
           .GetGenerator();
@@ -1583,7 +1583,7 @@ void cinn_call_randint(void *v_args, int num_args, int seed, void *stream) {
   VLOG(4) << "cinn_call_randint: output_size=" << numel << ", seed=" << seed;
 
   curandGenerator_t generator =
-      CurandGeneratorFactory::GetGenerator(CurandGeneratorFactory::CurandGeneratorType::GENERATOR_RANDINT)
+      CurandGeneratorFactory::Get(CurandGeneratorFactory::CurandGeneratorType::GENERATOR_RANDINT)
           .SetStream(static_cast<cudaStream_t>(stream))
           .SetSeed(seed)
           .GetGenerator();
