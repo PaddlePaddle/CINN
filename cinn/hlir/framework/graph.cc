@@ -237,17 +237,26 @@ std::string Graph::GenerateGroupPythonCode(const std::vector<Node*>& group,
 
 std::string Graph::DebugGroupedGraph(const std::vector<std::vector<Node*>>& groups,
                                      const std::unordered_set<std::string>& fetch_var_ids) {
+  std::unordered_set<std::string> fetch_list;
+  if (!fetch_var_ids.empty()) {
+    fetch_list = fetch_var_ids;
+  } else {
+    for (const auto& var : this->outputs) {
+      fetch_list.insert(var->id());
+    }
+  }
+
   std::stringstream debug_str;
   int group_id = 0;
   for (auto& group : groups) {
     debug_str << "Group " << group_id++ << " {\n";
-    debug_str << DebugGroupedGraph(group, fetch_var_ids);
+    debug_str << DebugGroupedGraph(group, fetch_list);
     debug_str << "}\n";
   }
   debug_str << "\n";
 
   debug_str << "graph_fetch_list=["
-            << cinn::utils::Join(std::vector<std::string>(fetch_var_ids.begin(), fetch_var_ids.end()), ", ") << "]\n";
+            << cinn::utils::Join(std::vector<std::string>(fetch_list.begin(), fetch_list.end()), ", ") << "]\n";
 
   return debug_str.str();
 }
