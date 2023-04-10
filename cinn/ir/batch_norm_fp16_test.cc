@@ -596,7 +596,7 @@ TEST(IrManul, basic) {
 
     auto xid = warp_id * Expr(1) + index_i;
     auto inner_id = threadidx % expr_thread_per_warp;
-    auto inner_index = block_id *Expr(1792) +  xid * Expr(8) * expr_thread_per_warp + inner_id + index_j * expr_thread_per_warp;
+    auto inner_index = block_id % Expr(64) + ( xid * Expr(8) * expr_thread_per_warp + inner_id + index_j * expr_thread_per_warp ) * Expr(64) + block_id / Expr(64) * Expr( 64 * 2048);
     
     // block reduce
     auto warp_round = 1;
@@ -619,9 +619,9 @@ TEST(IrManul, basic) {
 
     Expr body = Store::Make( ir::Tensor(T), t_load, {Expr(loop_var), Expr(loop_var_j)}); 
 
-    auto cond = ir::LT::Make( inner_index, Expr( 1792 * 896 * 64) );
-    auto filter = ir::IfThenElse::Make( cond, body, Expr());                     
-    body      = ir::Block::Make({body1, filter});
+    // auto cond = ir::LT::Make( xid * Expr(8) * expr_thread_per_warp + inner_id + index_j * expr_thread_per_warp, Expr( 1792) );
+    // auto filter = ir::IfThenElse::Make( cond, body, Expr());                     
+    // body      = ir::Block::Make({body1, filter});
     
     auto load_inner_for = ir::For::Make(loop_var_j,
                                common::make_const(0),
@@ -656,6 +656,8 @@ TEST(IrManul, basic) {
 
 #include <cuda_fp16.h>
 
+
+
 template <unsigned int blockSize>
 __device__ __forceinline__ float warpReduceSum(float sum) {
     if (blockSize >= 32)sum += __shfl_down_sync(0xffffffff, sum, 16); // 0-16, 1-17, 2-18, etc.
@@ -666,31 +668,32 @@ __device__ __forceinline__ float warpReduceSum(float sum) {
     return sum;
 }
 
-__device__ __forceinline__ float BlockReduceSum(float sum) {
-  int warp_id = threadIdx.x / 32;                                                            
-  __shared__ float tmp[32];                                                                   
-  if (warp_id == 0) {                                                                        
-    tmp[threadIdx.x] = 0.0;                                                            
-     }                                                                                          
-  float tmp_val = warpReduceSum<128>(sum);                                          
-  if (blockDim.x <= 32) {                                                                    
-    return tmp_val;                                                                          
-  }                                                                                          
-  __syncthreads();                                                                           
-  if (threadIdx.x % 32 == 0) {                                                               
-    tmp[warp_id] = tmp_val;                                                                  
-  }                                                                                          
-  __syncthreads();                                                                           
-  if (warp_id == 0) {                                                                        
-    tmp_val = tmp[threadIdx.x];                                                              
-    tmp_val = warpReduceSum<128>(tmp_val);                                           
-    if (threadIdx.x == 0) {                                                                  
-      tmp[0] = tmp_val;                                                                      
-    }                                                                                        
-  }                                                                                          
-  __syncthreads();                                                                           
-  return tmp[0];
+const int WARP_SIZE = 32;
+__device__ __forceinline__ float BlockReduceSum(float sum) {     
+    
+    // Shared mem for partial sums (one per warp in the block)
+    static __shared__ float warpLevelSums[WARP_SIZE]; 
+    const int laneId = threadIdx.x % WARP_SIZE;
+    const int warpId = threadIdx.x / WARP_SIZE;  
+
+    sum = warpReduceSum<32>(sum);
+    
+    if( laneId == 0 ) warpLevelSums[warpId] = sum;
+    __syncthreads();
+
+    float final_sum = 0.0;
+    #pragma unroll
+    for( size_t i = 0;  i < 7; ++i)
+    {
+      final_sum += warpLevelSums[i];
+    }
+
+    if (threadIdx.x == 0) warpLevelSums[0] = final_sum;
+    __syncthreads();
+    return warpLevelSums[0];
+
 }
+
 
 template <unsigned int blockSize>
 __device__ __forceinline__ float warpReduce(float sum) {
@@ -701,6 +704,8 @@ __device__ __forceinline__ float warpReduce(float sum) {
     if (blockSize >= 2)sum = max(sum, __shfl_down_sync(0xffffffff, sum, 1) );// 0-1, 2-3, 4-5, etc.
     return sum;
 }
+
+
 
 extern "C" {
 
@@ -793,8 +798,8 @@ __global__ void softmax_test(half  *d_in, half  *d_out ) {
 
 //     // std::cerr << std::endl;
 
-    cond = ir::EQ::Make( threadidx, Expr(0) );
-    filter = ir::IfThenElse::Make( cond, load_inner_for, Expr());
+    auto cond = ir::EQ::Make( threadidx, Expr(0) );
+    auto filter = ir::IfThenElse::Make( cond, load_inner_for, Expr());
 
     cu_dev.Print( filter );
     cu_dev.ss_ << "} \n }" << std::endl;
@@ -810,35 +815,35 @@ __global__ void softmax_test(half  *d_in, half  *d_out ) {
 
   std::cerr << "source code" << source_code << std::endl;
 
-  const int N=  1792 * 896 * 64;
+  const int N=  1792 * 1792 * 64;
   common::float16 *a=(common::float16 *)malloc(N*sizeof(common::float16));
   common::float16 *d_a;
   cudaMalloc((void **)&d_a,N*sizeof(common::float16));
 
   const int num_warps = 8;
-  const int block_num = 896 * 64;
+  const int block_num = 1792 * 64;
   const int NUM_PER_BLOCK = N / block_num;
   const int NUM_PER_THREAD = NUM_PER_BLOCK/THREAD_PER_BLOCK;
   common::float16 *out=( common::float16 *)malloc(N *sizeof(common::float16));
   float *d_out;
 
-  int M = 896 * 64;
+  int M = 1568 * 64;
   cudaMalloc((void **)&d_out, M *sizeof(common::float16));
   common::float16 *res=(common::float16 *)malloc( M *sizeof(common::float16));
   
   srand(0);
   for(int i=0;i<N;i++){
-      a[i]= static_cast<common::float16>( rand() % 100 / 100 );
+      a[i]= static_cast<common::float16>( rand() % 100 / 100.0 );
   }
 
- for(int i=0;i< 896;i++){
+ for(int i=0;i< 1568;i++){
     for( int k = 0; k < 64; ++k){
       float sum = 0;
       
-      for( int j = 0; j < 1792; ++j )
+      for( int j = 0; j < 2048; ++j )
       {
           
-          sum += static_cast<float>(a[ i * 1792 * 64 + j * 64 + k ]);
+          sum += static_cast<float>(a[ j * 2048 * 64 + i * 64 + k ]);
       }
 
       res[i * 64 + k] = static_cast<common::float16>(sum);
