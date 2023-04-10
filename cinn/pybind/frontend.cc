@@ -122,7 +122,10 @@ void BindFrontend(pybind11::module *m) {
       .def("get_attr_int32s", &Instruction::GetAttrs<std::vector<int>>)
       .def("get_attr_fp32s", &Instruction::GetAttrs<std::vector<float>>)
       .def("get_attr_strs", &Instruction::GetAttrs<std::vector<std::string>>)
-      .def("__str__", [](Instruction &self) { return utils::GetStreamCnt(self); });
+      .def("__str__", [](Instruction &self) { return utils::GetStreamCnt(self); })
+      .def("get_op_type", [](Instruction &self) { return self->op_type; })
+      .def("get_inputs", [](Instruction &self) { return self->inputs; })
+      .def("get_outputs", [](Instruction &self) { return self->outputs; });
 
   m->def("get_default_program_pass", []() { return DefaultTrainingOptimizeOptions().program_passes; })
       .def("get_default_graph_pass", []() { return DefaultTrainingOptimizeOptions().graph_passes; })
@@ -188,13 +191,24 @@ void BindFrontend(pybind11::module *m) {
               graph_passes = default_graph_pass;
             }
 
-            frontend::ProgramPass::Apply(&self, fetch_ids, target, program_passes);
-            auto graph = std::make_shared<hlir::framework::Graph>(self, fetch_ids, target);
-            hlir::framework::ApplyPasses(graph.get(), graph_passes);
+            std::shared_ptr<hlir::framework::Graph> graph;
+            if (!passes.empty()) {
+              frontend::ProgramPass::Apply(&self, fetch_ids, target, program_passes);
+              graph = std::make_shared<hlir::framework::Graph>(self, fetch_ids, target);
+              hlir::framework::ApplyPasses(graph.get(), graph_passes);
+            } else {
+              graph = Optimize(&self, fetch_ids, target);
+            }
 
             scope = hlir::framework::BuildScope(target, graph, scope);
             hlir::framework::GraphCompiler gc(target, scope, graph);
-            auto program = gc.Build();
+
+            // Keep compile option same as paddle
+            hlir::framework::GraphCompiler::CompileOptions options;
+            options.with_instantiate_variables = true;
+            auto gc_fetch_ids                  = fetch_ids;
+            const auto &result                 = gc.Build(options, std::move(gc_fetch_ids));
+            const auto &program                = result.runtime_program;
 
             for (size_t i = 0; i < tensor_inputs.size(); i++) {
               auto in_tensor = scope->GetTensor(tensor_inputs[i]->id);
@@ -545,6 +559,7 @@ void BindFrontend(pybind11::module *m) {
            py::arg("strides")       = std::vector<int>{},
            py::arg("decrease_axis") = std::vector<int>{})
       .def("reverse", &NetBuilder::Reverse, py::arg("x"), py::arg("axis"))
+      .def("resize", &NetBuilder::Resize, py::arg("x"), py::arg("out_shape"), py::arg("mode") = "bilinear")
       .def("select", &NetBuilder::Select, py::arg("condition"), py::arg("true_value"), py::arg("false_value"))
       .def("split", &NetBuilder::Split, py::arg("x"), py::arg("num_or_sections"), py::arg("axis") = 0)
       .def("gather", &NetBuilder::Gather, py::arg("x"), py::arg("index"), py::arg("axis") = 0)
@@ -710,6 +725,7 @@ void BindFrontend(pybind11::module *m) {
            py::arg("padding_algorithm") = "EXPLICIT",
            py::arg("output_shape")      = std::vector<int>{})
       .def("cast", &NetBuilder::Cast, py::arg("x"), py::arg("dtype"))
+      .def("bitcast_convert", &NetBuilder::BitcastConvert, py::arg("x"), py::arg("dtype"))
       .def("arange", &NetBuilder::Arange, py::arg("start"), py::arg("end"), py::arg("step"), py::arg("dtype"))
       .def("gather_nd", &NetBuilder::GatherNd, py::arg("x"), py::arg("index"))
       .def("cbrt", &NetBuilder::Cbrt, py::arg("x"))
@@ -730,6 +746,13 @@ void BindFrontend(pybind11::module *m) {
            py::arg("max")   = 1.0f,
            py::arg("seed")  = 0,
            py::arg("dtype") = "float32")
+      .def("randint",
+           &NetBuilder::RandInt,
+           py::arg("shape"),
+           py::arg("min")   = 0,
+           py::arg("max")   = 1,
+           py::arg("seed")  = 0,
+           py::arg("dtype") = "int64")
       .def("cholesky", &NetBuilder::Cholesky, py::arg("x"), py::arg("upper") = false)
       .def("triangular_solve",
            &NetBuilder::TriangularSolve,

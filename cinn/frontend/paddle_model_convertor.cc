@@ -91,8 +91,15 @@ std::unordered_map<std::string, Variable> PaddleModelConvertor::GetFetchList(
   std::unordered_map<std::string, Variable> fetch_list;
   fetch_list.reserve(var_name_list->size());
   for (const auto& pd_name : *var_name_list) {
-    CHECK(var_map_.count(pd_name)) << "Cannot find cinn variable [" << pd_name << "] in var_map_";
-    fetch_list[pd_name] = var_map_.at(pd_name);
+    CHECK(var_model_to_program_map_.count(pd_name))
+        << "Cannot find cinn variable [" << pd_name << "] in var_model_to_program_map_";
+    auto norm_pd_name = pd_name;
+    // remove inplace output's suffix
+    auto pos = pd_name.find(paddle::InplaceOutSuffix);
+    if (pos != std::string::npos) {
+      norm_pd_name.replace(pos, sizeof(paddle::InplaceOutSuffix), "");
+    }
+    fetch_list[pd_name] = var_map_.at(norm_pd_name);
   }
   return fetch_list;
 }
