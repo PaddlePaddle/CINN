@@ -116,7 +116,7 @@ TEST(AutoInline, SingleLoopInline) {
           i0 = axis.bind(i)
           read_buffers(_A[i0(0:32)])
           write_buffers(_C[i0(0:32)])
-          C[i0] = (1.00000000f + (2.00000000f * A[i0]))
+          C[i0] = ((A[i0] * 2.00000000f) + 1.00000000f)
         }
       }
     }

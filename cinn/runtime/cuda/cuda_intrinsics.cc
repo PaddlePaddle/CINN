@@ -272,6 +272,34 @@ CINN_REGISTER_HELPER(cuda_intrinsics) {
       .AddInputType<int>()
       .End();
 
+  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_cuda_resize_bilinear, target)
+      .SetRetType<int>()
+      .AddInputType<cinn_buffer_t *>()
+      .AddInputType<int>()
+      .AddInputType<int>()
+      .AddInputType<int>()
+      .AddInputType<int>()
+      .AddInputType<int>()
+      .AddInputType<int>()
+      .AddInputType<int>()
+      .AddInputType<int>()
+      .AddInputType<int>()
+      .End();
+
+  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_cuda_resize_bicubic, target)
+      .SetRetType<int>()
+      .AddInputType<cinn_buffer_t *>()
+      .AddInputType<int>()
+      .AddInputType<int>()
+      .AddInputType<int>()
+      .AddInputType<int>()
+      .AddInputType<int>()
+      .AddInputType<int>()
+      .AddInputType<int>()
+      .AddInputType<int>()
+      .AddInputType<int>()
+      .End();
+
   return true;
 }
 
@@ -350,6 +378,15 @@ CINN_REGISTER_HELPER(cinn_cuda_host_api) {
       .AddInputType<int>()     // num_args
       .AddInputType<float>()   // min
       .AddInputType<float>()   // max
+      .AddInputType<int>()     // seed
+      .AddInputType<void *>()  // stream
+      .End();
+
+  using cinn::runtime::cuda::cinn_call_randint;
+  REGISTER_EXTERN_FUNC_HELPER(cinn_call_randint, cinn::common::DefaultHostTarget())
+      .SetRetType<void>()
+      .AddInputType<void *>()  // v_args
+      .AddInputType<int>()     // num_args
       .AddInputType<int>()     // seed
       .AddInputType<void *>()  // stream
       .End();

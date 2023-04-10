@@ -1358,6 +1358,19 @@ void ScheduleImpl::ComputeInline(const Expr& schedule_block) {
   return;
 }
 
+bool ComputeInlineChecker::Check() {
+  Expr root = ir_schedule_.GetRootBlock(block_);
+  store_    = CheckComputeInlineValidationAndGetStore(block_, root);
+  IRMutator::Visit(&root, &root);
+  return !should_skip_;
+}
+
+void ComputeInlineChecker::BuildDataDependency() {
+  ir_schedule_.SetBuffer(block_, "shared", true);
+  auto loops = ir_schedule_.GetLoops(block_);
+  ir_schedule_.SyncThreads(loops.back(), true);
+}
+
 struct FindBlockParent : public ir::IRMutator<> {
  public:
   FindBlockParent(const std::string& block_name) : block_name_(block_name) {}
