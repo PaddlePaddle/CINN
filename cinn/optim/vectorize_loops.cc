@@ -172,6 +172,7 @@ class CudaVectorizer : public IRMutator<Expr *> {
 
   absl::flat_hash_map<std::string, Var> tensor2vectorized_vars_;
   std::vector<Expr> vectorized_cast_exprs_;
+  std::vector<Expr> vectorized_store_exprs_;
 
  public:
   static constexpr int CudaVectorTypeMaxLanes = 8;
@@ -186,6 +187,9 @@ class CudaVectorizer : public IRMutator<Expr *> {
   // return all cast statements collected through vectorizing
   std::vector<Expr> VectorizedTypeCastExprs() { return vectorized_cast_exprs_; }
 
+  // return all store statements collected through vectorizing
+  std::vector<Expr> VectorizedTypeStoreExprs() { return vectorized_store_exprs_; }
+
   void Visit(Expr *expr) {
     write_teller_.Collect(expr);
     vectorized_teller_.Collect(expr);
@@ -196,7 +200,7 @@ class CudaVectorizer : public IRMutator<Expr *> {
     auto *node   = expr->As<Load>();
     auto *tensor = node->tensor.As<ir::_Tensor_>();
     if (node->is_addr_tensor() && vectorized_teller_.CanBeVectorized(tensor->name)) {
-      TensorVectorized(node, &node->indices);
+      TensorVectorized(node, &node->indices, false);
     }
   }
 
@@ -205,25 +209,26 @@ class CudaVectorizer : public IRMutator<Expr *> {
     auto *tensor = node->tensor.As<ir::_Tensor_>();
     CHECK(tensor);
     if (vectorized_teller_.CanBeVectorized(tensor->name)) {
-      TensorVectorized(node, &node->indices);
+      TensorVectorized(node, &node->indices, true);
     }
 
     IRMutator::Visit(&node->value, &node->value);
   }
 
  private:
-  void TensorVectorized(ir::LoadStoreAddrMnger *node, std::vector<Expr> *indices) {
+  void TensorVectorized(ir::LoadStoreAddrMnger *node, std::vector<Expr> *indices, bool is_store) {
     auto *tensor = node->tensor.As<ir::_Tensor_>();
     VLOG(5) << "Vectorizing tensor:" << tensor->name;
+
     // save the tensor and its corresponding vector name when it first appear
     if (!tensor2vectorized_vars_.count(tensor->name)) {
-      AppendCast(node->tensor, *indices);
+      AppendCast(node->tensor, *indices, is_store);
     }
 
     auto vectorized_var = tensor2vectorized_vars_.at(tensor->name);
     // substitue a new tensor with the vector name and dtype
-    node->tensor = ir::Tensor(
-        vectorized_var->name, node->tensor->type().PointerOf(), {Expr(factor_)}, {Expr(factor_)}, tensor->operation);
+    auto t       = vectorized_var->type().is_cpp_handle() ? node->tensor->type().PointerOf() : node->tensor->type();
+    node->tensor = ir::Tensor(vectorized_var->name, t, {Expr(factor_)}, {Expr(factor_)}, tensor->operation);
     // remain the last iterative indice
     indices->assign({iter_var_});
   }
@@ -246,20 +251,25 @@ class CudaVectorizer : public IRMutator<Expr *> {
     return "";
   }
 
-  void AppendCast(Expr tensor, const std::vector<Expr> &indices) {
+  void AppendCast(Expr tensor, const std::vector<Expr> &indices, bool is_store) {
     auto *node    = tensor.As<ir::_Tensor_>();
     bool is_const = !write_teller_.IsWrite(node->name);
 
     // generate the corresponding vector type
     Type scalar_type = tensor->type().ElementOf();
+    Type vector_type_ptr(Type::type_t::Customized, scalar_type.bits(), factor_);
     Type vector_type(Type::type_t::Customized, scalar_type.bits(), factor_);
+    vector_type_ptr.set_customized_type(GetVectorTypeName(scalar_type));
+    vector_type_ptr.set_cpp_handle();
+    vector_type_ptr.set_cpp_const(is_const);
+
     vector_type.set_customized_type(GetVectorTypeName(scalar_type));
-    vector_type.set_cpp_handle();
     vector_type.set_cpp_const(is_const);
 
     // generate a local vector variable to be used in subsequent statements
     std::string vectorized_name = "vectorized_" + node->name;
     Var vectorized_var          = _Var_::Make(vectorized_name, vector_type);
+    tensor2vectorized_vars_.emplace(node->name, vectorized_var);
 
     // generate a get_addr expr to get the address of the tensor
     Expr converted_tensor = Load::Make(tensor, indices);
@@ -267,11 +277,30 @@ class CudaVectorizer : public IRMutator<Expr *> {
     auto get_addr = ir::intrinsics::GetAddr::Make(converted_tensor);
 
     // generate a let expression to cast the tensor into the local vector
-    auto cast = ir::Cast::Make(vector_type, get_addr);
-    auto let  = Let::Make(vectorized_var, cast);
-    vectorized_cast_exprs_.emplace_back(let);
-    tensor2vectorized_vars_.emplace(node->name, vectorized_var);
-    VLOG(5) << "Append a vectorized expr:" << let;
+    auto cast = ir::Cast::Make(vector_type_ptr, get_addr);
+    if (!is_store) {
+      auto load = Load::Make(cast, {make_const(0)});
+      auto let  = Let::Make(vectorized_var, load);
+      vectorized_cast_exprs_.emplace_back(let);
+      VLOG(5) << "Append a vectorized expr:" << let;
+    } else {
+      Var vectorized_ptr = _Var_::Make(vectorized_name + "_ptr", vector_type_ptr);
+
+      auto let1 = Let::Make(vectorized_ptr, cast);
+      auto let2 = Let::Make(vectorized_var, Expr(0));
+      vectorized_cast_exprs_.emplace_back(let1);
+      vectorized_cast_exprs_.emplace_back(let2);
+
+      VLOG(5) << "Append a vectorized expr:" << let1;
+      VLOG(5) << "Append a vectorized expr:" << let2;
+
+      auto t =
+          ir::Tensor(vectorized_ptr->name, node->type().PointerOf(), {Expr(factor_)}, {Expr(factor_)}, node->operation);
+      auto store = Store::Make(t, vectorized_var, {make_const(0)});
+
+      vectorized_store_exprs_.emplace_back(store);
+      VLOG(5) << "Append a vectorized expr:" << store;
+    }
   }
 };
 
@@ -698,9 +727,11 @@ struct VectorizeLoops_ : public IRMutator<Expr *> {
         // and replace original compute statements with the correspond unrolled ones
         auto unroll_body = copied_loop.As<ir::Block>()->stmts;
         auto cast_exprs  = cuda_vectorizer.VectorizedTypeCastExprs();
+        auto store_exprs = cuda_vectorizer.VectorizedTypeStoreExprs();
         auto &body_stmts = new_forloop->body.As<ir::Block>()->stmts;
         body_stmts.assign(cast_exprs.begin(), cast_exprs.end());
         body_stmts.insert(body_stmts.end(), unroll_body.begin(), unroll_body.end());
+        body_stmts.insert(body_stmts.end(), store_exprs.begin(), store_exprs.end());
       } else {
         Vectorizer(new_forloop->loop_var, extent, var_intervals).Visit(&new_forloop->body);
       }
