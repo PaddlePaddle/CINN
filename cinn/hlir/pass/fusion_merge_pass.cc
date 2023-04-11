@@ -609,13 +609,6 @@ class FusionMergePassHelper : public FusionHelperBase {
       CHECK_EQ(fusionable_consumers.size(), 1) << "Find more than one consumer can fuse to " << producer->group_id;
     }
 
-    // TODO(CtfGo):if producer is Injective, we disable vertical fusion with all following consumers currently,
-    // and it should be designed more carefully to filter some valid fusionable consumers.
-    if (producer->op_pattern_kind == framework::kInjective) {
-      fusionable_consumers.clear();
-      return;
-    }
-
     // if is const op
     if (is_const_group(this, producer)) {
       std::unordered_set<GroupPtr, Hasher, Comparator> candidates;
@@ -647,13 +640,19 @@ class FusionMergePassHelper : public FusionHelperBase {
       fusionable_consumers = candidates;
       return;
     }
-
     // 1 to 1 fusion.
     if (producer->consumer_groups.size() == 1) {
       return;
     }
 
     if (FLAGS_enhance_vertical_fusion_with_recompute) {
+      // TODO(CtfGo):if producer is Injective, we disable vertical fusion with all following consumers currently,
+      // and it should be designed more carefully to filter some valid fusionable consumers.
+      if (producer->op_pattern_kind == framework::kInjective) {
+        fusionable_consumers.clear();
+        return;
+      }
+
       std::vector<GroupPtr> candidates;
       for (auto& consumer : fusionable_consumers) {
         if (consumer->op_pattern_kind == framework::kElementWise) {
