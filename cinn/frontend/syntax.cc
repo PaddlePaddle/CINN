@@ -513,14 +513,21 @@ std::string _Instruction_::debug_string() const {
   ss << utils::Join(input_names, ", ");
   if (!attrs.empty() && !input_names.empty()) ss << ", ";
 
-  std::vector<std::string> attr_strs;
-  for (auto& attr : attrs) {
+  std::map<std::string, std::string> attr_str_map;
+  for (const auto& attr : attrs) {
     std::stringstream iss;
-    iss << attr.first << "=";
     absl::visit(Visit{iss}, attr.second);
-    attr_strs.push_back(iss.str());
+    attr_str_map[attr.first] = iss.str();
   }
-  ss << utils::Join(attr_strs, ", ");
+  bool is_first = true;
+  for (const auto& attr : attr_str_map) {
+    if (is_first) {
+      is_first = false;
+    } else {
+      ss << ", ";
+    }
+    ss << attr.first << "=" << attr.second;
+  }
   ss << ")";
 
   return ss.str();
