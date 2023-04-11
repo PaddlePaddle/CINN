@@ -409,8 +409,7 @@ TEST_F(TestMultiLevelTiling, Pool2d) {
             RuleApplyType::kApplyAndPruneOtherRules);
   auto new_states = multi_level_tiling.ApplyOnBlock(state, default_output_names[0]);
   VLOG(6) << "After MultiLevelTiling, state:\n" << new_states[0]->DebugString();
-  std::string ir = GetIR(new_states[0]->ir_schedule);
-  VLOG(0) << "ir: \n" << ir;
+  std::string ir          = GetIR(new_states[0]->ir_schedule);
   std::string expected_ir = R"ROC(Expr 0 {
 {
   ScheduleBlock(root)

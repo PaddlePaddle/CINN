@@ -31,6 +31,10 @@ void UniformRandomOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperCon
   auto max  = utils::GetAttrOrDefault<float>(op_desc, "max", 1.0f);
   auto seed = utils::GetAttrOrDefault<int>(op_desc, "seed", 0);
 
+  auto diag_num  = utils::GetAttrOrDefault<int>(op_desc, "diag_num", 0);
+  auto diag_step = utils::GetAttrOrDefault<int>(op_desc, "diag_step", 0);
+  auto diag_val  = utils::GetAttrOrDefault<float>(op_desc, "diag_val", 1.0f);
+
   auto dtype_id = utils::GetAttrOrDefault<int>(op_desc, "dtype", static_cast<int>(paddle::cpp::VarDescAPI::Type::FP32));
   auto dtype_pd = static_cast<paddle::cpp::VarDescAPI::Type>(dtype_id);
   auto dtype_cinn = utils::CppVarType2CommonType(dtype_pd);
@@ -39,7 +43,7 @@ void UniformRandomOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperCon
   VLOG(4) << out_name << "[" << cinn::utils::Join(shape, ", ") << "] = uniform_random(min=" << min << ", max=" << max
           << ", seed=" << seed << ", dtype=" << dtype << ", shape=[" << cinn::utils::Join(shape, ", ") << "])";
 
-  auto out = ctx.Builder()->UniformRandom(shape, min, max, seed, dtype);
+  auto out = ctx.Builder()->UniformRandom(shape, min, max, seed, dtype, diag_num, diag_step, diag_val);
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);
 }

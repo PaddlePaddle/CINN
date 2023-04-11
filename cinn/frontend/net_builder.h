@@ -1068,7 +1068,10 @@ class NetBuilder {
                          float min                = -1.0f,
                          float max                = 1.0f,
                          int seed                 = 0,
-                         const std::string& dtype = "float32");
+                         const std::string& dtype = "float32",
+                         int diag_num             = 0,
+                         int diag_step            = 0,
+                         float diag_val           = 1.0f);
 
   /**
    * @brief Generate random integers in the range min to max
@@ -1079,7 +1082,7 @@ class NetBuilder {
    * @param dtype Data tpye of output variable, supported data types: int32, int64.
    */
   Variable RandInt(
-      const std::vector<int>& shape, int min = 0, int max = 0, int seed = 1, const std::string& dtype = "int64");
+      const std::vector<int>& shape, int min = 0, int max = 0, int seed = 0, const std::string& dtype = "int64");
 
   /**
    * @brief Compute cholesky decomposition of a positive definite symmetric matrix.
