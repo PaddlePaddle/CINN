@@ -55,6 +55,8 @@ class TestRandIntOp(OpTest):
         # in the specific implementation, the random number results generated
         # by CINN and Paddle are not the same, but they all conform to the
         # uniform distribution.
+        # self.check_outputs_and_grads()
+        self.build_paddle_program(self.target)
         self.build_cinn_program(self.target)
 
 

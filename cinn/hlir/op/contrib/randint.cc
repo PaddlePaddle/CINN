@@ -80,11 +80,7 @@ std::vector<framework::shape_t> InferShapeForRandInt(const std::vector<framework
 }
 
 std::vector<Type> InferDtypeForRandInt(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
-  std::string dtype = "int64";
-  if (attrs.find("dtype") != attrs.end()) {
-    dtype = absl::get<std::string>(attrs.at("dtype"));
-  }
-  CHECK(dtype == "int32" || dtype == "int64") << "randint dtype must be int32 or int64 but received dtype = " << dtype;
+  std::string dtype = "int32";
   std::vector<Type> res{common::Str2Type(dtype)};
   return res;
 }
