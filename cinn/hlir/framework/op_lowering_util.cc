@@ -439,41 +439,51 @@ void LoopAssignReduceWithoutLast(ir::IRSchedule& ir_sch,
     ir_sch.Fuse({loops.begin(), loops.begin() + fsize});
   }
 
-  auto split_loop = [&](int idx) {
-    auto loops = ir_sch.GetLoops(block_name);
+  auto get_tile_size = [&](int idx) {
     auto range = GetLoopExtent(loops[idx - 1]);
-
-    auto tile_size = 1;
     if (range > 32) {
-      tile_size = 8;
+      return 8;
     } else if (range > 16) {
-      tile_size = 16;
+      return 16;
     } else if (range > 4) {
-      tile_size = 32;
+      return 32;
     } else {
-      tile_size = 64;
-    }
-
-    if (GetLoopExtent(loops[idx]) > tile_size) {
-      ir_sch.Split(loops[idx], {-1, tile_size});
+      return 64;
     }
   };
-  split_loop(fsize ? 2 : 1);
 
   std::vector<int> new_order;
   loops = ir_sch.GetLoops(block_name);
   if (fsize) {
-    new_order = {0, 2, 3, 1};
-    for (int idx = 4; idx < loops.size(); ++idx) {
-      new_order.push_back(idx);
+    int tail_index = 2;
+    auto tile_size = get_tile_size(tail_index);
+    if (GetLoopExtent(loops[tail_index]) > tile_size) {
+      // split index
+      ir_sch.Split(loops[tail_index], {-1, tile_size});
+      loops = ir_sch.GetLoops(block_name);
+      // order
+      new_order = {0, 2, 3, 1};
+    } else {
+      // order
+      new_order = {0, 2, 1};
     }
   } else {
-    new_order = {1, 2, 0};
-    for (int idx = 4; idx < loops.size(); ++idx) {
-      new_order.push_back(idx);
+    int tail_index = 1;
+    auto tile_size = get_tile_size(tail_index);
+    if (GetLoopExtent(loops[tail_index]) > tile_size) {
+      // split index
+      ir_sch.Split(loops[tail_index], {-1, tile_size});
+      loops = ir_sch.GetLoops(block_name);
+      // order
+      new_order = {1, 2, 0};
+    } else {
+      // order
+      new_order = {1, 0};
     }
   }
-
+  for (int idx = new_order.size(); idx < loops.size(); ++idx) {
+    new_order.push_back(idx);
+  }
   ir_sch.Reorder(block_name, new_order);
 }
 
@@ -1276,7 +1286,6 @@ void LoopComputeAt(ir::IRSchedule& ir_sch,
     for (auto block : blocks) {
       if (block.As<ir::ScheduleBlockRealize>()) {
         auto n_block = ir_sch.GetBlock(node_data->id());
-        // auto m_block = ir_sch.GetBlock(master_data->id());
 
         std::vector<ir::Var> src_vars;
         std::vector<ir::Expr> dst_vars;
@@ -1284,6 +1293,11 @@ void LoopComputeAt(ir::IRSchedule& ir_sch,
         for (int idx = 0; idx <= index; ++idx) {
           src_vars.push_back(node_loops[idx].As<ir::For>()->loop_var);
           dst_vars.push_back(ir::Expr(master_loops[idx].As<ir::For>()->loop_var));
+        }
+        // replace unsed var with 0.
+        for (int idx = index + 1; idx < node_loops.size(); ++idx) {
+          src_vars.push_back(node_loops[idx].As<ir::For>()->loop_var);
+          dst_vars.push_back(ir::Expr(0));
         }
         ReplaceExpr(&n_block, src_vars, dst_vars);
 
