@@ -76,7 +76,7 @@ void MapExternCall(Expr *e, Target target) {
         return;
       }
       const auto &dtype = node->read_args.front().type();
-      string &name      = node->name;
+      const auto &name  = node->name;
 
       bool node_in_extern_fp32  = kExternFp32CallsGPU.count(name);
       bool node_in_extern_int32 = kExternInt32CallsGPU.count(name);
