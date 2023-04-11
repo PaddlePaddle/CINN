@@ -126,7 +126,7 @@ std::vector<Expr> ScheduleImpl::Split(const Expr& loop, const std::vector<int>& 
   std::vector<Var> new_loop_vars;
   Expr substitute_value(0);
   for (int i = 0; i < processed_factors.size(); ++i) {
-    Var temp_var(for_node->loop_var->name + "_" + std::to_string(i));
+    Var temp_var(common::UniqName(for_node->loop_var->name));
     substitute_value = Expr(temp_var) + substitute_value * Expr(processed_factors[i]);
     new_loop_vars.push_back(temp_var);
   }

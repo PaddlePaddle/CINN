@@ -401,10 +401,11 @@ void LoopAssignReduceWithoutLast(ir::IRSchedule& ir_sch,
   bool bound = true;
   auto shape = pe::GetFirstStepReduceShape(inshape, axes, bound, tail);
   CHECK(bound);
+
   // remove loop size = 1 and remove axis in axes.
   std::vector<int> nshape, naxes = axes;
   for (int idx = 0; idx < shape.size(); ++idx) {
-    if (shape[idx] == 1) {
+    if (shape[idx] == 1 && idx < axes.back()) {
       auto iter = std::find(naxes.begin(), naxes.end(), idx);
       if (iter != naxes.end()) {
         naxes.erase(iter);
@@ -419,8 +420,61 @@ void LoopAssignReduceWithoutLast(ir::IRSchedule& ir_sch,
     }
   }
 
+  // fuse tail for bind threadIdx.x
+  int ptail = 1;
+  int index = naxes.back() + 2;
+  for (int idx = index; idx < nshape.size(); ++idx) {
+    ptail *= nshape[idx];
+  }
+  nshape.resize(index);
+  nshape.push_back(ptail);
+
   ir_sch.Split(block_name, 0, nshape);
-  LoopOrderAssignReduce(ir_sch, block_name, naxes, target);
+  LoopOrderAssignReduce(ir_sch, block_name, naxes, target, true);
+
+  // fuse loop for bind blockIdx.x
+  auto loops = ir_sch.GetLoops(block_name);
+  auto fsize = nshape.size() - (naxes.size() + 2);
+  if (fsize > 1) {
+    ir_sch.Fuse({loops.begin(), loops.begin() + fsize});
+  }
+
+  auto split_loop = [&](int idx) {
+    auto loops = ir_sch.GetLoops(block_name);
+    auto range = GetLoopExtent(loops[idx - 1]);
+
+    auto tile_size = 1;
+    if (range > 32) {
+      tile_size = 8;
+    } else if (range > 16) {
+      tile_size = 16;
+    } else if (range > 4) {
+      tile_size = 32;
+    } else {
+      tile_size = 64;
+    }
+
+    if (GetLoopExtent(loops[idx]) > tile_size) {
+      ir_sch.Split(loops[idx], {-1, tile_size});
+    }
+  };
+  split_loop(fsize ? 2 : 1);
+
+  std::vector<int> new_order;
+  loops = ir_sch.GetLoops(block_name);
+  if (fsize) {
+    new_order = {0, 2, 3, 1};
+    for (int idx = 4; idx < loops.size(); ++idx) {
+      new_order.push_back(idx);
+    }
+  } else {
+    new_order = {1, 2, 0};
+    for (int idx = 4; idx < loops.size(); ++idx) {
+      new_order.push_back(idx);
+    }
+  }
+
+  ir_sch.Reorder(block_name, new_order);
 }
 
 void LoopAssignReduceWithLast(ir::IRSchedule& ir_sch,
@@ -1139,6 +1193,31 @@ void MergeReduceLoop(ir::IRSchedule& ir_sch,
   } while (--index >= 0);
 }
 
+// The struct used to find all ir::For or ScheduleBlock in given block.
+class FindExprInBlock : public ir::IRMutator<> {
+ public:
+  FindExprInBlock() {}
+
+  std::vector<ir::Expr> operator()(Expr* expr) {
+    IRMutator::Visit(expr, expr);
+    return exprs_;
+  }
+
+ private:
+  void Visit(const ir::ScheduleBlockRealize* expr, Expr* op) override { exprs_.push_back(*op); }
+
+  void Visit(const ir::For* expr, Expr* op) override { exprs_.push_back(*op); }
+
+  void Visit(const ir::Block* expr, Expr* op) override {
+    auto node = op->As<ir::Block>();
+    for (auto stmt : node->stmts) {
+      IRMutator::Visit(&stmt, &stmt);
+    }
+  }
+
+  std::vector<ir::Expr> exprs_;
+};
+
 void LoopComputeAt(ir::IRSchedule& ir_sch,
                    Node* node,
                    const Node* master,
@@ -1190,8 +1269,33 @@ void LoopComputeAt(ir::IRSchedule& ir_sch,
     if (node_loops[index].As<ir::For>()->extent.as_int32() != master_loops[index].As<ir::For>()->extent.as_int32()) {
       continue;
     }
+    auto loop_body = master_loops[index].As<ir::For>()->body;
+    CHECK(loop_body.As<ir::Block>());
+    auto blocks = FindExprInBlock()(&loop_body);
 
-    MergeLoops(ir_sch.GetModule().GetExprs().at(0), node_loops, master_loops, index);
+    for (auto block : blocks) {
+      if (block.As<ir::ScheduleBlockRealize>()) {
+        auto n_block = ir_sch.GetBlock(node_data->id());
+        // auto m_block = ir_sch.GetBlock(master_data->id());
+
+        std::vector<ir::Var> src_vars;
+        std::vector<ir::Expr> dst_vars;
+
+        for (int idx = 0; idx <= index; ++idx) {
+          src_vars.push_back(node_loops[idx].As<ir::For>()->loop_var);
+          dst_vars.push_back(ir::Expr(master_loops[idx].As<ir::For>()->loop_var));
+        }
+        ReplaceExpr(&n_block, src_vars, dst_vars);
+
+        InsertExpr insert_expr(n_block, block);
+        insert_expr(&master_loops[index]);
+
+        RemoveExpr remove_expr(node_loops[0]);
+        remove_expr(&ir_sch.GetModule().GetExprs().at(0));
+
+        break;
+      }
+    }
     break;
   } while (--index >= 0);
 }

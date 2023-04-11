@@ -375,7 +375,7 @@ void IRCudaScheduleBlockReduceInternal(ir::IRSchedule &ir_sch,
     CHECK(out_block->as<ir::ScheduleBlockRealize>()->schedule_block->as<ir::ScheduleBlock>());
 
     // create var
-    auto var = ir::Var(ir::Expr(0), ir::Expr(1), "i_0");
+    auto var = ir::Var(ir::Expr(0), ir::Expr(1), common::UniqName("i_0"));
     out_block->as<ir::ScheduleBlockRealize>()->iter_values.push_back(var);
     out_block->as<ir::ScheduleBlockRealize>()->schedule_block->as<ir::ScheduleBlock>()->iter_vars.push_back(var);
 
