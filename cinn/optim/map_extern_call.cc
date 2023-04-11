@@ -52,7 +52,7 @@ void MapExternCall(Expr *e, Target target) {
     void Visit(const ir::Call *op, Expr *expr) override {
       auto *node = expr->As<ir::Call>();
       CHECK(node);
-
+      OptimizeConstantPow(node);
       if (target.arch == Target::Arch::NVGPU) {
         DealWithNvGpuintrinsics(node, expr);
       } else {
@@ -76,7 +76,7 @@ void MapExternCall(Expr *e, Target target) {
         return;
       }
       const auto &dtype = node->read_args.front().type();
-      const auto &name  = node->name;
+      string &name      = node->name;
 
       bool node_in_extern_fp32  = kExternFp32CallsGPU.count(name);
       bool node_in_extern_int32 = kExternInt32CallsGPU.count(name);
@@ -104,6 +104,24 @@ void MapExternCall(Expr *e, Target target) {
       std::string extern_func = "cinn_nvgpu_" + name + suffix;
 
       *expr = lang::CallExtern(extern_func, node->read_args);
+    }
+
+    // Replace pow(x, 0.5) to sqrt(x) and pow(x, -0.5) to rsqrt(x), which
+    // can speed up a lot.
+    //
+    // Reference:
+    // https://en.wikipedia.org/wiki/Fast_inverse_square_root
+    void OptimizeConstantPow(ir::Call *node) {
+      if (node->name == "pow" && node->read_args.size() >= 2 && node->read_args[1].is_constant()) {
+        float pow_constant = node->read_args[1].get_constant();
+        if (pow_constant == 0.5) {
+          node->name = "sqrt";
+          node->read_args.erase(node->read_args.begin() + 1);
+        } else if (pow_constant == -0.5) {
+          node->name = "rsqrt";
+          node->read_args.erase(node->read_args.begin() + 1);
+        }
+      }
     }
   };
 
