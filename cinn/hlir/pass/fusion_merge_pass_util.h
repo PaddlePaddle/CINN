@@ -277,6 +277,117 @@ CONDITION_FUNC(injective_horizontal_with_reduce) {
   return elementwise_fuse_reduce(helper, first, second);
 }
 
+CONDITION_FUNC(reduce_fuse_broadcast) {
+  if (is_same_size(helper, first, second)) {
+    return true;
+  }
+
+  // Find the reduce node in first group.
+  // Since the reduce nodes in the same group have the same computational characteristics,
+  // we only need to find one to represent the entire group.
+  Node* reducer = nullptr;
+  for (auto& node_in_master : first->master_nodes) {
+    if (helper->GetOpKind(node_in_master) == OpPatternKind::kReduction) {
+      reducer = node_in_master;
+      break;
+    }
+  }
+  CHECK(reducer) << "Can't find reduce op in group " << first->group_id;
+
+  // Get some reduce infomation
+  auto reducer_input_shape  = helper->GetNodeInputShape(reducer);
+  auto reducer_output_shape = helper->GetNodeDataShape(reducer);
+  auto reduce_axes          = absl::get<std::vector<int>>(reducer->attrs.attr_store.at("dim"));
+  auto keep_dim             = absl::get<bool>(reducer->attrs.attr_store.at("keep_dim"));
+  for (auto& axis : reduce_axes) {
+    if (axis == -1) {
+      axis = reducer_input_shape.size() - 1;
+    }
+  }
+  // Check if the reduce axes are continuous
+  int reduce_size = reducer_input_shape.back();
+  for (auto idx = reduce_axes.size() - 1; idx >= 1; --idx) {
+    if (reduce_axes[idx] != reduce_axes[idx - 1] + 1) {
+      return false;
+    }
+    reduce_size *= reducer_input_shape[idx - 1];
+  }
+  // Check if the reduce size exceeds the hardware limit
+  if (reduce_size > helper->target_.max_num_threads()) {
+    return false;
+  }
+
+  // Aggregate all nodes in all fused_sub_groups of second group
+  std::unordered_set<Node*> all_nodes_in_second_group;
+  for (const auto& group : second->fused_sub_groups) {
+    all_nodes_in_second_group.insert(group->nodes_set.begin(), group->nodes_set.end());
+  }
+
+  // Check if the reducer is the ancestor of the node and is the producer node of nodes_set
+  auto is_reducer_in_ancestors =
+      [&](const Node* node, const Node* reducer, const std::unordered_set<Node*>& nodes_set) {
+        std::queue<const Node*> candidates;
+        candidates.push(node);
+
+        while (!candidates.empty()) {
+          auto candidate = candidates.front();
+          candidates.pop();
+
+          for (auto producer : helper->GetProducerNode(candidate)) {
+            if (producer == reducer) {
+              return true;
+            }
+
+            if (nodes_set.count(producer)) {
+              candidates.push(producer);
+            }
+          }
+        }
+
+        return false;
+      };
+
+  // Check if each broadcast node in the group meets the conditions
+  for (auto node : all_nodes_in_second_group) {
+    if (helper->GetOpKind(node) != OpPatternKind::kBroadcast) {
+      continue;
+    }
+    if (!is_reducer_in_ancestors(node, reducer, all_nodes_in_second_group)) {
+      continue;
+    }
+    Node* broadcaster             = node;
+    auto broadcaster_output_shape = absl::get<std::vector<int>>(broadcaster->attrs.attr_store.at("out_shape"));
+    auto broadcast_axes           = absl::get<std::vector<int>>(broadcaster->attrs.attr_store.at("broadcast_axes"));
+    for (auto& axis : broadcast_axes) {
+      if (axis == -1) {
+        axis = broadcaster_output_shape.size() - 1;
+      }
+    }
+
+    if (reducer_input_shape != broadcaster_output_shape) {
+      return false;
+    }
+
+    if (keep_dim) {
+      return true;
+    } else {
+      // if reducer_output_shape = [1]
+      if (reducer_output_shape.size() == 1 && reducer_output_shape[0] == 1) {
+        return true;
+      }
+      // check union [reduce_axes, broadcast_axes] = reducer_input_shape
+      for (int idx = 0; idx < reducer_input_shape.size(); ++idx) {
+        if (!(std::find(broadcast_axes.begin(), broadcast_axes.end(), idx) == broadcast_axes.end()) ^
+            std::find(reduce_axes.begin(), reduce_axes.end(), idx) == reduce_axes.end()) {
+          return false;
+        }
+      }
+      return true;
+    }
+  }
+  return false;
+}
+
 CONDITION_FUNC(reduce_fuse_reduce) {
   // check reduce horizontal with reduce.
   if (!horizontal_relation(helper, first, second, framework::OpPatternKind::kReduction)) {
