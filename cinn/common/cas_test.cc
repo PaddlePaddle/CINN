@@ -126,7 +126,8 @@ TEST(CAS, SimplifyModForVectorize) {
       Mod::Make(Mod::Make(Sum::Make({Product::Make({x, Expr(8)}), Product::Make({y, Expr(1024)})}), Expr(802816)),
                 Expr(7168)),
       Expr(64)));
-  EXPECT_EQ(GetStreamCnt(u1), "(x % 8) * 8");
+  std::cout << GetStreamCnt(u1);
+  EXPECT_EQ(GetStreamCnt(u1), "((x % 8) * 8)");
 }
 
 TEST(CAS, ConvertCinnToCAS) {
@@ -197,10 +198,10 @@ TEST(CAS, Mod) {
   OUTPUT_EQUAL("(x % 5)")
 
   u = AutoSimplify((5 + x) % 5);
-  OUTPUT_EQUAL("((5 + x) % 5)")
+  OUTPUT_EQUAL("(x % 5)")
 
   u = AutoSimplify((x + 5 * y + 1 + 1 + 3 - z * 3) % 5);
-  OUTPUT_EQUAL("((5 + (x + ((5 * y) + (-3 * z)))) % 5)")
+  OUTPUT_EQUAL("((x + (-3 * z)) % 5)")
 
   // u = AutoSimplify((x + 5) % 5, var_intervals0);
   // OUTPUT_EQUAL("x")
