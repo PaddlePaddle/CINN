@@ -25,12 +25,33 @@
 #include <unordered_map>
 #include <vector>
 
+#include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/utils/dot_lang.h"
 
 namespace cinn {
 namespace hlir {
 namespace framework {
+
+class PassPrinter {
+ public:
+  static PassPrinter* GetInstance() {
+    static PassPrinter printer;
+    return &printer;
+  }
+
+  bool Start();
+  bool PassStart(const std::string& pass_name, const frontend::Program& program);
+  bool PassEnd(const std::string& pass_name, const frontend::Program& program);
+  bool PassStart(const std::string& pass_name, Graph* g);
+  bool PassEnd(const std::string& pass_name, Graph* g);
+  bool End();
+
+ private:
+  std::string save_path_;
+  int64_t graph_id_{0};
+  int64_t pass_id_{0};
+};
 
 inline void WriteToFile(const std::string& filepath, const std::string& content) {
   VLOG(4) << "Write to " << filepath;

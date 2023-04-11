@@ -14,6 +14,7 @@
 
 #include "cinn/hlir/framework/pass.h"
 
+#include "cinn/hlir/framework/visualize_helper.h"
 #include "cinn/hlir/pass/use_pass.h"
 
 namespace cinn {
@@ -29,6 +30,7 @@ void ApplyPasses(Graph* g, const std::vector<std::string>& passes) {
     fpass.push_back(reg);
   }
   for (auto* r : fpass) {
+    cinn::hlir::framework::PassPrinter::GetInstance()->PassStart(r->name, g);
     for (auto& dep : r->graph_attr_dependency) {
       CHECK_NE(g->attrs.count(dep), 0) << "To apply pass [" << r->name << "], Graph's attribute [" << dep
                                        << "] is required, but it is not available.";
@@ -38,6 +40,7 @@ void ApplyPasses(Graph* g, const std::vector<std::string>& passes) {
       }
     }
     r->body(g);
+    cinn::hlir::framework::PassPrinter::GetInstance()->PassEnd(r->name, g);
   }
 }
 

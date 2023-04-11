@@ -25,6 +25,7 @@
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/pass.h"
+#include "cinn/hlir/framework/visualize_helper.h"
 #include "cinn/hlir/pass/use_pass.h"
 
 DECLARE_bool(cinn_use_fill_constant_folding);
@@ -111,6 +112,7 @@ std::shared_ptr<hlir::framework::Graph> Optimize(frontend::Program* program,
                                                  const std::unordered_set<std::string>& fetch_ids,
                                                  common::Target target,
                                                  const OptimizeOptions& options) {
+  cinn::hlir::framework::PassPrinter::GetInstance()->Start();
   // Apply program passes
   VLOG(3) << "Before frontend::ProgramPass::Apply";
   frontend::ProgramPass::Apply(program, fetch_ids, target, options.program_passes);
@@ -119,6 +121,7 @@ std::shared_ptr<hlir::framework::Graph> Optimize(frontend::Program* program,
 
   VLOG(3) << "Before hlir::framework::ApplyPasses";
   hlir::framework::ApplyPasses(graph.get(), options.graph_passes);
+  cinn::hlir::framework::PassPrinter::GetInstance()->End();
   return graph;
 }
 }  // namespace frontend

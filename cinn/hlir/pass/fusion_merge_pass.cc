@@ -927,7 +927,6 @@ class FusionMergePassHelper : public FusionHelperBase {
 };
 
 void FusionMergePassInternal(Graph* graph) {
-  VLOG(3) << "Before FusionMergePass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
   if (graph->fusion_groups.size() <= 1) {
     VLOG(3) << "Don't do Fusoin Merge Pass...!";
     return;
@@ -935,7 +934,6 @@ void FusionMergePassInternal(Graph* graph) {
 
   FusionMergePassHelper fusion_merge_pass_helper(graph);
   graph->fusion_groups = fusion_merge_pass_helper();
-  VLOG(3) << "After FusionMergePass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
 }
 
 }  // namespace pass
