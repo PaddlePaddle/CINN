@@ -71,6 +71,35 @@ CONDITION_FUNC(is_same_size) {
   return size_0 == size_1;
 }
 
+CONDITION_FUNC(is_broadcast) {
+  if (!limit_args(helper, first, second)) {
+    return false;
+  }
+  if (is_same_size) {
+    return true;
+  }
+
+  auto is_broadcast_to = [](shape_t shape_0, shape_t shape_1) -> bool {
+    for (auto i = 0; i < shape_0.size(); ++i) {
+      bool found_dim = false;
+      for (auto j = i; j < shape_1.size(); ++j) {
+        if (shape_0[i] == shape_1[j]) {
+          found_dim = true;
+          break;
+        }
+      }
+      if (!found_dim) {
+        return false;
+      }
+    }
+    return true;
+  };
+
+  auto output_var_0 = helper->GetNodeDataShape(*first->master_nodes.begin());
+  auto output_var_1 = helper->GetNodeDataShape(*second->master_nodes.begin());
+  return is_broadcast_to(output_var_0, output_var_1) || is_broadcast_to(output_var_1, output_var_0);
+}
+
 bool is_const_group(const FusionHelperBase* helper, const std::shared_ptr<Graph::Group>& group) {
   return group->CollectNodes().size() == 1 && helper->IsConstOp(group->CollectNodes()[0]);
 };
