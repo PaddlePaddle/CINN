@@ -742,15 +742,18 @@ void BindFrontend(pybind11::module *m) {
       .def("uniform_random",
            &NetBuilder::UniformRandom,
            py::arg("shape"),
-           py::arg("min")   = -1.0f,
-           py::arg("max")   = 1.0f,
-           py::arg("seed")  = 0,
-           py::arg("dtype") = "float32")
+           py::arg("min")       = -1.0f,
+           py::arg("max")       = 1.0f,
+           py::arg("seed")      = 0,
+           py::arg("dtype")     = "float32",
+           py::arg("diag_num")  = 0,
+           py::arg("diag_step") = 0,
+           py::arg("diag_val")  = 1.0f)
       .def("randint",
            &NetBuilder::RandInt,
            py::arg("shape"),
            py::arg("min")   = 0,
-           py::arg("max")   = 1,
+           py::arg("max")   = 0,
            py::arg("seed")  = 0,
            py::arg("dtype") = "int64")
       .def("cholesky", &NetBuilder::Cholesky, py::arg("x"), py::arg("upper") = false)
