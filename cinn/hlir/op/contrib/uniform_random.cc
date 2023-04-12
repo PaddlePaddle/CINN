@@ -68,7 +68,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForUniformRandom(const framework:
   });
   auto strategy = std::make_shared<framework::OpStrategy>();
   strategy->AddImpl(
-      uniform_random_compute, GetInjectiveScheduleFunc(output_shapes, target), "strategy.uniform_random.x86", 1);
+      uniform_random_compute, GetElementwiseScheduleFunc(output_shapes, target), "strategy.uniform_random.x86", 1);
   return strategy;
 }
 
@@ -104,7 +104,7 @@ CINN_REGISTER_HELPER(uniform_random_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForUniformRandom)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForUniformRandom))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForUniformRandom))
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElementWise)
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kNonFusible)
       .set_support_level(4);
 
   return true;
