@@ -422,6 +422,7 @@ CINN_REGISTER_HELPER(cinn_cuda_host_api) {
   REGISTER_EXTERN_FUNC_HELPER(cinn_assert_true_nvgpu, cinn::common::DefaultNVGPUTarget())
       .SetRetType<void>()
       .AddInputType<void *>()  // v_args
+      .AddInputType<int>()     // num_args
       .AddInputType<int>()     // msg
       .AddInputType<bool>()    // only_warning
       .AddInputType<void *>()  // stream

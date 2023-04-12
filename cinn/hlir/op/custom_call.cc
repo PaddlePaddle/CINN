@@ -662,8 +662,6 @@ std::vector<ir::Expr> CustomCallArgsForAssertTrue(const framework::NodeAttr &att
   bool only_warning =
       static_cast<int>(attr_store.count("only_warning") ? absl::get<bool>(attrs.attr_store.at("only_warning")) : false);
 
-  LOG(INFO) << "CustomCallArgsForAssertTrue: msg=" << msg << ", only_warning=" << only_warning;
-
   std::vector<ir::Expr> args = {ir::Expr(msg), ir::Expr(only_warning)};
 
   return args;

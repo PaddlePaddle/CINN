@@ -161,7 +161,7 @@ void CheckAssertTrue(
   }
 }
 
-void cinn_assert_true(void* v_args, int msg, bool only_warning, void* stream, const Target& target) {
+void cinn_assert_true(void* v_args, int num_args, int msg, bool only_warning, void* stream, const Target& target) {
   // why x->type and output->type are empty?
   // CHECK(x->type == cinn_bool_t()) << "The input type of AssertTrue should be bool, but here " << x->type.bits
   //                                 << "! Please check.";
@@ -197,10 +197,6 @@ void cinn_assert_true(void* v_args, int msg, bool only_warning, void* stream, co
   } else {
     utils::MemcpyToHost(output->memory, x->memory, numel * sizeof(bool), target, stream);
   }
-}
-
-void cinn_assert_true_host(void* v_args, int msg, bool only_warning) {
-  cinn_assert_true(v_args, msg, only_warning, nullptr, common::DefaultHostTarget());
 }
 
 /**

@@ -1338,9 +1338,8 @@ void cinn_call_triangular_solve_nvgpu(void *v_args,
   }
 }
 
-void cinn_assert_true_nvgpu(void *v_args, int msg, bool only_warning, void *stream) {
-  LOG(INFO) << "cinn_assert_true_nvgpu: msg=" << msg << ", only_warning=" << only_warning;
-  cinn_assert_true(v_args, msg, only_warning, stream, common::DefaultNVGPUTarget());
+void cinn_assert_true_nvgpu(void *v_args, int num_args, int msg, bool only_warning, void *stream) {
+  cinn_assert_true(v_args, num_args, msg, only_warning, stream, common::DefaultNVGPUTarget());
 }
 
 void cinn_gpu_cublas_mul(const std::vector<int> &attrs,
