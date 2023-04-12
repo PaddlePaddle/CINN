@@ -16,7 +16,6 @@
 
 #include "cinn/frontend/decomposer/test_helper.h"
 
-DECLARE_bool(enhance_vertical_fusion_with_recompute);
 namespace cinn {
 namespace frontend {
 
@@ -377,7 +376,6 @@ TEST(FusionMergePass, Reduce_Test_1) {
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
   hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
   CHECK_EQ(graph->fusion_groups.size(), 3);
-  FLAGS_enhance_vertical_fusion_with_recompute = true;
   hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
   CHECK_EQ(graph->fusion_groups.size(), 3);
 }
