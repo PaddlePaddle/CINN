@@ -77,7 +77,9 @@ INCLUDE_DIRECTORIES(${MKLML_INC_DIR})
 
 SET(dummyfile ${CMAKE_CURRENT_BINARY_DIR}/mklml_dummy.c)
 
-FILE(WRITE ${dummyfile} "const char * dummy = \"${dummyfile}\";")
+if (NOT EXISTS ${dummyfile})
+  FILE(WRITE ${dummyfile} "const char * dummy = \"${dummyfile}\";")
+endif()
 ADD_LIBRARY(mklml STATIC ${dummyfile})
 add_definitions(-DCINN_WITH_MKL_CBLAS)
 
