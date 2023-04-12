@@ -28,6 +28,10 @@ void OpMapperContext::AddVar(const std::string& origin_name, const Variable& var
             << " to new cinn var [" << var->id << "]";
   }
   (*var_map_)[origin_name] = var;
+  if( origin_name == "tmp_1" )
+  {
+    std::cerr << "add origin here tmp 1" << std::endl;
+  }
   VLOG(4) << "Add variable [" << origin_name << "] to [" << var->id << "] with shape=["
           << cinn::utils::Join(var->shape, ",") << "], dtype=" << var->type;
 }
