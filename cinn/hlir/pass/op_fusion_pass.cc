@@ -44,9 +44,11 @@ class OpFusionPassHelper : public FusionHelperBase {
     InitFusionRelation();
     // filter node data, create group for each node
     auto nodes_inorder = std::get<0>(graph->topological_order());
-    for (auto graph_node : nodes_inorder) {
+    for (auto graph_node : nodes_inorder) {    
       auto node = graph_node->safe_as<Node>();
+      
       if (node) {
+        std::cerr << node->op()->name << std::endl;
         nodes_.push_back(node);
         auto group = std::make_shared<Graph::Group>();
         // init group
@@ -321,6 +323,37 @@ class OpFusionPassHelper : public FusionHelperBase {
   }
 
   bool CanFuse(const Node* producer, const Node* consumer) {
+    static std::set<std::string> support_op_list = { "reduce_max", "reduce_sum", "subtract", "add", "multipy", "mul", "divide", "exp", "sqrt", "fill_constant", "elementwise_mul",
+                                    "elementwise_add", "elementwise_div", "elementwise_sub" };
+
+    if ( support_op_list.count(producer->op()->name) && support_op_list.count( consumer->op()->name ) )
+    {
+       // support op
+       
+       // std::cerr << GetOpKind(producer) << "\t" << GetOpKind(consumer) << std::endl;
+       if(  GetOpKind(producer) == framework::kElementWise  )
+       {
+          if( GetOpKind(consumer) == framework::kElementWise  )
+          {
+            return true;
+          }
+          if( GetOpKind(consumer) == framework::kReduction )
+          {
+            //auto value = absl::get<std::vector<int> >(consumer->attrs.attr_store.at("axis"));
+            return true;
+          }
+       }
+       else if ( GetOpKind(producer) == framework::kReduction )
+       {
+          if( GetOpKind(consumer) == framework::kElementWise  )
+          {
+            return true;
+          }
+       }
+    }
+    
+
+
     auto& relation = fusion_relation_map_[GetOpKind(producer)];
     // first step: check producer can be fused into consumer
     if (relation.op_kind.count(GetOpKind(consumer))) {
@@ -443,7 +476,7 @@ void InsertBroadcastTo(Graph* graph) {
 
 void OpFusionPassInternal(Graph* graph) {
   VLOG(3) << "OpFusionPass...!";
-  InsertBroadcastTo(graph);
+  // InsertBroadcastTo(graph);
   auto op_fusion_helper = OpFusionPassHelper(graph);
   graph->fusion_groups  = op_fusion_helper();
 

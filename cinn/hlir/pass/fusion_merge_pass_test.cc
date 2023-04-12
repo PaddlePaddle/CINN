@@ -23,12 +23,35 @@ TEST(FusionMergePass, ElementWise_Fusion_0) {
   
   frontend::NetBuilder net_builder("softmax");
   {
-  auto A = net_builder.CreateInput(Float(32), {128, 12, 128, 128}, "A");    
-  auto Max = net_builder.ReduceMax(A, {3}, true);    
-  auto sub = net_builder.Subtract(A, Max);
-  auto exp = net_builder.Exp( sub );
-  auto sum = net_builder.ReduceSum( exp, {3}, true);    
-  auto out = net_builder.Divide( exp, sum);    
+  // auto A = net_builder.CreateInput(Float(32), {128, 12, 128, 128}, "A");    
+  // auto Max = net_builder.ReduceMax(A, {3}, true);    
+  // auto sub = net_builder.Subtract(A, Max);
+  // auto exp = net_builder.Exp( sub );
+  // auto sum = net_builder.ReduceSum( exp, {3}, true);    
+  // auto out = net_builder.Divide( exp, sum);  
+
+    auto A = net_builder.CreateInput(Float(32), {128, 112, 112, 64}, "A"); 
+    auto scale = net_builder.CreateInput( Float(32), {64}, "scale" );    
+    auto bias = net_builder.CreateInput( Float(32), {64}, "bias" );    
+    auto run_mean = net_builder.CreateInput(Float(32), {64}, "run_mean");    
+    auto run_var = net_builder.CreateInput( Float(32),  {64}, "run_var" );    
+    auto num = net_builder.FillConstant( {1}, 768.0, "num" );
+    auto eps = net_builder.FillConstant( {1}, 1e-5, "eps" );
+    auto sum1 = net_builder.ReduceSum(A, {2}, true);   
+    auto mean1 = net_builder.Divide( sum1, num);
+    auto power = net_builder.Multiply(A, A);
+    auto sum2 = net_builder.ReduceSum(power, {2}, true);
+    auto mean2 = net_builder.Divide( sum2, num);
+    auto mean_power = net_builder.Multiply( mean1, mean1);
+
+    auto var = net_builder.Subtract(mean2, mean_power);
+
+    auto sub = net_builder.Subtract( A, mean1);
+    auto t1 = net_builder.Add( var, eps);
+    auto t2 = net_builder.Sqrt( t1 );
+    auto t3 = net_builder.Divide( sub, t2);
+    auto t5 = net_builder.Multiply( t3, scale);
+    auto out = net_builder.Add( t5, bias);      
   }
 
   auto program = net_builder.Build();
@@ -36,8 +59,11 @@ TEST(FusionMergePass, ElementWise_Fusion_0) {
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  std::cerr << graph->DebugGroupedGraph() << std::endl;
   hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
   std::cerr << graph->fusion_groups.size() << std::endl;
+
+  std::cerr << graph->DebugGroupedGraph() << std::endl;
   //CHECK_EQ(graph->fusion_groups.size(), 3);
   //hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
   //CHECK_EQ(graph->fusion_groups.size(), 1);

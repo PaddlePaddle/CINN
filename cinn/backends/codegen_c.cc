@@ -358,7 +358,7 @@ void CodeGenC::Visit(const ir::Block *op) {
   if (op->stmts.size() >= 1) {
     DoIndent();
     Print(op->stmts.back());
-    os() << ";";
+    os() << ";\n";
   }
 
   DecIndent();

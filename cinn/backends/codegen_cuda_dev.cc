@@ -76,6 +76,7 @@ void CodeGenCUDA_Dev::Compile(const ir::Module &module, const Outputs &outputs) 
 std::string CodeGenCUDA_Dev::Compile(const ir::LoweredFunc &func) {
   // std::cerr << "fun " << func << std::endl;
   std::cerr << "!!!==============\n";
+  std::cerr << func << std::endl;
   Print(Expr(func));
   return ss_.str();
 }

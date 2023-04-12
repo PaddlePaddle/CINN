@@ -26,7 +26,7 @@ void Module::Builder::AddFunction(ir::LoweredFunc func) {
   optim::Simplify(&(func->body));
   optim::SimplifyForLoops(&(func->body));
   optim::SimplifyBlocks(&(func->body));
-  func->body = optim::Optimize(func->body, module_->target);
+  //func->body = optim::Optimize(func->body, module_->target);
   module_->functions.push_back(func);
 }
 
@@ -55,7 +55,8 @@ Module Module::Builder::Build() {
 
   auto res = ir::Module(module_.get());
 
-  return optim::Optimize(res, module_->target);
+  return res;
+  //return optim::Optimize(res, module_->target);
 }
 
 ir::_Module_ *Module::self() { return p_->as<ir::_Module_>(); }

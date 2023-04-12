@@ -116,7 +116,8 @@ void process_reduce_max( std::map<std::string, InputNode>* input_map, hlir::fram
     auto new_max = ir::Max::Make( max_t, t_load);
     auto out_max = ir::Let::Make( max_t, new_max, false);
   
-
+    cinn::ir::IrPrinter printer(std::cout);
+    printer.Print( new_max );
 
     auto body =  ir::Block::Make( {out_max });
     auto load_inner_for = ir::For::Make(loop_var_j,
@@ -148,6 +149,8 @@ void process_reduce_max( std::map<std::string, InputNode>* input_map, hlir::fram
     code_dev->Print( temp_max_out);
     code_dev->Print( max_outer_for);
     code_dev->ss_ << std::endl;
+
+
 
     (*input_map)[out_name] = InputNode( "reduce_max", T_MAX, {1, 1});
 

@@ -25,6 +25,7 @@ gather_srcs(cinnapi_src SRCS
     layout.cc
     schedule_desc.cc
     ir_compare.cc
+    thread_model.cc
     )
 
 # cc_test(test_ir SRCS ir_test.cc DEPS core)
