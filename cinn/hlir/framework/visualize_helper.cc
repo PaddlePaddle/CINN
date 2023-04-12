@@ -34,7 +34,7 @@ namespace cinn {
 namespace hlir {
 namespace framework {
 
-bool PassPrinter::Start() {
+bool PassPrinter::Begin() {
   if (FLAGS_cinn_pass_visualize_dir.empty()) {
     VLOG(3) << "No set \"FLAGS_cinn_pass_visualize_dir\", the pass visualize information will print directly.";
     save_path_.clear();
@@ -53,7 +53,7 @@ bool PassPrinter::Start() {
   return true;
 }
 
-bool PassPrinter::PassStart(const std::string& pass_name, const frontend::Program& program) {
+bool PassPrinter::PassBegin(const std::string& pass_name, const frontend::Program& program) {
   const auto& program_info = utils::GetStreamCnt(program);
   if (save_path_.empty()) {
     VLOG(3) << "Before " << pass_name << " Pass:\n" << program_info;
@@ -79,7 +79,7 @@ bool PassPrinter::PassEnd(const std::string& pass_name, const frontend::Program&
   return true;
 }
 
-bool PassPrinter::PassStart(const std::string& pass_name, Graph* g) {
+bool PassPrinter::PassBegin(const std::string& pass_name, Graph* g) {
   const auto& graph_info = g->DebugGroupedGraph();
   if (save_path_.empty()) {
     VLOG(3) << "Before " << pass_name << " Pass:\n" << graph_info;
@@ -88,6 +88,11 @@ bool PassPrinter::PassStart(const std::string& pass_name, Graph* g) {
   const std::string& file_path =
       utils::StringFormat("%s/pass_%d_%s_before.txt", save_path_.c_str(), pass_id_, pass_name.c_str());
   WriteToFile(file_path, graph_info);
+
+  const auto& dot_info = g->VisualizeGraph();
+  const std::string& dot_path =
+      utils::StringFormat("%s/pass_%d_%s_before.dot", save_path_.c_str(), pass_id_, pass_name.c_str());
+  WriteToFile(dot_path, dot_info);
   return true;
 }
 
@@ -100,6 +105,11 @@ bool PassPrinter::PassEnd(const std::string& pass_name, Graph* g) {
   const std::string& file_path =
       utils::StringFormat("%s/pass_%d_%s_after.txt", save_path_.c_str(), pass_id_, pass_name.c_str());
   WriteToFile(file_path, graph_info);
+
+  const auto& dot_info = g->VisualizeGraph();
+  const std::string& dot_path =
+      utils::StringFormat("%s/pass_%d_%s_after.dot", save_path_.c_str(), pass_id_, pass_name.c_str());
+  WriteToFile(dot_path, dot_info);
 
   ++pass_id_;
   return true;

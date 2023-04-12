@@ -288,6 +288,20 @@ void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
 
   Summary(groups, viz_path_);
 
+  WriteToFile(viz_path_ + "grouped_graph.dot", VisualizeGraph(groups, fetch_var_ids));
+
+  const auto& group_dots = VisualizeGroups(groups, fetch_var_ids);
+  for (int group_id = 1; group_id < group_dots.size(); ++group_id) {
+    WriteToFile(GetFilePathForGroup(groups, group_id - 1, viz_path_), group_dots[group_id]);
+  }
+}
+
+std::string Graph::VisualizeGraph(const std::unordered_set<std::string>& fetch_var_ids) {
+  return VisualizeGraph(FusionGroupsToGroups(), fetch_var_ids);
+}
+
+std::string Graph::VisualizeGraph(const std::vector<std::vector<Node*>>& groups,
+                                  const std::unordered_set<std::string>& fetch_var_ids) {
   auto& shape_dict = HasAttr("infershape") ? GetAttrs<ShapeDict>("infershape") : ShapeDict{};
   auto& dtype_dict = HasAttr("inferdtype") ? GetAttrs<DTypeDict>("inferdtype") : DTypeDict{};
 
@@ -319,15 +333,15 @@ void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
     }
     group_id++;
   }
-
-  std::string filepath = viz_path_ + "grouped_graph.dot";
-  WriteToFile(filepath, dot());
-
-  VisualizeGroups(groups, fetch_var_ids);
+  return dot();
 }
 
-void Graph::VisualizeGroups(const std::vector<std::vector<Node*>>& groups,
-                            const std::unordered_set<std::string>& fetch_var_ids) {
+std::vector<std::string> Graph::VisualizeGroups(const std::unordered_set<std::string>& fetch_var_ids) {
+  return VisualizeGroups(FusionGroupsToGroups(), fetch_var_ids);
+}
+
+std::vector<std::string> Graph::VisualizeGroups(const std::vector<std::vector<Node*>>& groups,
+                                                const std::unordered_set<std::string>& fetch_var_ids) {
   auto& shape_dict = HasAttr("infershape") ? GetAttrs<ShapeDict>("infershape") : ShapeDict{};
   auto& dtype_dict = HasAttr("inferdtype") ? GetAttrs<DTypeDict>("inferdtype") : DTypeDict{};
 
@@ -336,6 +350,7 @@ void Graph::VisualizeGroups(const std::vector<std::vector<Node*>>& groups,
 
   utils::ResetDotCounters();
 
+  std::vector<std::string> dot_vec;
   int group_id = 0;
   for (auto& group : groups) {
     utils::DotLang dot;
@@ -387,12 +402,11 @@ void Graph::VisualizeGroups(const std::vector<std::vector<Node*>>& groups,
         }
       }
     }
-
-    std::string filepath = GetFilePathForGroup(groups, group_id, viz_path_);
-    WriteToFile(filepath, dot());
+    dot_vec.emplace_back(dot());
 
     group_id++;
   }
+  return dot_vec;
 }
 
 std::atomic_size_t Graph::viz_count_{0};

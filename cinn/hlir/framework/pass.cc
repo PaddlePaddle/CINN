@@ -30,7 +30,7 @@ void ApplyPasses(Graph* g, const std::vector<std::string>& passes) {
     fpass.push_back(reg);
   }
   for (auto* r : fpass) {
-    cinn::hlir::framework::PassPrinter::GetInstance()->PassStart(r->name, g);
+    cinn::hlir::framework::PassPrinter::GetInstance()->PassBegin(r->name, g);
     for (auto& dep : r->graph_attr_dependency) {
       CHECK_NE(g->attrs.count(dep), 0) << "To apply pass [" << r->name << "], Graph's attribute [" << dep
                                        << "] is required, but it is not available.";

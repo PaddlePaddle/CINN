@@ -40,10 +40,10 @@ class PassPrinter {
     return &printer;
   }
 
-  bool Start();
-  bool PassStart(const std::string& pass_name, const frontend::Program& program);
+  bool Begin();
+  bool PassBegin(const std::string& pass_name, const frontend::Program& program);
   bool PassEnd(const std::string& pass_name, const frontend::Program& program);
-  bool PassStart(const std::string& pass_name, Graph* g);
+  bool PassBegin(const std::string& pass_name, Graph* g);
   bool PassEnd(const std::string& pass_name, Graph* g);
   bool End();
 

@@ -194,7 +194,7 @@ void BindFrontend(pybind11::module *m) {
 
             std::shared_ptr<hlir::framework::Graph> graph;
             if (!passes.empty()) {
-              cinn::hlir::framework::PassPrinter::GetInstance()->Start();
+              cinn::hlir::framework::PassPrinter::GetInstance()->Begin();
               frontend::ProgramPass::Apply(&self, fetch_ids, target, program_passes);
               graph = std::make_shared<hlir::framework::Graph>(self, fetch_ids, target);
               hlir::framework::ApplyPasses(graph.get(), graph_passes);
