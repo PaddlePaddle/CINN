@@ -299,8 +299,8 @@ void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
   WriteToFile(viz_path_ + "grouped_graph.dot", VisualizeGraph(groups, fetch_var_ids));
 
   const auto& group_dots = VisualizeGroups(groups, fetch_var_ids);
-  for (int group_id = 1; group_id < group_dots.size(); ++group_id) {
-    WriteToFile(GetFilePathForGroup(groups, group_id - 1, viz_path_), group_dots[group_id]);
+  for (int i = 0; i < group_dots.size(); ++i) {
+    WriteToFile(GetFilePathForGroup(groups, i, viz_path_), group_dots[i]);
   }
 }
 
