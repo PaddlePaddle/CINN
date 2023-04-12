@@ -146,6 +146,7 @@ class FusionMergePassHelper : public FusionHelperBase {
         bool exist = false;
         for (auto& producer : group->producer_groups) {
           if (fusion_groups_set.count(producer)) {
+            VLOG(4) << group->group_id << " " << producer->group_id;
             exist = true;
             break;
           }
@@ -386,6 +387,7 @@ class FusionMergePassHelper : public FusionHelperBase {
     }
 
     std::unordered_set<GroupPtr, Hasher, Comparator> fusionable_consumers;
+    bool all_simple_recompute_fuse = true;
     for (auto& consumer : consumers) {
       VLOG(4) << "Check consuemr " << consumer->group_id << " can fuse to producer " << producer->group_id;
       // if can't fuse
@@ -418,11 +420,15 @@ class FusionMergePassHelper : public FusionHelperBase {
       }
 
       fusionable_consumers.insert(consumer);
+      all_simple_recompute_fuse = false;
     }
 
-    if (fusionable_consumers.size()) {
-      RecomputeWithCostModel(producer, fusionable_consumers);
+    if (!all_simple_recompute_fuse) {
+      if (fusionable_consumers.size()) {
+        RecomputeWithCostModel(producer, fusionable_consumers);
+      }
     }
+    VLOG(4) << "all_simple_recompute_fuse: " << all_simple_recompute_fuse;
     VLOG(4) << fusionable_consumers.size();
 
     // if fusionable consumers exist
