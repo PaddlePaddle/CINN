@@ -85,8 +85,9 @@ std::vector<std::vector<Node*>> Graph::FusionGroupsToGroups() {
   std::vector<std::vector<Node*>> groups;
   if (fusion_groups.empty()) {
     // if no fusion_groups, the graph will be treated as a big group
-    const auto& nodes =
-        this->CollectNodes([](const common::GraphNode* node) { return node->safe_as<Node>() != nullptr; });
+    const auto& nodes = this->CollectNodes([](const common::GraphNode* node) {
+      return node->safe_as<Node>() != nullptr && node->safe_as<Node>()->op() != nullptr;
+    });
     std::vector<Node*> group;
     group.reserve(nodes.size());
     for (auto* node : nodes) {
@@ -107,7 +108,7 @@ std::string Graph::DebugGroupedGraph(const std::unordered_set<std::string>& fetc
     return DebugGroupedGraph(FusionGroupsToGroups(), fetch_var_ids);
   }
 
-  std::vector<std::vector<Node*>> graph_ops(1);
+  std::vector<Node*> graph_ops;
   auto nodes_inorder = std::get<0>(topological_order());
   for (auto* graph_node : nodes_inorder) {
     auto node = graph_node->safe_as<Node>();
@@ -116,10 +117,14 @@ std::string Graph::DebugGroupedGraph(const std::unordered_set<std::string>& fetc
       continue;
     }
 
-    graph_ops[0].emplace_back(node);
+    graph_ops.emplace_back(node);
   }
 
-  return DebugGroupedGraph(graph_ops, fetch_var_ids);
+  std::stringstream debug_str;
+  debug_str << "Graph {\n";
+  debug_str << DebugGroupedGraph(graph_ops, fetch_var_ids);
+  debug_str << "}\n";
+  return debug_str.str();
 }
 
 std::string Graph::DebugGroupedGraph(const std::vector<Node*>& group,
@@ -241,7 +246,10 @@ std::string Graph::DebugGroupedGraph(const std::vector<std::vector<Node*>>& grou
   if (!fetch_var_ids.empty()) {
     fetch_list = fetch_var_ids;
   } else {
-    for (const auto& var : this->outputs) {
+    for (auto* var : this->outputs) {
+      if (var) {
+        continue;
+      }
       fetch_list.insert(var->id());
     }
   }
