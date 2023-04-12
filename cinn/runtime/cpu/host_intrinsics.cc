@@ -411,5 +411,14 @@ CINN_REGISTER_HELPER(host_intrinsics) {
       .AddInputType<int>()
       .End();
 
+  // TODO(thisjiang): change msg type from 'int' to 'std::string' when custom call support 'std::string' type
+  using cinn::runtime::cinn_assert_true_host;
+  REGISTER_EXTERN_FUNC_HELPER(cinn_assert_true_host, cinn::common::DefaultHostTarget())
+      .SetRetType<void>()
+      .AddInputType<cinn_buffer_t*>()  // v_args
+      .AddInputType<int>()             // msg
+      .AddInputType<bool>()            // only_warning
+      .End();
+
   return true;
 }

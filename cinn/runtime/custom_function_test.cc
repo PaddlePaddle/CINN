@@ -128,7 +128,7 @@ TEST(CinnAssertTrue, test_true) {
 
   std::stringstream ss;
   ss << "Test AssertTrue(true) on " << target;
-  cinn_assert_true(v_args, std::hash<std::string>()(ss.str()), false);
+  cinn_assert_true(v_args, std::hash<std::string>()(ss.str()), true, nullptr, target);
 
   if (target == common::DefaultHostTarget()) {
     ASSERT_EQ(input[0], output[0]) << "The output of AssertTrue should be the same as input";
@@ -160,7 +160,7 @@ TEST(CinnAssertTrue, test_false_only_warning) {
 
   std::stringstream ss;
   ss << "Test AssertTrue(false, only_warning=true) on " << target;
-  cinn_assert_true(v_args, std::hash<std::string>()(ss.str()), true);
+  cinn_assert_true(v_args, std::hash<std::string>()(ss.str()), true, nullptr, target);
 
   if (target == common::DefaultHostTarget()) {
     ASSERT_EQ(input[0], output[0]) << "The output of AssertTrue should be the same as input";

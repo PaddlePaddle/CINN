@@ -33,6 +33,7 @@
 #include "cinn/backends/extern_func_jit_register.h"
 #include "cinn/common/target.h"
 #include "cinn/runtime/cuda/cublas_util.h"
+#include "cinn/runtime/custom_function.h"
 #include "cinn/runtime/flags.h"
 #include "cinn/utils/timer.h"
 
@@ -1335,6 +1336,11 @@ void cinn_call_triangular_solve_nvgpu(void *v_args,
                                    ldb,
                                    batch_size));
   }
+}
+
+void cinn_assert_true_nvgpu(void *v_args, int msg, bool only_warning, void *stream) {
+  LOG(INFO) << "cinn_assert_true_nvgpu: msg=" << msg << ", only_warning=" << only_warning;
+  cinn_assert_true(v_args, msg, only_warning, stream, common::DefaultNVGPUTarget());
 }
 
 void cinn_gpu_cublas_mul(const std::vector<int> &attrs,

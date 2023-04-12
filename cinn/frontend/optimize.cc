@@ -26,12 +26,13 @@
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/pass/use_pass.h"
+#include "cinn/runtime/flags.h"
 
 DECLARE_bool(cinn_use_fill_constant_folding);
 DECLARE_bool(cinn_use_op_fusion);
 DECLARE_bool(cinn_use_cublas_gemm);
 DECLARE_bool(cinn_use_common_subexpression_elimination);
-DECLARE_bool(cinn_check_fusion_accuracy_pass);
+DECLARE_string(cinn_check_fusion_accuracy_pass);
 DECLARE_bool(cinn_use_custom_call);
 DECLARE_bool(use_reduce_split_pass);
 DECLARE_bool(cinn_use_dense_merge_pass);
@@ -91,10 +92,12 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
   }
 
   // WARNING: the pass must be the last pass !!!
-  if (FLAGS_cinn_check_fusion_accuracy_pass) {
+  if (!FLAGS_cinn_check_fusion_accuracy_pass.empty() &&
+      !cinn::runtime::CheckStringFlagFalse(FLAGS_cinn_check_fusion_accuracy_pass)) {
     // Check the correct of fusion kernels, if the results not satisfied 'allclose(rtol=1e-05f, atol=1e-08f)', report
     // error and exited.
     options.graph_passes.emplace_back("CheckFusionAccuracyPass");
+    options.graph_passes.emplace_back("TransToCustomCallPass");
   }
   return options;
 }

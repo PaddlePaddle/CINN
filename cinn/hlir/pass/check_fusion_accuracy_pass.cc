@@ -26,6 +26,7 @@
 #include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/framework/visualize_helper.h"
 #include "cinn/hlir/pass/fusion_helper_base.h"
+#include "cinn/runtime/custom_function.h"
 
 namespace cinn::hlir::pass {
 
@@ -48,28 +49,28 @@ using DtypeDict = absl::flat_hash_map<std::string, common::Type>;
 namespace utils {
 class AssertMsg {
  public:
-  AssertMsg(const std::string& introduction) : introduction_(introduction) {}
+  AssertMsg(int group_id) : group_id_(group_id) {}
 
   void SetMsg(const std::string& title, const std::string& msg) { msg_info_[title] = msg; }
 
   const std::string& GetMsg(const std::string& title) const {
-    CHECK(msg_info_.count(title)) << "Msg of " << introduction_ << " not has title: " << title;
+    CHECK(msg_info_.count(title)) << "Msg of group " << group_id_ << " not has title: " << title;
     return msg_info_.at(title);
   }
 
   void CleasMsg(const std::string& title) { msg_info_.erase(title); }
 
   std::string str() const {
-    std::string format_str = introduction_ + "\n";
+    std::stringstream ss;
     for (const auto& msg_pair : msg_info_) {
-      format_str += "\t\t- " + msg_pair.first + ": " + msg_pair.second + "\n";
+      ss << "  -- " << msg_pair.first << ": " << msg_pair.second << "\n";
     }
-    return format_str;
+    return ss.str();
   }
 
  private:
-  std::string introduction_;
   std::unordered_map<std::string, std::string> msg_info_;
+  int group_id_;
 };
 
 std::string GenerateCheckFusionAccuracyNodeId(const std::string& node_id) {
@@ -272,10 +273,13 @@ GroupPtr CheckFusionAccuracyPass::CreateSingleNodeGroup(NodePtr node_ptr) {
 std::pair<NodePtr, NodeData*> CheckFusionAccuracyPass::CreateIsCloseNode(const std::string& node_id) {
   const auto& is_close_node_id = "isclose_" + node_id;
 
-  auto is_close_node                      = Node::Create(Operator::Get("isclose"), is_close_node_id, is_close_node_id);
-  is_close_node->attrs.attr_store["rtol"] = 1e-05f;
-  is_close_node->attrs.attr_store["atol"] = 1e-08f;
-  is_close_node->attrs.attr_store["equal_nan"] = false;
+  auto is_close_node = Node::Create(Operator::Get("isclose"), is_close_node_id, is_close_node_id);
+  is_close_node->attrs.attr_store["rtol"] =
+      cinn::runtime::utils::AssertTrueMsgTool::GetInstance()->GetFlagValue<float>("rtol");
+  is_close_node->attrs.attr_store["atol"] =
+      cinn::runtime::utils::AssertTrueMsgTool::GetInstance()->GetFlagValue<float>("atol");
+  is_close_node->attrs.attr_store["equal_nan"] =
+      cinn::runtime::utils::AssertTrueMsgTool::GetInstance()->GetFlagValue<bool>("equal_nan");
 
   graph_->RegisterNode(is_close_node_id, is_close_node.get());
 
@@ -323,11 +327,14 @@ std::pair<NodePtr, NodeData*> CheckFusionAccuracyPass::CreateAssertNode(const st
                                                                         utils::AssertMsg* assert_msg) {
   const auto& assert_node_id = "assert_" + node_id;
 
-  auto assert_node = Node::Create(Operator::Get("custom_call"), assert_node_id, assert_node_id);
-  assert_node->attrs.attr_store["custom_call"]  = std::string("cinn_assert_true");
-  assert_node->attrs.attr_store["only_warning"] = false;
+  auto assert_node = Node::Create(Operator::Get("assert_true"), "assert_true", assert_node_id);
   // TODO(thisjiang): change type from 'int' to 'std::string' when custom call support 'std::string' type
-  assert_node->attrs.attr_store["msg"] = 0;
+  static int msg_key                   = 0;
+  assert_node->attrs.attr_store["msg"] = static_cast<int>(msg_key);
+  cinn::runtime::utils::AssertTrueMsgTool::GetInstance()->SetMsg(msg_key, assert_msg->str());
+  msg_key++;
+  assert_node->attrs.attr_store["only_warning"] =
+      cinn::runtime::utils::AssertTrueMsgTool::GetInstance()->GetFlagValue<bool>("only_warning");
 
   graph_->RegisterNode(assert_node_id, assert_node.get());
 
@@ -386,7 +393,7 @@ GroupList CheckFusionAccuracyPass::LinkToAssertAllClose(const std::unordered_set
                                                   << group_out->id() << " had not been created! Please check.";
     auto pass_out = old2new_nodedata_map_.at(group_out);
 
-    msg->SetMsg("Var id", group_out->id());
+    msg->SetMsg("Var Name", group_out->id());
 
     const auto& nodes = CreateAssertAllClose(pass_out->id(), msg, {group_out, pass_out});
 
@@ -398,11 +405,15 @@ GroupList CheckFusionAccuracyPass::LinkToAssertAllClose(const std::unordered_set
 }
 
 std::vector<Node*> CheckFusionAccuracyPass::TopologicalOrder(const std::vector<Node*>& nodes) {
-  std::vector<Node*> ordered_nodes;
+  struct NodeCompare {
+    bool operator()(Node* lhs, Node* rhs) const { return lhs->id() < rhs->id(); }
+  };
+
+  std::set<Node*, NodeCompare> node_set(nodes.begin(), nodes.end());
 
   // count all node's output to find the group's start node
   std::unordered_set<NodeData*> all_outputs;
-  for (auto node : nodes) {
+  for (auto node : node_set) {
     for (auto& out_edge : node->outlinks_in_order()) {
       all_outputs.insert(out_edge->sink()->safe_as<NodeData>());
     }
@@ -411,7 +422,7 @@ std::vector<Node*> CheckFusionAccuracyPass::TopologicalOrder(const std::vector<N
   // if the node's input is not any group node's output, it's start node
   std::deque<Node*> queue;
   std::unordered_map<Node*, int> indegree;
-  for (auto node : nodes) {
+  for (auto node : node_set) {
     bool is_start = true;
     for (auto& in_edge : node->inlinks_in_order()) {
       if (all_outputs.count(in_edge->source()->safe_as<NodeData>())) {
@@ -425,6 +436,7 @@ std::vector<Node*> CheckFusionAccuracyPass::TopologicalOrder(const std::vector<N
     }
   }
 
+  std::vector<Node*> ordered_nodes;
   // start to visit
   while (!queue.empty()) {
     auto top_node = queue.front();
@@ -455,12 +467,12 @@ std::vector<Node*> CheckFusionAccuracyPass::TopologicalOrder(const std::vector<N
 GroupList CheckFusionAccuracyPass::Apply() {
   GroupList check_fusion_groups;
 
-  auto serial_name = [&](const std::unordered_set<NodeData*>& nodes) {
-    std::string res;
-    std::for_each(nodes.begin(), nodes.end(), [&](NodeData* node) { res += DebugNodeData(node) + ", "; });
-    return res;
-  };
+  std::unordered_set<std::string> fetch_ids;
+  for (auto* node : graph_->outputs) {
+    fetch_ids.emplace(node->id());
+  }
 
+  int i = 0;
   for (auto& group : graph_->fusion_groups) {
     check_fusion_groups.emplace_back(group);
 
@@ -474,7 +486,7 @@ GroupList CheckFusionAccuracyPass::Apply() {
 
     // split orign group and create group for each node
     const auto& ordered_nodes = TopologicalOrder(group_nodes);
-    VLOG(4) << "Check the accuracy of group " << graph_->DebugGroupedGraph({ordered_nodes});
+    VLOG(4) << "Check the accuracy of group " << graph_->DebugGroupedGraph(ordered_nodes);
 
     for (auto* node : ordered_nodes) {
       if (node->is_variable()) {
@@ -486,30 +498,18 @@ GroupList CheckFusionAccuracyPass::Apply() {
       check_fusion_groups.push_back(CreateSingleNodeGroup(check_node));
     }
 
-    // get group's output data node list
-    auto input_datas = group->GetInputNodeDatas();
-
-    auto input_list = serial_name(input_datas);
-    VLOG(4) << "Group " << group->GetFuncName() << "'s input is [" << input_list << "]";
-
-    auto output_datas = group->GetOutputNodeDatas();
-
-    auto output_list = serial_name(output_datas);
-    VLOG(4) << "Group " << group->GetFuncName() << "'s output is [" << output_list << "]";
-
     // set assert debug info
-    utils::AssertMsg msg("check accuracy of kernel " + group->GetFuncName());
+    utils::AssertMsg msg(i);
     msg.SetMsg("Kernel name", group->GetFuncName());
-    msg.SetMsg("Group id", group->unique_id);
-    msg.SetMsg("Input list", input_list);
-    msg.SetMsg("Output list", output_list);
-    msg.SetMsg("Group graph", graph_->DebugGroupedGraph({ordered_nodes}));
-
-    LOG(INFO) << msg.str();
+    msg.SetMsg("Group id", std::to_string(i));
+    msg.SetMsg("Group structure",
+               std::string("\n{\n") + graph_->DebugGroupedGraph(ordered_nodes, fetch_ids) + std::string("}"));
 
     // link the group's output data node to assert all close node
-    const auto& assert_group = LinkToAssertAllClose(output_datas, &msg);
+    const auto& assert_group = LinkToAssertAllClose(group->GetOutputNodeDatas(), &msg);
     check_fusion_groups.insert(check_fusion_groups.end(), assert_group.begin(), assert_group.end());
+
+    i++;
   }
   return check_fusion_groups;
 }

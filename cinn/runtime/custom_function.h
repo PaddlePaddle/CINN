@@ -15,16 +15,54 @@
 #pragma once
 
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "cinn/common/target.h"
 #include "cinn/hlir/framework/tensor.h"
 #include "cinn/runtime/cinn_runtime.h"
+#include "cinn/utils/type_defs.h"
 
 namespace cinn {
 namespace runtime {
 
-void cinn_assert_true(void* v_args, int msg, bool only_warning, void* stream = nullptr);
+namespace utils {
+class AssertTrueMsgTool {
+ public:
+  static AssertTrueMsgTool* GetInstance() {
+    static AssertTrueMsgTool msg;
+    return &msg;
+  }
+
+  void SetMsg(int key, const std::string& msg);
+  const std::string& GetMsg(int key);
+
+  bool FindFlag(const std::string& param) { return flag_values_.count(param); }
+
+  template <typename T>
+  const T& GetFlagValue(const std::string& param) {
+    InitFlagInfo();
+    CHECK(flag_values_.count(param))
+        << "The FLAGS_cinn_check_fusion_accuracy_pass only support parameter \"only_warning/rtol/atol/equal_nan\" now";
+    CHECK(absl::holds_alternative<T>(flag_values_.at(param))) << "Try get value from a error type!";
+    return absl::get<T>(flag_values_.at(param));
+  }
+
+ private:
+  AssertTrueMsgTool() = default;
+
+  void InitFlagInfo();
+
+  std::unordered_map<std::string, cinn::utils::Attribute> flag_values_;
+  std::unordered_map<int, std::string> global_msg_;
+
+  CINN_DISALLOW_COPY_AND_ASSIGN(AssertTrueMsgTool);
+};
+}  // namespace utils
+
+void cinn_assert_true(void* v_args, int msg, bool only_warning, void* stream, const Target& target);
+
+void cinn_assert_true_host(void* v_args, int msg, bool only_warning);
 
 void cinn_call_cholesky_host(void* v_args, int num_args, int batch_size, int m, bool upper);
 

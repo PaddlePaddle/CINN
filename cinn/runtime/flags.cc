@@ -17,6 +17,8 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
+#include <unordered_set>
+
 #ifdef CINN_WITH_CUDNN
 DEFINE_bool(cinn_cudnn_deterministic,
             false,
@@ -57,10 +59,10 @@ DEFINE_bool(cinn_use_fill_constant_folding,
             BoolFromEnv("FLAGS_cinn_use_fill_constant_folding", false),
             "Whether use the FillConstantFolding pass.");
 
-DEFINE_bool(cinn_check_fusion_accuracy_pass,
-            BoolFromEnv("FLAGS_cinn_check_fusion_accuracy_pass", false),
-            "Check the correct of fusion kernels, if the results not satisfied 'allclose(rtol=1e-05f, atol=1e-08f)', "
-            "report error and exited.");
+DEFINE_string(cinn_check_fusion_accuracy_pass,
+              StringFromEnv("FLAGS_cinn_check_fusion_accuracy_pass", ""),
+              "Check the correct of fusion kernels, if the results not satisfied 'allclose(rtol=1e-05f, atol=1e-08f)', "
+              "report error and exited.");
 
 DEFINE_bool(cinn_use_cuda_vectorize,
             BoolFromEnv("FLAGS_cinn_use_cuda_vectorize", false),
@@ -110,6 +112,20 @@ DEFINE_bool(auto_schedule_use_cost_model,
 
 namespace cinn {
 namespace runtime {
+
+bool CheckStringFlagTrue(const std::string& flag) {
+  // from gflag FlagValue::ParseFrom:
+  // https://github.com/gflags/gflags/blob/master/src/gflags.cc#L292
+  static const std::unordered_set<std::string> kTrue = {"1", "t", "true", "y", "yes"};
+  return kTrue.count(flag);
+}
+
+bool CheckStringFlagFalse(const std::string& flag) {
+  // from gflag FlagValue::ParseFrom:
+  // https://github.com/gflags/gflags/blob/master/src/gflags.cc#L292
+  static const std::unordered_set<std::string> kFalse = {"0", "f", "false", "n", "no"};
+  return kFalse.count(flag);
+}
 
 void SetCinnCudnnDeterministic(bool state) {
 #ifdef CINN_WITH_CUDNN
