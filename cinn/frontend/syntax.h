@@ -70,6 +70,9 @@ struct Variable : public common::Shared<_Variable_> {
 
   _Variable_* operator->() { return get(); }
   const _Variable_* operator->() const { return get(); }
+
+  std::vector<int> vec_data;
+  //vector<>
 };
 
 /**

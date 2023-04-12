@@ -57,10 +57,11 @@ class OpLowerer {
   OpLowerer(const absl::flat_hash_map<std::string, Type>&,
             const absl::flat_hash_map<std::string, shape_t>&,
             const Target&);
-  std::vector<ir::LoweredFunc> Lower(GroupPtr& group);
+  std::vector<ir::LoweredFunc> Lower( GroupPtr& group);
   std::vector<ir::LoweredFunc> LowerWithoutSchedule(GroupPtr& group);
-
+  std::vector<ir::LoweredFunc> ThreadModelTest( Graph* group );
  private:
+  
   std::vector<ir::LoweredFunc> IRLowerOp(IRComputeFunction, IRScheduleFunction, GroupPtr&);
   std::vector<ir::LoweredFunc> IRLowerNonFusibleOp(GroupPtr&, bool);
   std::vector<ir::LoweredFunc> IRLowerOpWithoutSchedule(IRComputeFunction, GroupPtr&);

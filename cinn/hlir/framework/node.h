@@ -95,8 +95,8 @@ class Node : public common::GraphNode {
   //! Get the output tensors in order to match tensors correctly. If do refresh, we will update the links.
   const std::vector<common::Shared<common::GraphEdge>> &outlinks_in_order(bool refresh = false) const;
 
-  inline const Operator *op() const { return this->attrs.op; }
 
+  inline const Operator *op() const { return this->attrs.op; }
   inline bool is_variable() { return (this->attrs.op == nullptr); }
 
   inline uint32_t num_outputs() {

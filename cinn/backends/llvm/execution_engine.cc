@@ -172,9 +172,9 @@ void ExecutionEngine::Link(const ir::Module &module) {
   LLVMModuleOptimizer optimize(machine.get(), 3, {}, true);
   optimize(m.get());
   CHECK(!llvm::verifyModule(*m, &llvm::errs())) << "Invalid optimized module detected";
-  for (auto &f : *m) {
-    VLOG(5) << "function: " << DumpToString(f);
-  }
+  // for (auto &f : *m) {
+  //   VLOG(5) << "function: " << DumpToString(f);
+  // }
 
   llvm::raw_svector_ostream rawstream(buffer_);
   llvm::legacy::PassManager pass_manager;

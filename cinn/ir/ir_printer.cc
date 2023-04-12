@@ -31,7 +31,9 @@ namespace ir {
 
 using common::float16;
 
-void IrPrinter::Print(Expr e) { IRVisitor::Visit(&e); }
+void IrPrinter::Print(Expr e) { 
+  //std::cerr << "print here" << std::endl;
+  IRVisitor::Visit(&e); }
 void IrPrinter::Print(const std::vector<Expr> &exprs, const std::string &splitter) {
   for (int i = 0; !exprs.empty() && i < exprs.size() - 1; i++) {
     Print(exprs[i]);
@@ -126,7 +128,7 @@ void IrPrinter::Visit(const Max *x) {
   os_ << ")";
 }
 void IrPrinter::Visit(const Minus *x) {
-  os_ << "-(";
+  os_ << "expf(";
   Print(x->v());
   os_ << ")";
 }
@@ -250,8 +252,13 @@ void IrPrinter::Visit(const Call *x) {
   os_ << ")";
 }
 void IrPrinter::Visit(const Cast *x) {
-  os() << x->type();
-  os() << "(";
+  // os() << x->type();
+  // os() << "(";
+  // os() << x->v();
+  // os() << ")";
+
+  os() << "reinterpret_cast<half>(";
+  
   os() << x->v();
   os() << ")";
 }
@@ -415,6 +422,47 @@ void IrPrinter::Visit(const Broadcast *x) {
   os() << ",";
   os() << x->lanes;
   os() << ")";
+}
+
+void IrPrinter::Visit(const LocalTemp *x) {
+  os() << "\n";
+  os() << x->type() << " ";
+  Print(x->symbol);
+  for( size_t i = 0; i < x->local_size.size(); ++i) 
+  {
+    os() << "[";
+    os() << x->local_size[i];
+    os() << "]";
+  }
+  os() << ";\n";
+}
+
+void IrPrinter::Visit(const Sqrt *x) {
+  os() << "sqrtf(";
+  Print(x->symbol);  
+  os() << ");\n";
+}
+
+void IrPrinter::Visit(const LoadIndex *x) { 
+  os() << "reduce reange " << x->reduce_range.front() << "\t" << x->reduce_range.back() << "\n";
+  os() << "flatten range " << x->flatten_range.front() << "\t" << x->flatten_range.back() << "\n";
+  os() << "reduce " << x->reduce_block << "\t" << x->flatten_block << "\n";
+  os() << "expr " << x->index_expr << "\n";
+}
+
+void IrPrinter::Visit(const ReduceMax *x) {
+  os() << "reduce max, input" << x->input << "\t" << x->axis << "\n";  
+}
+
+void IrPrinter::Visit(const BlockLoad *x) {
+  os() << x->input << "\n";
+  Visit( x->load_index.As<LoadIndex>() );
+}
+
+void IrPrinter::Visit(const BlockStore *x) {
+  os() << x->input << "\n";
+  Visit( x->load_index.As<LoadIndex>() );
+  Visit(x->value.As<ReduceMax>() );
 }
 
 void IrPrinter::Visit(const FracOp *x) {

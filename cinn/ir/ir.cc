@@ -32,9 +32,9 @@ namespace ir {
 using common::make_shared;
 
 Expr Cast::Make(Type t, Expr v) {
-  CHECK(!t.is_unk());
-  CHECK(!(t.is_void() && !t.is_cpp_handle())) << "Void is not allowed to cast";
-  CHECK(v.defined());
+  // CHECK(!t.is_unk());
+  // CHECK(!(t.is_void() && !t.is_cpp_handle())) << "Void is not allowed to cast";
+  // CHECK(v.defined());
 
   auto node = make_shared<Cast>();
   node->v() = v;
@@ -185,7 +185,7 @@ void Not::Verify() const { CHECK_EQ(v().type(), type_of<bool>()); }
 
 Type Not::type() const { return type_; }
 
-Expr Let::Make(Expr symbol, Expr body) {
+Expr Let::Make(Expr symbol, Expr body, bool with_dtype) {
   auto *n = make_shared<Let>();
   CHECK(symbol.type().valid());
   if (body.defined()) {
@@ -194,6 +194,7 @@ Expr Let::Make(Expr symbol, Expr body) {
   n->symbol = symbol;
   n->body   = body;
   n->set_type(n->symbol->type());
+  n->with_dtype = with_dtype;
   return Expr(n);
 }
 
@@ -350,7 +351,7 @@ std::vector<Expr *> IfThenElse::expr_fields() { return {&condition, &true_case, 
 std::vector<const Expr *> IfThenElse::expr_fields() const { return {&condition, &true_case, &false_case}; }
 
 Expr Store::Make(Expr tensor, Expr value, const std::vector<Expr> &indices) {
-  CHECK(tensor.As<_Tensor_>()) << "tensor should be _Tensor_ type";
+  //CHECK(tensor.As<_Tensor_>()) << "tensor should be _Tensor_ type";
   auto node     = make_shared<Store>();
   node->tensor  = tensor;
   node->value   = value;

@@ -64,6 +64,7 @@ enum OpPatternKind {
   kNonFusible = 8
 };
 
+
 struct OpRegistry : public Registry<Operator> {
   std::recursive_mutex mutex;
   std::atomic<int> op_counter{0};

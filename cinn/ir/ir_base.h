@@ -109,6 +109,12 @@ class ScheduleBlockRealize;
   macro__(_BufferRange_)                    \
   macro__(ScheduleBlock)                    \
   macro__(ScheduleBlockRealize)             \
+  macro__(LocalTemp)                        \
+  macro__(LoadIndex)                        \
+  macro__(ReduceMax)                        \
+  macro__(BlockLoad)                        \
+  macro__(BlockStore)                       \
+  macro__(Sqrt)                             \
 
 
 #define NODETY_FORALL(__m)              \

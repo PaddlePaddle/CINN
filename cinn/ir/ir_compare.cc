@@ -185,6 +185,43 @@ bool IrEqualVisitor::Visit(const Store* lhs, const Expr* other) {
   return Compare(lhs->tensor, rhs->tensor) && Compare(lhs->indices, rhs->indices);
 }
 
+bool IrEqualVisitor::Visit(const LocalTemp* lhs, const Expr* other)
+{
+  std::cerr << "not impl ir equal visit";
+  return false;
+}
+
+bool IrEqualVisitor::Visit(const Sqrt* lhs, const Expr* other)
+{
+  std::cerr << "not impl ir equal visit";
+  return false;
+}
+
+
+bool IrEqualVisitor::Visit(const LoadIndex* lhs, const Expr* other)
+{
+  std::cerr << "not impl ir equal visit";
+  return false;
+}
+
+bool IrEqualVisitor::Visit(const BlockLoad* lhs, const Expr* other)
+{
+  std::cerr << "not impl block load equal visit";
+  return false;
+}
+
+bool IrEqualVisitor::Visit(const BlockStore* lhs, const Expr* other)
+{
+  std::cerr << "not impl block load equal visit";
+  return false;
+}
+
+bool IrEqualVisitor::Visit(const ReduceMax* lhs, const Expr* other)
+{
+  std::cerr << "not impl ir reduce maxequal visit";
+  return false;
+}
+
 bool IrEqualVisitor::Visit(const Alloc* lhs, const Expr* other) {
   auto* rhs = other->As<Alloc>();
   return Compare(lhs->destination, rhs->destination) && Compare(lhs->extents, rhs->extents) &&

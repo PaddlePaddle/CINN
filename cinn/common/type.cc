@@ -480,7 +480,8 @@ Type Str2Type(const std::string &type) {
 std::string Type2Str(const Type &type) {
   switch (type.type()) {
     case Type::type_t::Int:
-      return "int" + std::to_string(type.bits());
+      return "int";
+      //return "int" + std::to_string(type.bits());
 
     case Type::type_t::UInt:
       if (type.bits() == 1) {
@@ -490,7 +491,8 @@ std::string Type2Str(const Type &type) {
       }
 
     case Type::type_t::Float:
-      return "float" + std::to_string(type.bits());
+      return "float";
+      //return "float" + std::to_string(type.bits());
 
     case Type::type_t::Void:
       return "void";

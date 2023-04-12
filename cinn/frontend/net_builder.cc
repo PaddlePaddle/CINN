@@ -80,6 +80,26 @@ void NetBuilder::InferShape(Instruction instr) const {
   }
 }
 
+Variable NetBuilder::Load( const Variable& input, const Variable& slice )
+{
+  Instruction instr("load", {input, slice});  
+
+  auto& outs    = instr->outputs;
+  outs.resize( {1} );
+  outs[0]->shape = slice->shape;
+  
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
+Variable NetBuilder::Store( const Variable& output, const Variable& slice, const Variable& update_value)
+{
+  Instruction instr("store", {output, slice, update_value}); 
+    
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
 const std::vector<Variable>& NetBuilder::CustomInstr(const std::string& type,
                                                      const std::vector<Variable>& inputs,
                                                      const AttributeMap& attrs) {

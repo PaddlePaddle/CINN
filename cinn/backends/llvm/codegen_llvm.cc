@@ -224,6 +224,42 @@ llvm::Value *CodeGenLLVM::Visit(const ir::IntImm *op) {
   return llvm::ConstantInt::get(type, op->value, true);
 }
 
+llvm::Value *CodeGenLLVM::Visit(const ir::LocalTemp *op) {
+  std::cerr << "not impl in llvm gen";
+  auto *type = b_->getIntNTy(op->type().bits());
+  return llvm::ConstantInt::get(type, 1, true);
+}
+
+llvm::Value *CodeGenLLVM::Visit(const ir::Sqrt *op) {
+  std::cerr << "not impl in llvm gen";
+  auto *type = b_->getIntNTy(op->type().bits());
+  return llvm::ConstantInt::get(type, 1, true);
+}
+
+llvm::Value *CodeGenLLVM::Visit(const ir::LoadIndex *op) {
+  std::cerr << "not impl in llvm gen";
+  auto *type = b_->getIntNTy(op->type().bits());
+  return llvm::ConstantInt::get(type, op->reduce_block, true);
+}
+
+llvm::Value *CodeGenLLVM::Visit(const ir::ReduceMax *op) {
+  std::cerr << "not impl in reduceMax llvm gen";
+  auto *type = b_->getIntNTy(op->type().bits());
+  return llvm::ConstantInt::get(type, op->axis, true);
+}
+
+llvm::Value *CodeGenLLVM::Visit(const ir::BlockLoad *op) {
+  std::cerr << "not impl in block load llvm gen";
+  auto *type = b_->getIntNTy(op->type().bits());
+  return llvm::ConstantInt::get(type, 1, true);
+}
+
+llvm::Value *CodeGenLLVM::Visit(const ir::BlockStore *op) {
+  std::cerr << "not impl in block store llvm gen";
+  auto *type = b_->getIntNTy(op->type().bits());
+  return llvm::ConstantInt::get(type, 1, true);
+}
+
 llvm::Value *CodeGenLLVM::Visit(const ir::UIntImm *op) {
   if (op->type().is_bool()) {
     auto *type = b_->getInt1Ty();

@@ -58,6 +58,7 @@ void CUDAModule::LaunchKernel(int device_id,
           << ", share_memory_size:" << share_memory_size;
   auto function = GetFunction(device_id, func_name);
   CHECK(function);
+  
   CUDA_DRIVER_CALL(cuLaunchKernel(function,
                                   gridDim.x,
                                   gridDim.y,
@@ -69,11 +70,15 @@ void CUDAModule::LaunchKernel(int device_id,
                                   stream,
                                   args,
                                   nullptr));
+  
+  
 }
 
 CUfunction CUDAModule::GetFunction(int device_id, const std::string& func_name) {
   VLOG(5) << "GetFuncion : " << func_name << " with device_id : " << device_id;
+  
   if (!module_per_card_[device_id]) {
+    
     std::lock_guard<std::mutex> lock(mutex_);
     // Compilation with parameters
     const size_t jit_num_options = 5;
@@ -89,6 +94,8 @@ CUfunction CUDAModule::GetFunction(int device_id, const std::string& func_name) 
     jit_options[1] = CU_JIT_ERROR_LOG_BUFFER;
     std::vector<char> log_buffer(log_buffer_size, '\0');
     jit_opt_vals[1] = log_buffer.data();
+
+    // std::cerr << "data " << data_ << std::endl;
 
     int value = 1;
     // Specifies whether to create debug information in output (-g)
@@ -107,6 +114,7 @@ CUfunction CUDAModule::GetFunction(int device_id, const std::string& func_name) 
         &module_per_card_[device_id], data_.c_str(), jit_num_options, jit_options.data(), jit_opt_vals.data());
 
     if (CUDA_SUCCESS != status) {
+      std::cerr << "load failed" << std::endl;
       RAW_LOG(ERROR, "PTX JIT ERROR LOG: %s\n.", log_buffer.data());
       const char* name;
       cuGetErrorName(status, &name);
@@ -115,9 +123,11 @@ CUfunction CUDAModule::GetFunction(int device_id, const std::string& func_name) 
       RAW_LOG(FATAL, "The error `%s` occurs while compiling the ptx! And its message is `%s`.", name, msg);
     }
   }
+  
 
   CUfunction func;
   CUDA_DRIVER_CALL(cuModuleGetFunction(&func, module_per_card_[device_id], func_name.c_str()));
+  
   return func;
 }
 

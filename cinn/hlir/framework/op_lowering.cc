@@ -19,6 +19,8 @@
 #include "cinn/ir/ir_schedule.h"
 #include "cinn/optim/transform_gpu_forloop.h"
 
+#include "cinn/ir/thread_model.h"
+
 DECLARE_bool(cinn_ir_schedule);
 
 namespace cinn {
@@ -52,6 +54,7 @@ std::vector<ir::LoweredFunc> OpLowerer::Lower(GroupPtr& group) {
   VLOG(3) << "Lowering Group : " << group->group_id << " , Op Pattern : " << group->op_pattern_kind;
   group->input_names.clear();
   group->output_names.clear();
+  
   if (FLAGS_cinn_ir_schedule) {
     switch (group->op_pattern_kind) {
       case framework::kElementWise:
@@ -70,6 +73,59 @@ std::vector<ir::LoweredFunc> OpLowerer::Lower(GroupPtr& group) {
   } else {
     LOG(FATAL) << "Previous IR Schedule Is Not Implemented!";
   }
+}
+
+std::vector<ir::LoweredFunc> OpLowerer::ThreadModelTest( Graph* graph )
+{
+  auto topo_order = graph->topological_order();
+  auto& nodes     = std::get<0>(topo_order);
+
+
+  
+   ir::CodeGenOption opt;
+   opt.flatten_block = 32;
+   opt.reduce_block = 128;
+   
+
+   for (auto& n : nodes) {
+
+    auto node = n->safe_as<hlir::framework::Node>();
+    if (!node || node->op() == nullptr) {
+        continue;
+    }
+    
+    auto node_data = GetNodeData(node);
+    std::cerr << " process node: " << node->id() << " with op type: " << node->op()->name << std::endl;
+
+    auto shape =  this->shape_dict_.at( node_data->id() );
+    
+    for( auto& s : shape )
+    {
+      std::cerr << s << ",";
+     } 
+     std::cerr << std::endl;
+
+     auto in_data = GetInputNodeData(node);
+
+    for( auto & data : in_data )
+    {
+       auto shape = this->shape_dict_.at( data->id());
+       for( auto& s : shape )
+    {
+      std::cerr << s << ",";
+    } 
+     std::cerr << std::endl;
+    }
+   }
+
+   auto group0 =  graph->fusion_groups[0];
+
+
+  auto out = cinn::ir::process_warp_reduce( graph, opt );
+   
+
+  
+   return { out };
 }
 
 std::vector<ir::LoweredFunc> OpLowerer::LowerWithoutSchedule(GroupPtr& group) {
@@ -166,6 +222,8 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOp(IRComputeFunction compute,
   return {func};
 }
 
+
+
 std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpWithoutSchedule(IRComputeFunction compute, GroupPtr& group) {
   poly::StageMap stages;
   std::vector<ir::Tensor> arg_tensors;
@@ -240,6 +298,7 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpWithoutSchedule(IRComputeFuncti
   optim::OptimizeExprGPU(&(func_body));
 #endif
 
+  std::cerr << "group name " << group->GetFuncName() << std::endl;
   auto temp_buffers = lang::GetTempBuffers(arg_tensors, stages, func_body);
   auto func =
       ir::_LoweredFunc_::Make(group->GetFuncName(), func_args, ir_sch.GetModule().GetExprs().at(0), temp_buffers);
@@ -283,6 +342,7 @@ std::vector<Expr> OpLowerer::IRElementwiseCompute(poly::StageMap& stages,
     CHECK_EQ(pack.size(), 2U);
 
     Expr expr                  = pack[0];
+    
     poly::StageMap node_stages = pack.back();
     tensor_inputs.push_back(expr.as_tensor_ref());
     tensor_map[node_data->id()] = expr.as_tensor_ref();
@@ -290,6 +350,10 @@ std::vector<Expr> OpLowerer::IRElementwiseCompute(poly::StageMap& stages,
     auto func = lang::LowerVec("fn_" + node->id(), node_stages, tensor_inputs, {}, {}, nullptr, this->target_, true);
     CHECK_EQ(func.size(), 1);
 
+    for( size_t i = 0; i < func.size(); ++i)
+    {
+        std::cerr << "elementtwise func " << i << "\t" << func[i] << std::endl;
+    }
     if (apply_impl_schedule) {
       std::vector<common::CINNValue> schedule_inputs;
       // collect tensor
@@ -366,7 +430,7 @@ std::vector<Expr> OpLowerer::IRReduceCompute(poly::StageMap& stages,
   VLOG(2) << "ReduceCompute Group : " << sub_group->group_id;
   auto& cinn_strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
-
+  std::cerr << "reduce compute" << std::endl;
   std::vector<Expr> ast_exprs;
   for (auto& node : sub_group->nodes) {
     auto node_data = GetNodeData(node);
@@ -408,6 +472,10 @@ std::vector<Expr> OpLowerer::IRReduceCompute(poly::StageMap& stages,
       }
     }
     auto func = lang::LowerVec("fn_" + node->id(), tmp_stages, tensor_inputs, {}, {}, nullptr, this->target_, true);
+
+    // for( size_t i = 0; i < func.size() ; ++i ) {
+    //   std::cerr << "reduce func " << i << "\t" << func[i] << std::endl;
+    // }
 
     // node is kReduction
     if (op_pattern_dict[node->op()] == framework::kReduction && apply_impl_schedule) {

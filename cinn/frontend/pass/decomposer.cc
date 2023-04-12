@@ -42,14 +42,15 @@ class DecomposerPass : public ProgramPass {
     DecomposerContext context(&builder, &var_map);
     for (size_t i = 0; i < prog->size(); i++) {
       auto instr      = (*prog)[i];
-      auto decomposer = InstrDecomposerRegistry::Global()->Find(instr->op_type, target);
-      if (decomposer) {
-        VLOG(3) << "Run decomposer of op " << instr->op_type;
-        decomposer->Run(instr, context);
-      } else {
+      //auto decomposer = InstrDecomposerRegistry::Global()->Find(instr->op_type, target);
+      // auto decomposer = nullptr;
+      // if (decomposer) {
+      //   VLOG(3) << "Run decomposer of op " << instr->op_type;
+      //   decomposer->Run(instr, context);
+      // } else {
         VLOG(3) << "Don't run decomposer of op " << instr->op_type;
         builder.AppendInstruction(instr);
-      }
+      //}
     }
     VLOG(3) << "Before builder.Build()";
     *prog = builder.Build();
