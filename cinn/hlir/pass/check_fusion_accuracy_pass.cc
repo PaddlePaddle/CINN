@@ -130,7 +130,11 @@ class CheckFusionAccuracyPass {
 
   ShapeDict& shape_dict_;
   DtypeDict& dtype_dict_;
+
+  static std::atomic_int key_count_;
 };
+
+std::atomic_int CheckFusionAccuracyPass::key_count_{0};
 
 std::string CheckFusionAccuracyPass::DebugNodeData(NodeData* node) {
   std::stringstream ss;
@@ -326,8 +330,8 @@ std::pair<NodePtr, NodeData*> CheckFusionAccuracyPass::CreateAssertNode(const st
 
   auto assert_node = Node::Create(Operator::Get("assert_true"), GenerateAccCheckNodeId("assert_true"), assert_node_id);
   // TODO(thisjiang): change type from 'int' to 'std::string' when custom call support 'std::string' type
-  static int msg_key                   = static_cast<int>(std::hash<std::string>()(assert_node_id));
-  assert_node->attrs.attr_store["msg"] = static_cast<int>(msg_key);
+  int msg_key                          = key_count_.fetch_add(1);
+  assert_node->attrs.attr_store["msg"] = msg_key;
   cinn::runtime::utils::AssertTrueMsgTool::GetInstance()->SetMsg(msg_key, assert_msg->str());
   assert_node->attrs.attr_store["only_warning"] =
       cinn::runtime::utils::AssertTrueMsgTool::GetInstance()->GetFlagValue<bool>("only_warning");
