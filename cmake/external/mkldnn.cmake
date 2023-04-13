@@ -103,8 +103,11 @@ add_definitions(-DCINN_WITH_MKLDNN)
 
 # generate a static dummy target to track mkldnn dependencies
 # for cc_library(xxx SRCS xxx.c DEPS mkldnn)
+
 SET(dummyfile ${CMAKE_CURRENT_BINARY_DIR}/mkldnn_dummy.c)
-FILE(WRITE ${dummyfile} "const char * dummy = \"${dummyfile}\";")
+if (NOT EXISTS ${dummyfile})
+  FILE(WRITE ${dummyfile} "const char * dummy = \"${dummyfile}\";")
+endif()
 ADD_LIBRARY(mkldnn STATIC ${dummyfile})
 TARGET_LINK_LIBRARIES(mkldnn ${MKLDNN_LIB} ${MKLML_LIB} ${MKLML_IOMP_LIB})
 ADD_DEPENDENCIES(mkldnn ${MKLDNN_PROJECT})
