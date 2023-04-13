@@ -103,12 +103,20 @@ DEFINE_string(cinn_source_code_save_path,
               StringFromEnv("FLAGS_cinn_source_code_save_path", ""),
               "Specify the directory path of generated source code, which is used for debug.");
 
+DEFINE_string(cinn_pass_visualize_dir,
+              StringFromEnv("FLAGS_cinn_pass_visualize_dir", ""),
+              "Specify the directory path of pass visualize file of graph, which is used for debug.");
+
 DEFINE_bool(enable_auto_tuner, BoolFromEnv("FLAGS_enable_auto_tuner", false), "Whether enable auto tuner.");
 
 DEFINE_bool(auto_schedule_use_cost_model,
             BoolFromEnv("FLAGS_auto_schedule_use_cost_model", true),
             "Whether to use cost model in auto schedule, this is an on-developing flag and it will be removed when "
             "cost model is stable.");
+
+DEFINE_bool(enhance_vertical_fusion_with_recompute,
+            BoolFromEnv("FLAGS_enhance_vertical_fusion_with_recompute", false),
+            "Whether to enhance check logic on vertical fusion with recompute");
 
 namespace cinn {
 namespace runtime {

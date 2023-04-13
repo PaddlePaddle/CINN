@@ -32,6 +32,7 @@
 #include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/framework/tensor.h"
+#include "cinn/hlir/framework/visualize_helper.h"
 #include "cinn/hlir/op/use_ops.h"
 #include "cinn/pybind/bind.h"
 #include "cinn/utils/string.h"
@@ -193,9 +194,11 @@ void BindFrontend(pybind11::module *m) {
 
             std::shared_ptr<hlir::framework::Graph> graph;
             if (!passes.empty()) {
+              cinn::hlir::framework::PassPrinter::GetInstance()->Begin();
               frontend::ProgramPass::Apply(&self, fetch_ids, target, program_passes);
               graph = std::make_shared<hlir::framework::Graph>(self, fetch_ids, target);
               hlir::framework::ApplyPasses(graph.get(), graph_passes);
+              cinn::hlir::framework::PassPrinter::GetInstance()->End();
             } else {
               graph = Optimize(&self, fetch_ids, target);
             }

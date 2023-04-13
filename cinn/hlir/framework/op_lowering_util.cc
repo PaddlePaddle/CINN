@@ -270,6 +270,7 @@ std::unordered_map<Node*, Node*> BuildVirtualConsumer(const GroupPtr& group,
           virtual_consumers[t_node] = reducer;
           break;
         }
+        candidates.push(producer);
         visited.insert(producer);
       }
       // if find horizontal reducer.

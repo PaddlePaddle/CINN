@@ -514,13 +514,7 @@ GroupList CheckFusionAccuracyPass::Apply() {
   return check_fusion_groups;
 }
 
-void CheckFusionAccuracyPassImpl(Graph* graph) {
-  VLOG(3) << "Before CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph();
-
-  graph->fusion_groups = CheckFusionAccuracyPass(graph).Apply();
-
-  VLOG(3) << "After CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph();
-}
+void CheckFusionAccuracyPassImpl(Graph* graph) { graph->fusion_groups = CheckFusionAccuracyPass(graph).Apply(); }
 
 }  // namespace cinn::hlir::pass
 

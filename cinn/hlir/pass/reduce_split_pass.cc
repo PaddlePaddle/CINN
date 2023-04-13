@@ -182,10 +182,8 @@ class ReduceSplitPass {
 }  // namespace
 
 void ReduceSplitFunc(framework::Graph* graph) {
-  VLOG(3) << "Before ReduceSplitPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{}) << std::endl;
   int n = ReduceSplitPass::Apply(graph);
   VLOG(3) << "ReduceSplit was performed " << n << " times.";
-  VLOG(3) << "After ReduceSplitPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{}) << std::endl;
 }
 
 }  // namespace pass

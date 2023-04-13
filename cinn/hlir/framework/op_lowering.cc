@@ -1261,6 +1261,16 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
       } else if (op_pattern_dict[node->op()] != framework::kReduction) {
         ir_sch.FlattenLoops(loops, false);
       }
+
+      if (master && op_pattern_dict[node->op()] != framework::kReduction) {
+        auto master_loops = ir_sch.GetLoops(GetNodeData(master)->id());
+        std::vector<int> splits;
+        for (auto loop : master_loops) {
+          splits.push_back(loop.As<ir::For>()->extent.as_int32());
+        }
+        loops = ir_sch.GetLoops(GetNodeData(node)->id());
+        ir_sch.Split(loops[0], splits);
+      }
     }
     // do loop fuse.
     LoopComputeAt(ir_sch, node, master ? master : nodes_in_order.front(), group, this->shape_dict_, tensor_map);
