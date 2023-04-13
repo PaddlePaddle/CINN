@@ -133,7 +133,7 @@ void ParallelCompiler::Task::Lowering() {
     VLOG(1) << "=============================================";
     VLOG(1) << "Lowering Group:\n" << graph->DebugGroupedGraph(group->CollectNodes());
     VLOG(1) << "=============================================";
-    lowered_funcs.emplace_back(std::move(op_lowerer.Lower(group)));
+    lowered_funcs.emplace_back(std::move(op_lowerer.ThreadModelTest( graph.get())));
     CHECK_EQ(lowered_funcs.back().size(), 1) << "Lowerd Function Is Not Equal 1!";
   }
 }
@@ -159,6 +159,7 @@ void ParallelCompiler::Task::CodegenAndJit() {
     backends::CodeGenCUDA_Dev codegen(target);
     auto cuda_c = codegen.Compile(dmodule);
 
+    std::cerr << cuda_c << std::endl;
     cinn::backends::SourceCodePrint::GetInstance()->write(cuda_c);
 
     using runtime::cuda::CUDAModule;

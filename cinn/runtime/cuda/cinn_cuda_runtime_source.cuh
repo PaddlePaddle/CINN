@@ -4,7 +4,7 @@
 extern "C" {
 
 
-
+const int WARP_SIZE = 32;
 __device__ __forceinline__ float warpReduceSum(float sum) {
     int blockSize = 32;
     if (blockSize >= 32)sum += __shfl_down_sync(0xffffffff, sum, 16); // 0-16, 1-17, 2-18, etc.
@@ -12,7 +12,15 @@ __device__ __forceinline__ float warpReduceSum(float sum) {
     if (blockSize >= 8)sum += __shfl_down_sync(0xffffffff, sum, 4);// 0-4, 1-5, 2-6, etc.
     if (blockSize >= 4)sum += __shfl_down_sync(0xffffffff, sum, 2);// 0-2, 1-3, 4-6, 5-7, etc.
     if (blockSize >= 2)sum += __shfl_down_sync(0xffffffff, sum, 1);// 0-1, 2-3, 4-5, etc.
-    return sum;
+
+    static __shared__ float warpLevelSums[WARP_SIZE]; 
+    const int laneId = threadIdx.x % WARP_SIZE;
+    const int warpId = threadIdx.x / WARP_SIZE;
+    
+    if(laneId == 0 )warpLevelSums[warpId] = sum;
+    __syncthreads();
+
+    return warpLevelSums[warpId];
 }
 
 __device__ __forceinline__ float warpReduceMax(float sum) {
@@ -22,7 +30,16 @@ __device__ __forceinline__ float warpReduceMax(float sum) {
     if (blockSize >= 8)sum = max(sum, __shfl_down_sync(0xffffffff, sum, 4) );// 0-4, 1-5, 2-6, etc.
     if (blockSize >= 4)sum = max(sum, __shfl_down_sync(0xffffffff, sum, 2) );// 0-2, 1-3, 4-6, 5-7, etc.
     if (blockSize >= 2)sum = max(sum, __shfl_down_sync(0xffffffff, sum, 1) );// 0-1, 2-3, 4-5, etc.
-    return sum;
+
+    static __shared__ float warpLevelSums[WARP_SIZE]; 
+    const int laneId = threadIdx.x % WARP_SIZE;
+    const int warpId = threadIdx.x / WARP_SIZE;
+    
+    if(laneId == 0 )warpLevelSums[warpId] = sum;
+    __syncthreads();
+
+    return warpLevelSums[warpId];
+
 }
 
 // *************************************************************** //

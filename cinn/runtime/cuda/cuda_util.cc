@@ -83,9 +83,13 @@ void cinn_call_cuda_kernel(void *kernel_fn,
                            int block_y,
                            int block_z,
                            void *stream) {
+  // grid_x = 128 * 12 * 128 / 32;
+  // block_x = 256;
   VLOG(3) << "cinn_call_cuda_kernel, grid_dim={" << grid_x << ", " << grid_y << ", " << grid_z << "}, block_dim={"
           << block_x << ", " << block_y << ", " << block_z << "}, num_args=" << num_args << ", stream=" << stream;
 
+  // grid_x = 128 * 12 * 128 / 32;
+  // block_x = 256;  
   std::vector<void *> kernel_args;
   kernel_args.reserve(num_args);
   cinn_pod_value_t *args = static_cast<cinn_pod_value_t *>(v_args);

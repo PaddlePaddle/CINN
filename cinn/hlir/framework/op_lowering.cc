@@ -85,7 +85,10 @@ std::vector<ir::LoweredFunc> OpLowerer::ThreadModelTest( Graph* graph )
    ir::CodeGenOption opt;
    opt.flatten_block = 32;
    opt.reduce_block = 128;
+   opt.num_warp = 8;
+   opt.num_thread_per_warp = 32;
    
+   std::vector<hlir::framework::Node*> vec_nodes;
 
    for (auto& n : nodes) {
 
@@ -94,9 +97,11 @@ std::vector<ir::LoweredFunc> OpLowerer::ThreadModelTest( Graph* graph )
         continue;
     }
     
+    vec_nodes.push_back( node );
     auto node_data = GetNodeData(node);
     std::cerr << " process node: " << node->id() << " with op type: " << node->op()->name << std::endl;
 
+    std::cerr << node_data->id() << std::endl;
     auto shape =  this->shape_dict_.at( node_data->id() );
     
     for( auto& s : shape )
@@ -120,9 +125,65 @@ std::vector<ir::LoweredFunc> OpLowerer::ThreadModelTest( Graph* graph )
 
    auto group0 =  graph->fusion_groups[0];
 
+  
+  const std::unordered_set<std::string> fetch_var_ids;
+  auto get_all_out_names = [](const std::vector<hlir::framework::Node*>& nodes) {
+    // collect all op's output var name in group
+    std::unordered_set<std::string> out_names;
+    for (auto* node : nodes) {
+      for (const auto& link : node->outlinks()) {
+        auto* out_node = link->sink()->safe_as<hlir::framework::NodeData>();
+        out_names.emplace(out_node->id());
+      }
+    }
+    return out_names;
+  };
+  auto get_feed_list = [](const std::vector<hlir::framework::Node*>& nodes, const std::unordered_set<std::string>& out_names) {
+    // if the op's input var name cannot found in out_names, it is the group's feed var
+    std::unordered_set<std::string> feed_list;
+    for (auto* node : nodes) {
+      for (const auto& link : node->inlinks()) {
+        auto* in_node = link->source()->safe_as<hlir::framework::NodeData>();
+        if (!out_names.count(in_node->id())) {
+          feed_list.emplace(in_node->id());
+        }
+      }
+    }
+    return std::vector<std::string>(feed_list.begin(), feed_list.end());
+  };
+  auto get_fetch_list = [&](const std::vector<hlir::framework::Node*>& nodes, const std::unordered_set<std::string>& out_names) {
+    // if the fetch var in out_names, it's the group's fetch var, otherwise not
+    std::unordered_set<std::string> in_names;
+    for (auto* node : nodes) {
+      for (const auto& link : node->inlinks()) {
+        auto* in_node = link->source()->safe_as<hlir::framework::NodeData>();
+        in_names.emplace(in_node->id());
+      }
+    }
+    std::vector<std::string> fetch_list;
+    for (const auto& out : out_names) {
+      if (!in_names.count(out) || fetch_var_ids.count(out)) {
+        // if the var not any op's input, or in fetch_var_ids, it's the group's fetch list
+        fetch_list.emplace_back(out);
+      }
+    }
+    return fetch_list;
+  };
 
-  auto out = cinn::ir::process_warp_reduce( graph, opt );
-   
+  const auto& out_names = get_all_out_names( vec_nodes);
+  const auto& feed_list = get_feed_list( vec_nodes, out_names);
+  auto fetch_name_list = get_fetch_list(vec_nodes, out_names);
+  auto out = cinn::ir::process_warp_reduce( graph, opt, feed_list, fetch_name_list );
+  
+  for( auto& name : feed_list)
+  {
+    group0->input_names.push_back( name);
+  }
+
+  for( auto& name : fetch_name_list)
+  {
+    group0->output_names.push_back( name);
+  }
 
   
    return { out };

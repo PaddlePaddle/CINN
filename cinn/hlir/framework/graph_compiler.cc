@@ -765,9 +765,12 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
     ParallelCompiler::CompileOptions option;
     option.lowered_funcs = options.lowered_funcs;
 
+    std::cerr << "parallel compiler" << std::endl;
     parallel_compiler_ = std::make_shared<ParallelCompiler>(scope_, graph_, option, target_);
+    std::cerr << "parallel compiler 0 " << std::endl;
     auto instructions  = (*parallel_compiler_.get())();
 
+    std::cerr << "parallel compiler 1" << std::endl;
     if (options.remove_unused_variables) {
       RemoveInvalidVariables(instructions);
     }
