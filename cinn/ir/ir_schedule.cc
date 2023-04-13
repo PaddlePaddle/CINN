@@ -1420,7 +1420,6 @@ Expr ReverseComputeInliner::ReplaceInlinedTensor(Expr* load) {
 void ScheduleImpl::ReverseComputeInline(const Expr& schedule_block) {
   Expr root          = this->GetRootBlock(schedule_block);
   Expr inlined_store = CheckReverseComputeInlineValidationAndGetStore(schedule_block, root);
-
   CHECK(schedule_block.As<ir::ScheduleBlockRealize>());
   auto compute_body = schedule_block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->body;
 
