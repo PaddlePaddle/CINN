@@ -474,7 +474,7 @@ GroupList CheckFusionAccuracyPass::Apply() {
 
     // split orign group and create group for each node
     const auto& ordered_nodes = TopologicalOrder(group_nodes);
-    VLOG(4) << "Check the accuracy of group " << graph_->DebugGroupedGraph({ordered_nodes});
+    VLOG(4) << "Check the accuracy of group " << graph_->DebugGroupedGraph(ordered_nodes);
 
     for (auto* node : ordered_nodes) {
       if (node->is_variable()) {
@@ -503,7 +503,7 @@ GroupList CheckFusionAccuracyPass::Apply() {
     msg.SetMsg("Group id", group->unique_id);
     msg.SetMsg("Input list", input_list);
     msg.SetMsg("Output list", output_list);
-    msg.SetMsg("Group graph", graph_->DebugGroupedGraph({ordered_nodes}));
+    msg.SetMsg("Group graph", graph_->DebugGroupedGraph(ordered_nodes));
 
     LOG(INFO) << msg.str();
 
@@ -514,13 +514,7 @@ GroupList CheckFusionAccuracyPass::Apply() {
   return check_fusion_groups;
 }
 
-void CheckFusionAccuracyPassImpl(Graph* graph) {
-  VLOG(3) << "Before CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph();
-
-  graph->fusion_groups = CheckFusionAccuracyPass(graph).Apply();
-
-  VLOG(3) << "After CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph();
-}
+void CheckFusionAccuracyPassImpl(Graph* graph) { graph->fusion_groups = CheckFusionAccuracyPass(graph).Apply(); }
 
 }  // namespace cinn::hlir::pass
 
