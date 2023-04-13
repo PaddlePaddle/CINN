@@ -132,7 +132,7 @@ bool CheckStringFlagFalse(const std::string& flag) {
   // from gflag FlagValue::ParseFrom:
   // https://github.com/gflags/gflags/blob/master/src/gflags.cc#L292
   static const std::unordered_set<std::string> kFalse = {"0", "f", "false", "n", "no"};
-  return kFalse.count(flag);
+  return flag.empty() || kFalse.count(flag);
 }
 
 void SetCinnCudnnDeterministic(bool state) {

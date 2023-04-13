@@ -37,6 +37,7 @@ using framework::NodePtr;
 using framework::Operator;
 using framework::OpPatternKind;
 
+using cinn::hlir::framework::GenerateAccCheckNodeId;
 using common::GraphEdge;
 using common::GraphNode;
 
@@ -72,10 +73,6 @@ class AssertMsg {
   std::unordered_map<std::string, std::string> msg_info_;
   int group_id_;
 };
-
-std::string GenerateCheckFusionAccuracyNodeId(const std::string& node_id) {
-  return node_id + cinn::common::UniqName("_acc_check");
-}
 }  // namespace utils
 
 class CheckFusionAccuracyPass {
@@ -173,7 +170,7 @@ void CheckFusionAccuracyPass::CreateCheckNodeOutputs(Node* old_node, NodePtr new
           << "Var " << out_node_id << " repeated! The graph is not a SSA graph! Please check.";
     }
 
-    const auto& check_out_node_id = utils::GenerateCheckFusionAccuracyNodeId(out_node_id);
+    const auto& check_out_node_id = GenerateAccCheckNodeId(out_node_id);
 
     auto check_out_node          = CreateOutputNode(new_node, check_out_node_id);
     check_out_node->output_index = out_node->output_index;
@@ -208,13 +205,13 @@ void CheckFusionAccuracyPass::RelinkNodeInputs(Node* old_node, NodePtr new_node)
 NodePtr CheckFusionAccuracyPass::CreateCheckNode(Node* node) {
   CHECK(node->op()) << "Node " << node->id() << " is not operator! Please check.";
 
-  const auto& check_node_id = utils::GenerateCheckFusionAccuracyNodeId(node->id());
+  const auto& check_node_id = GenerateAccCheckNodeId(node->id());
 
   CHECK(graph_->RetrieveNode(check_node_id) == nullptr)
       << "The node " << node->id() << "'s check fusion accuracy node" << check_node_id
       << " had been registered in graph! Please check.";
 
-  auto check_node              = Node::Create(node->op(), node->attrs.node_name, check_node_id);
+  auto check_node              = Node::Create(node->op(), GenerateAccCheckNodeId(node->attrs.node_name), check_node_id);
   check_node->attrs.attr_store = node->attrs.attr_store;
 
   graph_->RegisterNode(check_node_id, check_node.get());
@@ -273,7 +270,7 @@ GroupPtr CheckFusionAccuracyPass::CreateSingleNodeGroup(NodePtr node_ptr) {
 std::pair<NodePtr, NodeData*> CheckFusionAccuracyPass::CreateIsCloseNode(const std::string& node_id) {
   const auto& is_close_node_id = "isclose_" + node_id;
 
-  auto is_close_node = Node::Create(Operator::Get("isclose"), is_close_node_id, is_close_node_id);
+  auto is_close_node = Node::Create(Operator::Get("isclose"), GenerateAccCheckNodeId("isclose"), is_close_node_id);
   is_close_node->attrs.attr_store["rtol"] =
       cinn::runtime::utils::AssertTrueMsgTool::GetInstance()->GetFlagValue<float>("rtol");
   is_close_node->attrs.attr_store["atol"] =
@@ -299,7 +296,7 @@ std::pair<NodePtr, NodeData*> CheckFusionAccuracyPass::CreateIsCloseNode(const s
 std::pair<NodePtr, NodeData*> CheckFusionAccuracyPass::CreateAllNode(const std::string& node_id) {
   const auto& all_node_id = "all_" + node_id;
 
-  auto all_node = Node::Create(Operator::Get("reduce_all"), all_node_id, all_node_id);
+  auto all_node = Node::Create(Operator::Get("reduce_all"), GenerateAccCheckNodeId("reduce_all"), all_node_id);
 
   int shape_size = shape_dict_[node_id].size();
   std::vector<int> axes(shape_size);
@@ -327,7 +324,7 @@ std::pair<NodePtr, NodeData*> CheckFusionAccuracyPass::CreateAssertNode(const st
                                                                         utils::AssertMsg* assert_msg) {
   const auto& assert_node_id = "assert_" + node_id;
 
-  auto assert_node = Node::Create(Operator::Get("assert_true"), "assert_true", assert_node_id);
+  auto assert_node = Node::Create(Operator::Get("assert_true"), GenerateAccCheckNodeId("assert_true"), assert_node_id);
   // TODO(thisjiang): change type from 'int' to 'std::string' when custom call support 'std::string' type
   static int msg_key                   = static_cast<int>(std::hash<std::string>()(assert_node_id));
   assert_node->attrs.attr_store["msg"] = static_cast<int>(msg_key);

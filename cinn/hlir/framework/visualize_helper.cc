@@ -26,10 +26,12 @@
 #include <vector>
 
 #include "cinn/hlir/framework/graph.h"
+#include "cinn/runtime/flags.h"
 #include "cinn/utils/dot_lang.h"
 #include "cinn/utils/string.h"
 
 DECLARE_string(cinn_pass_visualize_dir);
+DECLARE_string(cinn_check_fusion_accuracy_pass);
 namespace cinn {
 namespace hlir {
 namespace framework {
@@ -334,6 +336,10 @@ void FindRecomputeNodes(const std::vector<std::vector<Node*>>& groups,
                         std::unordered_map<std::string, int>* recompute_nodes) {
   std::unordered_map<std::string, int> op_count;
   for (auto& group : groups) {
+    if (IsAccCheckGroup(group)) {
+      continue;
+    }
+
     for (auto* node : group) {
       op_count[node->id()]++;
     }
@@ -394,6 +400,37 @@ void AddGroupNode(const Node* node,
       dot->AddEdge(dot_node_id, dot_outnode_id, {});
     }
   }
+}
+
+bool IsAccCheckOp(const Node* op) { return op->attrs.node_name.find("_acc_check") != std::string::npos; }
+bool IsAccCheckVar(const NodeData* var) { return var->id().find("_acc_check") != std::string::npos; }
+
+std::string GenerateAccCheckNodeId(const std::string& node_id) {
+  return node_id + cinn::common::UniqName("_acc_check");
+}
+
+bool IsAccCheckGroup(const std::vector<Node*>& group) {
+  for (auto* node : group) {
+    if (IsAccCheckOp(node)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+std::vector<std::vector<Node*>> RemoveAccCheckGroups(const std::vector<std::vector<Node*>>& groups) {
+  if (cinn::runtime::CheckStringFlagFalse(FLAGS_cinn_check_fusion_accuracy_pass)) {
+    // no set acc check flag
+    return groups;
+  }
+
+  std::vector<std::vector<Node*>> new_groups;
+  for (const auto& group : groups) {
+    if (!IsAccCheckGroup(group)) {
+      new_groups.emplace_back(group);
+    }
+  }
+  return new_groups;
 }
 
 }  // namespace framework

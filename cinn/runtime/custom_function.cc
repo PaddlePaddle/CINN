@@ -46,7 +46,7 @@ void AssertTrueMsgTool::InitFlagInfo() {
   }
   // default value
   flag_values_ = {{"only_warning", false}, {"rtol", 1e-5f}, {"atol", 1e-8f}, {"equal_nan", false}};
-  if (FLAGS_cinn_check_fusion_accuracy_pass.empty() || CheckStringFlagFalse(FLAGS_cinn_check_fusion_accuracy_pass) ||
+  if (CheckStringFlagFalse(FLAGS_cinn_check_fusion_accuracy_pass) ||
       CheckStringFlagTrue(FLAGS_cinn_check_fusion_accuracy_pass)) {
     // using default value
     LOG(INFO) << "The FLAGS_cinn_check_fusion_accuracy_pass will check fusion group accuracy with: "

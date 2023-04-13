@@ -93,8 +93,7 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
   }
 
   // WARNING: the pass must be the last pass !!!
-  if (!FLAGS_cinn_check_fusion_accuracy_pass.empty() &&
-      !cinn::runtime::CheckStringFlagFalse(FLAGS_cinn_check_fusion_accuracy_pass)) {
+  if (!cinn::runtime::CheckStringFlagFalse(FLAGS_cinn_check_fusion_accuracy_pass)) {
     // Check the correct of fusion kernels, if the results not satisfied 'allclose(rtol=1e-05f, atol=1e-08f)', report
     // error and exited.
     options.graph_passes.emplace_back("CheckFusionAccuracyPass");
