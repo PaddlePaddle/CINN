@@ -297,7 +297,7 @@ class IRSchedule {
   void ComputeInline(const Expr& schedule_block);
 
   /**
-   * \brief Mark an schedule block as inlined.
+   * \brief  Inline a consumer block into its only producer.
    * @param schedule_block the schedule block to be inlined.
    */
   void ReverseComputeInline(const Expr& schedule_block);
