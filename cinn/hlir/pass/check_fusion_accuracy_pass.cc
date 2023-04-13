@@ -123,6 +123,9 @@ class CheckFusionAccuracyPass {
   // link origin group's output and pass group's output to the AssertAllClose nodes
   GroupList LinkToAssertAllClose(const std::unordered_set<NodeData*>& group_outputs, utils::AssertMsg* msg);
 
+  // skip check some op and var, now only support check float dtype
+  bool IsSkipVar(const NodeData* var);
+
  private:
   Graph* graph_;
   std::unordered_map<NodeData*, NodeData*> old2new_nodedata_map_;
@@ -135,6 +138,8 @@ class CheckFusionAccuracyPass {
 };
 
 std::atomic_int CheckFusionAccuracyPass::key_count_{0};
+
+bool CheckFusionAccuracyPass::IsSkipVar(const NodeData* var) { return !dtype_dict_.at(var->id()).is_float(); }
 
 std::string CheckFusionAccuracyPass::DebugNodeData(NodeData* node) {
   std::stringstream ss;
@@ -172,12 +177,6 @@ void CheckFusionAccuracyPass::CreateCheckNodeOutputs(Node* old_node, NodePtr new
       // note the const op will recompute in group, so that the op may disappear in many group
       CHECK_EQ(old2new_nodedata_map_.count(out_node), 0)
           << "Var " << out_node_id << " repeated! The graph is not a SSA graph! Please check.";
-    }
-
-    if (!dtype_dict_.at(out_node_id).is_float()) {
-      LOG(WARNING) << "The CheckFusionAccuracyPass only support check float data now, skip check node "
-                   << old_node->id() << "'s output " << out_node_id << ", who's dytpe=" << dtype_dict_.at(out_node_id);
-      continue;
     }
 
     const auto& check_out_node_id = GenerateAccCheckNodeId(out_node_id);
@@ -394,14 +393,26 @@ std::vector<NodePtr> CheckFusionAccuracyPass::CreateAssertAllClose(const std::st
 GroupList CheckFusionAccuracyPass::LinkToAssertAllClose(const std::unordered_set<NodeData*>& group_outputs,
                                                         utils::AssertMsg* msg) {
   GroupList assert_groups;
-  for (auto group_out : group_outputs) {
-    CHECK(old2new_nodedata_map_.count(group_out)) << "The check fusion accuracy's node corresponding to "
-                                                  << group_out->id() << " had not been created! Please check.";
-    auto pass_out = old2new_nodedata_map_.at(group_out);
+  for (auto* group_out : group_outputs) {
+    const auto& out_node_id = group_out->id();
+    if (IsSkipVar(group_out)) {
+      LOG(WARNING) << "The CheckFusionAccuracyPass only support check float data now, skip check node \"" << out_node_id
+                   << "\", who's dytpe=" << dtype_dict_.at(out_node_id);
+      continue;
+    }
+    CHECK(old2new_nodedata_map_.count(group_out)) << "The check fusion accuracy's node corresponding to " << out_node_id
+                                                  << " had not been created! Please check.";
+    auto pass_out                = old2new_nodedata_map_.at(group_out);
+    const auto& acc_check_out_id = pass_out->id();
 
-    msg->SetMsg("Var Name", group_out->id());
+    msg->SetMsg("Var Name", out_node_id);
+    msg->SetMsg("Suggestion",
+                cinn::utils::StringFormat("You can check the value by set FLAGS_cinn_self_check_accuracy and compare "
+                                          "the result between \"%s\" and \"%s\"",
+                                          out_node_id.c_str(),
+                                          acc_check_out_id.c_str()));
 
-    const auto& nodes = CreateAssertAllClose(pass_out->id(), msg, {group_out, pass_out});
+    const auto& nodes = CreateAssertAllClose(acc_check_out_id, msg, {group_out, pass_out});
 
     for (const auto& node : nodes) {
       assert_groups.emplace_back(CreateSingleNodeGroup(node));
