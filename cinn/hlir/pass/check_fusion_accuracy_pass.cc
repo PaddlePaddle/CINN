@@ -174,6 +174,12 @@ void CheckFusionAccuracyPass::CreateCheckNodeOutputs(Node* old_node, NodePtr new
           << "Var " << out_node_id << " repeated! The graph is not a SSA graph! Please check.";
     }
 
+    if (!dtype_dict_.at(out_node_id).is_float()) {
+      LOG(WARNING) << "The CheckFusionAccuracyPass only support check float data now, skip check node "
+                   << old_node->id() << "'s output " << out_node_id << ", who's dytpe=" << dtype_dict_.at(out_node_id);
+      continue;
+    }
+
     const auto& check_out_node_id = GenerateAccCheckNodeId(out_node_id);
 
     auto check_out_node          = CreateOutputNode(new_node, check_out_node_id);

@@ -336,10 +336,6 @@ void FindRecomputeNodes(const std::vector<std::vector<Node*>>& groups,
                         std::unordered_map<std::string, int>* recompute_nodes) {
   std::unordered_map<std::string, int> op_count;
   for (auto& group : groups) {
-    if (IsAccCheckGroup(group)) {
-      continue;
-    }
-
     for (auto* node : group) {
       op_count[node->id()]++;
     }

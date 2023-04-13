@@ -311,6 +311,8 @@ std::vector<shape_t> InferShapeForIsClose(const std::vector<shape_t> &input_shap
   CHECK_EQ(input_size, 2UL) << "The input number of isclose should be a multiple of 2, but here " << input_size
                             << "! Please check.";
 
+  CHECK_EQ(input_shapes.size(), input_shapes[1].size())
+      << "The two inputs shape dimension of is close should be equal! Please check.";
   CHECK(input_shapes[0] == input_shapes[1])
       << "The two inputs shape of isclose should be equal, but here x:[" << cinn::utils::Join(input_shapes[0], ",")
       << "] != y:[" << cinn::utils::Join(input_shapes[1], ",") << "] ! Please check.";
