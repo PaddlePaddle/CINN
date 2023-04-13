@@ -329,10 +329,9 @@ std::pair<NodePtr, NodeData*> CheckFusionAccuracyPass::CreateAssertNode(const st
 
   auto assert_node = Node::Create(Operator::Get("assert_true"), "assert_true", assert_node_id);
   // TODO(thisjiang): change type from 'int' to 'std::string' when custom call support 'std::string' type
-  static int msg_key                   = 0;
+  static int msg_key                   = static_cast<int>(std::hash<std::string>()(assert_node_id));
   assert_node->attrs.attr_store["msg"] = static_cast<int>(msg_key);
   cinn::runtime::utils::AssertTrueMsgTool::GetInstance()->SetMsg(msg_key, assert_msg->str());
-  msg_key++;
   assert_node->attrs.attr_store["only_warning"] =
       cinn::runtime::utils::AssertTrueMsgTool::GetInstance()->GetFlagValue<bool>("only_warning");
 
@@ -502,8 +501,9 @@ GroupList CheckFusionAccuracyPass::Apply() {
     utils::AssertMsg msg(i);
     msg.SetMsg("Kernel name", group->GetFuncName());
     msg.SetMsg("Group id", std::to_string(i));
-    msg.SetMsg("Group structure",
-               std::string("\n{\n") + graph_->DebugGroupedGraph(ordered_nodes, fetch_ids) + std::string("}"));
+    msg.SetMsg(
+        "Group structure",
+        cinn::utils::StringFormat("\nGroup %d {\n%s}", i, graph_->DebugGroupedGraph(ordered_nodes, fetch_ids).c_str()));
 
     // link the group's output data node to assert all close node
     const auto& assert_group = LinkToAssertAllClose(group->GetOutputNodeDatas(), &msg);

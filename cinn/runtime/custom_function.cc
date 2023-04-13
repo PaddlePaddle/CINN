@@ -22,10 +22,6 @@
 #include "cinn/runtime/flags.h"
 #include "cinn/utils/string.h"
 
-#ifdef CINN_WITH_MKL_CBLAS
-#include "mkl_lapacke.h"
-#endif
-
 DECLARE_string(cinn_check_fusion_accuracy_pass);
 
 namespace cinn {
@@ -50,7 +46,7 @@ void AssertTrueMsgTool::InitFlagInfo() {
   }
   // default value
   flag_values_ = {{"only_warning", false}, {"rtol", 1e-5f}, {"atol", 1e-8f}, {"equal_nan", false}};
-  if (CheckStringFlagFalse(FLAGS_cinn_check_fusion_accuracy_pass) ||
+  if (FLAGS_cinn_check_fusion_accuracy_pass.empty() || CheckStringFlagFalse(FLAGS_cinn_check_fusion_accuracy_pass) ||
       CheckStringFlagTrue(FLAGS_cinn_check_fusion_accuracy_pass)) {
     // using default value
     LOG(INFO) << "The FLAGS_cinn_check_fusion_accuracy_pass will check fusion group accuracy with: "
@@ -197,36 +193,6 @@ void cinn_assert_true(void* v_args, int num_args, int msg, bool only_warning, vo
   } else {
     utils::MemcpyToHost(output->memory, x->memory, numel * sizeof(bool), target, stream);
   }
-}
-
-/**
- * This function is temporarily unavailable, see the error message in the following PR for details.
- * The specific reason may be that the custom call does not support host op.
- * See: https://github.com/PaddlePaddle/CINN/pull/1133
- */
-void cinn_call_cholesky_host(void* v_args, int num_args, int batch_size, int m, bool upper) {
-#ifdef CINN_WITH_MKL_CBLAS
-  cinn_pod_value_t* args = static_cast<cinn_pod_value_t*>(v_args);
-
-  cinn_buffer_t* x   = args[0].operator cinn_buffer_t*();
-  cinn_buffer_t* out = args[1].operator cinn_buffer_t*();
-  memcpy(out->memory, x->memory, x->memory_size);
-
-  uint8_t bits = x->type.bits;
-  CHECK(bits == 32 || bits == 64) << "Unsupported bits = " << bits << " float data type for cholesky";
-  char uplo = upper ? 'U' : 'L';
-  for (int i = 0; i < batch_size; i++) {
-    if (bits == 32) {
-      float* matrix = reinterpret_cast<float*>(out->memory) + i * m * m;
-      LAPACKE_spotrf(LAPACK_ROW_MAJOR, uplo, m, matrix, m);
-    } else if (bits == 64) {
-      double* matrix = reinterpret_cast<double*>(out->memory) + i * m * m;
-      LAPACKE_dpotrf(LAPACK_ROW_MAJOR, uplo, m, matrix, m);
-    }
-  }
-#else
-  CINN_NOT_IMPLEMENTED
-#endif
 }
 
 }  // namespace runtime

@@ -383,16 +383,6 @@ CINN_REGISTER_HELPER(host_intrinsics) {
 
 #undef _REGISTER_CINN_HOST_GT_NUM
 
-  using cinn::runtime::cinn_call_cholesky_host;
-  REGISTER_EXTERN_FUNC_HELPER(cinn_call_cholesky_host, host_target)
-      .SetRetType<void>()
-      .AddInputType<void*>()  // v_args
-      .AddInputType<int>()    // num_args
-      .AddInputType<int>()    // batch_size
-      .AddInputType<int>()    // m
-      .AddInputType<bool>()   // upper
-      .End();
-
   REGISTER_EXTERN_FUNC_HELPER(cinn_host_resize_bilinear, host_target)
       .SetRetType<int>()
       .AddInputType<cinn_buffer_t*>()
