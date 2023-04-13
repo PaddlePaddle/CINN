@@ -481,7 +481,7 @@ class ComputeInliner : public BaseInliner {
 };
 
 /*!
- * \brief Helper to inline its producer(s) block into the consumer
+ * \brief Helper to inline a block into the its producer
  * The derived class implements the following functionalities:
  * 1) Substitute `Load` on the tensor to be inlined
  * to its value calculation in the producer block
