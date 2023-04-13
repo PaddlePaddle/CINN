@@ -148,6 +148,7 @@ class FusionMergePassHelper : public FusionHelperBase {
         bool exist = false;
         for (auto& producer : group->producer_groups) {
           if (fusion_groups_set.count(producer)) {
+            VLOG(4) << group->group_id << " " << producer->group_id;
             exist = true;
             break;
           }
@@ -388,6 +389,7 @@ class FusionMergePassHelper : public FusionHelperBase {
     }
 
     std::unordered_set<GroupPtr, Hasher, Comparator> fusionable_consumers;
+    int simple_recompute_fuse_count = 0;
     for (auto& consumer : consumers) {
       VLOG(4) << "Check consuemr " << consumer->group_id << " can fuse to producer " << producer->group_id;
       // if can't fuse
@@ -399,6 +401,14 @@ class FusionMergePassHelper : public FusionHelperBase {
       // if condition function is false
       if (!relation.vertical_relation[consumer->op_pattern_kind](this, producer, consumer)) {
         VLOG(4) << "Can't fuse producer " << producer->group_id << " consumer " << consumer->group_id;
+        continue;
+      }
+
+      if (IsSimpleRecomputable(producer, consumer)) {
+        VLOG(4) << "Found SimpleRecomputable, Consumer " << consumer->group_id << " can be master fused group!";
+        fusionable_consumers.insert(consumer);
+        simple_recompute_fuse_count++;
+        VLOG(4) << fusionable_consumers.size();
         continue;
       }
 
@@ -415,7 +425,9 @@ class FusionMergePassHelper : public FusionHelperBase {
       fusionable_consumers.insert(consumer);
     }
 
-    if (fusionable_consumers.size()) {
+    VLOG(4) << "fusionable_consumers.size(): " << fusionable_consumers.size()
+            << ", simple_recompute_fuse_count: " << simple_recompute_fuse_count;
+    if (fusionable_consumers.size() && fusionable_consumers.size() != simple_recompute_fuse_count) {
       RecomputeWithCostModel(producer, fusionable_consumers);
     }
 
@@ -432,7 +444,7 @@ class FusionMergePassHelper : public FusionHelperBase {
     VLOG(3) << "VerticalFuse...!";
     GroupList fused_groups;
     GroupPtr master_fuesd_group(nullptr);
-
+    VLOG(4) << fusionable_consumers.size();
     for (auto& consumer : fusionable_consumers) {
       auto fused_group = std::make_shared<Graph::Group>();
       // update depth using consumer depth.
@@ -761,6 +773,25 @@ class FusionMergePassHelper : public FusionHelperBase {
         if (!visited_set.count(producer)) {
           visited_set.insert(producer);
           candidates.push(producer);
+        }
+      }
+    }
+    return false;
+  }
+
+  // NOTE(zhiqiu): simple recompute, only support 1 case now for amp performance:
+  // 1. producer is one cast op
+  // 2. consumer is directly depends on producer
+  bool IsSimpleRecomputable(const GroupPtr& producer, const GroupPtr& consumer) {
+    // condition 1
+    VLOG(4) << "nodes.size():" << producer->CollectNodes().size();
+    CHECK(producer->CollectNodes().size());
+    VLOG(4) << "name:" << producer->CollectNodes()[0]->op()->name;
+    if (producer->CollectNodes().size() == 1) {
+      auto node = producer->CollectNodes()[0];
+      if (node->op()->name == "cast") {
+        if (consumer->producer_groups.count(producer)) {
+          return true;
         }
       }
     }

@@ -80,8 +80,11 @@ void ParallelCompiler::SplitTask() {
 
 void RunTask(ParallelCompiler::Task* task) {
   VLOG(2) << "Stark run sub-task, Thread Id : " << std::this_thread::get_id();
+  VLOG(4) << "Start Lowering";
   task->Lowering();
+  VLOG(4) << "Start CodegenAndJit";
   task->CodegenAndJit();
+  VLOG(4) << "Start BuildInstruction";
   task->BuildInstruction();
   VLOG(2) << "Finish run sub-task, Thread Id : " << std::this_thread::get_id();
 }
