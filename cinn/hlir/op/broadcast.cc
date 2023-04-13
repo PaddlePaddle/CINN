@@ -323,6 +323,8 @@ std::vector<Type> InferDtypeForIsClose(const std::vector<Type> &inputs_type, con
   int input_size = inputs_type.size();
   CHECK_EQ(input_size, 2UL) << "The input number of isclose should be a multiple of 2, but here " << input_size
                             << "! Please check.";
+  CHECK(inputs_type[0].is_float()) << "The op \"isclose\" only support float point dtype now, but here "
+                                   << inputs_type[0];
   CHECK(inputs_type[0] == inputs_type[1])
       << "The two inputs dtype sof isclose should be equal, but here x:" << inputs_type[0] << " != y:" << inputs_type[1]
       << "! Please check.";

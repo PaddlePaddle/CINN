@@ -396,8 +396,8 @@ GroupList CheckFusionAccuracyPass::LinkToAssertAllClose(const std::unordered_set
   for (auto* group_out : group_outputs) {
     const auto& out_node_id = group_out->id();
     if (IsSkipVar(group_out)) {
-      LOG(WARNING) << "The CheckFusionAccuracyPass only support check float data now, skip check node \"" << out_node_id
-                   << "\", who's dytpe=" << dtype_dict_.at(out_node_id);
+      LOG(WARNING) << "The CheckFusionAccuracyPass only support check float point dtype data now, skip check node \""
+                   << out_node_id << "\", who's dtype=" << dtype_dict_.at(out_node_id);
       continue;
     }
     CHECK(old2new_nodedata_map_.count(group_out)) << "The check fusion accuracy's node corresponding to " << out_node_id

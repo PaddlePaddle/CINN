@@ -345,32 +345,27 @@ ir::Tensor IsClose(
   return Compute(
       x->shape,
       [=](const std::vector<Expr>& indice) {
+        // check whether x or y is nan
         auto a = x(indice), b = y(indice);
-        if (x->type().is_float()) {
-          // check whether x or y is nan
-          auto check_x_nan = lang::IsNan(a);
-          auto check_y_nan = lang::IsNan(b);
+        auto check_x_nan = lang::IsNan(a);
+        auto check_y_nan = lang::IsNan(b);
 
-          // out = equal_nan && isnan(a) == isnan(b);
-          auto check_nan_same = Expr(equal_nan) && ir::EQ::Make(check_x_nan, check_y_nan);
+        // out = equal_nan && isnan(a) == isnan(b);
+        auto check_nan_same = Expr(equal_nan) && ir::EQ::Make(check_x_nan, check_y_nan);
 
-          // check whether x and y are close
-          // T left = (a > b ? a - b : b - a);
-          auto left = ir::Select::Make(a > b, a - b, b - a);
-          // T right = atol + (b > 0 ? rtol * b : (-rtol) * b);
-          auto right = ir::Cast::Make(x->type(), atol) + ir::Select::Make(b > ir::Zero(b->type()),
-                                                                          ir::Cast::Make(x->type(), rtol) * b,
-                                                                          ir::Cast::Make(x->type(), -rtol) * b);
-          // T diff = (left > right ? left - right : right - left);
-          auto diff = ir::Select::Make(left > right, left - right, right - left);
-          // out = a == b || left <= right || diff <= 1e-15;
-          auto check_diff = (ir::EQ::Make(a, b) || (left <= right)) || (diff <= lang::Epsilon(diff->type()));
+        // check whether x and y are close
+        // T left = (a > b ? a - b : b - a);
+        auto left = ir::Select::Make(a > b, a - b, b - a);
+        // T right = atol + (b > 0 ? rtol * b : (-rtol) * b);
+        auto right = ir::Cast::Make(x->type(), atol) + ir::Select::Make(b > ir::Zero(b->type()),
+                                                                        ir::Cast::Make(x->type(), rtol) * b,
+                                                                        ir::Cast::Make(x->type(), -rtol) * b);
+        // T diff = (left > right ? left - right : right - left);
+        auto diff = ir::Select::Make(left > right, left - right, right - left);
+        // out = a == b || left <= right || diff <= 1e-15;
+        auto check_diff = (ir::EQ::Make(a, b) || (left <= right)) || (diff <= lang::Epsilon(diff->type()));
 
-          return ir::Select::Make(check_x_nan || check_y_nan, check_nan_same, check_diff);
-        } else {
-          // if the dtype of x and y not float, the result should be the same
-          return ir::EQ::Make(a, b);
-        }
+        return ir::Select::Make(check_x_nan || check_y_nan, check_nan_same, check_diff);
       },
       out_name);
 }
