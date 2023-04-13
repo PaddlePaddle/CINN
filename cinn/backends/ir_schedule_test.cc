@@ -2501,16 +2501,15 @@ void test_compute_inline4(const float* __restrict__ A, float* __restrict__ C)
 TEST(IrSchedule, reverse_compute_inline1) {
   Context::Global().ResetNameId();
   Expr M(32);
-  Expr N(32);
-  Expr P(32);
+  Expr N(64);
 
   Target target = common::DefaultHostTarget();
 
   Placeholder<float> A("A", {M, N, P});
   auto B = Compute(
-      {M, N, P}, [&](Var i, Var j, Var k) { return A(i, j, k) + Expr(1.f); }, "B");
+      {M, N}, [&](Var i, Var j) { return Expr(1.f) + A(i, j); }, "B");
   auto C = Compute(
-      {M, N, P}, [&](Var i, Var j, Var k) { return B(j, i, k) * Expr(2.f); }, "C");
+      {N, M}, [&](Var i, Var j) { return Expr(2.f) * B(j, i);}, "C");
 
   auto stages = CreateStages({A, B, C});
 
