@@ -18,6 +18,7 @@
 
 #ifdef CINN_WITH_MKL_CBLAS
 #include <mkl_cblas.h>
+#include <mkl_lapacke.h>
 #else
 #include <cblas.h>
 #endif
@@ -96,4 +97,6 @@ void cinn_cpu_mkl_gemm_batch_fp32(float alpha,
                                   cinn_buffer_t* A,
                                   cinn_buffer_t* B,
                                   cinn_buffer_t* C);
+
+void cinn_call_cholesky_host(void* v_args, int num_args, int batch_size, int m, bool upper);
 }  // extern "C"

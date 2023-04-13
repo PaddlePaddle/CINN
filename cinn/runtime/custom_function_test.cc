@@ -24,6 +24,10 @@
 #include "cinn/runtime/cuda/cuda_util.h"
 #endif
 
+#ifdef CINN_WITH_MKL_CBLAS
+#include "cinn/runtime/cpu/cblas.h"
+#endif
+
 #include "cinn/runtime/cinn_runtime.h"
 #include "cinn/runtime/custom_function.h"
 
@@ -128,7 +132,10 @@ TEST(CinnAssertTrue, test_true) {
 
   std::stringstream ss;
   ss << "Test AssertTrue(true) on " << target;
-  cinn_assert_true(v_args, std::hash<std::string>()(ss.str()), false);
+  const auto& msg = ss.str();
+  int msg_key     = static_cast<int>(std::hash<std::string>()(msg));
+  cinn::runtime::utils::AssertTrueMsgTool::GetInstance()->SetMsg(msg_key, msg);
+  cinn_assert_true(v_args, 2, msg_key, true, nullptr, target);
 
   if (target == common::DefaultHostTarget()) {
     ASSERT_EQ(input[0], output[0]) << "The output of AssertTrue should be the same as input";
@@ -160,7 +167,10 @@ TEST(CinnAssertTrue, test_false_only_warning) {
 
   std::stringstream ss;
   ss << "Test AssertTrue(false, only_warning=true) on " << target;
-  cinn_assert_true(v_args, std::hash<std::string>()(ss.str()), true);
+  const auto& msg = ss.str();
+  int msg_key     = static_cast<int>(std::hash<std::string>()(msg));
+  cinn::runtime::utils::AssertTrueMsgTool::GetInstance()->SetMsg(msg_key, msg);
+  cinn_assert_true(v_args, 2, msg_key, true, nullptr, target);
 
   if (target == common::DefaultHostTarget()) {
     ASSERT_EQ(input[0], output[0]) << "The output of AssertTrue should be the same as input";

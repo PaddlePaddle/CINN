@@ -19,6 +19,7 @@
 
 #include "cinn/backends/extern_func_jit_register.h"
 #include "cinn/backends/function_prototype.h"
+#include "cinn/common/target.h"
 #include "cinn/runtime/custom_function.h"
 
 #ifdef CINN_WITH_MKL_CBLAS
@@ -239,7 +240,16 @@ inline int64_t FN_INT64(clz)(int64_t x) { return __builtin_clzll(x); }
 inline int64_t FN_INT64(popc)(int64_t x) { return __builtin_popcountll(x); }
 
 #undef FN_INT64
+}  // extern "C"
+
+namespace cinn {
+namespace runtime {
+
+void cinn_assert_true_host(void* v_args, int num_args, int msg, bool only_warning) {
+  cinn::runtime::cinn_assert_true(v_args, num_args, msg, only_warning, nullptr, cinn::common::DefaultHostTarget());
 }
+}  // namespace runtime
+}  // namespace cinn
 
 CINN_REGISTER_HELPER(host_intrinsics) {
   auto host_target = cinn::common::DefaultHostTarget();
@@ -373,16 +383,6 @@ CINN_REGISTER_HELPER(host_intrinsics) {
 
 #undef _REGISTER_CINN_HOST_GT_NUM
 
-  using cinn::runtime::cinn_call_cholesky_host;
-  REGISTER_EXTERN_FUNC_HELPER(cinn_call_cholesky_host, host_target)
-      .SetRetType<void>()
-      .AddInputType<void*>()  // v_args
-      .AddInputType<int>()    // num_args
-      .AddInputType<int>()    // batch_size
-      .AddInputType<int>()    // m
-      .AddInputType<bool>()   // upper
-      .End();
-
   REGISTER_EXTERN_FUNC_HELPER(cinn_host_resize_bilinear, host_target)
       .SetRetType<int>()
       .AddInputType<cinn_buffer_t*>()
@@ -409,6 +409,16 @@ CINN_REGISTER_HELPER(host_intrinsics) {
       .AddInputType<int>()
       .AddInputType<int>()
       .AddInputType<int>()
+      .End();
+
+  // TODO(thisjiang): change msg type from 'int' to 'std::string' when custom call support 'std::string' type
+  using cinn::runtime::cinn_assert_true_host;
+  REGISTER_EXTERN_FUNC_HELPER(cinn_assert_true_host, host_target)
+      .SetRetType<void>()
+      .AddInputType<void*>()  // v_args
+      .AddInputType<int>()    // num_args
+      .AddInputType<int>()    // msg
+      .AddInputType<bool>()   // only_warning
       .End();
 
   return true;

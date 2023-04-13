@@ -146,6 +146,15 @@ void AddGroupNode(const Node* node,
                   std::unordered_set<std::string>* nodedatas_set,
                   utils::DotLang* dot);
 
+// used for CheckFusionAccuracyPass
+std::string GenerateAccCheckNodeId(const std::string& node_id);
+
+bool IsAccCheckOp(const Node* op);
+bool IsAccCheckVar(const NodeData* var);
+bool IsAccCheckGroup(const std::vector<Node*>& group);
+
+std::vector<std::vector<Node*>> RemoveAccCheckGroups(const std::vector<std::vector<Node*>>& groups);
+
 }  // namespace framework
 }  // namespace hlir
 }  // namespace cinn

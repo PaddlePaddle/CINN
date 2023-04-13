@@ -273,11 +273,13 @@ void Graph::VisualizeGroupedGraph(const std::unordered_set<std::string>& fetch_v
   VisualizeGroupedGraph(FusionGroupsToGroups(), fetch_var_ids);
 }
 
-void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
+void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& origin_groups,
                                   const std::unordered_set<std::string>& fetch_var_ids) {
   if (FLAGS_cinn_fusion_groups_graphviz_dir.empty()) {
     return;
   }
+
+  const auto& groups = RemoveAccCheckGroups(origin_groups);
 
   int viz_id = viz_count_.fetch_add(1);
   viz_path_  = utils::StringFormat("%s/fusion_groups_%d/", FLAGS_cinn_fusion_groups_graphviz_dir.c_str(), viz_id);
@@ -402,6 +404,9 @@ std::vector<std::string> Graph::VisualizeGroups(const std::vector<std::vector<No
           for (auto& outnode_outlink : outnode->outlinks()) {
             auto* out_outnode = outnode_outlink->sink()->safe_as<Node>();
             if (out_outnode && !nodes_set.count(out_outnode)) {
+              if (IsAccCheckOp(out_outnode)) {
+                continue;
+              }
               nodes_set.insert(out_outnode);
               dot.AddNode(out_outnode->id(), GetOutlinkOpAttrs());
               dot.AddEdge(dot_outnode_id, out_outnode->id(), {});
