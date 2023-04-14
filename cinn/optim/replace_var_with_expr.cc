@@ -212,7 +212,7 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
       ReplaceVarWithExpr(&indice_copy, Var(var_name), Expr(0));
       auto vars = ir::CollectIRNodesInOrder(indice_copy, [](const ir::Expr* expr) { return expr->As<ir::_Var_>(); });
 
-      int max_range = 0;
+      int max_range = 1;
       // using recursion funcitons index range.
       std::function<void(int, ir::Expr)> compute_range = [&](const int deep, ir::Expr index) {
         auto var = vars[deep].as_var_ref();
