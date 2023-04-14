@@ -206,6 +206,37 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
       tensor_shape[index] = common::AutoSimplify(tensor_shape[index]);
       CHECK(tensor_shape[index].is_constant());
       CHECK(extent_.is_constant());
+
+      // copy indice and replace var to 0
+      auto indice_copy = IRCopy(*indice);
+      ReplaceVarWithExpr(&indice_copy, Var(var_name), Expr(0));
+      auto vars = ir::CollectIRNodesInOrder(indice_copy, [](const ir::Expr* expr) { return expr->As<ir::_Var_>(); });
+
+      int max_range = 0;
+      // using recursion funcitons index range.
+      std::function<void(int, ir::Expr)> compute_range = [&](const int deep, ir::Expr index) {
+        auto var = vars[deep].as_var_ref();
+        CHECK(loop2extent_.count(var->name));
+        auto extent = loop2extent_.find(var->name)->second;
+
+        for (int idx = 0; idx < extent; ++idx) {
+          auto tmp = IRCopy(index);
+          ReplaceVarWithExpr(&tmp, var, Expr(idx));
+
+          if (deep == vars.size() - 1) {
+            auto simplify = common::AutoSimplify(tmp);
+            auto range    = common::AutoSimplify(simplify);
+            CHECK(range.is_constant());
+            max_range = std::max(max_range, range.as_int32() + 1);
+          } else {
+            compute_range(deep + 1, tmp);
+          }
+        }
+      };
+
+      compute_range(0, indice_copy);
+      tensor_shape[index] = Expr(max_range);
+
       /**
        * Here we need to calculate the new shape[index] after removing the var.
        * For example, if tensor A_temp's original shape is [100,100] and its indice is [i_outer * 10 + i_inner, j]. (0 <
@@ -215,16 +246,24 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
        * In this case, new_shape[0] = 100 - 90 = 10
        * Thus we get A_temp's new shape: [10, 100] and new indice [i_inner, j]. (0 < i_inner < 10 and 0 < j < 100)
        */
+      /*
       int extent_i = extent_.get_constant();
       auto copy1   = IRCopy(*indice);
       auto copy2   = IRCopy(*indice);
-      ReplaceVarWithExpr(&copy1, Var(var_name), Expr(extent_i - 1));
+      ReplaceVarWithExpr(&copy1, Var(var_name), Expr(1));
       ReplaceVarWithExpr(&copy2, Var(var_name), Expr(0));
-      auto diff           = copy1 - copy2;
-      diff                = common::AutoSimplify(diff);
-      tensor_shape[index] = tensor_shape[index] - diff;
+
+      LOG(INFO) << indice;
+      for(auto tmp : loop2extent_) {
+        LOG(INFO) <<tmp.first << " " <<tmp.second;
+      }
+
+      // auto diff           = copy1 - copy2;
+      // diff                = common::AutoSimplify(diff);
+      auto shape_r = copy1 - copy2;
+      tensor_shape[index] = common::AutoSimplify(shape_r); // tensor_shape[index] - diff;
       tensor_shape[index] = common::AutoSimplify(tensor_shape[index]);
-      VLOG(2) << "diff = " << diff << ", tensor_shape[" << index << "] - diff = " << tensor_shape[index];
+      // VLOG(2) << "diff = " << diff << ", tensor_shape[" << index << "] - diff = " << tensor_shape[index];
       if (tensor_shape[index].is_constant() && tensor_shape[index].get_constant() <= 0) {
         tensor_shape[index] = Expr(1);
       } else if (!tensor_shape[index].is_constant()) {
@@ -243,6 +282,8 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
           tensor_shape[index] = Expr(1);
         }
       }
+      */
+
       (*global_tensor_map_).at(tensor_name)->shape      = tensor_shape;
       (*global_tensor_map_)[tensor_name]->buffer->shape = IRCopy(tensor_shape);
       resized_buffer_cache_.emplace(buffer_id, tensor_shape);
@@ -326,6 +367,7 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
           find_replace_ = false;
         }
       }
+
       ir::IRMutator<>::Visit(&node->tensor, &node->tensor);
       do_replace_ = temp_replace;
       ir::IRMutator<>::Visit(&node->value, &node->value);
