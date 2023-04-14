@@ -157,17 +157,19 @@ void ParallelCompiler::Task::CodegenAndJit() {
     auto hmodule        = std::get<0>(splited_module);
     auto dmodule        = std::get<1>(splited_module);
 
-    VLOG(3) << "Host Code : " << hmodule;
-    VLOG(3) << "Host Code : " << dmodule;
+    VLOG(3) << "Host Code:\n" << hmodule;
+    VLOG(3) << "Device Code:\n" << dmodule;
     backends::CodeGenCUDA_Dev codegen(target);
     auto cuda_c = codegen.Compile(dmodule);
+    CHECK(!cuda_c.empty()) << "Compile CUDA C code failed from device module:\n" << dmodule;
 
     cinn::backends::SourceCodePrint::GetInstance()->write(cuda_c);
+    graph->SaveSourceCode(cuda_c);
 
     using runtime::cuda::CUDAModule;
     backends::nvrtc::Compiler compiler;
     auto ptx = compiler(cuda_c);
-    CHECK(!ptx.empty());
+    CHECK(!ptx.empty()) << "Compile PTX failed from source code:\n" << cuda_c;
 
     // load cumodule
     cumodule.reset(new CUDAModule(ptx, compiler.compile_to_cubin() ? CUDAModule::Kind::CUBIN : CUDAModule::Kind::PTX));

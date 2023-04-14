@@ -18,6 +18,7 @@
 #include <sstream>
 
 #include "cinn/hlir/framework/visualize_helper.h"
+#include "cinn/runtime/flags.h"
 #include "cinn/utils/string.h"
 
 DECLARE_string(cinn_fusion_groups_graphviz_dir);
@@ -275,7 +276,7 @@ void Graph::VisualizeGroupedGraph(const std::unordered_set<std::string>& fetch_v
 
 void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& origin_groups,
                                   const std::unordered_set<std::string>& fetch_var_ids) {
-  if (FLAGS_cinn_fusion_groups_graphviz_dir.empty()) {
+  if (cinn::runtime::CheckStringFlagFalse(FLAGS_cinn_fusion_groups_graphviz_dir)) {
     return;
   }
 
@@ -286,6 +287,7 @@ void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& origin_
   if (!MakeDirectory(viz_path_, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)) {
     LOG_IF(WARNING, viz_id == 0) << "Failed to make directory: \"" << viz_path_
                                  << "\", the CINN subgraph's fusion group information will not print.";
+    viz_path_.clear();
     return;
   }
   LOG_IF(INFO, viz_id == 0) << "The CINN subgraph's fusion group information will writing into path: \""
@@ -467,6 +469,13 @@ std::unordered_set<NodeData*> Graph::Group::GetOutputNodeDatas() {
   }
 
   return group_outputs;
+}
+
+void Graph::SaveSourceCode(const std::string& code) {
+  if (cinn::runtime::CheckStringFlagFalse(FLAGS_cinn_fusion_groups_graphviz_dir) || viz_path_.empty()) {
+    return;
+  }
+  WriteToFile(viz_path_ + "source_code.cu", code);
 }
 
 }  // namespace framework
