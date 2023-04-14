@@ -16,6 +16,8 @@
 
 #include <unordered_set>
 
+#include "cinn/hlir/framework/visualize_helper.h"
+
 namespace cinn {
 namespace frontend {
 
@@ -30,10 +32,11 @@ void ProgramPass::Apply(Program* prog,
   }
   for (const auto* pass : fpass) {
     int before = prog->size();
-    VLOG(1) << "Before ApplyPass: " << pass->name();
+    cinn::hlir::framework::PassPrinter::GetInstance()->PassBegin(pass->name(), *prog);
     pass->ApplyImpl(prog, fetch_ids, target);
     const_cast<ProgramPass*>(pass)->Clear();
     int after = prog->size();
+    cinn::hlir::framework::PassPrinter::GetInstance()->PassEnd(pass->name(), *prog);
     VLOG(1) << "Apply " << pass->name() << " pass, program size: " << before << " -> " << after
             << ", diff: " << after - before;
   }

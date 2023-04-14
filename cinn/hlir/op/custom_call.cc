@@ -120,12 +120,12 @@ std::vector<ir::Expr> CustomCallArgsForCublas(const framework::NodeAttr &attrs,
   CHECK_LE(inputs[0]->shape.size(), 4);
   CHECK_LE(inputs[1]->shape.size(), 4);
 
-  auto attr_store = attrs.attr_store;
-  bool trans_a    = attr_store.count("trans_a") ? absl::get<bool>(attr_store.at("trans_a")) : false;
-  bool trans_b    = attr_store.count("trans_b") ? absl::get<bool>(attr_store.at("trans_b")) : false;
-  bool trans_out  = attr_store.count("trans_out") ? absl::get<bool>(attr_store.at("trans_out")) : false;
-  float alpha     = attr_store.count("alpha") ? absl::get<float>(attr_store.at("alpha")) : 1.0f;
-  float beta      = attr_store.count("beta") ? absl::get<float>(attr_store.at("beta")) : 0.0f;
+  const auto &attr_store = attrs.attr_store;
+  bool trans_a           = attr_store.count("trans_a") ? absl::get<bool>(attr_store.at("trans_a")) : false;
+  bool trans_b           = attr_store.count("trans_b") ? absl::get<bool>(attr_store.at("trans_b")) : false;
+  bool trans_out         = attr_store.count("trans_out") ? absl::get<bool>(attr_store.at("trans_out")) : false;
+  float alpha            = attr_store.count("alpha") ? absl::get<float>(attr_store.at("alpha")) : 1.0f;
+  float beta             = attr_store.count("beta") ? absl::get<float>(attr_store.at("beta")) : 0.0f;
 
   int x_num_col_dims = attr_store.count("x_num_col_dims") ? absl::get<int>(attr_store.at("x_num_col_dims")) : 0;
   int y_num_col_dims = attr_store.count("y_num_col_dims") ? absl::get<int>(attr_store.at("y_num_col_dims")) : 0;
@@ -222,12 +222,12 @@ std::vector<ir::Expr> CustomCallArgsForBatchedCublas(const framework::NodeAttr &
   CHECK_GT(output_shapes.size(), 1);
   CHECK_EQ(inputs.size() - 1, output_shapes.size());
 
-  auto attr_store = attrs.attr_store;
-  bool trans_a    = attr_store.count("trans_a") ? absl::get<bool>(attr_store.at("trans_a")) : false;
-  bool trans_b    = attr_store.count("trans_b") ? absl::get<bool>(attr_store.at("trans_b")) : false;
-  bool trans_out  = attr_store.count("trans_out") ? absl::get<bool>(attr_store.at("trans_out")) : false;
-  float alpha     = attr_store.count("alpha") ? absl::get<float>(attr_store.at("alpha")) : 1.0f;
-  float beta      = attr_store.count("beta") ? absl::get<float>(attr_store.at("beta")) : 0.0f;
+  const auto &attr_store = attrs.attr_store;
+  bool trans_a           = attr_store.count("trans_a") ? absl::get<bool>(attr_store.at("trans_a")) : false;
+  bool trans_b           = attr_store.count("trans_b") ? absl::get<bool>(attr_store.at("trans_b")) : false;
+  bool trans_out         = attr_store.count("trans_out") ? absl::get<bool>(attr_store.at("trans_out")) : false;
+  float alpha            = attr_store.count("alpha") ? absl::get<float>(attr_store.at("alpha")) : 1.0f;
+  float beta             = attr_store.count("beta") ? absl::get<float>(attr_store.at("beta")) : 0.0f;
 
   int x_num_col_dims = attr_store.count("x_num_col_dims") ? absl::get<int>(attr_store.at("x_num_col_dims")) : 0;
   int y_num_col_dims = attr_store.count("y_num_col_dims") ? absl::get<int>(attr_store.at("y_num_col_dims")) : 0;
@@ -339,9 +339,9 @@ std::vector<ir::Expr> CustomCallArgsForCudnnConvForward(const framework::NodeAtt
                                                         const std::vector<std::vector<int>> &output_shapes) {
   CHECK_EQ(inputs.size(), 2UL);
   // CHECK_EQ(output_shapes.size(), 1UL);
-  auto attr_store = attrs.attr_store;
-  float alpha     = attr_store.count("alpha") ? absl::get<float>(attr_store.at("alpha")) : 1.0f;
-  float beta      = attr_store.count("beta") ? absl::get<float>(attr_store.at("beta")) : 0.0f;
+  const auto &attr_store = attrs.attr_store;
+  float alpha            = attr_store.count("alpha") ? absl::get<float>(attr_store.at("alpha")) : 1.0f;
+  float beta             = attr_store.count("beta") ? absl::get<float>(attr_store.at("beta")) : 0.0f;
 
   CHECK(attr_store.count("padding"));
   auto padding = absl::get<std::vector<int>>(attr_store.at("padding"));
@@ -391,9 +391,9 @@ std::vector<ir::Expr> CustomCallArgsForCudnnConvBackwardData(const framework::No
                                                              const std::vector<std::vector<int>> &output_shapes) {
   CHECK_EQ(inputs.size(), 2UL);
   CHECK_EQ(output_shapes.size(), 1UL);
-  auto attr_store = attrs.attr_store;
-  float alpha     = attr_store.count("alpha") ? absl::get<float>(attr_store.at("alpha")) : 1.0f;
-  float beta      = attr_store.count("beta") ? absl::get<float>(attr_store.at("beta")) : 0.0f;
+  const auto &attr_store = attrs.attr_store;
+  float alpha            = attr_store.count("alpha") ? absl::get<float>(attr_store.at("alpha")) : 1.0f;
+  float beta             = attr_store.count("beta") ? absl::get<float>(attr_store.at("beta")) : 0.0f;
 
   CHECK(attr_store.count("padding"));
   auto padding = absl::get<std::vector<int>>(attr_store.at("padding"));
@@ -442,9 +442,9 @@ std::vector<ir::Expr> CustomCallArgsForCudnnConvBackwardFilter(const framework::
                                                                const std::vector<std::vector<int>> &output_shapes) {
   CHECK_EQ(inputs.size(), 2UL);
   CHECK_EQ(output_shapes.size(), 1UL);
-  auto attr_store = attrs.attr_store;
-  float alpha     = attr_store.count("alpha") ? absl::get<float>(attr_store.at("alpha")) : 1.0f;
-  float beta      = attr_store.count("beta") ? absl::get<float>(attr_store.at("beta")) : 0.0f;
+  const auto &attr_store = attrs.attr_store;
+  float alpha            = attr_store.count("alpha") ? absl::get<float>(attr_store.at("alpha")) : 1.0f;
+  float beta             = attr_store.count("beta") ? absl::get<float>(attr_store.at("beta")) : 0.0f;
 
   CHECK(attr_store.count("padding"));
   auto padding = absl::get<std::vector<int>>(attr_store.at("padding"));
@@ -494,9 +494,9 @@ std::vector<ir::Expr> CustomCallArgsForCudnnPoolForward(const framework::NodeAtt
                                                         const std::vector<std::vector<int>> &output_shapes) {
   CHECK_EQ(inputs.size(), 1UL);
   CHECK_EQ(output_shapes.size(), 1UL);
-  auto attr_store = attrs.attr_store;
-  float alpha     = attr_store.count("alpha") ? absl::get<float>(attr_store.at("alpha")) : 1.0f;
-  float beta      = attr_store.count("beta") ? absl::get<float>(attr_store.at("beta")) : 0.0f;
+  const auto &attr_store = attrs.attr_store;
+  float alpha            = attr_store.count("alpha") ? absl::get<float>(attr_store.at("alpha")) : 1.0f;
+  float beta             = attr_store.count("beta") ? absl::get<float>(attr_store.at("beta")) : 0.0f;
 
   CHECK(attr_store.count("kernel_size"));
   auto kernel = absl::get<std::vector<int>>(attr_store.at("kernel_size"));
@@ -575,9 +575,9 @@ std::vector<ir::Expr> CustomCallArgsForCudnnPoolBackward(const framework::NodeAt
                                                          const std::vector<std::vector<int>> &output_shapes) {
   CHECK_EQ(inputs.size(), 3UL);
   CHECK_EQ(output_shapes.size(), 1UL);
-  auto attr_store = attrs.attr_store;
-  float alpha     = attr_store.count("alpha") ? absl::get<float>(attr_store.at("alpha")) : 1.0f;
-  float beta      = attr_store.count("beta") ? absl::get<float>(attr_store.at("beta")) : 0.0f;
+  const auto &attr_store = attrs.attr_store;
+  float alpha            = attr_store.count("alpha") ? absl::get<float>(attr_store.at("alpha")) : 1.0f;
+  float beta             = attr_store.count("beta") ? absl::get<float>(attr_store.at("beta")) : 0.0f;
 
   CHECK(attr_store.count("kernel_size"));
   auto kernel = absl::get<std::vector<int>>(attr_store.at("kernel_size"));
@@ -655,11 +655,12 @@ std::vector<ir::Expr> CustomCallArgsForAssertTrue(const framework::NodeAttr &att
                                                   const std::vector<std::vector<int>> &output_shapes) {
   CHECK_EQ(inputs.size(), 1UL);
   CHECK_EQ(output_shapes.size(), 1UL);
-  auto attr_store = attrs.attr_store;
+  const auto &attr_store = attrs.attr_store;
   CHECK(attr_store.count("msg"));
   // TODO(thisjiang): change type from 'int' to 'std::string' when custom call support 'std::string' type
-  auto msg          = absl::get<int>(attr_store.at("msg"));
-  auto only_warning = attr_store.count("only_warning") ? absl::get<bool>(attrs.attr_store.at("only_warning")) : false;
+  int msg = absl::get<int>(attr_store.at("msg"));
+  bool only_warning =
+      static_cast<int>(attr_store.count("only_warning") ? absl::get<bool>(attrs.attr_store.at("only_warning")) : false);
 
   std::vector<ir::Expr> args = {ir::Expr(msg), ir::Expr(only_warning)};
 
@@ -671,7 +672,7 @@ std::vector<ir::Expr> CustomCallArgsForGaussianRandom(const framework::NodeAttr 
                                                       const std::vector<std::vector<int>> &output_shapes) {
   CHECK_EQ(output_shapes.size(), 1UL);
 
-  auto attr_store = attrs.attr_store;
+  const auto &attr_store = attrs.attr_store;
 
   float mean = attr_store.count("mean") ? absl::get<float>(attrs.attr_store.at("mean")) : 0.0f;
   float std  = attr_store.count("std") ? absl::get<float>(attrs.attr_store.at("std")) : 1.0f;
@@ -687,7 +688,7 @@ std::vector<ir::Expr> CustomCallArgsForUniformRandom(const framework::NodeAttr &
                                                      const std::vector<std::vector<int>> &output_shapes) {
   CHECK_EQ(output_shapes.size(), 1UL);
 
-  auto attr_store = attrs.attr_store;
+  const auto &attr_store = attrs.attr_store;
 
   float min = attr_store.count("min") ? absl::get<float>(attrs.attr_store.at("min")) : -1.0f;
   float max = attr_store.count("max") ? absl::get<float>(attrs.attr_store.at("max")) : 1.0f;
@@ -705,7 +706,7 @@ std::vector<ir::Expr> CustomCallArgsForRandInt(const framework::NodeAttr &attrs,
                                                const std::vector<std::vector<int>> &output_shapes) {
   CHECK_EQ(output_shapes.size(), 1UL);
 
-  auto attr_store = attrs.attr_store;
+  const auto &attr_store = attrs.attr_store;
 
   int seed = attr_store.count("seed") ? absl::get<int>(attrs.attr_store.at("seed")) : 0;
 
@@ -718,7 +719,7 @@ std::vector<ir::Expr> CustomCallArgsForCholesky(const framework::NodeAttr &attrs
                                                 const std::vector<ir::Tensor> &inputs,
                                                 const std::vector<std::vector<int>> &output_shapes) {
   CHECK_EQ(inputs.size(), 1UL);
-  auto attr_store = attrs.attr_store;
+  const auto &attr_store = attrs.attr_store;
   CHECK(attr_store.count("upper"));
 
   ir::Tensor x   = inputs.front();
@@ -740,7 +741,7 @@ std::vector<ir::Expr> CustomCallArgsForTriangularSolve(const framework::NodeAttr
                                                        const std::vector<ir::Tensor> &inputs,
                                                        const std::vector<std::vector<int>> &output_shapes) {
   CHECK_EQ(inputs.size(), 2UL);
-  auto attr_store = attrs.attr_store;
+  const auto &attr_store = attrs.attr_store;
   CHECK(attr_store.count("left_side"));
   CHECK(attr_store.count("upper"));
   CHECK(attr_store.count("transpose_a"));
@@ -790,6 +791,8 @@ bool RegisteryCustomCallArgsFunc() {
       "cinn_call_batched_cublas", common::DefaultNVGPUTarget(), CustomCallArgsForBatchedCublas);
   CustomCallArgsFuncRegistry::Global().Register(
       "cinn_call_triangular_solve_nvgpu", common::DefaultNVGPUTarget(), CustomCallArgsForTriangularSolve);
+  CustomCallArgsFuncRegistry::Global().Register(
+      "cinn_assert_true_nvgpu", common::DefaultNVGPUTarget(), CustomCallArgsForAssertTrue);
 #endif
 
 #ifdef CINN_WITH_CUDNN
@@ -817,7 +820,7 @@ bool RegisteryCustomCallArgsFunc() {
 #endif
 
   CustomCallArgsFuncRegistry::Global().Register(
-      "cinn_assert_true", common::DefaultTarget(), CustomCallArgsForAssertTrue);
+      "cinn_assert_true_host", common::DefaultHostTarget(), CustomCallArgsForAssertTrue);
 
   return true;
 }

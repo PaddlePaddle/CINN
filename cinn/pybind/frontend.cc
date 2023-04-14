@@ -32,6 +32,7 @@
 #include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/framework/tensor.h"
+#include "cinn/hlir/framework/visualize_helper.h"
 #include "cinn/hlir/op/use_ops.h"
 #include "cinn/pybind/bind.h"
 #include "cinn/utils/string.h"
@@ -193,9 +194,11 @@ void BindFrontend(pybind11::module *m) {
 
             std::shared_ptr<hlir::framework::Graph> graph;
             if (!passes.empty()) {
+              cinn::hlir::framework::PassPrinter::GetInstance()->Begin();
               frontend::ProgramPass::Apply(&self, fetch_ids, target, program_passes);
               graph = std::make_shared<hlir::framework::Graph>(self, fetch_ids, target);
               hlir::framework::ApplyPasses(graph.get(), graph_passes);
+              cinn::hlir::framework::PassPrinter::GetInstance()->End();
             } else {
               graph = Optimize(&self, fetch_ids, target);
             }
@@ -742,15 +745,18 @@ void BindFrontend(pybind11::module *m) {
       .def("uniform_random",
            &NetBuilder::UniformRandom,
            py::arg("shape"),
-           py::arg("min")   = -1.0f,
-           py::arg("max")   = 1.0f,
-           py::arg("seed")  = 0,
-           py::arg("dtype") = "float32")
+           py::arg("min")       = -1.0f,
+           py::arg("max")       = 1.0f,
+           py::arg("seed")      = 0,
+           py::arg("dtype")     = "float32",
+           py::arg("diag_num")  = 0,
+           py::arg("diag_step") = 0,
+           py::arg("diag_val")  = 1.0f)
       .def("randint",
            &NetBuilder::RandInt,
            py::arg("shape"),
            py::arg("min")   = 0,
-           py::arg("max")   = 1,
+           py::arg("max")   = 0,
            py::arg("seed")  = 0,
            py::arg("dtype") = "int64")
       .def("cholesky", &NetBuilder::Cholesky, py::arg("x"), py::arg("upper") = false)

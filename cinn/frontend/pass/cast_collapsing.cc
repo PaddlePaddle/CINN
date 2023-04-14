@@ -59,7 +59,6 @@ class CastCollapsingPass : public ProgramPass {
   void ApplyImpl(Program* program,
                  const std::unordered_set<std::string>& fetch_ids,
                  const common::Target& target) const override {
-    VLOG(3) << "-- Before CastCollapsingPass:\n" << *program;
     // `out2instr` is used to represent the mapping of Output to Instruction.
     OutputToOpMap out2instr;
     // `in2instr` is used to represent the mapping of Input to Instruction.
@@ -104,7 +103,6 @@ class CastCollapsingPass : public ProgramPass {
       }
     }
     *program = builder.Build();
-    VLOG(3) << "-- After CastCollapsingPass:\n" << *program;
   }
 
  private:

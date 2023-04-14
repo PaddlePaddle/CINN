@@ -110,6 +110,26 @@ TEST(CAS, SimplifyMod) {
   EXPECT_EQ(GetStreamCnt(u3), "1");
 }
 
+TEST(CAS, SimplifyModForVectorize) {
+  Var x = ir::_Var_::Make("x", Int(32));
+  Var y = ir::_Var_::Make("y", Int(32));
+
+  // (((8*x + 1024*y) % 802816) % 7168) %64
+  // = (8*x + 1024*y) %64           // since 7168 and 802816 is k*64
+  // = (8*x) % 64                   // since 1024 is k*64
+  // = (8*x - ((8*x) // 64) * 64    // since mod definition a%b = a - (a//b)*b
+  // = (8*x) - (x//8)*64
+  // = (8*x) - (x//8)*(8*8)
+  // = 8*(x-(x//8)*8)               // since mod definition
+  // = 8*(x%8)
+  auto u1 = CasSimplify(Mod::Make(
+      Mod::Make(Mod::Make(Sum::Make({Product::Make({x, Expr(8)}), Product::Make({y, Expr(1024)})}), Expr(802816)),
+                Expr(7168)),
+      Expr(64)));
+  std::cout << GetStreamCnt(u1);
+  EXPECT_EQ(GetStreamCnt(u1), "((x % 8) * 8)");
+}
+
 TEST(CAS, ConvertCinnToCAS) {
   Placeholder<float> A("A", {10, 10});
   Placeholder<float> B("B", {10, 10});
@@ -178,10 +198,10 @@ TEST(CAS, Mod) {
   OUTPUT_EQUAL("(x % 5)")
 
   u = AutoSimplify((5 + x) % 5);
-  OUTPUT_EQUAL("((5 + x) % 5)")
+  OUTPUT_EQUAL("(x % 5)")
 
   u = AutoSimplify((x + 5 * y + 1 + 1 + 3 - z * 3) % 5);
-  OUTPUT_EQUAL("((5 + (x + ((5 * y) + (-3 * z)))) % 5)")
+  OUTPUT_EQUAL("((x + (-3 * z)) % 5)")
 
   // u = AutoSimplify((x + 5) % 5, var_intervals0);
   // OUTPUT_EQUAL("x")

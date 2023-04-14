@@ -33,6 +33,7 @@
 #include "cinn/backends/extern_func_jit_register.h"
 #include "cinn/common/target.h"
 #include "cinn/runtime/cuda/cublas_util.h"
+#include "cinn/runtime/custom_function.h"
 #include "cinn/runtime/flags.h"
 #include "cinn/utils/timer.h"
 
@@ -1337,6 +1338,10 @@ void cinn_call_triangular_solve_nvgpu(void *v_args,
   }
 }
 
+void cinn_assert_true_nvgpu(void *v_args, int num_args, int msg, bool only_warning, void *stream) {
+  cinn_assert_true(v_args, num_args, msg, only_warning, stream, common::DefaultNVGPUTarget());
+}
+
 void cinn_gpu_cublas_mul(const std::vector<int> &attrs,
                          cinn_buffer_t *input1,
                          cinn_buffer_t *input2,
@@ -1453,48 +1458,71 @@ void cinn_gpu_cublas_gemm(const std::vector<int> &attrs,
 
 class CurandGenerator {
  public:
+  CurandGenerator() { CURAND_CALL(curandCreateGenerator(&generator_, CURAND_RNG_PSEUDO_DEFAULT)); }
+
+  CurandGenerator(curandRngType rng_type) { CURAND_CALL(curandCreateGenerator(&generator_, rng_type)); }
+
   ~CurandGenerator() { CURAND_CALL(curandDestroyGenerator(generator_)); }
-  static CurandGenerator &GetInstance() {
-    static CurandGenerator instance;
-    return instance;
-  }
+
   curandGenerator_t &GetGenerator() { return generator_; }
 
-  void SetSeed(unsigned long long seed = 0ULL) {
+  CurandGenerator &SetOffset(unsigned long long offset = 0ULL) {
+    CURAND_CALL(curandSetGeneratorOffset(generator_, offset));
+    VLOG(4) << "Set curand generator offset to: " << offset;
+    return *this;
+  }
+
+  CurandGenerator &SetSeed(unsigned long long seed = 0ULL) {
     // set global seed if seed is zero
     auto rand_seed = (seed == 0ULL) ? RandomSeed::GetOrSet() : seed;
-    if (rand_seed != 0ULL) {
+    if (rand_seed != 0ULL && rand_seed != seed_) {
       CURAND_CALL(curandSetPseudoRandomGeneratorSeed(generator_, rand_seed));
+      VLOG(4) << "Change curand random seed from: " << seed_ << " to: " << rand_seed;
+      seed_ = rand_seed;
     }
+    return *this;
+  }
+
+  CurandGenerator &SetStream(cudaStream_t stream) {
+    if (stream != nullptr && stream != stream_) {
+      CURAND_CALL(curandSetStream(generator_, stream));
+      VLOG(4) << "Change curand generator stream from: " << stream_ << " to: " << stream;
+      stream_ = stream;
+    }
+    return *this;
   }
 
  private:
-  CurandGenerator(const CurandGenerator &) = delete;
-  CurandGenerator &operator=(const CurandGenerator &) = delete;
-
-  CurandGenerator() {
-    CURAND_CALL(curandCreateGenerator(&generator_, CURAND_RNG_PSEUDO_PHILOX4_32_10));
-    SetSeed();
-  }
   curandGenerator_t generator_;
+  unsigned long long seed_ = 0ULL;
+  cudaStream_t stream_     = nullptr;
 };
 
-class CurandQUASI64Generator {
-  // generate 64-bit QUASI values
+class CurandGeneratorFactory {
  public:
-  ~CurandQUASI64Generator() { CURAND_CALL(curandDestroyGenerator(generator_)); }
-  static CurandQUASI64Generator &GetInstance() {
-    static CurandQUASI64Generator instance;
-    return instance;
+  enum class CurandGeneratorType {
+    GENERATOR_DEFAULT,
+    GENERATOR_GAUSSIAN,
+    GENERATOR_UNIFORM,
+    GENERATOR_RANDINT,
+  };
+
+  static CurandGenerator &Get(CurandGeneratorType type) {
+    switch (type) {
+      case CurandGeneratorType::GENERATOR_GAUSSIAN:
+        static CurandGenerator gaussian_generator(CURAND_RNG_PSEUDO_PHILOX4_32_10);
+        return gaussian_generator;
+      case CurandGeneratorType::GENERATOR_UNIFORM:
+        static CurandGenerator uniform_generator(CURAND_RNG_PSEUDO_PHILOX4_32_10);
+        return uniform_generator;
+      case CurandGeneratorType::GENERATOR_RANDINT:
+        static CurandGenerator randint_generator(CURAND_RNG_PSEUDO_MT19937);
+        return randint_generator;
+      default:
+        static CurandGenerator default_generator;
+        return default_generator;
+    }
   }
-  curandGenerator_t &GetGenerator() { return generator_; }
-
- private:
-  CurandQUASI64Generator(const CurandQUASI64Generator &) = delete;
-  CurandQUASI64Generator &operator=(const CurandQUASI64Generator &) = delete;
-
-  CurandQUASI64Generator() { CURAND_CALL(curandCreateGenerator(&generator_, CURAND_RNG_QUASI_SOBOL64)); }
-  curandGenerator_t generator_;
 };
 
 void cinn_call_gaussian_random(void *v_args, int num_args, float mean, float std, int seed, void *stream) {
@@ -1503,10 +1531,11 @@ void cinn_call_gaussian_random(void *v_args, int num_args, float mean, float std
   cinn_type_t dtype      = output->type;
   size_t numel           = output->num_elements();
 
-  curandGenerator_t generator = CurandGenerator::GetInstance().GetGenerator();
-  CURAND_CALL(curandSetStream(generator, static_cast<cudaStream_t>(stream)));
-  // avoid seed conflict, if the seed not set, here we should use global seed
-  CurandGenerator::GetInstance().SetSeed(seed);
+  curandGenerator_t generator =
+      CurandGeneratorFactory::Get(CurandGeneratorFactory::CurandGeneratorType::GENERATOR_GAUSSIAN)
+          .SetStream(static_cast<cudaStream_t>(stream))
+          .SetSeed(seed)
+          .GetGenerator();
 
   VLOG(4) << "cinn_call_gaussian_random: output_size=" << numel << ", mean=" << mean << ", std=" << std
           << ", seed=" << seed;
@@ -1528,10 +1557,11 @@ void cinn_call_uniform_random(void *v_args, int num_args, float min, float max, 
   cinn_type_t dtype      = output->type;
   size_t numel           = output->num_elements();
 
-  curandGenerator_t generator = CurandGenerator::GetInstance().GetGenerator();
-  CURAND_CALL(curandSetStream(generator, static_cast<cudaStream_t>(stream)));
-  // avoid seed conflict, if the seed not set, here we should use global seed
-  CurandGenerator::GetInstance().SetSeed(seed);
+  curandGenerator_t generator =
+      CurandGeneratorFactory::Get(CurandGeneratorFactory::CurandGeneratorType::GENERATOR_UNIFORM)
+          .SetStream(static_cast<cudaStream_t>(stream))
+          .SetSeed(seed)
+          .GetGenerator();
 
   VLOG(4) << "cinn_call_uniform_random: output_size=" << numel << ", min=" << min << ", max=" << max
           << ", seed=" << seed;
@@ -1553,22 +1583,19 @@ void cinn_call_randint(void *v_args, int num_args, int seed, void *stream) {
   cinn_type_t dtype      = output->type;
   size_t numel           = output->num_elements();
 
-  curandGenerator_t generator = CurandGenerator::GetInstance().GetGenerator();
-  CURAND_CALL(curandSetStream(generator, static_cast<cudaStream_t>(stream)));
-  CurandGenerator::GetInstance().SetSeed(static_cast<unsigned long long>(seed));
-
   VLOG(4) << "cinn_call_randint: output_size=" << numel << ", seed=" << seed;
 
+  curandGenerator_t generator =
+      CurandGeneratorFactory::Get(CurandGeneratorFactory::CurandGeneratorType::GENERATOR_RANDINT)
+          .SetStream(static_cast<cudaStream_t>(stream))
+          .SetSeed(seed)
+          .GetGenerator();
+
   if (dtype == cinn_int32_t()) {
-    uint32_t *ptr = reinterpret_cast<uint32_t *>(output->memory);
+    unsigned int *ptr = reinterpret_cast<unsigned int *>(output->memory);
     CURAND_CALL(curandGenerate(generator, ptr, numel));
-  } else if (dtype == cinn_int64_t()) {
-    curandGenerator_t generator_int64 = CurandQUASI64Generator::GetInstance().GetGenerator();
-    ;
-    unsigned long long *ptr = reinterpret_cast<unsigned long long *>(output->memory);
-    CURAND_CALL(curandGenerateLongLong(generator_int64, ptr, numel));
   } else {
-    LOG(FATAL) << "randint only support int32 and int64! Please check.";
+    LOG(FATAL) << "randint only support int32! Please check.";
   }
 }
 

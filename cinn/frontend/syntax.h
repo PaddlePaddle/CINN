@@ -24,6 +24,7 @@
 #include <memory>
 #include <string>
 #include <tuple>
+#include <typeinfo>
 #include <utility>
 #include <vector>
 
@@ -173,7 +174,9 @@ struct Instruction : public common::Shared<_Instruction_> {
   template <typename T>
   T GetAttrs(const std::string& key) const {
     auto it = get()->attrs.find(key);
-    CHECK(it != get()->attrs.end()) << "No attribute called [" << key << "]";
+    CHECK(it != get()->attrs.end()) << "No attribute called [" << key << "] in op " << get()->op_type;
+    CHECK(absl::holds_alternative<T>(it->second))
+        << "Try get attribute " << key << " from a error type " << typeid(T()).name() << " in op " << get()->op_type;
     return absl::get<T>(it->second);
   }
 
