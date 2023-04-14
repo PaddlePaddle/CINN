@@ -1376,7 +1376,15 @@ bool ReverseComputeInliner::BodyPatternAllowInline() {
   if (!inlined_store_.defined()) {
     return false;
   }
+  if (!inlined_load_.defined()) {
+    return false;
+  }
+  if (!target_store_.defined()) {
+    return false;
+  }
   CHECK(inlined_store_.As<Store>());
+  CHECK(inlined_load_.As<Load>());
+  CHECK(target_store_.As<Store>());
   auto find_vars = ir::CollectIRNodesWithoutTensor(inlined_store_, [&](const Expr* x) { return x->as_var(); });
   std::set<Var, CompVar> vars_set;
   for (auto& i : find_vars) vars_set.insert(i.as_var_ref());
@@ -1388,21 +1396,16 @@ bool ReverseComputeInliner::BodyPatternAllowInline() {
 }
 
 void ReverseComputeInliner::Visit(const ir::Load* expr, Expr* op) {
-  LOG(INFO) << (expr->tensor).as_tensor_ref()->name;
-  LOG(INFO) << inlined_tensor_->name;
   if ((expr->tensor).as_tensor_ref()->name == inlined_tensor_->name) {
-    *op = ReplaceInlinedTensor(op);
+    *op = inlined_store_.As<Store>()->value;
     return;
   }
   IRMutator::Visit(expr, op);
 }
 
 void ReverseComputeInliner::Visit(const ir::Store* expr, Expr* op) {
-  LOG(INFO) << (expr->tensor).as_tensor_ref()->name;
-  LOG(INFO) << inlined_tensor_->name;
   if ((expr->tensor).as_tensor_ref()->name == inlined_tensor_->name) {
-    LOG(INFO) << (expr->tensor).as_tensor_ref()->name;
-    *op = target_store_;
+    *op = ReplaceTargetTensor(op);
     return;
   }
   IRMutator::Visit(expr, op);
@@ -1413,22 +1416,36 @@ Expr ReverseComputeInliner::ReplaceInlinedTensor(Expr* load) {
   CHECK(load->As<ir::Load>());
   SetIndexSubstitution(load->As<ir::Load>()->indices);
   Expr value_copy = optim::IRCopy(inlined_store_.As<Store>()->value);
+  return value_copy;
+}
+
+Expr ReverseComputeInliner::ReplaceTargetTensor(Expr* store) {
+  auto indices = inlined_load_.As<ir::Load>()->indices;
+  CHECK_EQ(indices.size(), idx_vars_.size());
+  size_t n = idx_vars_.size();
+  idx_sub_var_.reserve(n);
+  idx_sub_expr_.reserve(n);
+  for (int i = 0; i < n; ++i) {
+    LOG(INFO) << indices[i].as_var_ref();
+    LOG(INFO) << Expr(idx_vars_[i]);
+    idx_sub_var_.emplace_back(indices[i].as_var_ref());
+    idx_sub_expr_.emplace_back(idx_vars_[i]);
+  }
+
+  Expr value_copy = optim::IRCopy(target_store_);
   ReplaceExpr(&value_copy, idx_sub_var_, idx_sub_expr_);
   return value_copy;
 }
 
 void ScheduleImpl::ReverseComputeInline(const Expr& schedule_block) {
-  Expr root          = this->GetRootBlock(schedule_block);
-  Expr inlined_store = CheckReverseComputeInlineValidationAndGetStore(schedule_block, root);
-  CHECK(schedule_block.As<ir::ScheduleBlockRealize>());
-  auto compute_body = schedule_block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->body;
-
-  auto find_store = ir::CollectIRNodesWithoutTensor(
-      compute_body, [&](const Expr* x) { return x->As<ir::Store>(); }, true);
-  CHECK_EQ(find_store.size(), 1U);
-  auto target_store = *find_store.begin();
-
-  ReverseComputeInliner inliner(inlined_store.As<ir::Store>()->tensor.as_tensor_ref(), inlined_store, target_store);
+  Expr root = this->GetRootBlock(schedule_block);
+  //  Expr inlined_store = CheckReverseComputeInlineValidationAndGetStore(schedule_block, root);
+  auto exprs         = CheckReverseComputeInlineValidationAndGetExprs(schedule_block, root);
+  Expr inlined_load  = std::get<0>(exprs);
+  Expr inlined_store = std::get<1>(exprs);
+  Expr target_store  = std::get<2>(exprs);
+  ReverseComputeInliner inliner(
+      inlined_store.As<ir::Store>()->tensor.as_tensor_ref(), inlined_store, inlined_load, target_store);
   CHECK(inliner.BodyPatternAllowInline());
   // Create a plan that removes the block to be inlined
   LeafBlockRemovalPlan remove_plan(schedule_block, &inliner.src_stmt, &inliner.tgt_stmt);

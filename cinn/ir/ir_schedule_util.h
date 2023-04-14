@@ -427,6 +427,17 @@ Expr CheckComputeInlineValidationAndGetStore(const Expr& schedule_block, const E
 Expr CheckReverseComputeInlineValidationAndGetStore(const Expr& schedule_block, const Expr& root);
 
 /*!
+ * \brief Check if the reverse compute inline validation passes for a given schedule block and root expression,
+ * and retrieve the store expression if so.
+ * Reverse compute inline validation ensures that the outputs of a loop nest are properly computed in reverse order.
+ * \param schedule_block The schedule block to check.
+ * \param root The root expression of the loop nest.
+ * \return A tuple  containing the load that will be inlined, the store that will be inlined and the target store.
+ */
+std::tuple<Expr, Expr, Expr> CheckReverseComputeInlineValidationAndGetExprs(const Expr& schedule_block,
+                                                                            const Expr& root);
+
+/*!
  * \brief Get the prime factors of a number.
  * For example, 12 = 2^2 * 3^1, then the return value is {2: 2, 3: 1}.
  * \param n The number to be factorized.

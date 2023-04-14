@@ -982,6 +982,42 @@ Expr CheckReverseComputeInlineValidationAndGetStore(const Expr& schedule_block, 
   return inlined_store;
 }
 
+std::tuple<Expr, Expr, Expr> CheckReverseComputeInlineValidationAndGetExprs(const Expr& schedule_block,
+                                                                            const Expr& root) {
+  CHECK(schedule_block.As<ir::ScheduleBlockRealize>());
+  auto compute_body = schedule_block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->body;
+  // 1. Check the schedule block to be reverse inlined is not a reduce tensor.
+  auto find_inlined_load = ir::CollectIRNodesWithoutTensor(
+      compute_body, [&](const Expr* x) { return x->As<ir::Load>(); }, true);
+  CHECK_EQ(find_inlined_load.size(), 1U);
+  Expr tensor = (*find_inlined_load.begin()).As<ir::Load>()->tensor;
+  CHECK(!tensor.as_tensor_ref()->is_reduce_tensor());
+  auto inlined_load = *find_inlined_load.begin();
+  // 2. Check this schedule block is the only reader of the tensor.
+  auto find_load = ir::CollectIRNodesWithoutTensor(
+      root,
+      [&](const Expr* x) {
+        return x->As<ir::Load>() && (x->As<ir::Load>()->tensor).as_tensor_ref()->name == tensor.as_tensor_ref()->name;
+      },
+      true);
+  CHECK_EQ(find_load.size(), 1U);
+  // 3. Check there is no overlap between the buffers the schedule block reads and writes.
+  auto find_store = ir::CollectIRNodesWithoutTensor(
+      compute_body, [&](const Expr* x) { return x->As<ir::Store>() && x->As<ir::Store>()->tensor == tensor; });
+  CHECK(find_store.empty());
+  // 4. Get store that will be inlined.
+  auto find_inlined_store = ir::CollectIRNodesWithoutTensor(
+      root, [&](const Expr* x) { return x->As<ir::Store>() && x->As<ir::Store>()->tensor == tensor; });
+  CHECK_EQ(find_inlined_store.size(), 1U);
+  auto inlined_store = *find_inlined_store.begin();
+  // 5. Get target store.
+  auto find_target_store = ir::CollectIRNodesWithoutTensor(
+      compute_body, [&](const Expr* x) { return x->As<ir::Store>(); }, true);
+  CHECK_EQ(find_target_store.size(), 1U);
+  auto target_store = *find_target_store.begin();
+  return {inlined_load, inlined_store, target_store};
+}
+
 bool ContainVar(const std::vector<Expr>& exprs, const std::string& var_name) {
   for (auto& expr : exprs) {
     auto find_expr = ir::CollectIRNodesWithoutTensor(

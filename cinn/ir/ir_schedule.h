@@ -489,12 +489,16 @@ class ComputeInliner : public BaseInliner {
  */
 class ReverseComputeInliner : public BaseInliner {
  public:
-  explicit ReverseComputeInliner(const Tensor& inlined_tensor, const Expr& inlined_store, const Expr& target_store)
-      : BaseInliner(inlined_tensor, inlined_store), target_store_(target_store) {}
+  explicit ReverseComputeInliner(const Tensor& inlined_tensor,
+                                 const Expr& inlined_store,
+                                 const Expr& inlined_load,
+                                 const Expr& target_store)
+      : BaseInliner(inlined_tensor, inlined_store), inlined_load_(inlined_load), target_store_(target_store) {}
 
   bool BodyPatternAllowInline();
 
  protected:
+  Expr inlined_load_{nullptr};
   Expr target_store_{nullptr};
 
  private:
@@ -503,6 +507,7 @@ class ReverseComputeInliner : public BaseInliner {
 
   //! Replace the 'Load' node on the tensor to 'Store' node of its consumers.
   Expr ReplaceInlinedTensor(Expr* load);
+  Expr ReplaceTargetTensor(Expr* store);
 };
 
 // The struct used to remove the original block in ComputeAt.
