@@ -3045,13 +3045,15 @@ void __launch_bounds__(128) add_vectorize(const float* __restrict__ A, const flo
 {
   if (((int)threadIdx.x < 128)) {
     for (int32_t j = 0; j < 125; j += 1) {
-      float4* vectorized_C = ((float4*)(&(C[((4 * j) + (500 * (int)threadIdx.x))])));
-      const float4* vectorized_A = ((const float4*)(&(A[((4 * j) + (500 * (int)threadIdx.x))])));
-      const float4* vectorized_B = ((const float4*)(&(B[((4 * j) + (500 * (int)threadIdx.x))])));
-      vectorized_C->x = (vectorized_A->x + vectorized_B->x);
-      vectorized_C->y = (vectorized_A->y + vectorized_B->y);
-      vectorized_C->z = (vectorized_A->z + vectorized_B->z);
-      vectorized_C->w = (vectorized_A->w + vectorized_B->w);
+      float4* __restrict__ vectorized_C_ptr = ((float4*)(&(C[((4 * j) + (500 * (int)threadIdx.x))])));
+      float4 vectorized_C;
+      const float4 vectorized_A = ((const float4*)(&(A[((4 * j) + (500 * (int)threadIdx.x))])))[0];
+      const float4 vectorized_B = ((const float4*)(&(B[((4 * j) + (500 * (int)threadIdx.x))])))[0];
+      vectorized_C.x = (vectorized_A.x + vectorized_B.x);
+      vectorized_C.y = (vectorized_A.y + vectorized_B.y);
+      vectorized_C.z = (vectorized_A.z + vectorized_B.z);
+      vectorized_C.w = (vectorized_A.w + vectorized_B.w);
+      vectorized_C_ptr[0] = vectorized_C;
     };
   };
 }
