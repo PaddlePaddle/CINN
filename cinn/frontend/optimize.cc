@@ -114,7 +114,7 @@ std::shared_ptr<hlir::framework::Graph> Optimize(frontend::Program* program,
                                                  const std::unordered_set<std::string>& fetch_ids,
                                                  common::Target target,
                                                  const OptimizeOptions& options) {
-  cinn::hlir::framework::PassPrinter::GetInstance()->Begin();
+  cinn::hlir::framework::PassPrinter::GetInstance()->Begin(fetch_ids);
   // Apply program passes
   VLOG(3) << "Before frontend::ProgramPass::Apply";
   frontend::ProgramPass::Apply(program, fetch_ids, target, options.program_passes);
