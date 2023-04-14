@@ -234,7 +234,7 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
         }
       };
 
-      compute_range(0, indice_copy);
+      if(vars.size()) compute_range(0, indice_copy);
       tensor_shape[index] = Expr(max_range);
 
       (*global_tensor_map_).at(tensor_name)->shape      = tensor_shape;
