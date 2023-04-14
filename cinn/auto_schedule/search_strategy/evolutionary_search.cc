@@ -133,7 +133,7 @@ std::vector<SearchState> EvolutionarySearch::InitSketch(int num, const std::stri
   auto post_schedule_fn           = [this, &states](int index) {
     ApplyPostScheduleRules(&states[index]->ir_schedule, post_schedule_rules_);
   };
-  utils::parallel_run(post_schedule_fn, utils::SequenceDispatcher(0, states.size()), 1);
+  utils::parallel_run(post_schedule_fn, utils::SequenceDispatcher(0, states.size()), states.size());
 
   return states;
 }
@@ -224,7 +224,7 @@ std::vector<SearchState> EvolutionarySearch::Evolve(const std::vector<SearchStat
   auto mutate_fn = [this, &evolution, &mutated_individuals, &rand_seeds](int index) {
     mutated_individuals[index] = Mutate(evolution[index], &rand_seeds[index]);
   };
-  utils::parallel_run(mutate_fn, utils::SequenceDispatcher(0, evolution.size()), 1);
+  utils::parallel_run(mutate_fn, utils::SequenceDispatcher(0, evolution.size()), evolution.size());
   if (FLAGS_auto_schedule_use_cost_model) {
     for (size_t i = 0; i < mutated_individuals.size(); ++i) {
       mutated_individuals[i]->predicted_cost =
