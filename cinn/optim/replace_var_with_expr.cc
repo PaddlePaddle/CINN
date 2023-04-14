@@ -237,53 +237,6 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
       compute_range(0, indice_copy);
       tensor_shape[index] = Expr(max_range);
 
-      /**
-       * Here we need to calculate the new shape[index] after removing the var.
-       * For example, if tensor A_temp's original shape is [100,100] and its indice is [i_outer * 10 + i_inner, j]. (0 <
-       * i_outer < 10 and 0 < i_inner < 10 and 0 < j < 100) After removing the var i_outer, its new shape[0] should be:
-       * diff = oldshape[0](when i_outer = 9) - oldshape[0](when i_outer = 0)
-       * new_shape[0] = old_shape[0] - diff
-       * In this case, new_shape[0] = 100 - 90 = 10
-       * Thus we get A_temp's new shape: [10, 100] and new indice [i_inner, j]. (0 < i_inner < 10 and 0 < j < 100)
-       */
-      /*
-      int extent_i = extent_.get_constant();
-      auto copy1   = IRCopy(*indice);
-      auto copy2   = IRCopy(*indice);
-      ReplaceVarWithExpr(&copy1, Var(var_name), Expr(1));
-      ReplaceVarWithExpr(&copy2, Var(var_name), Expr(0));
-
-      LOG(INFO) << indice;
-      for(auto tmp : loop2extent_) {
-        LOG(INFO) <<tmp.first << " " <<tmp.second;
-      }
-
-      // auto diff           = copy1 - copy2;
-      // diff                = common::AutoSimplify(diff);
-      auto shape_r = copy1 - copy2;
-      tensor_shape[index] = common::AutoSimplify(shape_r); // tensor_shape[index] - diff;
-      tensor_shape[index] = common::AutoSimplify(tensor_shape[index]);
-      // VLOG(2) << "diff = " << diff << ", tensor_shape[" << index << "] - diff = " << tensor_shape[index];
-      if (tensor_shape[index].is_constant() && tensor_shape[index].get_constant() <= 0) {
-        tensor_shape[index] = Expr(1);
-      } else if (!tensor_shape[index].is_constant()) {
-        for (auto& i : loop2extent_) {
-          VLOG(3) << "i.first is : " << i.first;
-          VLOG(3) << "i.second - 1 is : " << i.second - 1;
-          ReplaceVarWithExpr(&copy2, Var(i.first), Expr(i.second - 1));
-        }
-        copy2 = common::AutoSimplify(copy2);
-        VLOG(3) << "After ReplaceVarWithExpr and Simplify, copy2 is : " << copy2;
-        if (copy2.is_constant()) {
-          int copy2_i         = copy2.get_constant();
-          tensor_shape[index] = Expr(copy2_i + 1);
-        } else {
-          VLOG(3) << "Index is not constant: " << tensor_shape[index] << " and it will be replaced to 1";
-          tensor_shape[index] = Expr(1);
-        }
-      }
-      */
-
       (*global_tensor_map_).at(tensor_name)->shape      = tensor_shape;
       (*global_tensor_map_)[tensor_name]->buffer->shape = IRCopy(tensor_shape);
       resized_buffer_cache_.emplace(buffer_id, tensor_shape);
