@@ -333,6 +333,14 @@ int GetParallelSize(const std::vector<int>& inshape, const std::vector<int>& axe
   return parallel_size;
 }
 
+int GetTailSize(const std::vector<int>& inshape, const std::vector<int>& axes) {
+  int tail_size = 1;
+  for (int idx = axes.back() + 1; idx < inshape.size(); ++idx) {
+    tail_size *= inshape[idx];
+  }
+  return tail_size;
+}
+
 std::vector<int> GetFirstStepReduceShape(const std::vector<int>& shape,
                                          const std::vector<int>& axes,
                                          bool& inbound,
@@ -363,6 +371,18 @@ std::vector<int> GetFirstStepReduceShape(const std::vector<int>& shape,
   // insert 1 to keep dimension size.
   for (int idx = 0; idx < insert_zero_num; ++idx) {
     reduce_shape.emplace_back(1);
+  }
+
+  // get tail size.
+  if (last_reduce_size < unfold_size && last_reduce_size < 64) {
+    reduce_shape.emplace_back(1);
+    reduce_shape.emplace_back(last_reduce_size);
+
+    for (int idx = axes.back() + 1; idx < shape.size(); ++idx) {
+      reduce_shape.push_back(shape[idx]);
+    }
+
+    return reduce_shape;
   }
 
   // set loop size set.

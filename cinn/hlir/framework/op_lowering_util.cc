@@ -1237,7 +1237,7 @@ void LoopComputeAt(ir::IRSchedule& ir_sch,
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
   if (!group->output_nodes.count(node)) {
     auto block = ir_sch.GetBlock(GetNodeData(node)->id());
-    ir_sch.SetBuffer(block, "local", true);
+    ir_sch.SetBuffer(block, "local");
   }
 
   if (op_pattern_dict[node->op()] == framework::kReduction) {
@@ -1411,7 +1411,7 @@ void SyncThreadWithShared(ir::IRSchedule& ir_sch,
 
     {
       auto block = ir_sch.GetBlock(node_data->id());
-      ir_sch.SetBuffer(block, "shared", true);
+      ir_sch.SetBuffer(block, "shared");
     }
 
     if (check_sync_mark(idx, master_data->id())) {

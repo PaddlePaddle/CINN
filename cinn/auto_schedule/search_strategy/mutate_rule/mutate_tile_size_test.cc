@@ -72,22 +72,22 @@ TEST(MutateTileSize, Basic) {
   std::string target_new_ir = R"ROC({
   ScheduleBlock(root)
   {
-    serial for (i_0, 0, 2)
+    serial for (i_1, 0, 2)
     {
-      serial for (i_1, 0, 16)
+      serial for (i_2, 0, 16)
       {
         serial for (j, 0, 32)
         {
           ScheduleBlock(C__reduce_init)
           {
-            i0, i1 = axis.bind(((16 * i_0) + i_1), j)
+            i0, i1 = axis.bind(((16 * i_1) + i_2), j)
             C__reduce_init[i0, i1] = 0.00000000f
           }
           serial for (reduce_axis_k, 0, 32)
           {
             ScheduleBlock(C)
             {
-              i0, i1, i2 = axis.bind(((16 * i_0) + i_1), j, reduce_axis_k)
+              i0, i1, i2 = axis.bind(((16 * i_1) + i_2), j, reduce_axis_k)
               C[i0, i1] = (C[i0, i1] + (A[i0, i2] * B[i2, i1]))
             }
           }
