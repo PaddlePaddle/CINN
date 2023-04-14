@@ -62,6 +62,7 @@ struct CodeGenOption
   int reduce_block;
   int num_warp;
   int num_thread_per_warp;
+  int reduce_dim;
 };
 
 ir::LoweredFunc process_warp_reduce(  hlir::framework::Graph* graph, CodeGenOption gen_opt, 

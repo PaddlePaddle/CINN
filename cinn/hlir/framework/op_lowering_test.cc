@@ -71,7 +71,7 @@ void Compile(NetBuilder& net_builder) {
   OpLowerer op_lowerer(dtype_dict, shape_dict, target);
 
   auto res = op_lowerer.ThreadModelTest( graph.get() );
-  CodeGen( res[0]);
+  //CodeGen( res[0]);
   // for (auto& fusion_op : graph->fusion_groups) {
   //   std::cerr << "fuse op" <<  fusion_op << std::endl;
   //   auto lowered_func = op_lowerer.Lower(fusion_op);
@@ -88,10 +88,10 @@ TEST(OpFusionPass, Reduce_With_Last_Axis_1) {
   // create model
   {
   auto A = net_builder.CreateInput(Float(32), {128, 12, 128, 128}, "A");    
-  auto Max = net_builder.ReduceMax(A, {3}, true);    
+  auto Max = net_builder.ReduceMax(A, {-1}, true);    
   auto sub = net_builder.Subtract(A, Max);
   auto exp = net_builder.Exp( sub );
-  auto sum = net_builder.ReduceSum( exp, {3}, true);    
+  auto sum = net_builder.ReduceSum( exp, {-1}, true);    
   auto out = net_builder.Divide( exp, sum);  
   }
   Compile(net_builder);

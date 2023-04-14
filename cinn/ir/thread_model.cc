@@ -384,7 +384,8 @@ void process_sqrt( std::map<std::string, InputNode>* input_map, hlir::framework:
 
 }
 
-void process_reduce_sum( std::map<std::string, InputNode>* input_map, hlir::framework::Node* node, std::vector<Expr>& vec_out, ThreadConfig& thread_config)
+void process_reduce_sum( std::map<std::string, InputNode>* input_map, hlir::framework::Node* node, std::vector<Expr>& vec_out, ThreadConfig& thread_config, 
+            cosnt CodeGenOption& gen_opt )
 {
     std::string in_name;
     for (auto& inlink : node->inlinks_in_order(true)) {
@@ -436,7 +437,17 @@ void process_reduce_sum( std::map<std::string, InputNode>* input_map, hlir::fram
                                body);
     
 
-    auto warp_call = Call::Make( Float(32), "warpReduceSum", {sum1}, {}, ir::CallType::Extern );
+    string reduce_func_name; 
+    if( gen_opt.reduce_block <= 128 )
+    {
+        reduce_func_name = "warpReduceSum";
+    }
+    else
+    {
+        reduce_func_name = "BlockReduceSum";
+    }
+
+    auto warp_call = Call::Make( Float(32), reduce_func_name, {sum1}, {}, ir::CallType::Extern );
 
     //auto warp_res = ir::Let::Make( max_t, warp_call, false);
 
@@ -776,7 +787,7 @@ void process_fillconstant( std::map<std::string, InputNode>* input_map, hlir::fr
     (*input_map)[out_name] = InputNode( out_name, nullptr, {});
 }
 
-void build_load(  std::map<std::string, InputNode>* input_map, CodeGenOption gen_opt, const std::vector<std::string>& vec_input, std::vector<Expr>& vec_out)
+ir::Expr generate_index( CodeGenOption gen_opt, bool last_dim)
 {
     int reduce_block = gen_opt.reduce_block;
     int flatten_block = gen_opt.flatten_block;    
@@ -796,29 +807,14 @@ void build_load(  std::map<std::string, InputNode>* input_map, CodeGenOption gen
     Expr expr_flatten( flatten_block);    
     Expr expr_reduce( reduce_block);
 
-    auto index_var =( block_id * expr_flatten + flatten_id ) * expr_reduce + r_id;
-        
-    auto load_index = LoadIndex::Make( index_var, reduce_range, flatten_range, reduce_block, flatten_block);    
-
-    Var input_var("input", type_of<float>() );
-
-    auto block_load = BlockLoad::Make( input_var, load_index );
-
-    auto reduce_max = ReduceMax::Make( block_load, 1);
-
-    Var output_var("output", type_of<float>() );
-
-
-    int num_warp = 8;
-    int num_thread_per_warp = 32;
-    int element_per_thread = 8;
+    int num_warp = gen_opt.num_warp;
+    int num_thread_per_warp = gen_opt.num_thread_per_warp;
     
     Var threadidx("threadIdx.x", type_of<int>());
     Var index_i("i", type_of<int>() );
     Var index_j("j", type_of<int>() );
     Expr expr_warp( num_warp);
     Expr expr_thread_per_warp( num_thread_per_warp );
-    Expr expr_element_per_thread( element_per_thread );
 
     auto warp_id = threadidx / expr_thread_per_warp;
 
@@ -828,13 +824,28 @@ void build_load(  std::map<std::string, InputNode>* input_map, CodeGenOption gen
 
     auto xid = warp_id * Expr( warp_round ) + index_i;
     auto inner_id = threadidx % expr_thread_per_warp;
-    auto inner_index = block_id *Expr( reduce_block * flatten_block ) +  xid * Expr( thread_round ) * expr_thread_per_warp + inner_id + index_j * expr_thread_per_warp;
+    auto inner_index =  xid * Expr( thread_round ) * expr_thread_per_warp + inner_id + index_j * expr_thread_per_warp;
+    if( ! last_dim )
+    {
+        inner_index = block_id *Expr( gen_opt.reduce_dim * flatten_block ) + inner_index;
+    }
     
-    
+    return inner_index;  
+}
 
-    std::string temp_name = "tmp";
-    Var temp_var( temp_name, type_of<float>() );
-    auto temp_out = LocalTemp::Make( temp_var, {warp_round, thread_round});
+void build_load(  std::map<std::string, InputNode>* input_map, CodeGenOption gen_opt, const std::vector<std::string>& vec_input, std::vector<Expr>& vec_out)
+{   
+    int reduce_block = gen_opt.reduce_block;
+    int flatten_block = gen_opt.flatten_block;
+    int num_warp = gen_opt.num_warp;
+    int num_thread_per_warp = gen_opt.num_thread_per_warp;
+
+    auto warp_round = flatten_block / num_warp;
+    auto thread_round = reduce_block / num_thread_per_warp;
+
+    auto inner_index = generate_index( gen_opt, false);
+
+ 
 
     Var loop_var("i");
 
@@ -844,7 +855,9 @@ void build_load(  std::map<std::string, InputNode>* input_map, CodeGenOption gen
         throw std::runtime_error("input not equal 1");
     }
    
-
+    std::string temp_name = "tmp";
+    Var temp_var( temp_name, type_of<float>() );
+    auto temp_out = LocalTemp::Make( temp_var, {warp_round, thread_round});
     cinn::lang::Placeholder<float> *C = new cinn::lang::Placeholder<float>( vec_input[0], std::vector<int>{{10, 10}});
     cinn::lang::Placeholder<float> *T = new cinn::lang::Placeholder<float>("tmp", std::vector<int>{{1,4}});
     //Placeholder<float> A("A", std::vector<int>{{10}});
@@ -888,57 +901,16 @@ void build_load(  std::map<std::string, InputNode>* input_map, CodeGenOption gen
 
 void  build_store( std::map<std::string, InputNode>* input_map,  CodeGenOption gen_opt, const std::vector<std::string>& vec_output_name, std::vector<Expr>& vec_out)
 {
-     int reduce_block = gen_opt.reduce_block;
-    int flatten_block = gen_opt.flatten_block;    
-    
-    std::vector<int> reduce_range;
-    std::vector<int> flatten_range;
-    
-    std::string name_blockx = "blockIdx.x";
-    std::string name_threadx = "xid";
-    std::string index_name = "index";
-    Var block_x_var( name_blockx, type_of<int>() );
-    Var thread_x_var( name_threadx, type_of<int>() );    
+    int reduce_block = gen_opt.reduce_block;
+    int flatten_block = gen_opt.flatten_block;
+    int num_warp = gen_opt.num_warp;
+    int num_thread_per_warp = gen_opt.num_thread_per_warp;
 
-    Var block_id( "blockIdx.x", type_of<int>() );
-    Var flatten_id( "xid", type_of<int>() );
-    Var r_id( "rid", type_of<int>() );
-    Expr expr_flatten( flatten_block);    
-    Expr expr_reduce( reduce_block);
-
-    auto index_var =( block_id * expr_flatten + flatten_id ) * expr_reduce + r_id;
-        
-    auto load_index = LoadIndex::Make( index_var, reduce_range, flatten_range, reduce_block, flatten_block);    
-
-    Var input_var("input", type_of<float>() );
-
-    auto block_load = BlockLoad::Make( input_var, load_index );
-
-    auto reduce_max = ReduceMax::Make( block_load, 1);
-
-    Var output_var("output", type_of<float>() );
-
-
-    int num_warp = 8;
-    int num_thread_per_warp = 32;
-    int element_per_thread = 8;
-    
-    Var threadidx("threadIdx.x", type_of<int>());
-    Var index_i("i", type_of<int>() );
-    Var index_j("j", type_of<int>() );
-    Expr expr_warp( num_warp);
-    Expr expr_thread_per_warp( num_thread_per_warp );
-    Expr expr_element_per_thread( element_per_thread );
-
-    auto warp_id = threadidx / expr_thread_per_warp;
-
-    // warp reduce
     auto warp_round = flatten_block / num_warp;
     auto thread_round = reduce_block / num_thread_per_warp;
+    
+    auto inner_index = generate_index( gen_opt, false);
 
-    auto xid = warp_id * Expr( warp_round ) + index_i;
-    auto inner_id = threadidx % expr_thread_per_warp;
-    auto inner_index = block_id *Expr( reduce_block * flatten_block ) +  xid * Expr( thread_round ) * expr_thread_per_warp + inner_id + index_j * expr_thread_per_warp;
 
     if( vec_output_name.size() != 1)
     {
@@ -1028,7 +1000,7 @@ ir::LoweredFunc process_warp_reduce(  hlir::framework::Graph * graph, CodeGenOpt
             process_exp( &map_input, node, out_expr, thread_config);
         }else if ( node->op()->name == "reduce_sum" )
         {
-            process_reduce_sum( &map_input, node, out_expr, thread_config);
+            process_reduce_sum( &map_input, node, out_expr, thread_config, gen_opt);
         }else if ( node->op()->name == "divide" )
         {
             process_divide( &map_input, node, out_expr, thread_config);

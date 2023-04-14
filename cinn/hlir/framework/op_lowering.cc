@@ -101,6 +101,45 @@ std::vector<ir::LoweredFunc> OpLowerer::ThreadModelTest( Graph* graph )
     auto node_data = GetNodeData(node);
     std::cerr << " process node: " << node->id() << " with op type: " << node->op()->name << std::endl;
 
+    if( node->op()->name == "reduce_sum" || node->op()->name == "reduce_max")
+    {
+        auto reduce_axis = absl::get<std::vector<int>>(node->attrs.attr_store.at("dim"));
+        if( reduce_axis.size() != 1)
+        {
+           std::cerr << "reduce only support reduce dim 1" << std::endl;
+           throw std::runtime_error(" reduce only support reduce dim 1");
+        }
+        auto in_data = GetInputNodeData(node);   
+        auto shape = this->shape_dict_.at( in_data[0]->id());
+        int dim = reduce_axis[0];
+        if( dim < 0)
+        {
+          dim += shape.size();
+        }
+
+        if( dim + 1 == shape.size())
+        {
+          // contig
+          opt.reduce_type = ir::ReduceType::kContiguous;
+          opt.reduce_dim = shape[dim];
+          if( shape[dim] <= 128)
+          {
+             opt.reduce_block = 128;
+             opt.flatten_block = 32;
+
+          } else if (  shape[dim] >= 512)
+          {
+              opt.reduce_block = 1024;
+              opt.flatten_block = 1;
+          }
+        }
+        else
+        {
+          std::cerr << "not supprt no contiguous" << std::endl;
+          throw std::runtime_error( "not support non contiguous");
+        }
+      
+    }
     std::cerr << node_data->id() << std::endl;
     auto shape =  this->shape_dict_.at( node_data->id() );
     

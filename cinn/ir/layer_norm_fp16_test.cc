@@ -891,7 +891,7 @@ TEST(IrManul, basic) {
     auto inner_id = threadidx % expr_thread_per_warp;
     auto inner_index = block_id *Expr(768) +  xid * Expr(4) * expr_thread_per_warp + inner_id + index_j * expr_thread_per_warp;
     
-    auto inner_index2  = xid * Expr(4) * expr_thread_per_warp + inner_id + index_j * expr_thread_per_warp;;
+    auto inner_index2  = xid * Expr(4) * expr_thread_per_warp + inner_id + index_j * expr_thread_per_warp;
 
     // block reduce
     auto warp_round = 1;

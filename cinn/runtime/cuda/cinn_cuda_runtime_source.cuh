@@ -42,6 +42,31 @@ __device__ __forceinline__ float warpReduceMax(float sum) {
 
 }
 
+__device__ __forceinline__ float BlockReduceSum(float sum) {     
+    
+    // Shared mem for partial sums (one per warp in the block)
+    static __shared__ float warpLevelSums[WARP_SIZE]; 
+    const int laneId = threadIdx.x % WARP_SIZE;
+    const int warpId = threadIdx.x / WARP_SIZE;  
+
+    sum = warpReduceSum(sum);
+    
+    if( laneId == 0 ) warpLevelSums[warpId] = sum;
+    __syncthreads();
+
+    float final_sum = 0.0;
+    #pragma unroll
+    for( size_t i = 0;  i < 6; ++i)
+    {
+      final_sum += warpLevelSums[i];
+    }
+
+    if (threadIdx.x == 0) warpLevelSums[0] = final_sum;
+    __syncthreads();
+    return warpLevelSums[0];
+
+}
+
 // *************************************************************** //
 // float32 unary and binary operator
 #define FN_FP32(func) cinn_nvgpu_##func##_fp32
