@@ -78,6 +78,7 @@ DEFINE_bool(cinn_use_dense_merge_pass,
             BoolFromEnv("FLAGS_cinn_use_dense_merge_pass", false),
             "Whether use dense merge pass.");
 
+// just add a comment to test whether there is some problems with ci
 DEFINE_bool(nvrtc_compile_to_cubin,
             BoolFromEnv("FLAGS_nvrtc_compile_to_cubin", false),
             "Whether nvrtc compile cuda source into cubin instead of ptx (only works after cuda-11.1).");
