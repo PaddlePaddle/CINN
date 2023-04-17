@@ -35,7 +35,7 @@ void CodeGen(ir::LoweredFunc& func) {
 //#ifdef CINN_WITH_CUDA
   auto target = common::DefaultNVGPUTarget();
   Module::Builder builder("module_builder", target);
-
+  std::cerr << "func " << func << std::endl;
   builder.AddFunction(func);
   std::cerr << "fin add func" << std::endl;
   auto module   = builder.Build();
@@ -57,6 +57,7 @@ void CodeGen(ir::LoweredFunc& func) {
 
 void Compile(NetBuilder& net_builder) {
   auto program = net_builder.Build();
+  std::cerr << program << std::endl;  
   auto target  = common::DefaultTarget();
   // RunDecomposer(&program, target);
 
@@ -71,7 +72,7 @@ void Compile(NetBuilder& net_builder) {
   OpLowerer op_lowerer(dtype_dict, shape_dict, target);
 
   auto res = op_lowerer.ThreadModelTest( graph.get() );
-  //CodeGen( res[0]);
+  CodeGen( res[0]);
   // for (auto& fusion_op : graph->fusion_groups) {
   //   std::cerr << "fuse op" <<  fusion_op << std::endl;
   //   auto lowered_func = op_lowerer.Lower(fusion_op);
@@ -87,12 +88,44 @@ TEST(OpFusionPass, Reduce_With_Last_Axis_1) {
   NetBuilder net_builder("Reduce_With_Last_Axis_1");
   // create model
   {
-  auto A = net_builder.CreateInput(Float(32), {128, 12, 128, 128}, "A");    
-  auto Max = net_builder.ReduceMax(A, {-1}, true);    
-  auto sub = net_builder.Subtract(A, Max);
-  auto exp = net_builder.Exp( sub );
-  auto sum = net_builder.ReduceSum( exp, {-1}, true);    
-  auto out = net_builder.Divide( exp, sum);  
+  // auto A = net_builder.CreateInput(Float(32), {128, 12, 128, 128}, "A");    
+  // auto Max = net_builder.ReduceMax(A, {-1}, true);    
+  // auto sub = net_builder.Subtract(A, Max);
+  // auto exp = net_builder.Exp( sub );
+  // auto sum = net_builder.ReduceSum( exp, {-1}, true);    
+  // auto out = net_builder.Divide( exp, sum);  
+
+  auto A = net_builder.CreateInput(Float(32), {128, 128, 768}, "A"); 
+  auto rand = net_builder.UniformRandom( {128, 128, 768}, 0.0, 1.0);
+  auto prob = net_builder.FillConstant( {1}, 0.5, "prob" );
+  auto neg_prob = net_builder.FillConstant( {1}, 0.5, "neg_prob" );
+  auto mask = net_builder.GreaterEqual( rand, prob );
+  auto mask_f = net_builder.Cast(mask, "float32");
+  auto t1 = net_builder.Multiply( A, mask_f);
+  auto out = net_builder.Divide( t1, neg_prob);
+
+  //  auto A = net_builder.CreateInput(Float(32), {128, 128, 768}, "A"); 
+  //   auto scale = net_builder.CreateInput( Float(32), {768}, "scale" );    
+  //   auto bias = net_builder.CreateInput( Float(32), {768}, "bias" );    
+  //   auto run_mean = net_builder.CreateInput(Float(32), {768}, "run_mean");    
+  //   auto run_var = net_builder.CreateInput( Float(32),  {768}, "run_var" );    
+  //   auto num = net_builder.FillConstant( {1}, 768.0, "num" );
+  //   auto eps = net_builder.FillConstant( {1}, 1e-5, "eps" );
+  //   auto sum1 = net_builder.ReduceSum(A, {2}, true);   
+  //   auto mean1 = net_builder.Divide( sum1, num);
+  //   auto power = net_builder.Multiply(A, A);
+  //   auto sum2 = net_builder.ReduceSum(power, {2}, true);
+  //   auto mean2 = net_builder.Divide( sum2, num);
+  //   auto mean_power = net_builder.Multiply( mean1, mean1);
+
+  //   auto var = net_builder.Subtract(mean2, mean_power);
+
+  //   auto sub = net_builder.Subtract( A, mean1);
+  //   auto t1 = net_builder.Add( var, eps);
+  //   auto t2 = net_builder.Sqrt( t1 );
+  //   auto t3 = net_builder.Divide( sub, t2);
+  //   auto t5 = net_builder.Multiply( t3, scale);
+  //   auto out = net_builder.Add( t5, bias);
   }
   Compile(net_builder);
 }

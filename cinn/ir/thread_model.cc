@@ -57,6 +57,12 @@ struct ThreadConfig
     int thread_round;
 };
 
+bool is_power2(int n) {
+    if(n <= 0)
+        return false;
+    return (n&(n-1)) == 0;
+}
+
 void process_reduce_max( std::map<std::string, InputNode>* input_map, hlir::framework::Node* node, std::vector<Expr>& vec_out, ThreadConfig& thread_config)
 {
     std::string in_name;
@@ -170,7 +176,12 @@ void process_sub( std::map<std::string, InputNode>* input_map, hlir::framework::
     {
         is_scalar = true;
     }
-    //int broadcast_axis = reduce_axis( first_input.in_dim, second_input.in_dim);
+    
+    bool first_is_scalar = false;
+    if( first_input.in_dim.size() == 0)
+    {
+        is_scalar = true;
+    }
     
     int broadcast_first = -1;
     int broadcast_second = -1;
@@ -200,6 +211,11 @@ void process_sub( std::map<std::string, InputNode>* input_map, hlir::framework::
     auto max_var = cinn::ir::Let::Make( max_t, inf);
 
     auto t_load = ir::Load::Make( ir::Tensor( *(first_input.in_ptr) ), { Expr(loop_var), Expr(loop_var_j) });
+    if ( first_is_scalar )
+    {
+        t_load = Var( first_input.name, type_of<float>());
+    }
+    
 
     Expr t2_load;
 
@@ -250,6 +266,74 @@ void process_sub( std::map<std::string, InputNode>* input_map, hlir::framework::
 
 }
 
+void process_scale( std::map<std::string, InputNode>* input_map, hlir::framework::Node* node, std::vector<Expr>& vec_out, ThreadConfig& thread_config)
+{
+    std::string in_name;
+    for (auto& inlink : node->inlinks_in_order(true)) {
+        auto* innode = inlink->source()->safe_as<hlir::framework::NodeData>();
+        if (innode) {
+            in_name = innode->id();
+        }
+    }
+
+    std::string out_name;
+    for (auto& outlink : node->outlinks_in_order(true)) {
+        auto* outnode = outlink->sink()->safe_as<hlir::framework::NodeData>();
+        if (outnode) {
+            out_name = outnode->id();
+        }
+    }
+
+    InputNode& first_input = input_map->at( in_name);
+   
+    float scale = absl::get<float>(node->attrs.attr_store.at("scale"));
+    float bias = absl::get<float>(node->attrs.attr_store.at("bias"));
+
+    Var loop_var("i");
+    Var loop_var_j("j");
+    Expr inf(-100000.0);
+    int warp_round = thread_config.warp_round;
+    int thread_round = thread_config.thread_round;
+    std::string temp_max_name = in_name + "_tmp_scale";
+    Var temp_max_var( temp_max_name, type_of<float>() );
+    auto temp_max_out = LocalTemp::Make( temp_max_var, {warp_round, thread_round});
+
+    std::string name1 = "max1";
+    cinn::ir::Var max_t(name1, type_of<float>());
+
+
+    auto t_load = ir::Load::Make( ir::Tensor( *(first_input.in_ptr) ), { Expr(loop_var), Expr(loop_var_j) });
+
+    auto out = ir::Mul::Make( t_load, Expr( scale ));
+    out = ir::Add::Make( out, Expr( bias ));
+
+    cinn::lang::Placeholder<float>* exp = new cinn::lang::Placeholder<float>(temp_max_name, std::vector<int>{{1, 4}});
+    auto exp_store = Store::Make( ir::Tensor(*exp), out, {Expr(loop_var), Expr(loop_var_j)}); 
+
+
+    auto body =  ir::Block::Make( { exp_store });
+    auto load_inner_for = ir::For::Make(loop_var_j,
+                               common::make_const(0),
+                               common::make_const(thread_round),
+                               ir::ForType::Unrolled,
+                               ir::DeviceAPI::CUDA,
+                               body);
+
+    body =  ir::Block::Make( {load_inner_for});
+
+    auto max_outer_for =  ir::For::Make(loop_var,
+                               common::make_const(0),
+                               common::make_const(warp_round),
+                               ir::ForType::Unrolled,
+                               ir::DeviceAPI::CUDA,
+                               body);
+    
+    vec_out.push_back( temp_max_out );
+    vec_out.push_back( max_outer_for );
+
+    (*input_map)[out_name] = InputNode( "scale", exp, {1, 8});
+
+}
 
 void process_exp( std::map<std::string, InputNode>* input_map, hlir::framework::Node* node, std::vector<Expr>& vec_out, ThreadConfig& thread_config)
 {
@@ -276,19 +360,16 @@ void process_exp( std::map<std::string, InputNode>* input_map, hlir::framework::
     Expr inf(-100000.0);
     int warp_round = thread_config.warp_round;
     int thread_round = thread_config.thread_round;
-    std::string temp_max_name = "exp";
+    std::string temp_max_name = in_name + "_tmp_exp";
     Var temp_max_var( temp_max_name, type_of<float>() );
     auto temp_max_out = LocalTemp::Make( temp_max_var, {warp_round, thread_round});
-
-    std::string name1 = "max1";
-    cinn::ir::Var max_t(name1, type_of<float>());
 
 
     auto t_load = ir::Load::Make( ir::Tensor( *(first_input.in_ptr) ), { Expr(loop_var), Expr(loop_var_j) });
 
     auto out = ir::Minus::Make( t_load);
 
-    cinn::lang::Placeholder<float>* exp = new cinn::lang::Placeholder<float>("exp", std::vector<int>{{1, 4}});
+    cinn::lang::Placeholder<float>* exp = new cinn::lang::Placeholder<float>(temp_max_name, std::vector<int>{{1, 4}});
     auto exp_store = Store::Make( ir::Tensor(*exp), out, {Expr(loop_var), Expr(loop_var_j)}); 
 
 
@@ -312,7 +393,7 @@ void process_exp( std::map<std::string, InputNode>* input_map, hlir::framework::
     vec_out.push_back( temp_max_out );
     vec_out.push_back( max_outer_for );
 
-    (*input_map)[out_name] = InputNode( "exp", exp, {1, 8});
+    (*input_map)[out_name] = InputNode( temp_max_name, exp, {1, 8});
 
 }
 
@@ -385,7 +466,7 @@ void process_sqrt( std::map<std::string, InputNode>* input_map, hlir::framework:
 }
 
 void process_reduce_sum( std::map<std::string, InputNode>* input_map, hlir::framework::Node* node, std::vector<Expr>& vec_out, ThreadConfig& thread_config, 
-            cosnt CodeGenOption& gen_opt )
+            const CodeGenOption& gen_opt )
 {
     std::string in_name;
     for (auto& inlink : node->inlinks_in_order(true)) {
@@ -437,7 +518,7 @@ void process_reduce_sum( std::map<std::string, InputNode>* input_map, hlir::fram
                                body);
     
 
-    string reduce_func_name; 
+    std::string reduce_func_name; 
     if( gen_opt.reduce_block <= 128 )
     {
         reduce_func_name = "warpReduceSum";
@@ -580,6 +661,115 @@ void process_divide( std::map<std::string, InputNode>* input_map, hlir::framewor
 
 }
 
+
+void process_greater_equal( std::map<std::string, InputNode>* input_map, hlir::framework::Node* node, std::vector<Expr>& vec_out, ThreadConfig& thread_config)
+{
+    std::vector<std::string> vec_in_names;
+    for (auto& inlink : node->inlinks_in_order(true)) {
+        auto* innode = inlink->source()->safe_as<hlir::framework::NodeData>();
+        if (innode) {
+            vec_in_names.push_back( innode->id() );
+        }
+    }
+
+    std::string out_name;
+    for (auto& outlink : node->outlinks_in_order(true)) {
+        auto* outnode = outlink->sink()->safe_as<hlir::framework::NodeData>();
+        if (outnode) {
+            out_name = outnode->id();
+        }
+    }
+
+    std::cerr << vec_in_names[0] << "\t" << vec_in_names[1] << std::endl;
+    InputNode& first_input = input_map->at( vec_in_names[0]);
+    InputNode& second_input = input_map->at( vec_in_names[1]);
+
+    bool is_scalar = false;
+    if( second_input.in_dim.size() == 0)
+    {
+        is_scalar = true;
+    }
+    //int broadcast_axis = reduce_axis( first_input.in_dim, second_input.in_dim);
+    
+    int broadcast_first = -1;
+    int broadcast_second = -1;
+    if( first_input.in_dim.size() == 1)
+    {
+        broadcast_first = 1;
+    }
+
+    if( second_input.in_dim.size() == 1 )
+    {
+        broadcast_second = 1;
+    }
+    
+    Var loop_var("i");
+    Var loop_var_j("j");
+    int warp_round = thread_config.warp_round;
+    int thread_round = thread_config.thread_round;
+    Expr inf(-100000.0);
+    std::string temp_max_name = vec_in_names[0] + "_" + vec_in_names[1] +  "_div_tmp";
+    Var temp_max_var( temp_max_name, type_of<float>() );
+    auto temp_max_out = LocalTemp::Make( temp_max_var, {warp_round, thread_round});
+
+    Expr t_load; 
+    
+    if( broadcast_first == -1){
+        t_load = ir::Load::Make( ir::Tensor( *(first_input.in_ptr) ), { Expr(loop_var), Expr(loop_var_j) });
+    }
+    else{
+        t_load = ir::Load::Make( ir::Tensor( *(first_input.in_ptr) ), { Expr(loop_var) });
+    }
+
+    
+    Expr t2_load;
+
+    if( is_scalar )
+    {
+        t2_load = Var( second_input.name, type_of<float>());
+    }else if( broadcast_second != -1)    {
+        t2_load = ir::Load::Make( ir::Tensor( *(second_input.in_ptr) ), { Expr(loop_var)});
+    } 
+     else
+    {
+        t2_load = ir::Load::Make( ir::Tensor( *(second_input.in_ptr) ), { Expr(loop_var), Expr(loop_var_j) });
+    }  
+    std::cerr << "t2 load " << t2_load << std::endl;
+
+    auto out = ir::LE::Make( t_load, t2_load);
+
+    cinn::lang::Placeholder<float>* div = new cinn::lang::Placeholder<float>(temp_max_name, std::vector<int>{{1, 4}});
+    auto sub_store = Store::Make( ir::Tensor(*div), out, {Expr(loop_var), Expr(loop_var_j)}); 
+
+
+    auto body =  ir::Block::Make( { sub_store });
+    auto load_inner_for = ir::For::Make(loop_var_j,
+                               common::make_const(0),
+                               common::make_const(thread_round),
+                               ir::ForType::Unrolled,
+                               ir::DeviceAPI::CUDA,
+                               body);
+    
+
+ 
+
+
+    body =  ir::Block::Make( {load_inner_for});
+
+    auto max_outer_for =  ir::For::Make(loop_var,
+                               common::make_const(0),
+                               common::make_const(warp_round),
+                               ir::ForType::Unrolled,
+                               ir::DeviceAPI::CUDA,
+                               body);
+    
+    vec_out.push_back( temp_max_out );
+    vec_out.push_back( max_outer_for );
+
+    (*input_map)[out_name] = InputNode( "divide", div, {1, 8});
+
+}
+
 void process_add( std::map<std::string, InputNode>* input_map, hlir::framework::Node* node, std::vector<Expr>& vec_out, ThreadConfig& thread_config)
 {
     std::vector<std::string> vec_in_names;
@@ -664,6 +854,27 @@ void process_add( std::map<std::string, InputNode>* input_map, hlir::framework::
 
     (*input_map)[out_name] = InputNode( "add", div, {1, 8});
 
+}
+
+void process_cast( std::map<std::string, InputNode>* input_map, hlir::framework::Node* node, std::vector<Expr>& vec_out, ThreadConfig& thread_config)
+{
+    std::string in_name;
+    for (auto& inlink : node->inlinks_in_order(true)) {
+        auto* innode = inlink->source()->safe_as<hlir::framework::NodeData>();
+        if (innode) {
+            in_name = innode->id();
+        }
+    }
+
+    std::string out_name;
+    for (auto& outlink : node->outlinks_in_order(true)) {
+        auto* outnode = outlink->sink()->safe_as<hlir::framework::NodeData>();
+        if (outnode) {
+            out_name = outnode->id();
+        }
+    }
+
+     (*input_map)[out_name] = input_map->at( in_name );
 }
 
 void process_mul( std::map<std::string, InputNode>* input_map, hlir::framework::Node* node, std::vector<Expr>& vec_out, ThreadConfig& thread_config)
@@ -768,11 +979,17 @@ void process_fillconstant( std::map<std::string, InputNode>* input_map, hlir::fr
     //std::cerr << hlir::framework::DebugString(node) << std::endl;
     auto* op =  node->op();
 
-    auto value = absl::get<float>(node->attrs.attr_store.at("value"));
+    float value =0.0;
+    try{
+        value = absl::get<double>(node->attrs.attr_store.at("value"));
+    }
+    catch(...){
+        value = absl::get<float>(node->attrs.attr_store.at("value"));
+    }
 
     //std::cerr << value << std::endl;
 
-    auto dtype = absl::get<float>(node->attrs.attr_store.at("value"));
+    //auto dtype = absl::get<float>(node->attrs.attr_store.at("value"));
 
     // std::cerr << out_name << "\t" << dtype << std::endl;
 
@@ -785,6 +1002,48 @@ void process_fillconstant( std::map<std::string, InputNode>* input_map, hlir::fr
     vec_out.push_back( max_var );
     
     (*input_map)[out_name] = InputNode( out_name, nullptr, {});
+}
+
+void process_uniform( std::map<std::string, InputNode>* input_map, hlir::framework::Node* node, std::vector<Expr>& vec_out, ThreadConfig& thread_config)
+{  
+    //std::cerr << hlir::framework::DebugString(node) << std::endl;
+    auto* op =  node->op();
+
+    // auto shape =   value = absl::get<std::vector<int>>(node->attrs.attr_store.at("shape"));
+    // auto min =   value = absl::get<float>(node->attrs.attr_store.at("min"));
+    // auto max =   value = absl::get<float>(node->attrs.attr_store.at("max"));
+    
+    std::string out_name;
+    for (auto& outlink : node->outlinks_in_order(true)) {
+        auto* outnode = outlink->sink()->safe_as<hlir::framework::NodeData>();
+        if (outnode) {
+            out_name = outnode->id();
+        }
+    }
+
+    Var loop_var("i");
+    Var loop_var_j("j");
+    int warp_round = thread_config.warp_round;
+    int thread_round = thread_config.thread_round;
+    Expr inf(-100000.0);
+
+    std::string temp_max_name = out_name +  "_random_tmp";
+    Var temp_max_var( temp_max_name, type_of<float>() );
+    auto temp_max_out = LocalTemp::Make( temp_max_var, {warp_round, thread_round});
+      
+
+    cinn::lang::Placeholder<float>* div = new cinn::lang::Placeholder<float>(temp_max_name, std::vector<int>{{1, 4}});
+    
+    std::string temp_max_name_slice = out_name +  "_random_tmp[0]";
+    Var temp_max_var_slice( temp_max_name_slice, type_of<float>() );
+    auto uniform_call = Call::Make( Float(32), "uniform_random", {temp_max_var_slice, Expr(warp_round * thread_round)}, {}, ir::CallType::Extern );
+    
+    
+    vec_out.push_back( temp_max_out );
+    vec_out.push_back( uniform_call );
+
+    (*input_map)[out_name] = InputNode( temp_max_name, div, {1, 8});
+
 }
 
 ir::Expr generate_index( CodeGenOption gen_opt, bool last_dim)
@@ -819,8 +1078,22 @@ ir::Expr generate_index( CodeGenOption gen_opt, bool last_dim)
     auto warp_id = threadidx / expr_thread_per_warp;
 
     // warp reduce
-    auto warp_round = flatten_block / num_warp;
-    auto thread_round = reduce_block / num_thread_per_warp;
+    auto warp_round = 1; 
+    auto thread_round = 1; 
+    if( gen_opt.op_type == ir::OpType::kContiguousWarpReduce )
+    {
+        thread_round = reduce_block / num_thread_per_warp;
+        warp_round = flatten_block / num_warp;
+    }
+    else if( gen_opt.op_type == ir::OpType::kElementwise )
+    {
+        thread_round = flatten_block / num_thread_per_warp / num_warp;
+    }
+    else
+    {
+        thread_round = reduce_block / num_thread_per_warp / num_warp;
+    }
+    
 
     auto xid = warp_id * Expr( warp_round ) + index_i;
     auto inner_id = threadidx % expr_thread_per_warp;
@@ -833,69 +1106,126 @@ ir::Expr generate_index( CodeGenOption gen_opt, bool last_dim)
     return inner_index;  
 }
 
-void build_load(  std::map<std::string, InputNode>* input_map, CodeGenOption gen_opt, const std::vector<std::string>& vec_input, std::vector<Expr>& vec_out)
+void build_load(  std::map<std::string, InputNode>* input_map, CodeGenOption gen_opt, 
+    const std::vector<std::string>& vec_input, std::vector<Expr>& vec_out,
+    hlir::framework::Graph * graph )
 {   
     int reduce_block = gen_opt.reduce_block;
     int flatten_block = gen_opt.flatten_block;
     int num_warp = gen_opt.num_warp;
     int num_thread_per_warp = gen_opt.num_thread_per_warp;
 
-    auto warp_round = flatten_block / num_warp;
-    auto thread_round = reduce_block / num_thread_per_warp;
-
-    auto inner_index = generate_index( gen_opt, false);
-
- 
-
-    Var loop_var("i");
-
-    if( vec_input.size() != 1)
+    auto warp_round = 1; 
+    auto thread_round = 1; 
+    if( gen_opt.op_type == ir::OpType::kContiguousWarpReduce )
     {
-        std::cerr << "not support input size not equal 1" << std::endl;
-        throw std::runtime_error("input not equal 1");
+        thread_round = reduce_block / num_thread_per_warp;
+        warp_round = flatten_block / num_warp;
     }
-   
-    std::string temp_name = "tmp";
-    Var temp_var( temp_name, type_of<float>() );
-    auto temp_out = LocalTemp::Make( temp_var, {warp_round, thread_round});
-    cinn::lang::Placeholder<float> *C = new cinn::lang::Placeholder<float>( vec_input[0], std::vector<int>{{10, 10}});
-    cinn::lang::Placeholder<float> *T = new cinn::lang::Placeholder<float>("tmp", std::vector<int>{{1,4}});
-    //Placeholder<float> A("A", std::vector<int>{{10}});
-    //Var input( "input", type_of<float>( ));
-    Var loop_var_j("j");
-
-    auto t_load = ir::Load::Make( ir::Tensor(*C), { inner_index });
-
-    Expr body = Store::Make( ir::Tensor(*T), t_load, {Expr(loop_var), Expr(loop_var_j)}); 
-                            
-    body      = ir::Block::Make({body});
+    else if( gen_opt.op_type == ir::OpType::kElementwise )
+    {
+        thread_round = flatten_block / num_thread_per_warp / num_warp;
+    }
+    else
+    {
+        thread_round = reduce_block / num_thread_per_warp / num_warp;
+    }
     
-    auto load_inner_for = ir::For::Make(loop_var_j,
-                               common::make_const(0),
-                               common::make_const(thread_round),
-                               ir::ForType::Unrolled,
-                               ir::DeviceAPI::CUDA,
-                               body);
+    
 
-    //printer.Print( load_inner_for );
+    
+    std::cerr << "reduce block " << reduce_block << std::endl;
+    std::cerr << "num thread per warp " << num_thread_per_warp << std::endl;
+
+    std::cerr << reduce_block / num_thread_per_warp << std::endl;
+    std::cerr << thread_round << std::endl;
+
+    
+    for( auto& name : vec_input )
+    {
+        Var loop_var("i");
+        std::string temp_name = name + "_tmp";
+        Var temp_var( temp_name, type_of<float>() );
+        auto temp_out = LocalTemp::Make( temp_var, {warp_round, thread_round});
+        cinn::lang::Placeholder<float> *C = new cinn::lang::Placeholder<float>( name, std::vector<int>{{10, 10}});
+        cinn::lang::Placeholder<float> *T = new cinn::lang::Placeholder<float>( temp_name, std::vector<int>{{1,4}});
+        //Placeholder<float> A("A", std::vector<int>{{10}});
+        //Var input( "input", type_of<float>( ));
+        Var loop_var_j("j");
+
+        
+        
+        auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, hlir::framework::shape_t>>("infershape");
+        auto shape1 = shape_dict.at( name);
+
+        std::cerr << "name " << name << " shape :" << std::endl;
+        for( auto& s : shape1)
+        {
+            std::cerr << s << "\t";
+        }
+        std::cerr << std::endl;
+
+        vec_out.push_back( temp_out );
+
+        Expr inner_index;
+        if( shape1.size() == 1 )
+        {
+            inner_index = generate_index( gen_opt, true);
+        }else
+        {
+            inner_index = generate_index( gen_opt, false);
+        }
+        auto t_load = ir::Load::Make( ir::Tensor(*C), { inner_index });
+
+        Expr body = Store::Make( ir::Tensor(*T), t_load, {Expr(loop_var), Expr(loop_var_j)}); 
+
+        if( ! is_power2( gen_opt.reduce_dim ) )
+        {
+            auto index2 = generate_index( gen_opt, true);
+            auto cond = ir::LT::Make( index2, Expr( gen_opt.reduce_dim) );
+            auto filter = ir::IfThenElse::Make( cond, body, Expr()); 
+
+            body      = ir::Block::Make({filter});
+        }
+        else
+        {
+            body      = ir::Block::Make({body});
+        }
+       
 
 
-    body =  ir::Block::Make( {load_inner_for});
+        
+        
+        auto load_inner_for = ir::For::Make(loop_var_j,
+                                common::make_const(0),
+                                common::make_const(thread_round),
+                                ir::ForType::Unrolled,
+                                ir::DeviceAPI::CUDA,
+                                body);
 
-    auto load_outer_for =  ir::For::Make(loop_var,
-                               common::make_const(0),
-                               common::make_const(warp_round),
-                               ir::ForType::Unrolled,
-                               ir::DeviceAPI::CUDA,
-                               body);
+        // simple process here
+        // if( shape1.size() == 1)
+        // {
+        //     vec_out.push_back( load_inner_for);
+        // }
+        // else
+        // {
+            body =  ir::Block::Make( {load_inner_for});
+
+            auto load_outer_for =  ir::For::Make(loop_var,
+                                    common::make_const(0),
+                                    common::make_const(warp_round),
+                                    ir::ForType::Unrolled,
+                                    ir::DeviceAPI::CUDA,
+                                    body);
 
 
-    vec_out.push_back( temp_out );
-    vec_out.push_back( load_outer_for );
+            
+            vec_out.push_back( load_outer_for );
+        // }
 
-
-
-    (*input_map)[ vec_input[0] ] = InputNode( vec_input[0], T, {1, 4});    
+        (*input_map)[ name ] = InputNode( temp_name, T, {1, 4});   
+    } 
     
 }
 
@@ -906,22 +1236,32 @@ void  build_store( std::map<std::string, InputNode>* input_map,  CodeGenOption g
     int num_warp = gen_opt.num_warp;
     int num_thread_per_warp = gen_opt.num_thread_per_warp;
 
-    auto warp_round = flatten_block / num_warp;
-    auto thread_round = reduce_block / num_thread_per_warp;
+    auto warp_round = 1; 
+    auto thread_round = 1; 
+    if( gen_opt.op_type == ir::OpType::kContiguousWarpReduce )
+    {
+        thread_round = reduce_block / num_thread_per_warp;
+        warp_round = flatten_block / num_warp;
+    }
+    else if( gen_opt.op_type == ir::OpType::kElementwise )
+    {
+        thread_round = flatten_block / num_thread_per_warp / num_warp;
+    }
+    else
+    {
+        thread_round = reduce_block / num_thread_per_warp / num_warp;
+    }
     
+    
+    for( auto & out_name : vec_output_name )
+    { 
     auto inner_index = generate_index( gen_opt, false);
 
-
-    if( vec_output_name.size() != 1)
-    {
-        std::cerr << "not support output size not equal 1" << std::endl;
-        throw std::runtime_error("output not equal 1");
-    }
 
     Var loop_var("i");
     Var loop_var_j("j");
 
-    auto var_out = input_map->at( vec_output_name[0] );
+    auto var_out = input_map->at( out_name );
 
     auto t_load = ir::Load::Make( ir::Tensor( *(var_out.in_ptr) ), { Expr(loop_var), Expr(loop_var_j) });
     cinn::lang::Placeholder<float> OUT(vec_output_name[0], std::vector<int>{{10}});
@@ -929,6 +1269,20 @@ void  build_store( std::map<std::string, InputNode>* input_map,  CodeGenOption g
     auto out_store = Store::Make( ir::Tensor(OUT), t_load, { Expr( inner_index ) });
 
     auto body =  ir::Block::Make( {out_store });
+
+    if( ! is_power2( gen_opt.reduce_dim ) )
+    {
+        auto index2 = generate_index( gen_opt, true);
+        auto cond = ir::LT::Make( index2, Expr( gen_opt.reduce_dim) );
+        auto filter = ir::IfThenElse::Make( cond, body, Expr()); 
+
+        body      = ir::Block::Make({filter});
+    }
+    else
+    {
+        body      = ir::Block::Make({body});
+    }
+
     auto load_inner_for = ir::For::Make(loop_var_j,
                                common::make_const(0),
                                common::make_const(thread_round),
@@ -948,15 +1302,24 @@ void  build_store( std::map<std::string, InputNode>* input_map,  CodeGenOption g
                                body);
 
     vec_out.push_back( out_store_for);
+    }
 }
 
 ir::LoweredFunc process_warp_reduce(  hlir::framework::Graph * graph, CodeGenOption gen_opt, 
      const std::vector<std::string>& vec_input,  const std::vector<std::string>& vec_output_name)
-{
+{   
+    std::cerr << "gen opti config " << std::endl;
+    std::cerr << gen_opt.flatten_block << std::endl;
+    std::cerr << gen_opt.reduce_block << std::endl;
+    std::cerr << gen_opt.op_type << std::endl;
+    std::cerr << gen_opt.reduce_dim << std::endl;
+    std::cerr << gen_opt.reduce_numel << std::endl;
+    std::cerr << gen_opt.flatten_numel << std::endl;
+    
     std::vector<Expr> out_expr;
     std::map<std::string, InputNode> map_input;
     
-    build_load( &map_input, gen_opt, vec_input, out_expr );
+    build_load( &map_input, gen_opt, vec_input, out_expr, graph );
 
     auto topo_order = graph->topological_order();
     auto& nodes     = std::get<0>(topo_order);
@@ -971,8 +1334,23 @@ ir::LoweredFunc process_warp_reduce(  hlir::framework::Graph * graph, CodeGenOpt
     int flatten_block = gen_opt.flatten_block;  
     auto num_warp = gen_opt.num_warp;
     auto  num_thread_per_warp = gen_opt.num_thread_per_warp;
-    auto warp_round = flatten_block / num_warp;
-    auto thread_round = reduce_block / num_thread_per_warp;
+    auto warp_round = 1; 
+    auto thread_round = 1; 
+    if( gen_opt.op_type == ir::OpType::kContiguousWarpReduce )
+    {
+        thread_round = reduce_block / num_thread_per_warp;
+        warp_round = flatten_block / num_warp;
+    }
+    else if( gen_opt.op_type == ir::OpType::kElementwise )
+    {
+        thread_round = flatten_block / num_thread_per_warp / num_warp;
+    }
+    else
+    {
+        thread_round = reduce_block / num_thread_per_warp / num_warp;
+    }
+    
+    
     ThreadConfig thread_config;
     thread_config.warp_round = warp_round;
     thread_config.thread_round = thread_round;
@@ -1004,6 +1382,44 @@ ir::LoweredFunc process_warp_reduce(  hlir::framework::Graph * graph, CodeGenOpt
         }else if ( node->op()->name == "divide" )
         {
             process_divide( &map_input, node, out_expr, thread_config);
+        }else if ( node->op()->name == "elementwise_mul" )
+        {
+            process_mul( &map_input, node, out_expr, thread_config);
+        }else if ( node->op()->name == "elementwise_add" )
+        {
+            process_add( &map_input, node, out_expr, thread_config);
+        }
+        else if ( node->op()->name == "fill_constant" )
+        {
+            process_fillconstant( &map_input, node, out_expr, thread_config);
+        }
+        else if ( node->op()->name == "sqrt" )
+        {
+            process_sqrt( &map_input, node, out_expr, thread_config );
+        }
+        else if ( node->op()->name == "scale" )
+        {
+            process_scale( &map_input, node, out_expr, thread_config );
+        }
+        else if( node->op()->name == "uniform_random")
+        {
+            process_uniform(  &map_input, node, out_expr, thread_config  );
+        }
+        else if( node->op()->name == "greater_equal")
+        {
+            process_greater_equal( &map_input, node, out_expr, thread_config  );
+        }
+        else if( node->op()->name == "cast")
+        {
+            process_cast( &map_input, node, out_expr, thread_config  );
+        }
+        else if( node->op()->name == "identity")
+        {
+            std::cerr << "skip identity for now" << std::endl;
+        }
+        else{
+            std::cerr << "op name " << node->op()->name << std::endl;
+            throw std::runtime_error("not support op");
         }
         
     }
@@ -1038,9 +1454,11 @@ ir::LoweredFunc process_warp_reduce(  hlir::framework::Graph * graph, CodeGenOpt
   auto func =
       ir::_LoweredFunc_::Make( group0->GetFuncName() , test_func_args, cinn::ir::Block::Make( out_expr ), temp_buffers);
 
-  func->cuda_axis_info.set_grid_dim( 0, 128 * 12 * 128 / 32);
-  func->cuda_axis_info.set_block_dim( 0, 256);
-  //std::cerr << "func " << func << std::endl;  
+  func->cuda_axis_info.set_grid_dim( 0, gen_opt.flatten_numel / gen_opt.flatten_block);
+  func->cuda_axis_info.set_block_dim( 0, gen_opt.num_warp * 32);
+  std::cerr << "grid " << gen_opt.flatten_numel / gen_opt.flatten_block << " block " << gen_opt.num_warp * 32 << std::endl;
+//   std::cerr << "func " << func << std::endl;  
+
 
   return func;
 

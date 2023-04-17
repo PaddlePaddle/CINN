@@ -88,21 +88,21 @@ struct SimplifyButStoreLoadMutator : public ir::IRMutator<ir::Expr*> {
   }
 
   void Visit(const For* op, Expr* expr) override {
-    auto* node = expr->As<ir::For>();
-    Visit(&node->min, &node->min);
-    Visit(&node->extent, &node->extent);
-    auto* min_i    = op->min.As<IntImm>();
-    auto* extent_i = op->extent.As<IntImm>();
-    if (min_i && extent_i && extent_i->value > min_i->value) {
-      var_intervals.emplace(op->loop_var->name, common::CasInterval{min_i->value, extent_i->value - 1});
-    } else {
-      var_intervals.emplace(op->loop_var->name, common::CasInterval{op->min, op->extent - 1});
-    }
+    // auto* node = expr->As<ir::For>();
+    // Visit(&node->min, &node->min);
+    // Visit(&node->extent, &node->extent);
+    // auto* min_i    = op->min.As<IntImm>();
+    // auto* extent_i = op->extent.As<IntImm>();
+    // if (min_i && extent_i && extent_i->value > min_i->value) {
+    //   var_intervals.emplace(op->loop_var->name, common::CasInterval{min_i->value, extent_i->value - 1});
+    // } else {
+    //   var_intervals.emplace(op->loop_var->name, common::CasInterval{op->min, op->extent - 1});
+    // }
 
-    Visit(&node->body, &node->body);
-    if (min_i && extent_i) {
-      var_intervals.erase(op->loop_var->name);
-    }
+    // Visit(&node->body, &node->body);
+    // if (min_i && extent_i) {
+    //   var_intervals.erase(op->loop_var->name);
+    // }
   }
 
   void Visit(const _Tensor_* op, Expr* expr) override {
@@ -310,25 +310,25 @@ struct SimplifyForLoopsMutator : public ir::IRMutator<> {
   using ir::IRMutator<>::Visit;
 
   void Visit(const For* op, Expr* expr) override {
-    auto* node = expr->As<ir::For>();
-    Visit(&node->min, &node->min);
-    Visit(&node->extent, &node->extent);
-    auto* min_i    = node->min.As<IntImm>();
-    auto* extent_i = node->extent.As<IntImm>();
-    if (min_i && extent_i && extent_i->value > min_i->value && extent_i->value - min_i->value == 1) {
-      VLOG(6) << "Simplify current For Loop";
-      std::string var_name = node->loop_var->name;
-      var_intervals.emplace(var_name, common::CasInterval{min_i->value, extent_i->value - 1});
-      if (node->body.As<ir::Block>() && node->body.As<ir::Block>()->stmts.size() == 1) {
-        *expr = node->body.As<ir::Block>()->stmts[0];
-      } else {
-        *expr = node->body;
-      }
-      Visit(expr, expr);
-      var_intervals.erase(var_name);
-    } else {
-      Visit(&node->body, &node->body);
-    }
+    // auto* node = expr->As<ir::For>();
+    // Visit(&node->min, &node->min);
+    // Visit(&node->extent, &node->extent);
+    // auto* min_i    = node->min.As<IntImm>();
+    // auto* extent_i = node->extent.As<IntImm>();
+    // if (min_i && extent_i && extent_i->value > min_i->value && extent_i->value - min_i->value == 1) {
+    //   VLOG(6) << "Simplify current For Loop";
+    //   std::string var_name = node->loop_var->name;
+    //   var_intervals.emplace(var_name, common::CasInterval{min_i->value, extent_i->value - 1});
+    //   if (node->body.As<ir::Block>() && node->body.As<ir::Block>()->stmts.size() == 1) {
+    //     *expr = node->body.As<ir::Block>()->stmts[0];
+    //   } else {
+    //     *expr = node->body;
+    //   }
+    //   Visit(expr, expr);
+    //   var_intervals.erase(var_name);
+    // } else {
+    //   Visit(&node->body, &node->body);
+    // }
   }
 
   void Visit(const _Var_* op, Expr* expr) override {

@@ -90,6 +90,10 @@ std::vector<ir::LoweredFunc> OpLowerer::ThreadModelTest( Graph* graph )
    
    std::vector<hlir::framework::Node*> vec_nodes;
 
+     opt.flatten_block = 1;
+    opt.reduce_block = 1;
+    opt.op_type = ir::OpType::kElementwise;
+
    for (auto& n : nodes) {
 
     auto node = n->safe_as<hlir::framework::Node>();
@@ -99,6 +103,8 @@ std::vector<ir::LoweredFunc> OpLowerer::ThreadModelTest( Graph* graph )
     
     vec_nodes.push_back( node );
     auto node_data = GetNodeData(node);
+  
+    int max_elem_flatten_block = 0;
     std::cerr << " process node: " << node->id() << " with op type: " << node->op()->name << std::endl;
 
     if( node->op()->name == "reduce_sum" || node->op()->name == "reduce_max")
@@ -117,29 +123,87 @@ std::vector<ir::LoweredFunc> OpLowerer::ThreadModelTest( Graph* graph )
           dim += shape.size();
         }
 
+        int flatten_numel = 1;
+        int reduce_numel = 1;
+        
+        for( size_t i = 0; i < shape.size(); ++i)
+        {
+          // only for reduce 1 dim
+          std::cerr << shape[i] << '\t';
+          if( i != dim )
+          {
+              flatten_numel *= shape[i];
+          }
+          else
+          {
+              reduce_numel *= shape[i];
+          }          
+        }      
+        std::cerr << std::endl;
+        opt.reduce_numel = reduce_numel;
+        opt.flatten_numel = flatten_numel;
+
+        std::cerr << "dim  " << dim << std::endl;
         if( dim + 1 == shape.size())
         {
           // contig
-          opt.reduce_type = ir::ReduceType::kContiguous;
+          
           opt.reduce_dim = shape[dim];
+          std::cerr << "shape dim " << shape[dim] << std::endl;
           if( shape[dim] <= 128)
           {
              opt.reduce_block = 128;
-             opt.flatten_block = 32;
+             opt.flatten_block = 32; 
+             opt.op_type = ir::OpType::kContiguousWarpReduce;
 
           } else if (  shape[dim] >= 512)
           {
               opt.reduce_block = 1024;
               opt.flatten_block = 1;
+              opt.op_type = ir::OpType::kContiguousBlockReduce;
           }
         }
         else
         {
+          std::cerr << " dim " << dim << std::endl;
+          for (auto & v : shape)
+          {
+            std::cerr << v << std::endl;
+          }
+          std::cerr << std::endl;
           std::cerr << "not supprt no contiguous" << std::endl;
           throw std::runtime_error( "not support non contiguous");
         }
       
     }
+    else
+    {
+        auto in_data = GetInputNodeData(node);   
+        auto shape = this->shape_dict_.at( in_data[0]->id());
+        
+        int flatten_numel = 1;
+        int reduce_numel = 1;
+        
+        for( size_t i = 0; i < shape.size(); ++i)
+        {
+          
+          flatten_numel *= shape[i];
+                    
+        }      
+        std::cerr << std::endl;
+        opt.reduce_numel = reduce_numel;
+        if( flatten_numel > max_elem_flatten_block )
+        {
+          opt.flatten_numel = flatten_numel;
+          max_elem_flatten_block = flatten_numel;
+        }
+
+    }
+    if ( opt.reduce_block == 1 && opt.flatten_block == 1 )
+    {
+      opt.flatten_block = 1024;
+    }
+
     std::cerr << node_data->id() << std::endl;
     auto shape =  this->shape_dict_.at( node_data->id() );
     

@@ -42,6 +42,28 @@ __device__ __forceinline__ float warpReduceMax(float sum) {
 
 }
 
+__device__ __forceinline__ void uniform_random( float* out, int N )
+{
+    int idx = threadIdx.x + blockIdx.x * blockDim.x;
+
+    curandStatePhilox4_32_10_t state;
+
+    curand_init(0, idx, N, &state);
+
+    #pragma unroll
+    for( int j = 0; j < N; j += 4 )
+    {
+      auto res_tuple = curand_uniform4(&state);
+
+      out[j + 0] = static_cast<float>((&res_tuple.x)[0]);
+      out[j + 1] = static_cast<float>((&res_tuple.x)[1]);
+      out[j + 2] = static_cast<float>((&res_tuple.x)[2]);
+      out[j + 3] = static_cast<float>((&res_tuple.x)[3]);
+
+    }
+    
+}
+
 __device__ __forceinline__ float BlockReduceSum(float sum) {     
     
     // Shared mem for partial sums (one per warp in the block)

@@ -48,21 +48,24 @@ namespace ir {
 using GroupPtr = std::shared_ptr<hlir::framework::Graph::Group>;
 
 
-enum ReduceType {  
-  kContiguous = 0,
-  
-  kNoConguous = 1,
+enum OpType {  
+  kContiguousWarpReduce = 0,
+  kContiguousBlockReduce = 1,  
+  kNoConguousReduce = 2,
+  kElementwise = 3,
 };
 
 struct CodeGenOption
 {
-  ReduceType reduce_type;
+  OpType op_type;
   
   int flatten_block;
   int reduce_block;
   int num_warp;
   int num_thread_per_warp;
   int reduce_dim;
+  int flatten_numel;
+  int reduce_numel;
 };
 
 ir::LoweredFunc process_warp_reduce(  hlir::framework::Graph* graph, CodeGenOption gen_opt, 

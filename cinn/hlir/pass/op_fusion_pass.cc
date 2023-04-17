@@ -125,9 +125,9 @@ class OpFusionPassHelper : public FusionHelperBase {
   void DoOpFusion() {
     for (auto consumer : nodes_) {
       // kNonFusible op can't fuse any other op.
-      if (GetOpKind(consumer) == framework::kNonFusible) {
-        continue;
-      }
+      // if (GetOpKind(consumer) == framework::kNonFusible) {
+      //   continue;
+      // }
 
       // fusion op for consumer
       auto consumer_fusion = fusion_groups_[consumer];
@@ -149,9 +149,9 @@ class OpFusionPassHelper : public FusionHelperBase {
         }
 
         // kNonFusible op can't fuse any other op.
-        if (GetOpKind(producer) == framework::kNonFusible) {
-          continue;
-        }
+        // if (GetOpKind(producer) == framework::kNonFusible) {
+        //   continue;
+        // }
         VLOG(3) << "Producer Op: " << producer->id() << ", Op Pattern: " << GetOpKind(producer)
                 << " -> Consumer Op: " << consumer->id() << ", Op Pattern: " << GetOpKind(consumer);
         bool can_fuse = true;
@@ -324,12 +324,12 @@ class OpFusionPassHelper : public FusionHelperBase {
 
   bool CanFuse(const Node* producer, const Node* consumer) {
     static std::set<std::string> support_op_list = { "reduce_max", "reduce_sum", "subtract", "add", "multipy", "mul", "divide", "exp", "sqrt", "fill_constant", "elementwise_mul",
-                                    "elementwise_add", "elementwise_div", "elementwise_sub" };
+                                    "elementwise_add", "elementwise_div", "elementwise_sub", "reshape", "scale", "cast", "greater_equal", "uniform_random" };
 
     if ( support_op_list.count(producer->op()->name) && support_op_list.count( consumer->op()->name ) )
     {
        // support op
-       
+       return true;
        // std::cerr << GetOpKind(producer) << "\t" << GetOpKind(consumer) << std::endl;
        if(  GetOpKind(producer) == framework::kElementWise  )
        {
@@ -351,6 +351,10 @@ class OpFusionPassHelper : public FusionHelperBase {
           }
        }
     }
+
+    std::cerr << "op fusion not support" << std::endl;
+    
+    throw std::runtime_error( "op fusion not support op");
     
 
 

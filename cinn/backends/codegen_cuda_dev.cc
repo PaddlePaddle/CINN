@@ -36,6 +36,7 @@ const std::string CodeGenCUDA_Dev::source_header_ =
 #include "float16.h"
 using cinn::common::float16;
 
+#include <curand_kernel.h>
 #include "cinn_cuda_runtime_source.cuh"
 )";
 
