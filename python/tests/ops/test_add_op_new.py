@@ -26,16 +26,22 @@ from cinn.common import *
                     "x86 test will be skipped due to timeout.")
 class TestElementwiseAddOp(OpTest):
     def setUp(self):
-        print(f"\nRunning test case {self.__class__.__name__}: {self.case}")
+        print(f"\nRunning {self.__class__.__name__}: {self.case}")
         self.prepare_inputs()
 
     def prepare_inputs(self):
-        self.x_np = np.random.random(self.case["x_shape"]).astype(
-            self.case["x_dtype"])
-        self.y_np = np.random.random(self.case["y_shape"]).astype(
-            self.case["y_dtype"])
-        self.dout_np = np.random.random(self.case["dout_shape"]).astype(
-            self.case["dout_dtype"])
+        self.x_np = self.random(
+            shape=self.case["x_shape"],
+            dtype=self.case["x_dtype"],
+            low=-10,
+            high=10)
+        self.y_np = self.random(
+            shape=self.case["y_shape"],
+            dtype=self.case["y_dtype"],
+            low=-10,
+            high=10)
+        self.dout_np = self.random(
+            self.case["dout_shape"], dtype=self.case["dout_dtype"])
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.x_np, stop_gradient=False)
