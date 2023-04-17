@@ -26,6 +26,7 @@ from cinn.common import *
                     "x86 test will be skipped due to timeout.")
 class TestElementwiseAddOp(OpTest):
     def setUp(self):
+        print(f"\nRunning test case {self.__class__.__name__}: {self.case}")
         self.prepare_inputs()
 
     def prepare_inputs(self):
@@ -95,17 +96,20 @@ class TestAddAll(TestCaseHelper):
             {
                 "x_shape": [3],
                 "y_shape": [3],
-                "dout_shape": [3]
+                "dout_shape": [3],
+                "axis": -1
             },
             {
                 "x_shape": [3, 3],
-                "y_shape": [3, 3],
-                "dout_shape": [3, 3]
+                "y_shape": [1],
+                "dout_shape": [3, 3],
+                "axis": -1
             },
             {
                 "x_shape": [3, 3, 3],
                 "y_shape": [3, 3, 3],
-                "dout_shape": [3, 3, 3]
+                "dout_shape": [3, 3, 3],
+                "axis": 0
             },
         ]
         self.dtypes = [
@@ -121,7 +125,7 @@ class TestAddAll(TestCaseHelper):
             },
         ]
         self.attrs = {
-            "axis": [-1, 0],
+            # "axis": [-1, 0],
         }
 
 

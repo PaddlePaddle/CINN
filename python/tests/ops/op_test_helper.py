@@ -12,8 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import argparse
 import itertools
 import unittest
+
+parser = argparse.ArgumentParser(description="Argparse for op test helper")
+parser.add_argument(
+    "--case",
+    type=int,
+    help="Which case you want to test, default -1 for all cases.",
+    default=-1)
+args = parser.parse_args()
 
 
 class TestCaseHelper():
@@ -54,10 +63,15 @@ class TestCaseHelper():
         self.init_attrs()
         self._init_cases()
         self.all_classes = []
-        for i, case in enumerate(self.all_cases):
+        if args.case >= 0:
             self.all_classes.append(
-                type(f'{self.class_name}{i}', (self.cls, ), {"case": case}))
-        return self.all_classes
+                type(f'{self.class_name}{args.case}', (self.cls, ),
+                     {"case": self.all_cases[args.case]}))
+        else:
+            for i, case in enumerate(self.all_cases):
+                self.all_classes.append(
+                    type(f'{self.class_name}{i}', (self.cls, ),
+                         {"case": case}))
 
     def run(self):
         """
