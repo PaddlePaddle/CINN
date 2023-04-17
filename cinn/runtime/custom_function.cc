@@ -19,10 +19,10 @@
 #endif
 
 #include "cinn/runtime/custom_function.h"
+#include "cinn/runtime/flags.h"
+#include "cinn/utils/string.h"
 
-#ifdef CINN_WITH_MKL_CBLAS
-#include "mkl_lapacke.h"
-#endif
+DECLARE_string(cinn_check_fusion_accuracy_pass);
 
 namespace cinn {
 namespace runtime {
@@ -32,6 +32,57 @@ using hlir::framework::Shape;
 using hlir::framework::Tensor;
 
 namespace utils {
+void AssertTrueMsgTool::SetMsg(int key, const std::string& msg) { global_msg_[key] = msg; }
+
+const std::string& AssertTrueMsgTool::GetMsg(int key) {
+  CHECK(global_msg_.find(key) != global_msg_.end()) << "Cannot find assert_true message key " << key;
+  return global_msg_[key];
+}
+
+void AssertTrueMsgTool::InitFlagInfo() {
+  // only need parse flag once
+  if (!flag_values_.empty()) {
+    return;
+  }
+  // default value
+  flag_values_ = {{"only_warning", false}, {"rtol", 1e-5f}, {"atol", 1e-8f}, {"equal_nan", false}};
+  if (CheckStringFlagFalse(FLAGS_cinn_check_fusion_accuracy_pass) ||
+      CheckStringFlagTrue(FLAGS_cinn_check_fusion_accuracy_pass)) {
+    // using default value
+    LOG(INFO) << "The FLAGS_cinn_check_fusion_accuracy_pass will check fusion group accuracy with: "
+                 "\"only_warning=false;rtol=1e-5;atol=1e-8;equal_nan=false\"";
+    return;
+  }
+
+  // parse flags
+  const auto& args = cinn::utils::Split(FLAGS_cinn_check_fusion_accuracy_pass, ";");
+  for (const auto& str : args) {
+    if (str.empty()) {
+      continue;
+    }
+    const auto& flag_arg = cinn::utils::Split(str, "=");
+    CHECK_EQ(flag_arg.size(), 2UL) << "The FLAGS_cinn_check_fusion_accuracy_pass must be the format of "
+                                      "\"only_warning=false;rtol=1e-5;atol=1e-8;equal_nan=false\"";
+
+    if (flag_arg[0] == "only_warning" || flag_arg[0] == "equal_nan") {
+      // bool type parameter
+      flag_values_[flag_arg[0]] = CheckStringFlagTrue(flag_arg[1]);
+    } else if (flag_arg[0] == "rtol" || flag_arg[0] == "atol") {
+      // string type parameter
+      flag_values_[flag_arg[0]] = std::stof(flag_arg[1]);
+    } else {
+      LOG(FATAL) << "The FLAGS_cinn_check_fusion_accuracy_pass only support parameter "
+                    "\"only_warning/rtol/atol/equal_nan\" now";
+    }
+  }
+
+  LOG(INFO) << "The FLAGS_cinn_check_fusion_accuracy_pass will check fusion group accuracy with: \""
+            << "only_warning=" << cinn::utils::Attribute2String(flag_values_.at("only_warning"))
+            << ";rtol=" << cinn::utils::Attribute2String(flag_values_.at("rtol"))
+            << ";atol=" << cinn::utils::Attribute2String(flag_values_.at("atol"))
+            << ";equal_nan=" << cinn::utils::Attribute2String(flag_values_.at("equal_nan")) << "\"";
+}
+
 bool MemcpyToHost(void* dst, const void* src, size_t bytes, const Target& input_target, void* stream = nullptr) {
   if (input_target == common::DefaultNVGPUTarget()) {
 #ifdef CINN_WITH_CUDA
@@ -90,10 +141,10 @@ void CheckAssertTrue(
   // raise error information
   if (error_num > 0) {
     std::string error_info = "[AssertTrue] Check failed!\n";
-    error_info += "\t- target: " + target.arch_str() + "\n";
-    error_info += "\t- assert false number: " + std::to_string(error_num) + "\n";
-    error_info += "\t- first false offset: " + std::to_string(first_diff) + "\n";
-    error_info += "\t- message: " + msg;
+    error_info += "- target: " + target.arch_str() + "\n";
+    error_info += "- assert false number: " + std::to_string(error_num) + "\n";
+    error_info += "- first false offset: " + std::to_string(first_diff) + "\n";
+    error_info += "- group message:\n" + msg;
 
     if (only_warning) {
       LOG(WARNING) << error_info;
@@ -102,19 +153,17 @@ void CheckAssertTrue(
     }
   } else {
     VLOG(1) << "[AssertTrue] Check succeed!\n"
-            << "\t- message: " + msg;
+            << "- group message:\n" + msg;
   }
 }
 
-void cinn_assert_true(void* v_args, int msg, bool only_warning, void* stream) {
+void cinn_assert_true(void* v_args, int num_args, int msg, bool only_warning, void* stream, const Target& target) {
   // why x->type and output->type are empty?
   // CHECK(x->type == cinn_bool_t()) << "The input type of AssertTrue should be bool, but here " << x->type.bits
   //                                 << "! Please check.";
   // CHECK(output->type == cinn_bool_t()) << "The output type of AssertTrue should be bool, but here " <<
   // output->type.bits
   //                                      << "! Please check.";
-
-  const Target& target = common::DefaultTarget();
 
   cinn_pod_value_t* args = static_cast<cinn_pod_value_t*>(v_args);
 
@@ -137,43 +186,13 @@ void cinn_assert_true(void* v_args, int msg, bool only_warning, void* stream) {
   size_t numel    = cpu_tensor->shape().numel();
   utils::MemcpyToHost(dst, src, numel * sizeof(bool), target, stream);
 
-  CheckAssertTrue(dst, numel, only_warning, std::to_string(msg), target);
+  CheckAssertTrue(dst, numel, only_warning, utils::AssertTrueMsgTool::GetInstance()->GetMsg(msg), target);
 
   if (target == common::DefaultNVGPUTarget()) {
     utils::MemcpyToDevice(output->memory, x->memory, numel * sizeof(bool), target, stream);
   } else {
     utils::MemcpyToHost(output->memory, x->memory, numel * sizeof(bool), target, stream);
   }
-}
-
-/**
- * This function is temporarily unavailable, see the error message in the following PR for details.
- * The specific reason may be that the custom call does not support host op.
- * See: https://github.com/PaddlePaddle/CINN/pull/1133
- */
-void cinn_call_cholesky_host(void* v_args, int num_args, int batch_size, int m, bool upper) {
-#ifdef CINN_WITH_MKL_CBLAS
-  cinn_pod_value_t* args = static_cast<cinn_pod_value_t*>(v_args);
-
-  cinn_buffer_t* x   = args[0].operator cinn_buffer_t*();
-  cinn_buffer_t* out = args[1].operator cinn_buffer_t*();
-  memcpy(out->memory, x->memory, x->memory_size);
-
-  uint8_t bits = x->type.bits;
-  CHECK(bits == 32 || bits == 64) << "Unsupported bits = " << bits << " float data type for cholesky";
-  char uplo = upper ? 'U' : 'L';
-  for (int i = 0; i < batch_size; i++) {
-    if (bits == 32) {
-      float* matrix = reinterpret_cast<float*>(out->memory) + i * m * m;
-      LAPACKE_spotrf(LAPACK_ROW_MAJOR, uplo, m, matrix, m);
-    } else if (bits == 64) {
-      double* matrix = reinterpret_cast<double*>(out->memory) + i * m * m;
-      LAPACKE_dpotrf(LAPACK_ROW_MAJOR, uplo, m, matrix, m);
-    }
-  }
-#else
-  CINN_NOT_IMPLEMENTED
-#endif
 }
 
 }  // namespace runtime

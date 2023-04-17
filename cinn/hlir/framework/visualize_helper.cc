@@ -26,12 +26,106 @@
 #include <vector>
 
 #include "cinn/hlir/framework/graph.h"
+#include "cinn/runtime/flags.h"
 #include "cinn/utils/dot_lang.h"
 #include "cinn/utils/string.h"
 
+DECLARE_string(cinn_pass_visualize_dir);
+DECLARE_string(cinn_check_fusion_accuracy_pass);
 namespace cinn {
 namespace hlir {
 namespace framework {
+
+bool PassPrinter::Begin(const std::unordered_set<std::string>& fetch_ids) {
+  if (FLAGS_cinn_pass_visualize_dir.empty()) {
+    VLOG(3) << "No set \"FLAGS_cinn_pass_visualize_dir\", the pass visualize information will print directly.";
+    save_path_.clear();
+    return false;
+  }
+  pass_id_   = 0;
+  fetch_ids_ = fetch_ids;
+
+  save_path_ = utils::StringFormat("%s/fusion_groups_%d/", FLAGS_cinn_pass_visualize_dir.c_str(), graph_id_);
+  if (!MakeDirectory(save_path_, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)) {
+    LOG_IF(WARNING, graph_id_ == 0) << "Failed to make directory: \"" << save_path_
+                                    << "\", the CINN subgraph's pass visualize information will not print.";
+    return false;
+  }
+  LOG_IF(INFO, graph_id_ == 0) << "The CINN subgraph's pass visualize information will writing into path: \""
+                               << FLAGS_cinn_pass_visualize_dir << "\"";
+  return true;
+}
+
+bool PassPrinter::PassBegin(const std::string& pass_name, const frontend::Program& program) {
+  const auto& program_info = utils::GetStreamCnt(program);
+  if (save_path_.empty()) {
+    VLOG(3) << "Before " << pass_name << " Pass:\n" << program_info;
+    return false;
+  }
+  const std::string& file_path =
+      utils::StringFormat("%s/pass_%d_%s_before.txt", save_path_.c_str(), pass_id_, pass_name.c_str());
+  WriteToFile(file_path, program_info);
+  return true;
+}
+
+bool PassPrinter::PassEnd(const std::string& pass_name, const frontend::Program& program) {
+  const auto& program_info = utils::GetStreamCnt(program);
+  if (save_path_.empty()) {
+    VLOG(3) << "After " << pass_name << " Pass:\n" << program_info;
+    return false;
+  }
+  const std::string& file_path =
+      utils::StringFormat("%s/pass_%d_%s_after.txt", save_path_.c_str(), pass_id_, pass_name.c_str());
+  WriteToFile(file_path, program_info);
+
+  ++pass_id_;
+  return true;
+}
+
+bool PassPrinter::PassBegin(const std::string& pass_name, Graph* g) {
+  const auto& graph_info = g->DebugGroupedGraph(fetch_ids_);
+  if (save_path_.empty()) {
+    VLOG(3) << "Before " << pass_name << " Pass:\n" << graph_info;
+    return false;
+  }
+  const std::string& file_path =
+      utils::StringFormat("%s/pass_%d_%s_before.txt", save_path_.c_str(), pass_id_, pass_name.c_str());
+  WriteToFile(file_path, graph_info);
+
+  const auto& dot_info = g->VisualizeGraph(fetch_ids_);
+  const std::string& dot_path =
+      utils::StringFormat("%s/pass_%d_%s_before.dot", save_path_.c_str(), pass_id_, pass_name.c_str());
+  WriteToFile(dot_path, dot_info);
+  return true;
+}
+
+bool PassPrinter::PassEnd(const std::string& pass_name, Graph* g) {
+  const auto& graph_info = g->DebugGroupedGraph(fetch_ids_);
+  if (save_path_.empty()) {
+    VLOG(3) << "After " << pass_name << " Pass:\n" << graph_info;
+    return false;
+  }
+  const std::string& file_path =
+      utils::StringFormat("%s/pass_%d_%s_after.txt", save_path_.c_str(), pass_id_, pass_name.c_str());
+  WriteToFile(file_path, graph_info);
+
+  const auto& dot_info = g->VisualizeGraph(fetch_ids_);
+  const std::string& dot_path =
+      utils::StringFormat("%s/pass_%d_%s_after.dot", save_path_.c_str(), pass_id_, pass_name.c_str());
+  WriteToFile(dot_path, dot_info);
+
+  ++pass_id_;
+  return true;
+}
+
+bool PassPrinter::End() {
+  ++graph_id_;
+
+  pass_id_ = 0;
+  fetch_ids_.clear();
+  save_path_.clear();
+  return true;
+}
 
 bool MakeDirectory(const std::string& dirname, mode_t mode) {
   auto len = dirname.length();
@@ -307,6 +401,37 @@ void AddGroupNode(const Node* node,
       dot->AddEdge(dot_node_id, dot_outnode_id, {});
     }
   }
+}
+
+bool IsAccCheckOp(const Node* op) { return op->attrs.node_name.find("_acc_check") != std::string::npos; }
+bool IsAccCheckVar(const NodeData* var) { return var->id().find("_acc_check") != std::string::npos; }
+
+std::string GenerateAccCheckNodeId(const std::string& node_id) {
+  return node_id + cinn::common::UniqName("_acc_check");
+}
+
+bool IsAccCheckGroup(const std::vector<Node*>& group) {
+  for (auto* node : group) {
+    if (IsAccCheckOp(node)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+std::vector<std::vector<Node*>> RemoveAccCheckGroups(const std::vector<std::vector<Node*>>& groups) {
+  if (cinn::runtime::CheckStringFlagFalse(FLAGS_cinn_check_fusion_accuracy_pass)) {
+    // no set acc check flag
+    return groups;
+  }
+
+  std::vector<std::vector<Node*>> new_groups;
+  for (const auto& group : groups) {
+    if (!IsAccCheckGroup(group)) {
+      new_groups.emplace_back(group);
+    }
+  }
+  return new_groups;
 }
 
 }  // namespace framework

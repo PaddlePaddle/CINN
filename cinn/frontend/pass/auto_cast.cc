@@ -219,8 +219,6 @@ class AutoCastPass : public ProgramPass {
   void ApplyImpl(Program* program,
                  const std::unordered_set<std::string>& fetch_ids,
                  const common::Target& target) override {
-    VLOG(3) << "Before AutoCastPass: " << *program;
-
     NetBuilder builder("auto_cast_builder");
     for (auto& var : program->GetInputs()) {
       builder.CreateInput(var);
@@ -235,7 +233,6 @@ class AutoCastPass : public ProgramPass {
       }
     }
     *program = builder.Build();
-    VLOG(3) << "After AutoCastPass: " << *program;
   }
 
   void Clear() override {}

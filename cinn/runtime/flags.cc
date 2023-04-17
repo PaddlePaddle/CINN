@@ -17,6 +17,8 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
+#include <unordered_set>
+
 #ifdef CINN_WITH_CUDNN
 DEFINE_bool(cinn_cudnn_deterministic,
             false,
@@ -57,10 +59,10 @@ DEFINE_bool(cinn_use_fill_constant_folding,
             BoolFromEnv("FLAGS_cinn_use_fill_constant_folding", false),
             "Whether use the FillConstantFolding pass.");
 
-DEFINE_bool(cinn_check_fusion_accuracy_pass,
-            BoolFromEnv("FLAGS_cinn_check_fusion_accuracy_pass", false),
-            "Check the correct of fusion kernels, if the results not satisfied 'allclose(rtol=1e-05f, atol=1e-08f)', "
-            "report error and exited.");
+DEFINE_string(cinn_check_fusion_accuracy_pass,
+              StringFromEnv("FLAGS_cinn_check_fusion_accuracy_pass", ""),
+              "Check the correct of fusion kernels, if the results not satisfied 'allclose(rtol=1e-05f, atol=1e-08f)', "
+              "report error and exited.");
 
 DEFINE_bool(cinn_use_cuda_vectorize,
             BoolFromEnv("FLAGS_cinn_use_cuda_vectorize", false),
@@ -101,6 +103,10 @@ DEFINE_string(cinn_source_code_save_path,
               StringFromEnv("FLAGS_cinn_source_code_save_path", ""),
               "Specify the directory path of generated source code, which is used for debug.");
 
+DEFINE_string(cinn_pass_visualize_dir,
+              StringFromEnv("FLAGS_cinn_pass_visualize_dir", ""),
+              "Specify the directory path of pass visualize file of graph, which is used for debug.");
+
 DEFINE_bool(enable_auto_tuner, BoolFromEnv("FLAGS_enable_auto_tuner", false), "Whether enable auto tuner.");
 
 DEFINE_bool(auto_schedule_use_cost_model,
@@ -108,8 +114,27 @@ DEFINE_bool(auto_schedule_use_cost_model,
             "Whether to use cost model in auto schedule, this is an on-developing flag and it will be removed when "
             "cost model is stable.");
 
+DEFINE_bool(enhance_vertical_fusion_with_recompute,
+            BoolFromEnv("FLAGS_enhance_vertical_fusion_with_recompute", false),
+            "Whether to enhance check logic on vertical fusion with recompute");
+
 namespace cinn {
 namespace runtime {
+
+bool CheckStringFlagTrue(const std::string& flag) {
+  // from gflag FlagValue::ParseFrom:
+  // https://github.com/gflags/gflags/blob/master/src/gflags.cc#L292
+  static const std::unordered_set<std::string> kTrue = {"1", "t", "true", "y", "yes", "T", "True", "TRUE", "Y", "yes"};
+  return kTrue.count(flag);
+}
+
+bool CheckStringFlagFalse(const std::string& flag) {
+  // from gflag FlagValue::ParseFrom:
+  // https://github.com/gflags/gflags/blob/master/src/gflags.cc#L292
+  static const std::unordered_set<std::string> kFalse = {
+      "0", "f", "false", "n", "no", "F", "False", "FALSE", "N", "No", "NO"};
+  return flag.empty() || kFalse.count(flag);
+}
 
 void SetCinnCudnnDeterministic(bool state) {
 #ifdef CINN_WITH_CUDNN

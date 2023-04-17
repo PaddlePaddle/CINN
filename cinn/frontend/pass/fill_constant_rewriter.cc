@@ -142,7 +142,6 @@ class FillConstantRewriterPass : public ProgramPass {
   void ApplyImpl(Program* program,
                  const std::unordered_set<std::string>& fetch_ids,
                  const common::Target& target) override {
-    VLOG(3) << "Before FillConstantRewriterPass:\n" << *program;
     auto input2instr = GetInput2Instr(program);
 
     std::unordered_set<const Instruction*> remove_instr;
@@ -168,8 +167,6 @@ class FillConstantRewriterPass : public ProgramPass {
       }
     }
     *program = builder.Build();
-
-    VLOG(3) << "After FillConstantRewriterPass:\n" << *program;
   }
 
  private:

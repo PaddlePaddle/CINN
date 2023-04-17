@@ -100,6 +100,36 @@ void cinn_cpu_mkl_gemm_batch_fp32(float alpha,
                     &batch_size);
 }
 
+/**
+ * This function is temporarily unavailable, see the error message in the following PR for details.
+ * The specific reason may be that the custom call does not support host op.
+ * See: https://github.com/PaddlePaddle/CINN/pull/1133
+ */
+void cinn_call_cholesky_host(void* v_args, int num_args, int batch_size, int m, bool upper) {
+#ifdef CINN_WITH_MKL_CBLAS
+  cinn_pod_value_t* args = static_cast<cinn_pod_value_t*>(v_args);
+
+  cinn_buffer_t* x   = args[0].operator cinn_buffer_t*();
+  cinn_buffer_t* out = args[1].operator cinn_buffer_t*();
+  memcpy(out->memory, x->memory, x->memory_size);
+
+  uint8_t bits = x->type.bits;
+  CHECK(bits == 32 || bits == 64) << "Unsupported bits = " << bits << " float data type for cholesky";
+  char uplo = upper ? 'U' : 'L';
+  for (int i = 0; i < batch_size; i++) {
+    if (bits == 32) {
+      float* matrix = reinterpret_cast<float*>(out->memory) + i * m * m;
+      LAPACKE_spotrf(LAPACK_ROW_MAJOR, uplo, m, matrix, m);
+    } else if (bits == 64) {
+      double* matrix = reinterpret_cast<double*>(out->memory) + i * m * m;
+      LAPACKE_dpotrf(LAPACK_ROW_MAJOR, uplo, m, matrix, m);
+    }
+  }
+#else
+  CINN_NOT_IMPLEMENTED
+#endif
+}
+
 CINN_REGISTER_HELPER(cinn_cpu_mkl) {
   using namespace cinn;  // NOLINT
   using backends::FunctionProto;
@@ -181,6 +211,15 @@ CINN_REGISTER_HELPER(cinn_cpu_mkl) {
       .AddInputType<cinn_buffer_t*>()   // B
       .AddOutputType<cinn_buffer_t*>()  // C
       .SetShapeInference(inference_shape_gemm_batch)
+      .End();
+
+  REGISTER_EXTERN_FUNC_HELPER(cinn_call_cholesky_host, host_target)
+      .SetRetType<void>()
+      .AddInputType<void*>()  // v_args
+      .AddInputType<int>()    // num_args
+      .AddInputType<int>()    // batch_size
+      .AddInputType<int>()    // m
+      .AddInputType<bool>()   // upper
       .End();
 
   return true;
