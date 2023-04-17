@@ -450,7 +450,7 @@ void OptimizeExprGPU(Expr *expr) {
     }
     return x->As<ir::Store>();
   });
-  std::reverse(tensor_traverse_order.begin(), tensor_traverse_order.end());
+  // std::reverse(tensor_traverse_order.begin(), tensor_traverse_order.end());
   forloop_infos_t forloop_infos;
 
   // Add loops bound by gpu axis in for_loop_info.
