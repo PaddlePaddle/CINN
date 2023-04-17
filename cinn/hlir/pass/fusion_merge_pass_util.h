@@ -71,35 +71,6 @@ CONDITION_FUNC(is_same_size) {
   return size_0 == size_1;
 }
 
-CONDITION_FUNC(is_broadcast) {
-  if (!limit_args(helper, first, second)) {
-    return false;
-  }
-  if (is_same_size) {
-    return true;
-  }
-
-  auto is_broadcast_to = [](shape_t shape_0, shape_t shape_1) -> bool {
-    for (auto i = 0; i < shape_0.size(); ++i) {
-      bool found_dim = false;
-      for (auto j = i; j < shape_1.size(); ++j) {
-        if (shape_0[i] == shape_1[j]) {
-          found_dim = true;
-          break;
-        }
-      }
-      if (!found_dim) {
-        return false;
-      }
-    }
-    return true;
-  };
-
-  auto output_var_0 = helper->GetNodeDataShape(*first->master_nodes.begin());
-  auto output_var_1 = helper->GetNodeDataShape(*second->master_nodes.begin());
-  return is_broadcast_to(output_var_0, output_var_1) || is_broadcast_to(output_var_1, output_var_0);
-}
-
 bool is_const_group(const FusionHelperBase* helper, const std::shared_ptr<Graph::Group>& group) {
   return group->CollectNodes().size() == 1 && helper->IsConstOp(group->CollectNodes()[0]);
 };
@@ -311,110 +282,100 @@ CONDITION_FUNC(reduce_fuse_broadcast) {
     return true;
   }
 
-  // Find the reduce node in first group.
-  // Since the reduce nodes in the same group have the same computational characteristics,
-  // we only need to find one to represent the entire group.
-  Node* reducer = nullptr;
+  // Traversing all reducers in all producers requires two types of conditions to be met.
+  // The first type is the condition that the reducer itself needs to meet,
+  // and the second type is the condition that the relationship between each reducer and its consumers with type of
+  // Broadcast needs to meet. It is required that each consumer of type Broadcast meet the same shape after broadcast as
+  // before reduce.
   for (auto& node_in_master : first->master_nodes) {
-    if (helper->GetOpKind(node_in_master) == OpPatternKind::kReduction) {
-      reducer = node_in_master;
-      break;
+    if (helper->GetOpKind(node_in_master) != OpPatternKind::kReduction) {
+      continue;
     }
-  }
-  CHECK(reducer) << "Can't find reduce op in group " << first->group_id;
-
-  // Get some reduce infomation
-  auto reducer_input_shape  = helper->GetNodeInputShape(reducer);
-  auto reducer_output_shape = helper->GetNodeDataShape(reducer);
-  auto reduce_axes          = absl::get<std::vector<int>>(reducer->attrs.attr_store.at("dim"));
-  auto keep_dim             = absl::get<bool>(reducer->attrs.attr_store.at("keep_dim"));
-  for (auto& axis : reduce_axes) {
-    if (axis == -1) {
-      axis = reducer_input_shape.size() - 1;
+    Node* reducer = node_in_master;
+    // First type conditions
+    // Get some reduce infomation
+    auto reducer_input_shape  = helper->GetNodeInputShape(reducer);
+    auto reducer_output_shape = helper->GetNodeDataShape(reducer);
+    auto reduce_axes          = absl::get<std::vector<int>>(reducer->attrs.attr_store.at("dim"));
+    auto keep_dim             = absl::get<bool>(reducer->attrs.attr_store.at("keep_dim"));
+    for (auto& axis : reduce_axes) {
+      if (axis == -1) {
+        axis = reducer_input_shape.size() - 1;
+      }
     }
-  }
-  // Check if the reduce axes are continuous
-  int reduce_size = reducer_input_shape.back();
-  for (auto idx = reduce_axes.size() - 1; idx >= 1; --idx) {
-    if (reduce_axes[idx] != reduce_axes[idx - 1] + 1) {
+    // Check if the reduce axes are continuous
+    int reduce_size = reducer_input_shape.back();
+    for (auto idx = reduce_axes.size() - 1; idx >= 1; --idx) {
+      if (reduce_axes[idx] != reduce_axes[idx - 1] + 1) {
+        return false;
+      }
+      reduce_size *= reducer_input_shape[idx - 1];
+    }
+    // Check if the reduce size exceeds the hardware limit
+    if (reduce_size > helper->target_.max_num_threads()) {
       return false;
     }
-    reduce_size *= reducer_input_shape[idx - 1];
-  }
-  // Check if the reduce size exceeds the hardware limit
-  if (reduce_size > helper->target_.max_num_threads()) {
-    return false;
-  }
 
-  // Aggregate all nodes in all fused_sub_groups of second group
-  std::unordered_set<Node*> all_nodes_in_second_group;
-  for (const auto& group : second->fused_sub_groups) {
-    all_nodes_in_second_group.insert(group->nodes_set.begin(), group->nodes_set.end());
-  }
+    // Second type conditions
+    // Find directly or indirectly consumers with type of Broadcast in the second group
+    auto find_broadcasters_in_descendants = [&](const Node* producer) -> std::unordered_set<const Node*> {
+      std::queue<const Node*> candidates;
+      std::unordered_set<const Node*> visited_set;
+      std::unordered_set<const Node*> broadcasters;
+      candidates.push(producer);
 
-  // Check if the reducer is the ancestor of the node and is the producer node of nodes_set
-  auto is_reducer_in_ancestors =
-      [&](const Node* node, const Node* reducer, const std::unordered_set<Node*>& nodes_set) {
-        std::queue<const Node*> candidates;
-        candidates.push(node);
+      while (!candidates.empty()) {
+        auto candidate = candidates.front();
+        candidates.pop();
 
-        while (!candidates.empty()) {
-          auto candidate = candidates.front();
-          candidates.pop();
-
-          for (auto producer : helper->GetProducerNode(candidate)) {
-            if (producer == reducer) {
-              return true;
-            }
-
-            if (nodes_set.count(producer)) {
-              candidates.push(producer);
-            }
+        for (auto consumer : helper->GetConsumerNode(candidate)) {
+          if (helper->GetOpKind(consumer) == OpPatternKind::kBroadcast &&
+              second->NodeSet().find(consumer) != second->NodeSet().end()) {
+            broadcasters.insert(consumer);
+          } else if (!visited_set.count(consumer)) {
+            visited_set.insert(consumer);
+            candidates.push(consumer);
           }
         }
-
-        return false;
-      };
-
-  // Check if each broadcast node in the group meets the conditions
-  for (auto node : all_nodes_in_second_group) {
-    if (helper->GetOpKind(node) != OpPatternKind::kBroadcast) {
-      continue;
-    }
-    if (!is_reducer_in_ancestors(node, reducer, all_nodes_in_second_group)) {
-      continue;
-    }
-    Node* broadcaster             = node;
-    auto broadcaster_output_shape = absl::get<std::vector<int>>(broadcaster->attrs.attr_store.at("out_shape"));
-    auto broadcast_axes           = absl::get<std::vector<int>>(broadcaster->attrs.attr_store.at("broadcast_axes"));
-    for (auto& axis : broadcast_axes) {
-      if (axis == -1) {
-        axis = broadcaster_output_shape.size() - 1;
       }
-    }
 
-    if (reducer_input_shape != broadcaster_output_shape) {
-      return false;
-    }
+      return broadcasters;
+    };
 
-    if (keep_dim) {
-      return true;
-    } else {
-      // if reducer_output_shape = [1]
-      if (reducer_output_shape.size() == 1 && reducer_output_shape[0] == 1) {
-        return true;
-      }
-      // check union [reduce_axes, broadcast_axes] = reducer_input_shape
-      for (int idx = 0; idx < reducer_input_shape.size(); ++idx) {
-        if (!(std::find(broadcast_axes.begin(), broadcast_axes.end(), idx) == broadcast_axes.end()) ^
-            std::find(reduce_axes.begin(), reduce_axes.end(), idx) == reduce_axes.end()) {
-          return false;
+    // Check if each broadcast node meets the conditions
+    std::unordered_set<const Node*> broadcasters_in_consumers = find_broadcasters_in_descendants(reducer);
+    for (auto broadcaster : broadcasters_in_consumers) {
+      auto broadcaster_output_shape = absl::get<std::vector<int>>(broadcaster->attrs.attr_store.at("out_shape"));
+      auto broadcast_axes           = absl::get<std::vector<int>>(broadcaster->attrs.attr_store.at("broadcast_axes"));
+      for (auto& axis : broadcast_axes) {
+        if (axis == -1) {
+          axis = broadcaster_output_shape.size() - 1;
         }
       }
-      return true;
+
+      if (reducer_input_shape != broadcaster_output_shape) {
+        return false;
+      }
+
+      if (keep_dim) {
+        continue;
+      } else {
+        // if reducer_output_shape = [1]
+        if (reducer_output_shape.size() == 1 && reducer_output_shape[0] == 1) {
+          continue;
+        }
+        // check union [reduce_axes, broadcast_axes] = reducer_input_shape
+        for (int idx = 0; idx < reducer_input_shape.size(); ++idx) {
+          if (!(std::find(broadcast_axes.begin(), broadcast_axes.end(), idx) == broadcast_axes.end()) ^
+              std::find(reduce_axes.begin(), reduce_axes.end(), idx) == reduce_axes.end()) {
+            return false;
+          }
+        }
+      }
     }
   }
-  return false;
+
+  return true;
 }
 
 CONDITION_FUNC(reduce_fuse_reduce) {
