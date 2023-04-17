@@ -124,14 +124,15 @@ namespace runtime {
 bool CheckStringFlagTrue(const std::string& flag) {
   // from gflag FlagValue::ParseFrom:
   // https://github.com/gflags/gflags/blob/master/src/gflags.cc#L292
-  static const std::unordered_set<std::string> kTrue = {"1", "t", "true", "y", "yes"};
+  static const std::unordered_set<std::string> kTrue = {"1", "t", "true", "y", "yes", "T", "True", "TRUE", "Y", "yes"};
   return kTrue.count(flag);
 }
 
 bool CheckStringFlagFalse(const std::string& flag) {
   // from gflag FlagValue::ParseFrom:
   // https://github.com/gflags/gflags/blob/master/src/gflags.cc#L292
-  static const std::unordered_set<std::string> kFalse = {"0", "f", "false", "n", "no"};
+  static const std::unordered_set<std::string> kFalse = {
+      "0", "f", "false", "n", "no", "F", "False", "FALSE", "N", "No", "NO"};
   return flag.empty() || kFalse.count(flag);
 }
 

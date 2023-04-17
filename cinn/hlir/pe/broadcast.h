@@ -115,6 +115,7 @@ ir::Tensor BroadcastTo(const ir::Tensor& A,
 // This operator checks if all x and y satisfy the condition: |x - y| <= atol + rtol * |y|
 ir::Tensor IsClose(const ir::Tensor& x,
                    const ir::Tensor& y,
+                   int axis                    = -1,
                    float rtol                  = 1e-05f,
                    float atol                  = 1e-08f,
                    bool equal_nan              = false,

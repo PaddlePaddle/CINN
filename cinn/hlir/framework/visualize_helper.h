@@ -40,7 +40,7 @@ class PassPrinter {
     return &printer;
   }
 
-  bool Begin();
+  bool Begin(const std::unordered_set<std::string>& fetch_ids = {});
   bool PassBegin(const std::string& pass_name, const frontend::Program& program);
   bool PassEnd(const std::string& pass_name, const frontend::Program& program);
   bool PassBegin(const std::string& pass_name, Graph* g);
@@ -48,6 +48,7 @@ class PassPrinter {
   bool End();
 
  private:
+  std::unordered_set<std::string> fetch_ids_;
   std::string save_path_;
   int64_t graph_id_{0};
   int64_t pass_id_{0};

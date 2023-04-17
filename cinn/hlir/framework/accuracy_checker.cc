@@ -14,6 +14,9 @@
 
 #include "cinn/hlir/framework/accuracy_checker.h"
 
+#include <iomanip>
+#include <limits>
+
 #ifdef CINN_WITH_CUDA
 #include <cuda_runtime.h>
 #endif
@@ -26,6 +29,33 @@ namespace framework {
 
 using cinn::common::float16;
 
+template <typename T>
+std::string PrintValue(const T& value) {
+  std::stringstream ss;
+  if (std::is_floating_point<T>::value) {
+    ss << std::showpoint;
+  }
+  ss << std::setprecision(std::numeric_limits<T>::max_digits10);
+
+  if (std::is_integral<T>::value) {
+    if (std::is_unsigned<T>::value) {
+      ss << static_cast<uint64_t>(value);
+    } else {
+      ss << static_cast<int64_t>(value);
+    }
+  } else {
+    ss << value;
+  }
+  return ss.str();
+}
+
+template <>
+std::string PrintValue<bool>(const bool& value) {
+  std::stringstream ss;
+  ss << std::boolalpha << value;
+  return ss.str();
+}
+
 template <typename T, typename Alloc = std::allocator<T>>
 std::ostream& operator<<(std::ostream& os, const std::vector<T, Alloc>& vec) {
   os << "{";
@@ -36,11 +66,7 @@ std::ostream& operator<<(std::ostream& os, const std::vector<T, Alloc>& vec) {
     } else {
       os << ", ";
     }
-    if (std::is_integral<T>::value) {
-      os << static_cast<int64_t>(e);
-    } else {
-      os << e;
-    }
+    os << PrintValue(e);
   }
   os << "}";
   return os;
@@ -96,30 +122,18 @@ std::string DebugString(const Tensor& cpu_tensor, const std::string& name, const
       if (i > 0) {
         ss << ", ";
       }
-      if (std::is_integral<T>::value) {
-        ss << static_cast<int64_t>(data[i]);
-      } else {
-        ss << data[i];
-      }
+      ss << PrintValue(data[i]);
     }
   } else {
     for (size_t i = 0; i < print_num; ++i) {
       if (i > 0) {
         ss << ", ";
       }
-      if (std::is_integral<T>::value) {
-        ss << static_cast<int64_t>(data[i]);
-      } else {
-        ss << data[i];
-      }
+      ss << PrintValue(data[i]);
     }
-    ss << " ... ";
+    ss << ", ... , ";
     for (size_t i = numel - print_num; i < numel; ++i) {
-      if (std::is_integral<T>::value) {
-        ss << static_cast<int64_t>(data[i]);
-      } else {
-        ss << data[i];
-      }
+      ss << PrintValue(data[i]);
       if (i != numel - 1) {
         ss << ", ";
       }
