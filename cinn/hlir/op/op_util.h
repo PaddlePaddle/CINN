@@ -106,8 +106,6 @@ std::vector<T> ToPodVector(const std::vector<Expr> &args) {
   return shape_v;
 }
 
-std::vector<int> GetPositiveAxes(const std::vector<int> &axes, int rank);
-
 using CINNSchedule = lang::PackedFunc;
 
 CINNSchedule GetElementwiseScheduleFunc(const std::vector<std::vector<int>> &output_shapes,
@@ -117,5 +115,8 @@ CINNSchedule GetElementwiseScheduleFunc(const std::vector<std::vector<int>> &out
 CINNSchedule GetInjectiveScheduleFunc(const std::vector<std::vector<int>> &output_shapes,
                                       const Target &target,
                                       bool vectorizable = true);
+
+std::string GetExternFuncName(const common::Target &target, const common::Type &type, const std::string &func_name);
+
 }  // namespace hlir
 }  // namespace cinn

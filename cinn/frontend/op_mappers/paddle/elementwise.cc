@@ -167,6 +167,7 @@ void CastOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
   auto out_name = op_desc.Output("Out").front();
 
+  CHECK(op_desc.HasAttr("out_dtype")) << "The cast op should has [out_dtype] attribute!";
   auto dtype =
       utils::GetAttrOrDefault<int>(op_desc, "out_dtype", static_cast<int>(paddle::cpp::VarDescAPI::Type::FP32));
   auto str_dtype = common::Type2Str(utils::CppVarType2CommonType(static_cast<paddle::cpp::VarDescAPI::Type>(dtype)));
@@ -210,6 +211,27 @@ void PowOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx)
   ctx.AddVarModelToProgram(out_name, out->id);
 }
 
+void FloorDivideOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+  CHECK_EQ(op_desc.Input("X").size(), 1UL);
+  auto x_name = op_desc.Input("X").front();
+  CHECK_EQ(op_desc.Input("Y").size(), 1UL);
+  auto y_name = op_desc.Input("Y").front();
+  CHECK_EQ(op_desc.Output("Out").size(), 1UL);
+  auto out_name = op_desc.Output("Out").front();
+
+  auto x = ctx.GetVar(x_name);
+  auto y = ctx.GetVar(y_name);
+
+  VLOG(4) << out_name << " = ⌊ " << x_name << " / " << y_name << " ⌋";
+  CHECK_EQ(x->type, y->type) << "Type of input x and y must be the same.";
+  CHECK(x->type.is_int()) << "Type of inputs must be int32 or int64.";
+
+  auto out = ctx.Builder()->FloorDivide(x, y);
+
+  ctx.AddVar(out_name, out);
+  ctx.AddVarModelToProgram(out_name, out->id);
+}
+
 }  // namespace paddle_mappers
 }  // namespace frontend
 }  // namespace cinn
@@ -231,5 +253,6 @@ CINN_REGISTER_HELPER(paddle_elementwise) {
   CINN_REGISTER_OP_MAPPER(pow, PowOpMapper)
   CINN_REGISTER_OP_MAPPER(grad_add,
                           ElementwiseOpMapper<EltwiseType::kAdd>)  // special elementwise_add for gradient accumulation
+  CINN_REGISTER_OP_MAPPER(elementwise_floordiv, FloorDivideOpMapper)
   return true;
 }

@@ -260,7 +260,11 @@ std::shared_ptr<OpStrategy> StrategyForIsClose(const framework::NodeAttr &attrs,
                                                const Target &target) {
   float rtol = 1e-05f, atol = 1e-08f;
   bool equal_nan = false;
+  int axis       = -1;
 
+  if (attrs.attr_store.count("axis")) {
+    axis = absl::get<int>(attrs.attr_store.at("axis"));
+  }
   if (attrs.attr_store.count("rtol")) {
     rtol = absl::get<float>(attrs.attr_store.at("rtol"));
   }
@@ -293,7 +297,7 @@ std::shared_ptr<OpStrategy> StrategyForIsClose(const framework::NodeAttr &attrs,
     CHECK(y_expr.as_tensor());
     auto y_tensor = y_expr.as_tensor_ref();
 
-    auto out = pe::IsClose(x_tensor, y_tensor, rtol, atol, equal_nan, tensor_name);
+    auto out = pe::IsClose(x_tensor, y_tensor, axis, rtol, atol, equal_nan, tensor_name);
 
     auto stages = CreateStages({out});
     *ret        = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
@@ -305,22 +309,12 @@ std::shared_ptr<OpStrategy> StrategyForIsClose(const framework::NodeAttr &attrs,
   return strategy;
 }
 
-std::vector<shape_t> InferShapeForIsClose(const std::vector<shape_t> &input_shapes,
-                                          const framework::AttrMapType &attrs) {
-  int input_size = input_shapes.size();
-  CHECK_EQ(input_size, 2UL) << "The input number of isclose should be a multiple of 2, but here " << input_size
-                            << "! Please check.";
-
-  CHECK(input_shapes[0] == input_shapes[1])
-      << "The two inputs shape of isclose should be equal, but here x:[" << cinn::utils::Join(input_shapes[0], ",")
-      << "] != y:[" << cinn::utils::Join(input_shapes[1], ",") << "] ! Please check.";
-  return {input_shapes[0]};
-}
-
 std::vector<Type> InferDtypeForIsClose(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   int input_size = inputs_type.size();
   CHECK_EQ(input_size, 2UL) << "The input number of isclose should be a multiple of 2, but here " << input_size
                             << "! Please check.";
+  CHECK(inputs_type[0].is_float()) << "The op \"isclose\" only support float point dtype now, but here "
+                                   << inputs_type[0];
   CHECK(inputs_type[0] == inputs_type[1])
       << "The two inputs dtype sof isclose should be equal, but here x:" << inputs_type[0] << " != y:" << inputs_type[1]
       << "! Please check.";
@@ -328,18 +322,11 @@ std::vector<Type> InferDtypeForIsClose(const std::vector<Type> &inputs_type, con
   return {Bool()};
 }
 
-std::vector<std::vector<std::string>> InferLayoutForIsClose(const std::vector<std::vector<int>> &input_shapes,
-                                                            const std::vector<std::string> &input_layouts,
-                                                            const framework::NodeAttr &attrs,
-                                                            const Target &target) {
-  return {{""}, input_layouts};
-}
-
 StrategyForBinary(elementwise_add, Add);
 StrategyForBinary(atan2, Atan2);
 StrategyForBinary(elementwise_mul, Multiply);
 
-StrategyForBinary(substract, Substract);
+StrategyForBinary(subtract, Subtract);
 StrategyForBinary(divide, Divide);
 StrategyForBinary(floor_divide, FloorDivide);
 StrategyForBinary(mod, Mod);
@@ -400,7 +387,7 @@ CINN_REGISTER_HELPER(broadcast_ops) {
   CINN_REGISTER_BINARY(atan2, Atan2);
   CINN_REGISTER_BINARY(elementwise_mul, Multiply);
 
-  CINN_REGISTER_BINARY(substract, Substract);
+  CINN_REGISTER_BINARY(subtract, Subtract);
   CINN_REGISTER_BINARY(divide, Divide);
   CINN_REGISTER_BINARY(floor_divide, FloorDivide);
   CINN_REGISTER_BINARY(mod, Mod);
@@ -445,10 +432,10 @@ CINN_REGISTER_HELPER(broadcast_ops) {
       .set_num_inputs(2)
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForIsClose)
-      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForIsClose))
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForBroadcast))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForIsClose))
-      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForIsClose))
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElementWise)
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForBroadcast))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kBroadcast)
       .set_support_level(4);
 
   return true;

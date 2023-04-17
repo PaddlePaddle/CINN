@@ -73,7 +73,9 @@ class DenseMergePassHelper : public FusionHelperBase {
       auto sink = link->sink()->safe_as<Node>();
       if (sink->op()->name == "matmul" || sink->op()->name == "mul" || sink->op()->name == "cublas_gemm" ||
           sink->op()->name == "cublas_matmul") {
-        dense_ops.push_back(sink);
+        if (std::find(dense_ops.begin(), dense_ops.end(), sink) == dense_ops.end()) {
+          dense_ops.push_back(sink);
+        }
       }
     }
     return dense_ops;

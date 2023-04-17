@@ -20,6 +20,9 @@
 
 #include "cinn/common/common.h"
 #include "cinn/ir/ir.h"
+#include "cinn/ir/ir_printer.h"
+#include "cinn/poly/domain_add_unit_loop_mutator.h"
+#include "cinn/poly/isl_utils.h"
 
 namespace cinn {
 namespace poly {
@@ -31,7 +34,7 @@ struct AstGen::Impl {
   void InitIslAstConfig();
 
   //! Return a domain composed of all the elements.
-  isl::union_set domain();
+  isl::union_set domain() const;
 
   //! Return a map composed of all the transforms.
   isl::union_map transform();
@@ -61,7 +64,9 @@ struct AstGen::Impl {
   friend class AstGen;
 };
 
-isl::union_set AstGen::Impl::domain() {
+isl::union_set AstGen::domain() const { return impl_->domain(); }
+
+isl::union_set AstGen::Impl::domain() const {
   CHECK(!stages_.empty());
   auto sets =
       utils::Map<std::vector<Shared<Stage>>, isl::set>(stages_, [](const Shared<Stage>& e) { return e->domain(); });
@@ -152,6 +157,7 @@ isl::ast_node AstGen::Build() {
   // Set iterators names for readable code.
   auto iterator_names =
       impl_->iterator_names_.empty() ? impl_->schedule_group_.dimension_names : impl_->iterator_names_;
+
   iterator_names   = SchedulerBase::WrapIteratorNames(iterator_names);
   isl::id_list ids = isl::manage(isl_id_list_alloc(ctx().get(), iterator_names.size()));
   for (int i = 0; i < iterator_names.size(); i++) {
@@ -178,12 +184,12 @@ isl::ast_node AstGen::Build() {
 
   isl::union_map transformed_schedule = impl_->transform().apply_range(schedule);
   VLOG(4) << "transformed_schedule: " << transformed_schedule;
-  auto schedule_domain = transformed_schedule.intersect_domain(impl_->domain());
+  isl::union_map schedule_domain = transformed_schedule.intersect_domain(impl_->domain());
   VLOG(4) << "domain: " << impl_->domain();
   VLOG(4) << "transform schedule " << impl_->stages()[0]->transform();
   VLOG(4) << "schedule: " << schedule;
   VLOG(4) << "schedule_domain: " << schedule_domain;
-  auto ast = ast_build.node_from_schedule_map(schedule_domain);
+  isl::ast_node ast = ast_build.node_from_schedule_map(schedule_domain);
   VLOG(2) << "AST:\n" << isl_ast_node_to_C_str(ast.get());
   return ast;
 }
@@ -209,7 +215,8 @@ std::map<std::string, isl::ast_expr> AstGen::Impl::ExtractIslTransformedIndiceMa
     if (isl_space_has_dim_name(domain_space.get(), isl_dim_set, i - 1)) {
       std::string original_idx_name   = isl_space_get_dim_name(domain_space.get(), isl_dim_set, i - 1);
       isl::ast_expr transformed_index = isl::manage(isl_ast_expr_get_op_arg(idx_expr.get(), i));
-      VLOG(4) << "axis-" << i - 1 << " is " << isl_ast_expr_to_C_str(transformed_index.get());
+      VLOG(4) << "axis-" << i - 1 << " named " << original_idx_name << ", is "
+              << isl_ast_expr_to_C_str(transformed_index.get());
       iterator_map.emplace(original_idx_name, transformed_index);
       iterator_map.emplace(std::to_string(i - 1), transformed_index);
     }
@@ -510,6 +517,31 @@ void IslAstExprToCinnExpr(const isl::ast_expr& node, ir::Expr* expr) {
     } break;
     default:
       break;
+  }
+}
+
+void AddUnitLoopOfDomain(const isl::ast_node& node, const isl::set& domain, ir::Expr* expr) {
+  std::vector<std::string> dim_names = isl_get_dim_names(domain);
+  std::vector<std::tuple<int, int, int>> dim_min_max;
+  for (int i = 0; i < dim_names.size(); ++i) {
+    auto minv_maxv = isl_set_get_axis_range(domain.get(), i);
+    int min_iv     = std::get<0>(minv_maxv).get_num_si();
+    int max_iv     = std::get<1>(minv_maxv).get_num_si();
+    dim_min_max.emplace_back(i, min_iv, max_iv);
+  }
+
+  DomainAddUnitLoopMutator mutator(dim_names, dim_min_max);
+  mutator(expr);
+}
+
+void IslAstNodeToCinnExpr(const isl::ast_node& node, const isl::union_set& domain, ir::Expr* expr) {
+  IslAstNodeToCinnExpr(node, expr);
+
+  isl_set_list* set_list = isl_union_set_get_set_list(domain.get());
+  VLOG(6) << "After convert to CinnExpr, n = " << isl_set_list_n_set(set_list);
+  for (int i = 0; i < isl_set_list_n_set(set_list); i++) {
+    isl::set s = isl::manage(isl_set_list_get_set(set_list, i));
+    AddUnitLoopOfDomain(node, s, expr);
   }
 }
 

@@ -129,100 +129,6 @@ void add1(void* _args, int32_t num_args);
   }
 }
 
-TEST(CodeGenC, module_with_transform) {
-  Expr M(100);
-  Expr N(20);
-
-  Placeholder<float> A("A", {M, N});
-  Placeholder<float> B("B", {M, N});
-
-  // An inlined tensor, should not appear in final C code! It can be used by any times and expand its expression there.
-  auto inlined0 = Compute(
-      {M, N}, [&](Expr i, Expr j) { return A(i, j) * 2.f + 1.f; }, "inlined");
-
-  auto C = Compute(
-      {M, N}, [&](Var i, Var j) { return A(i, j) + B(i, j) + inlined0(i, j); }, "C");
-
-  auto D = Compute(
-      {M, N}, [&](Var i, Var j) { return C(i, j) * 2.f * inlined0(i, j); }, "D");
-
-  auto stages = CreateStages({C, D});
-
-  auto _i_outer_i_inner_ = stages[C]->Split(0, 4);
-  auto &i_outer          = std::get<0>(_i_outer_i_inner_);
-  auto &i_inner          = std::get<1>(_i_outer_i_inner_);
-
-  stages[D]->Tile(0, 1, 4, 16);
-  stages[D]->Parallel(0);
-
-  stages[inlined0]->ComputeInline();
-
-  Target target = common::DefaultHostTarget();
-  Module::Builder builder("module1", target);
-
-  auto func = Lower("add1", stages, {A, B, C, D});
-
-  LOG(INFO) << "func:\n" << func;
-
-  builder.AddFunction(func);
-  builder.AddBuffer(C->buffer);
-
-  CodeGenC codegen(target);
-  codegen.SetInlineBuiltinCodes(false);
-  auto out = codegen.Compile(builder.Build(), CodeGenC::OutputKind::CImpl);
-  std::cout << "codegen C:" << std::endl << out << std::endl;
-
-  auto tgt = R"ROC(
-#include <cinn_runtime.h>
-#include <stdio.h>
-
-void add1(void* _args, int32_t num_args)
-{
-  const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
-  const cinn_buffer_t* _B = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[1]));
-  cinn_buffer_t* _C = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[2]));
-  cinn_buffer_t* _D = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[3]));
-  cinn_buffer_malloc((void*)(0), _C);
-  cinn_buffer_malloc((void*)(0), _D);
-  const float* A = ((const float*)(_A->memory));
-  const float* B = ((const float*)(_B->memory));
-  float* C = ((float*)(_C->memory));
-  float* D = ((float*)(_D->memory));
-  for (int32_t i_outer = 0; i_outer < 25; i_outer += 1) {
-    for (int32_t i_inner = 0; i_inner < 4; i_inner += 1) {
-      for (int32_t j = 0; j < 20; j += 1) {
-        C[((20 * i_inner) + ((80 * i_outer) + j))] = (1.00000f + fma(3.00000f, A[((20 * i_inner) + ((80 * i_outer) + j))], B[((20 * i_inner) + ((80 * i_outer) + j))]));
-      };
-    };
-  };
-  int num_task = max_concurrency();
-  omp_set_num_threads(num_task);
-  auto flambda = [=](int task_id, int num_task) -> int {
-    int n_per_task = (((25 + num_task) - 1) / num_task);
-    for (int32_t i_outer = (task_id * n_per_task); i_outer < 25 && i_outer < ((task_id + 1) * n_per_task); i_outer += 1) {
-      for (int32_t i_inner = 0; i_inner < 4; i_inner += 1) {
-        for (int32_t j_outer = 0; j_outer < 2; j_outer += 1) {
-          for (int32_t j_inner = 0; j_inner < cinn_min(16, (20 + (-16 * j_outer))); j_inner += 1) {
-            D[((20 * i_inner) + ((80 * i_outer) + ((16 * j_outer) + j_inner)))] = fma(4.00000f, (C[((20 * i_inner) + ((80 * i_outer) + ((16 * j_outer) + j_inner)))] * A[((20 * i_inner) + ((80 * i_outer) + ((16 * j_outer) + j_inner)))]), (2.00000f * C[((20 * i_inner) + ((80 * i_outer) + ((16 * j_outer) + j_inner)))]));
-          };
-        };
-      };
-    }
-    return 0;
-  };
-#pragma omp parallel num_threads(num_task)
-  {
-    int task_id = omp_get_thread_num();
-    flambda(task_id, num_task);
-  };
-  cinn_buffer_free((void*)(0), _C);
-  cinn_buffer_free((void*)(0), _D);
-}
-)ROC";
-
-  ASSERT_EQ(utils::Trim(tgt), utils::Trim(out));
-}
-
 TEST(CodeGenC, matmul) {
   using namespace ir;  // NOLINT
   Context::Global().ResetNameId();
@@ -285,7 +191,7 @@ void matmul(void* _args, int32_t num_args)
   float* C__reduce_init = ((float*)(_C->memory));
   for (int32_t i = 0; i < 100; i += 1) {
     for (int32_t j = 0; j < 50; j += 1) {
-      C__reduce_init[((50 * i) + j)] = 0.00000f;
+      C__reduce_init[((50 * i) + j)] = 0.00000000f;
       for (int32_t k0 = 0; k0 < 20; k0 += 1) {
         C[((50 * i) + j)] = (C[((50 * i) + j)] + (A[((20 * i) + k0)] * B[((50 * k0) + j)]));
       };
@@ -303,17 +209,15 @@ void main(void* _args, int32_t num_args)
   const float* A = ((const float*)(_A->memory));
   const float* B = ((const float*)(_B->memory));
   float* C = ((float*)(_C->memory));
-  {
-    cinn_pod_value_t _pod_val_;
-    buffer_p_to_cinn_pod_value(_A, &_pod_val_);
-    cinn_pod_value_t _pod_val__0;
-    buffer_p_to_cinn_pod_value(_B, &_pod_val__0);
-    cinn_pod_value_t _pod_val__1;
-    buffer_p_to_cinn_pod_value(_C, &_pod_val__1);
-    cinn_pod_value_t _pod_arr[3];
-    cinn_args_construct(_pod_arr, 3, &_pod_val_, &_pod_val__0, &_pod_val__1);
-    matmul(_pod_arr, 3);
-  };
+  cinn_pod_value_t _pod_val_;
+  buffer_p_to_cinn_pod_value(_A, &_pod_val_);
+  cinn_pod_value_t _pod_val__0;
+  buffer_p_to_cinn_pod_value(_B, &_pod_val__0);
+  cinn_pod_value_t _pod_val__1;
+  buffer_p_to_cinn_pod_value(_C, &_pod_val__1);
+  cinn_pod_value_t _pod_arr[3];
+  cinn_args_construct(_pod_arr, 3, &_pod_val_, &_pod_val__0, &_pod_val__1);
+  matmul(_pod_arr, 3);
   cinn_buffer_free((void*)(0), _C);
 }
 )ROC";
@@ -399,8 +303,8 @@ void matmul(void* _args, int32_t num_args)
     for (int32_t j_outer = 0; j_outer < 16; j_outer += 1) {
       for (int32_t i_inner = 0; i_inner < cinn_min(32, (100 + (-32 * i_outer))); i_inner += 1) {
         for (int32_t j_inner = 0; j_inner < cinn_min(32, (500 + (-32 * j_outer))); j_inner += 1) {
-          C__reduce_init[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = 0.00000f;
-          C_init[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = 0.00000f;
+          C__reduce_init[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = 0.00000000f;
+          C_init[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = 0.00000000f;
           for (int32_t k0_outer = 0; k0_outer < 50; k0_outer += 1) {
             for (int32_t k0_inner = 0; k0_inner < 4; k0_inner += 1) {
               C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = fma(A[((200 * i_inner) + ((6400 * i_outer) + ((4 * k0_outer) + k0_inner)))], B[((32 * j_outer) + ((500 * k0_inner) + ((2000 * k0_outer) + j_inner)))], C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))]);

@@ -147,7 +147,9 @@ bool IsDivisible(int a, const Product* b) {
 }
 bool IsDivisible(const Product* a, int b) {
   for (auto& item : a->operands()) {
-    if (item.As<IntImm>() && IsDivisible(item.As<IntImm>()->value, b)) return true;
+    if (item.As<IntImm>() && IsDivisible(item.As<IntImm>()->value, b)) {
+      return true;
+    }
     if (item.As<Sum>() && IsDivisible(item.As<Sum>(), b)) return true;
   }
   return false;
@@ -955,7 +957,7 @@ bool CasSimplifyMutator::GetMaxBound(Expr* lower_bound, Expr* upper_bound, Expr 
 
 bool CasSimplifyMutator::SimplifySpecificSumMod(Expr* result, Expr a, Expr b) {
   // case1: (32+(-x))%33 = 32-x%33 (0<=x<=32)
-  // case2: (x-32))%33 = x%33 - 32%33 (0<=x<=32)
+  // case2: (x-32)%33 = x%33 - 32%33 (0<=x<=32)
   auto a_sum = a.As<Sum>();
   auto b_i   = b.As<IntImm>();
   if (!a_sum || !b_i) {
@@ -1077,6 +1079,7 @@ inline bool IsVarAllNonnegative(bool all_nonnegative_var,
 }
 
 Expr CasSimplifyMutator::SimplifyMod(Expr u) {
+  VLOG(4) << "SimplifyMod:" << u;
   auto* node = u.As<Mod>();
   CHECK(node);
 
@@ -1088,6 +1091,7 @@ Expr CasSimplifyMutator::SimplifyMod(Expr u) {
   auto* a_sum     = a.As<Sum>();
   auto* a_var     = a.As<_Var_>();
   auto* a_mod     = a.As<Mod>();
+  auto* a_add     = a.As<Add>();
 
   auto* b_i = b.As<IntImm>();
 
@@ -1120,6 +1124,17 @@ Expr CasSimplifyMutator::SimplifyMod(Expr u) {
     }
   }
 
+  // (x % 16) % 4 = x % 4
+  if (a_mod && b_i) {
+    VLOG(4) << "Simplify sequential mod";
+    auto* a_b_i = a_mod->b().As<IntImm>();
+    if (a_b_i->value != 0 && a_b_i->value % b_i->value == 0) {
+      auto e = SimplifyMod(Mod::Make(a_mod->a(), b_i));
+      VLOG(4) << "Reduce Mod from " << u << " to " << e;
+      return e;
+    }
+  }
+
   // 0 % x = 0, 1 % x = 1
   if (a_i && (a_i->value == 0 || a_i->value == 1)) return a;
 
@@ -1138,18 +1153,23 @@ Expr CasSimplifyMutator::SimplifyMod(Expr u) {
     }
   }
 
+  // (4*x + k*y)%2 = (k*y) %2
   // (2x+y+z) % 2 = (y+z) % 2
   if (a_sum && b_i) {
+    VLOG(4) << "A SUM ";
     std::vector<Expr> sum_args;
     for (auto& v : a_sum->operands()) {
       if (!IsDivisible(v, b_i->value)) {
+        VLOG(4) << v;
         sum_args.push_back(v);
       }
     }
 
     if (sum_args.empty()) return make_const(b_i->type(), 0);
     // handle the case: (2x+y+z) % 2 = (y+z) % 2 when y>=0 and z>=0
-    if (sum_args.size() < a_sum->operands().size()) {
+    if (sum_args.size() == 1) {
+      return SimplifyMod(Mod::Make(sum_args[0], b));
+    } else if (sum_args.size() < a_sum->operands().size()) {
       bool all_nonnegative_var = true;
       bool all_nonnegative_int = true;
       for (int i = 0; i < sum_args.size(); i++) {
@@ -1158,12 +1178,14 @@ Expr CasSimplifyMutator::SimplifyMod(Expr u) {
         auto* arg_int       = sum_args[i].As<IntImm>();
         all_nonnegative_int = all_nonnegative_int && arg_int && arg_int->value >= 0;
       }
+      VLOG(4) << all_nonnegative_var << " " << all_nonnegative_int;
       if (all_nonnegative_var) return SimplifyMod(Mod::Make(Sum::Make(sum_args), b));
       if (all_nonnegative_int) {
         int sum_value = 0;
         for (auto& i : sum_args) sum_value += i.As<IntImm>()->value;
         return make_const(a_sum->type(), sum_value % b_i->value);
       }
+      return SimplifyMod(Mod::Make(Sum::Make(sum_args), b));
     } else if (sum_args.size() == a_sum->operands().size()) {
       if (b_i->value > 0 && !var_intervals.empty()) {
         // case1: (32+(-x))%33 = 32-x%33 (0<=x<=32)
@@ -1173,7 +1195,6 @@ Expr CasSimplifyMutator::SimplifyMod(Expr u) {
           return result;
         }
       }
-
       return Mod::Make(a, b);
     }
   }
@@ -1986,6 +2007,13 @@ Expr CasSimplifyMutator::SimplifyFracOp(Expr expr) {
 
           avs1.push_back(make_const(a.type(), a_d));
           if (b_d != 1) bvs1.push_back(make_const(b.type(), b_d));
+        } else if (af || bf) {
+          double value      = af->value / bf->value;
+          const auto& ftype = af ? af->type() : bf->type();
+          avs1.push_back(make_const(ftype, value));
+        } else {
+          avs1.push_back(a);
+          bvs1.push_back(b);
         }
 
         // CHECK(!af) << a << " " << b;
@@ -2016,17 +2044,17 @@ Expr CasSimplifyMutator::SimplifyFracOp(Expr expr) {
   };
 
   {
-    std::vector<Expr> a_args, b_args;
-    if (ap)
-      a_args = ap->operands();
-    else
-      a_args.push_back(a);
-    if (bp)
-      b_args = bp->operands();
-    else
-      b_args.push_back(b);
-
-    return reduce_product_div_product(a_args, b_args);
+    // TODO : fix in future.
+    // std::vector<Expr> a_args, b_args;
+    // if (ap)
+    //   a_args = ap->operands();
+    // else
+    //   a_args.push_back(a);
+    // if (bp)
+    //   b_args = bp->operands();
+    // else
+    //   b_args.push_back(b);
+    // return reduce_product_div_product(a_args, b_args);
   }
 
   // x / x

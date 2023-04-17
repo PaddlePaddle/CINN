@@ -24,8 +24,40 @@
 #include "cinn/backends/cuda_util.h"
 #endif
 
+#include <chrono>
+
 namespace cinn {
 namespace utils {
+
+ProfilerState ProfilerHelper::g_state = ProfilerState::kDisabled;
+
+RecordEvent::RecordEvent(const std::string& name, EventType type) {
+  if (!ProfilerHelper::IsEnable()) return;
+
+  if (ProfilerHelper::IsEnableCPU()) {
+    call_back_ = [this, tik = std::chrono::steady_clock::now(), annotation = std::move(name), type]() {
+      auto tok                               = std::chrono::steady_clock::now();
+      std::chrono::duration<double> duration = (tok - tik) * 1e3;  // ms
+      HostEventRecorder::GetInstance().RecordEvent(annotation, duration.count(), type);
+    };
+  }
+
+  if (ProfilerHelper::IsEnableCUDA()) {
+    ProfilerRangePush(name);
+  }
+}
+
+void RecordEvent::End() {
+  if (!ProfilerHelper::IsEnable()) return;
+
+  if (ProfilerHelper::IsEnableCPU() && call_back_ != nullptr) {
+    call_back_();
+  }
+
+  if (ProfilerHelper::IsEnableCUDA()) {
+    ProfilerRangePop();
+  }
+}
 
 void SynchronizeAllDevice() {
 #ifdef CINN_WITH_CUDA

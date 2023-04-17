@@ -104,6 +104,9 @@ class ScheduleImpl {
   void FlattenLoops(const std::vector<Expr>& loops, const bool force_flat = false);
   void CopyTransformAndLoopInfo(const Expr& block, const Expr& block_target);
   void CopyTransformAndLoopInfo(const std::string& block_name, const std::string& block_target_name);
+  Expr SampleCategorical(utils::LinearRandomEngine::StateType* rand_seed,
+                         const std::vector<int>& candidates,
+                         const std::vector<float>& probs);
 
  private:
   void Replace(const Expr& src_sref, const Expr& tgt_stmt);
@@ -969,7 +972,7 @@ struct LoopReconstructor : public ir::IRMutator<> {
    *        - `index = -1` means inserted into the tail
    *        - otherwise, it should be a index between [0, stmts size)
    */
-  void MakeNewLoop(const std::vector<IterRange>& iter_ranges, int inserted_pos = -1) {
+  std::string MakeNewLoop(const std::vector<IterRange>& iter_ranges, int inserted_pos = -1) {
     int n_iters = iter_ranges.size();
     std::vector<Var> loop_vars;
     std::vector<Expr> loop_extents;
@@ -977,10 +980,13 @@ struct LoopReconstructor : public ir::IRMutator<> {
     loop_vars.reserve(n_iters);
     loop_extents.reserve(n_iters);
     iter_values.reserve(n_iters);
+    std::vector<std::string> new_var_names;
     for (int i = 0; i < n_iters; ++i) {
       const auto& range = iter_ranges[i];
       if (range.extent != Expr(1)) {
-        Var var(common::UniqName("ax" + std::to_string(loop_vars.size())), Int(32));
+        std::string var_name = common::UniqName("ax" + std::to_string(loop_vars.size()));
+        new_var_names.push_back(var_name);
+        Var var(var_name, Int(32));
         loop_vars.push_back(var);
         loop_extents.push_back(range.extent);
         iter_values.push_back(common::AutoSimplify(range.min) + var);
@@ -999,8 +1005,28 @@ struct LoopReconstructor : public ir::IRMutator<> {
           loop_var, Expr(0), loop_extent, ForType::Serial, loop_.As<ir::For>()->device_api, std::move(loop_body));
     }
     new_loop_ = optim::IRCopy(loop_);
+
+    // Replace the copied Tensor object with the original Tensor object,
+    // to ensure that the same Tensor in a AST is the same object.
+    std::unordered_map<std::string, ir::Expr> tensors_map;
+    ir::CollectIRNodesWithoutTensor(loop_, [&tensors_map](const Expr* x) {
+      if (x->as_tensor()) {
+        tensors_map.insert({x->as_tensor()->name, *x});
+        return true;
+      }
+      return false;
+    });
+    auto find_store = ir::CollectIRNodesWithoutTensor(new_loop_, [](const Expr* x) { return x->As<ir::Store>(); });
+    for (auto store : find_store) {
+      store.As<ir::Store>()->tensor = tensors_map.at(store.As<ir::Store>()->tensor.as_tensor()->name);
+    }
+    auto find_load = ir::CollectIRNodesWithoutTensor(new_loop_, [](const Expr* x) { return x->As<ir::Load>(); });
+    for (auto load : find_load) {
+      load.As<ir::Load>()->tensor = tensors_map.at(load.As<ir::Load>()->tensor.as_tensor()->name);
+    }
+
     InsertBlock(new_loop_, loop_body, inserted_pos);
-    return;
+    return utils::Join(new_var_names, ",");
   }
 
  private:
@@ -1121,8 +1147,10 @@ void ScheduleImpl::ComputeAt(const Expr& block, const Expr& loop) {
   LoopReconstructor reconstructor(root, block, loop);
   LeafBlockRemovalPlan remove_plan(block, &reconstructor.source_expr, &reconstructor.target_expr);
   remove_plan(&root);
-  auto iter_ranges = CalculateRequiredRegions(block, loop, root, consumers);
-  reconstructor.MakeNewLoop(iter_ranges, 0);
+  auto iter_ranges          = CalculateRequiredRegions(block, loop, root, consumers);
+  std::string new_var_names = reconstructor.MakeNewLoop(iter_ranges, 0);
+  auto sch_block_expr       = block.As<ir::ScheduleBlockRealize>()->schedule_block;
+  sch_block_expr.As<ir::ScheduleBlock>()->attrs.emplace(ir::attr::compute_at_extra_var, new_var_names);
   this->Replace(reconstructor.source_expr, reconstructor.target_expr);
   this->Replace(reconstructor.loop_, reconstructor.new_loop_);
   return;
@@ -1204,7 +1232,8 @@ void ScheduleImpl::SimpleComputeAt(const Expr& block, const Expr& loop) {
   Expr source_expr{nullptr};
   Expr target_expr{nullptr};
 
-  LeafBlockRemovalPlan remove_plan(result.As<ir::For>() ? result : this_block, &source_expr, &target_expr);
+  LeafBlockRemovalPlan remove_plan(
+      result.As<ir::For>() ? block_loops[loops.size()] : this_block, &source_expr, &target_expr);
   remove_plan(&root);
 
   this->Replace(source_expr, target_expr);
@@ -1222,8 +1251,10 @@ void ScheduleImpl::ReverseComputeAt(const Expr& block, const Expr& loop) {
   LoopReconstructor reconstructor(root, block, loop);
   LeafBlockRemovalPlan remove_plan(block, &reconstructor.source_expr, &reconstructor.target_expr);
   remove_plan(&root);
-  auto iter_ranges = CalculateRequiredRegions(block, loop, root, producers, false);
-  reconstructor.MakeNewLoop(iter_ranges);
+  auto iter_ranges          = CalculateRequiredRegions(block, loop, root, producers, false);
+  std::string new_var_names = reconstructor.MakeNewLoop(iter_ranges);
+  auto sch_block_expr       = block.As<ir::ScheduleBlockRealize>()->schedule_block;
+  sch_block_expr.As<ir::ScheduleBlock>()->attrs.emplace(ir::attr::reverse_compute_at_extra_var, new_var_names);
   this->Replace(reconstructor.source_expr, reconstructor.target_expr);
   this->Replace(reconstructor.loop_, reconstructor.new_loop_);
   return;
@@ -1325,6 +1356,19 @@ void ScheduleImpl::ComputeInline(const Expr& schedule_block) {
   remove_plan(&root);
   inliner(&root);
   return;
+}
+
+bool ComputeInlineChecker::Check() {
+  Expr root = ir_schedule_.GetRootBlock(block_);
+  store_    = CheckComputeInlineValidationAndGetStore(block_, root);
+  IRMutator::Visit(&root, &root);
+  return !should_skip_;
+}
+
+void ComputeInlineChecker::BuildDataDependency() {
+  ir_schedule_.SetBuffer(block_, "shared", true);
+  auto loops = ir_schedule_.GetLoops(block_);
+  ir_schedule_.SyncThreads(loops.back(), true);
 }
 
 struct FindBlockParent : public ir::IRMutator<> {
@@ -1587,14 +1631,13 @@ void ScheduleImpl::FlattenLoops(const std::vector<Expr>& loops, const bool flat_
     std::vector<std::string> var_names = {};
     CHECK_GE(block_realize->iter_values.size(), loop_vars.size())
         << "the number of iter bind values must be more than loop vars!";
-    for (int idx = 0, index = 0; idx < block_realize->iter_values.size(); ++idx) {
+    for (int idx = 0; idx < block_realize->iter_values.size(); ++idx) {
       auto& iter = block_realize->iter_values[idx];
       if (iter.is_var()) {
-        CHECK_EQ(iter.as_var_ref()->name, loop_vars[index++]->name) << "loops is not the same order with tensor!";
+        CHECK_EQ(iter.as_var_ref()->name, loop_vars[idx]->name) << "loops is not the same order with tensor!";
       } else {
         CHECK(iter.As<IntImm>());
         CHECK_EQ(iter.as_int32(), 0);
-        continue;
       }
     }
 
@@ -1816,6 +1859,17 @@ std::vector<Expr> ScheduleImpl::SamplePerfectTile(utils::LinearRandomEngine::Sta
     result_expr.push_back(Expr(factor));
   }
   result_expr.push_back(Expr(innermost_factor));
+  return result_expr;
+}
+
+Expr ScheduleImpl::SampleCategorical(utils::LinearRandomEngine::StateType* rand_seed,
+                                     const std::vector<int>& candidates,
+                                     const std::vector<float>& probs) {
+  // check two sizes
+  CHECK_EQ(candidates.size(), probs.size()) << "candidates and probs must have same size.";
+  int seed_idx = utils::SampleDiscreteFromDistribution(probs, rand_seed);
+  auto result  = candidates[seed_idx];
+  Expr result_expr(result);
   return result_expr;
 }
 
@@ -2123,6 +2177,25 @@ std::vector<Expr> IRSchedule::SamplePerfectTile(const Expr& loop,
                          {{"n", n}, {"max_innermost_factor", max_innermost_factor}, {"decision", new_decision}},
                          factors));
   return factors;
+}
+
+Expr IRSchedule::SampleCategorical(const std::vector<int>& candidates,
+                                   const std::vector<float>& probs,
+                                   const std::vector<int>& decision) {
+  Expr result;
+  std::vector<int> new_decision;
+  if (decision.empty()) {
+    result = impl_->SampleCategorical(&rand_seed_, candidates, probs);
+    new_decision.push_back(result.as_int32());
+  } else {
+    new_decision = decision;
+    for (auto ndco : new_decision) {
+      result = Expr(ndco);
+    }
+  }
+  trace_.Append(ScheduleDesc::Step(
+      "SampleCategorical", {}, {{"candidates", candidates}, {"probs", probs}, {"decision", new_decision}}, {result}));
+  return result;
 }
 
 }  // namespace ir

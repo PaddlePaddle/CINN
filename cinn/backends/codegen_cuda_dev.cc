@@ -35,6 +35,9 @@ const std::string CodeGenCUDA_Dev::source_header_ =
 #define CINN_WITH_CUDA
 #include "float16.h"
 using cinn::common::float16;
+using cinn::common::half4;
+using cinn::common::half8;
+using cinn::common::float8;
 
 #include "cinn_cuda_runtime_source.cuh"
 )";
@@ -318,9 +321,16 @@ void CodeGenCUDA_Dev::Visit(const ir::Let *op) {
   if (op->type().is_customized() &&
       utils::Startswith(op->type().customized_type(), common::customized_type::kcuda_builtin_vector_t)) {
     os() << GetTypeRepr(op->type());
+    if (op->type().is_cpp_handle()) {
+      os() << " " << kCKeywordRestrict;
+    }
     os() << " ";
     Print(op->symbol);
     vectorized_tensor_names_.insert(utils::GetStreamCnt(op->symbol));
+    // skip "=0" in "half8 temp = 0;" sincethe operator= of half8 may not overloaded.
+    if (op->body.As<ir::IntImm>() && op->body.As<ir::IntImm>()->value == 0) {
+      return;
+    }
     os() << " = ";
     Print(op->body);
   } else {
@@ -328,8 +338,8 @@ void CodeGenCUDA_Dev::Visit(const ir::Let *op) {
   }
 }
 
-bool CodeGenCUDA_Dev::PrintBuiltinVectorAccess(const ir::LoadStoreAddrMnger *op, ir::Expr index_expr) {
-  static constexpr char index2suffix[4] = {'x', 'y', 'z', 'w'};
+bool CodeGenCUDA_Dev::PrintBuiltinVectorAccess(const ir::LoadStoreAddrMnger *op, ir::Expr index_expr, bool is_store) {
+  static constexpr char index2suffix[8] = {'x', 'y', 'z', 'w', 'v', 'u', 't', 's'};
 
   // addr of op should be a place of tensor and the index is simple int number
   if (!op->is_addr_tensor() || !index_expr.As<ir::IntImm>()) {
@@ -345,18 +355,21 @@ bool CodeGenCUDA_Dev::PrintBuiltinVectorAccess(const ir::LoadStoreAddrMnger *op,
 
   // the index can't exceed the range of cuda built-in vector type
   int index = index_expr.As<ir::IntImm>()->value;
-  if (index < 0 || index >= 4) {
+  if (index < 0 || index >= 8) {
     return false;
   }
-
-  os() << tensor->name << (tensor->type().is_cpp_handle() ? "->" : ".") << index2suffix[index];
+  if (is_store && tensor->type().is_cpp_handle()) {
+    os() << tensor->name << "[" << index << "]";
+  } else {
+    os() << tensor->name << (tensor->type().is_cpp_handle() ? "->" : ".") << index2suffix[index];
+  }
   return true;
 }
 
 void CodeGenCUDA_Dev::Visit(const ir::Load *op) {
   // overload this visit function to especially deal with the case when it accesses
   // element at a cuda built-in vector, others still resolve to CodeGenC
-  if (!PrintBuiltinVectorAccess(op, op->index())) {
+  if (!PrintBuiltinVectorAccess(op, op->index(), false)) {
     CodeGenC::Visit(op);
   }
 }
@@ -364,7 +377,7 @@ void CodeGenCUDA_Dev::Visit(const ir::Load *op) {
 void CodeGenCUDA_Dev::Visit(const ir::Store *op) {
   // overload this visit function to especially deal with the case when it accesses
   // element at a cuda built-in vector, others still resolve to CodeGenC
-  if (PrintBuiltinVectorAccess(op, op->index())) {
+  if (PrintBuiltinVectorAccess(op, op->index(), true)) {
     os() << " = ";
     Print(op->value);
   } else {

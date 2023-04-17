@@ -27,13 +27,27 @@ namespace cinn {
 namespace frontend {
 namespace pass {
 
+#define FILL_CONSTANT_VALUE_REWRITE(OLD_VALUE, FUNC, NEW_VALUE) \
+  if (absl::holds_alternative<float>(OLD_VALUE))                \
+    NEW_VALUE = FUNC(absl::get<float>(OLD_VALUE));              \
+  else if (absl::holds_alternative<double>(OLD_VALUE))          \
+    NEW_VALUE = FUNC(absl::get<double>(OLD_VALUE));             \
+  else if (absl::holds_alternative<int>(OLD_VALUE))             \
+    NEW_VALUE = FUNC(absl::get<int>(OLD_VALUE));                \
+  else if (absl::holds_alternative<int64_t>(OLD_VALUE))         \
+    NEW_VALUE = FUNC(absl::get<int64_t>(OLD_VALUE));            \
+  else                                                          \
+    LOG(FATAL) << "fill_constant Only support float32/float64/int32/int64";
+
 #define MATH_FUNC_REWRITER(op_name)                                            \
   {                                                                            \
 #op_name, [](const Instruction& fill_constant, Instruction* instr) -> void { \
        (*instr)->op_type = "fill_constant"; \
        (*instr)->inputs.clear(); \
        (*instr)->attrs = fill_constant->attrs; \
-       (*instr)->attrs["value"] = std::op_name(fill_constant.GetAttrs<float>("value")); \
+       const auto& old_attr = fill_constant->attrs.at("value"); \
+       auto& new_attr = (*instr)->attrs.at("value"); \
+       FILL_CONSTANT_VALUE_REWRITE(old_attr, std::op_name, new_attr) \
      } \
   }
 
@@ -62,11 +76,18 @@ static std::unordered_map<std::string, std::function<void(const Instruction&, In
 
        (*instr)->attrs = fill_constant->attrs;
 
-       auto old_value = fill_constant.GetAttrs<float>("value");
+       const auto& old_attr = fill_constant->attrs.at("value");
+       auto& new_attr       = (*instr)->attrs.at("value");
        if (bias_after_scale) {
-         (*instr)->attrs["value"] = scale * old_value + bias;
+         auto scale_func = [&](const auto& value) -> decltype(auto) {
+           return value * static_cast<decltype(value)>(scale) + static_cast<decltype(value)>(bias);
+         };
+         FILL_CONSTANT_VALUE_REWRITE(old_attr, scale_func, new_attr)
        } else {
-         (*instr)->attrs["value"] = scale * (old_value + bias);
+         auto scale_func = [&](const auto& value) -> decltype(auto) {
+           return (value + static_cast<decltype(value)>(bias)) * static_cast<decltype(value)>(scale);
+         };
+         FILL_CONSTANT_VALUE_REWRITE(old_attr, scale_func, new_attr)
        }
      }},
     {"cast",
@@ -108,6 +129,9 @@ static std::unordered_map<std::string, std::function<void(const Instruction&, In
     MATH_FUNC_REWRITER(log10),
     MATH_FUNC_REWRITER(tanh)};
 
+#undef FILL_CONSTANT_VALUE_REWRITE
+#undef MATH_FUNC_REWRITER
+
 class FillConstantRewriterPass : public ProgramPass {
  public:
   using ProgramPass::ProgramPass;
@@ -118,7 +142,6 @@ class FillConstantRewriterPass : public ProgramPass {
   void ApplyImpl(Program* program,
                  const std::unordered_set<std::string>& fetch_ids,
                  const common::Target& target) override {
-    VLOG(3) << "Before FillConstantRewriterPass:\n" << *program;
     auto input2instr = GetInput2Instr(program);
 
     std::unordered_set<const Instruction*> remove_instr;
@@ -144,8 +167,6 @@ class FillConstantRewriterPass : public ProgramPass {
       }
     }
     *program = builder.Build();
-
-    VLOG(3) << "After FillConstantRewriterPass:\n" << *program;
   }
 
  private:
@@ -180,6 +201,7 @@ class FillConstantRewriterPass : public ProgramPass {
     bool can_remove = true;
     for (auto* instr : input2instr.at(out->id)) {
       if (rewriter_ops.count((*instr)->op_type)) {
+        VLOG(3) << "Try folding " << (*instr) << " into " << fill_constant;
         rewriter_ops.at((*instr)->op_type)(fill_constant, instr);
         RewriteFillConstant(*instr, input2instr, fetch_ids, remove_instr);
       } else {

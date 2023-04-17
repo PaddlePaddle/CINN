@@ -23,17 +23,6 @@ DECLARE_bool(cinn_ir_schedule);
 namespace cinn {
 namespace hlir {
 
-std::vector<int> GetPositiveAxes(const std::vector<int>& axes, int rank) {
-  std::vector<int> new_axes(axes.size());
-  for (int i = 0; i < axes.size(); ++i) {
-    int axis = axes[i] + (axes[i] < 0 ? rank : 0);
-    CHECK(axis >= 0 && axis < rank) << "The axis should in [0, " << rank << "), but axes[" << i << "]=" << axes[i]
-                                    << " not.";
-    new_axes[i] = axis;
-  }
-  return new_axes;
-}
-
 CINNSchedule GetElementwiseScheduleFunc(const std::vector<std::vector<int>>& output_shapes,
                                         const Target& target,
                                         bool vectorizable) {
@@ -113,6 +102,33 @@ CINNSchedule GetInjectiveScheduleFunc(const std::vector<std::vector<int>>& outpu
       *ret = arg_pack;
     }
   });
+}
+
+std::string GetExternFuncName(const common::Target& target, const common::Type& type, const std::string& func_name) {
+  std::string target_func_name_type;
+  if (target.arch == common::Target::Arch::NVGPU) {
+    target_func_name_type.assign("cinn_cuda_");
+  } else if (target.arch == common::Target::Arch::X86) {
+    target_func_name_type.assign("cinn_host_");
+  } else {
+    LOG(FATAL) << func_name << "only supports X86 and NVGPU ! Please Check.\n";
+  }
+  target_func_name_type.append(func_name);
+  target_func_name_type.append("_");
+  if (type.is_float(16)) {
+    target_func_name_type.append("fp16");
+  } else if (type.is_float(32)) {
+    target_func_name_type.append("fp32");
+  } else if (type.is_float(64)) {
+    target_func_name_type.append("fp64");
+  } else if (type.is_int(32)) {
+    target_func_name_type.append("int32");
+  } else if (type.is_int(64)) {
+    target_func_name_type.append("int64");
+  } else {
+    LOG(FATAL) << func_name << "only supports fp16, fp32, fp64, int32 and int64 ! Please Check.\n";
+  }
+  return target_func_name_type;
 }
 
 }  // namespace hlir

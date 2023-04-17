@@ -60,7 +60,11 @@ IF(NOT WIN32)
 ELSE()
     SET(MKLDNN_CXXFLAG "${CMAKE_CXX_FLAGS} /EHsc")
 ENDIF(NOT WIN32)
-
+if(WIN32)
+    SET(MKLDNN_LIB "${MKLDNN_INSTALL_DIR}/${LIBDIR}/mkldnn.lib" CACHE FILEPATH "mkldnn library." FORCE)
+else(WIN32)
+    SET(MKLDNN_LIB "${MKLDNN_INSTALL_DIR}/${LIBDIR}/libmkldnn.a" CACHE FILEPATH "mkldnn library." FORCE)
+endif(WIN32)
 ExternalProject_Add(
     ${MKLDNN_PROJECT}
     ${EXTERNAL_PROJECT_LOG_ARGS}
@@ -87,12 +91,9 @@ ExternalProject_Add(
     CMAKE_ARGS          -DDNNL_LIBRARY_TYPE=STATIC
     CMAKE_CACHE_ARGS    -DCMAKE_INSTALL_PREFIX:PATH=${MKLDNN_INSTALL_DIR}
                         -DMKLROOT:PATH=${MKLML_ROOT}
+    BUILD_BYPRODUCTS ${MKLDNN_LIB}
 )
-if(WIN32)
-    SET(MKLDNN_LIB "${MKLDNN_INSTALL_DIR}/${LIBDIR}/mkldnn.lib" CACHE FILEPATH "mkldnn library." FORCE)
-else(WIN32)
-    SET(MKLDNN_LIB "${MKLDNN_INSTALL_DIR}/${LIBDIR}/libmkldnn.a" CACHE FILEPATH "mkldnn library." FORCE)
-endif(WIN32)
+
 
 ADD_LIBRARY(static_mkldnn STATIC IMPORTED GLOBAL)
 SET_PROPERTY(TARGET static_mkldnn PROPERTY IMPORTED_LOCATION ${MKLDNN_LIB})
@@ -102,8 +103,11 @@ add_definitions(-DCINN_WITH_MKLDNN)
 
 # generate a static dummy target to track mkldnn dependencies
 # for cc_library(xxx SRCS xxx.c DEPS mkldnn)
+
 SET(dummyfile ${CMAKE_CURRENT_BINARY_DIR}/mkldnn_dummy.c)
-FILE(WRITE ${dummyfile} "const char * dummy = \"${dummyfile}\";")
+if (NOT EXISTS ${dummyfile})
+  FILE(WRITE ${dummyfile} "const char * dummy = \"${dummyfile}\";")
+endif()
 ADD_LIBRARY(mkldnn STATIC ${dummyfile})
 TARGET_LINK_LIBRARIES(mkldnn ${MKLDNN_LIB} ${MKLML_LIB} ${MKLML_IOMP_LIB})
 ADD_DEPENDENCIES(mkldnn ${MKLDNN_PROJECT})

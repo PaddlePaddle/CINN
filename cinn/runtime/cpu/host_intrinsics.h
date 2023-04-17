@@ -33,17 +33,49 @@ inline int cinn_host_find_int_nd(const cinn_buffer_t* buf, int size, int num, in
 
 inline int cinn_host_find_float_nd(const cinn_buffer_t* buf, int size, float num, int begin, int stride);
 
-inline int cinn_host_lt_num_float(
-    const cinn_buffer_t* buf, const int size, const float num, const int offset, const int stride);
+#define CINN_HOST_LT_NUM(TYPE_SUFFIX, TYPE)  \
+  inline int cinn_host_lt_num_##TYPE_SUFFIX( \
+      const cinn_buffer_t* buf, const int size, const TYPE num, const int offset, const int stride);
 
-inline int cinn_host_lt_num_int(
-    const cinn_buffer_t* buf, const int size, const int num, const int offset, const int stride);
+CINN_HOST_LT_NUM(fp32, float)
+CINN_HOST_LT_NUM(fp64, double)
+CINN_HOST_LT_NUM(int32, int)
+CINN_HOST_LT_NUM(int64, int64_t)
 
-inline int cinn_host_gt_num_float(
-    const cinn_buffer_t* buf, const int size, const float num, const int offset, const int stride);
+#undef CINN_HOST_LT_NUM
 
-inline int cinn_host_gt_num_int(
-    const cinn_buffer_t* buf, const int size, const int num, const int offset, const int stride);
+#define CINN_HOST_GT_NUM(TYPE_SUFFIX, TYPE)  \
+  inline int cinn_host_gt_num_##TYPE_SUFFIX( \
+      const cinn_buffer_t* buf, const int size, const TYPE num, const int offset, const int stride);
+
+CINN_HOST_GT_NUM(fp32, float)
+CINN_HOST_GT_NUM(fp64, double)
+CINN_HOST_GT_NUM(int32, int)
+CINN_HOST_GT_NUM(int64, int64_t)
+
+#undef CINN_HOST_GT_NUM
+
+int cinn_host_resize_bilinear(const cinn_buffer_t* buf,
+                              const int c_size,
+                              const int in_h,
+                              const int in_w,
+                              const int out_h,
+                              const int out_w,
+                              const int n,
+                              const int c,
+                              const int y,
+                              const int x);
+
+int cinn_host_resize_bicubic(const cinn_buffer_t* buf,
+                             const int c_size,
+                             const int in_h,
+                             const int in_w,
+                             const int out_h,
+                             const int out_w,
+                             const int n,
+                             const int c,
+                             const int y,
+                             const int x);
 
 #define FN_INT32(func) cinn_host_##func##_int32
 
@@ -77,3 +109,10 @@ inline double FN_FP64(cbrt)(double x);
 
 #undef FN_FP64
 }
+
+namespace cinn {
+namespace runtime {
+
+void cinn_assert_true_host(void* v_args, int num_args, int msg, bool only_warning);
+}  // namespace runtime
+}  // namespace cinn

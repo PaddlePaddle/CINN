@@ -25,6 +25,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/utils/dot_lang.h"
 
@@ -32,7 +33,26 @@ namespace cinn {
 namespace hlir {
 namespace framework {
 
-std::string Attribute2String(const utils::Attribute& attr);
+class PassPrinter {
+ public:
+  static PassPrinter* GetInstance() {
+    static PassPrinter printer;
+    return &printer;
+  }
+
+  bool Begin(const std::unordered_set<std::string>& fetch_ids = {});
+  bool PassBegin(const std::string& pass_name, const frontend::Program& program);
+  bool PassEnd(const std::string& pass_name, const frontend::Program& program);
+  bool PassBegin(const std::string& pass_name, Graph* g);
+  bool PassEnd(const std::string& pass_name, Graph* g);
+  bool End();
+
+ private:
+  std::unordered_set<std::string> fetch_ids_;
+  std::string save_path_;
+  int64_t graph_id_{0};
+  int64_t pass_id_{0};
+};
 
 inline void WriteToFile(const std::string& filepath, const std::string& content) {
   VLOG(4) << "Write to " << filepath;
@@ -126,6 +146,15 @@ void AddGroupNode(const Node* node,
                   std::unordered_map<std::string, std::string>* outnode2dot_id,
                   std::unordered_set<std::string>* nodedatas_set,
                   utils::DotLang* dot);
+
+// used for CheckFusionAccuracyPass
+std::string GenerateAccCheckNodeId(const std::string& node_id);
+
+bool IsAccCheckOp(const Node* op);
+bool IsAccCheckVar(const NodeData* var);
+bool IsAccCheckGroup(const std::vector<Node*>& group);
+
+std::vector<std::vector<Node*>> RemoveAccCheckGroups(const std::vector<std::vector<Node*>>& groups);
 
 }  // namespace framework
 }  // namespace hlir

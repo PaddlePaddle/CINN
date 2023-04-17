@@ -51,7 +51,7 @@ TEST(TestSearchState, SearchStateHash_Equal) {
         ScheduleBlock(B)
         {
           i0, i1 = axis.bind(i, j)
-          B[i0, i1] = (2.00000f + A[i0, i1])
+          B[i0, i1] = (A[i0, i1] + 2.00000000f)
         }
       }
     }
@@ -69,7 +69,7 @@ TEST(TestSearchState, SearchStateHash_Equal) {
         ScheduleBlock(B)
         {
           i0, i1 = axis.bind(i, j)
-          B[i0, i1] = (2.00000f + A[i0, i1])
+          B[i0, i1] = (A[i0, i1] + 2.00000000f)
         }
       }
     }
@@ -88,7 +88,7 @@ TEST(TestSearchState, SearchStateHash_Equal) {
           ScheduleBlock(B)
           {
             i0, i1 = axis.bind(i, j)
-            B[i0, i1] = (2.00000f + A[i0, i1])
+            B[i0, i1] = (A[i0, i1] + 2.00000000f)
           }
         }
       }

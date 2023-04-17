@@ -24,6 +24,7 @@
 #include <memory>
 #include <string>
 #include <tuple>
+#include <typeinfo>
 #include <utility>
 #include <vector>
 
@@ -173,7 +174,9 @@ struct Instruction : public common::Shared<_Instruction_> {
   template <typename T>
   T GetAttrs(const std::string& key) const {
     auto it = get()->attrs.find(key);
-    CHECK(it != get()->attrs.end()) << "No attribute called [" << key << "]";
+    CHECK(it != get()->attrs.end()) << "No attribute called [" << key << "] in op " << get()->op_type;
+    CHECK(absl::holds_alternative<T>(it->second))
+        << "Try get attribute " << key << " from a error type " << typeid(T()).name() << " in op " << get()->op_type;
     return absl::get<T>(it->second);
   }
 
@@ -319,7 +322,7 @@ struct Program {
   SYNTAX_PRIM_UNARY_DECL(rsqrt);
 
 #define SYNTAX_PRIM_BINARY_DECL(name__) Variable primitive_##name__(const Variable& a, const Variable& b);
-  SYNTAX_PRIM_BINARY_DECL(substract)
+  SYNTAX_PRIM_BINARY_DECL(subtract)
   SYNTAX_PRIM_BINARY_DECL(divide)
   SYNTAX_PRIM_BINARY_DECL(floor_divide)
   SYNTAX_PRIM_BINARY_DECL(mod)
@@ -376,7 +379,7 @@ struct Program {
   Variable elementwise_div(const Variable& a, const Variable& b, int axis = -1);
 
   /**
-   * Substract two tensors element-wise.
+   * Subtract two tensors element-wise.
    */
   Variable elementwise_sub(const Variable& a, const Variable& b, int axis = -1);
 

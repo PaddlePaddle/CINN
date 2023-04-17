@@ -27,6 +27,7 @@
 #include "cinn/lang/lower.h"
 #include "cinn/lang/placeholder.h"
 #include "cinn/poly/stage.h"
+#include "cinn/utils/string.h"
 
 namespace cinn {
 namespace hlir {
@@ -46,7 +47,7 @@ TEST(GenerateCode_Cpu, Argmax_Keep) {
 
   lang::Placeholder<float> in("in", {n, in_c, h, w});
   poly::StageMap stages = poly::CreateStages({in});
-  ir::Tensor res        = Argmax(in, target, stages, axis, true, "test_argmax_in");
+  ir::Tensor res        = Argmax(in, target, stages, axis, true, "test_argmax_in").at(0);
   stages->InsertLazily(res);
 
   std::vector<ir::LoweredFunc> funcs =
@@ -80,30 +81,28 @@ void TestGenerateCodeCpu_Argmax_Keep(void* _args, int32_t num_args)
   int32_t* test_argmax_in = ((int32_t*)(_test_argmax_in->memory));
   int32_t* test_argmax_in_index = ((int32_t*)(_test_argmax_in_index->memory));
   int32_t* test_argmax_in_index_temp = ((int32_t*)(_test_argmax_in_index_temp->memory));
-  {
-    for (int32_t i = 0; i < 4; i += 1) {
-      for (int32_t j = 0; j < 3; j += 1) {
-        for (int32_t k = 0; k < 28; k += 1) {
-          for (int32_t a = 0; a < 28; a += 1) {
-            test_argmax_in_index_temp[((2352 * i) + ((784 * j) + ((28 * k) + a)))] = cinn_host_gt_num_float(_in, 3, in[((2352 * i) + ((784 * j) + ((28 * k) + a)))], ((2352 * i) + ((28 * k) + a)), 784);
-          };
-        };
-      };
-    };
-    for (int32_t i = 0; i < 4; i += 1) {
-      for (int32_t j = 0; j < 3; j += 1) {
-        for (int32_t k = 0; k < 28; k += 1) {
-          for (int32_t a = 0; a < 28; a += 1) {
-            test_argmax_in_index[((2352 * i) + ((784 * j) + ((28 * k) + a)))] = cinn_host_find_int_nd(_test_argmax_in_index_temp, 3, j, ((2352 * i) + ((28 * k) + a)), 784);
-          };
-        };
-      };
-    };
-    for (int32_t i = 0; i < 4; i += 1) {
+  for (int32_t i = 0; i < 4; i += 1) {
+    for (int32_t j = 0; j < 3; j += 1) {
       for (int32_t k = 0; k < 28; k += 1) {
         for (int32_t a = 0; a < 28; a += 1) {
-          test_argmax_in[((784 * i) + ((28 * k) + a))] = test_argmax_in_index[((2352 * i) + ((28 * k) + a))];
+          test_argmax_in_index_temp[((2352 * i) + ((784 * j) + ((28 * k) + a)))] = cinn_host_gt_num_fp32(_in, 3, in[((2352 * i) + ((784 * j) + ((28 * k) + a)))], ((2352 * i) + ((28 * k) + a)), 784);
         };
+      };
+    };
+  };
+  for (int32_t i = 0; i < 4; i += 1) {
+    for (int32_t j = 0; j < 3; j += 1) {
+      for (int32_t k = 0; k < 28; k += 1) {
+        for (int32_t a = 0; a < 28; a += 1) {
+          test_argmax_in_index[((2352 * i) + ((784 * j) + ((28 * k) + a)))] = cinn_host_find_int_nd(_test_argmax_in_index_temp, 3, j, ((2352 * i) + ((28 * k) + a)), 784);
+        };
+      };
+    };
+  };
+  for (int32_t i = 0; i < 4; i += 1) {
+    for (int32_t k = 0; k < 28; k += 1) {
+      for (int32_t a = 0; a < 28; a += 1) {
+        test_argmax_in[((784 * i) + ((28 * k) + a))] = test_argmax_in_index[((2352 * i) + ((28 * k) + a))];
       };
     };
   };

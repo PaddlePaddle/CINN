@@ -359,7 +359,7 @@ SYNTAX_PRIM_UNARY_IMPL(rsqrt);
     return instr.GetOutput(0);                                                 \
   }
 
-SYNTAX_PRIM_BINARY_IMPL(substract)
+SYNTAX_PRIM_BINARY_IMPL(subtract)
 SYNTAX_PRIM_BINARY_IMPL(divide)
 SYNTAX_PRIM_BINARY_IMPL(floor_divide)
 SYNTAX_PRIM_BINARY_IMPL(mod)
@@ -405,7 +405,7 @@ Variable Program::elementwise_div(const Variable& a, const Variable& b, int axis
 }
 
 Variable Program::elementwise_sub(const Variable& a, const Variable& b, int axis) {
-  Instruction instr("substract", {a, b});
+  Instruction instr("subtract", {a, b});
   instr.SetAttr("axis", axis);
   AppendInstruction(instr);
   return instr.GetOutput(0);
@@ -513,14 +513,21 @@ std::string _Instruction_::debug_string() const {
   ss << utils::Join(input_names, ", ");
   if (!attrs.empty() && !input_names.empty()) ss << ", ";
 
-  std::vector<std::string> attr_strs;
-  for (auto& attr : attrs) {
+  std::map<std::string, std::string> attr_str_map;
+  for (const auto& attr : attrs) {
     std::stringstream iss;
-    iss << attr.first << "=";
     absl::visit(Visit{iss}, attr.second);
-    attr_strs.push_back(iss.str());
+    attr_str_map[attr.first] = iss.str();
   }
-  ss << utils::Join(attr_strs, ", ");
+  bool is_first = true;
+  for (const auto& attr : attr_str_map) {
+    if (is_first) {
+      is_first = false;
+    } else {
+      ss << ", ";
+    }
+    ss << attr.first << "=" << attr.second;
+  }
   ss << ")";
 
   return ss.str();

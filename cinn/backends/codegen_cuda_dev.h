@@ -79,7 +79,7 @@ class CodeGenCUDA_Dev : public CodeGenC {
   void Visit(const ir::Let* op) override;
 
   // Print element access at a cuda built-in vector on a load/store node
-  bool PrintBuiltinVectorAccess(const ir::LoadStoreAddrMnger* op, ir::Expr index);
+  bool PrintBuiltinVectorAccess(const ir::LoadStoreAddrMnger* op, ir::Expr index, bool is_store);
 
   void PrintBuiltinCodes();
 

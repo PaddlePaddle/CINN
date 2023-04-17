@@ -199,7 +199,7 @@ TEST(Vectorize, vectorize) {
     expr      = expr + 10.f * expr;
     detail::Vectorize(a, 16, &expr);
     EXPECT_EQ(GetStreamCnt(expr),
-              "(A[Ramp(((b * 2) + (0 * 2)),(1 * 2),16)] + (Broadcast(10.0000f,16) * A[Ramp(((b * 2) + (0 * 2)),(1 * "
+              "(A[Ramp(((b * 2) + (0 * 2)),(1 * 2),16)] + (Broadcast(10.0000000f,16) * A[Ramp(((b * 2) + (0 * 2)),(1 * "
               "2),16)]))");
   }
 }
@@ -253,13 +253,15 @@ function matmul (_A, _B, _C)
   {
     serial for (j, 0, 125)
     {
-      CudaVectorType::float4<4>* vectorized_C = CudaVectorType::float4<4>*(get_addr(C[i, ((j * 4) + 0)]))
-      const CudaVectorType::float4<4>* vectorized_A = const CudaVectorType::float4<4>*(get_addr(A[i, ((j * 4) + 0)]))
-      const CudaVectorType::float4<4>* vectorized_B = const CudaVectorType::float4<4>*(get_addr(B[i, ((j * 4) + 0)]))
+      CudaVectorType::float4<4>* vectorized_C_ptr = CudaVectorType::float4<4>*(get_addr(C[i, ((j * 4) + 0)]))
+      CudaVectorType::float4<4> vectorized_C = 0
+      const CudaVectorType::float4<4> vectorized_A = const CudaVectorType::float4<4>*(get_addr(A[i, ((j * 4) + 0)]))[0]
+      const CudaVectorType::float4<4> vectorized_B = const CudaVectorType::float4<4>*(get_addr(B[i, ((j * 4) + 0)]))[0]
       vectorized_C[0] = (vectorized_A[0] * vectorized_B[0])
       vectorized_C[1] = (vectorized_A[1] * vectorized_B[1])
       vectorized_C[2] = (vectorized_A[2] * vectorized_B[2])
       vectorized_C[3] = (vectorized_A[3] * vectorized_B[3])
+      vectorized_C_ptr[0] = vectorized_C
     }
   }
 }

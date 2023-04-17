@@ -42,7 +42,7 @@ DECLARE_bool(cinn_ir_schedule);
 namespace cinn {
 namespace optim {
 
-Expr Optimize(Expr e, Target target, bool runtime_debug_info) {
+Expr Optimize(Expr e, Target target, bool runtime_debug_info, bool remove_gpu_for_loops) {
   CHECK(e.defined());
   auto copied = IRCopy(e);
 
@@ -52,21 +52,37 @@ Expr Optimize(Expr e, Target target, bool runtime_debug_info) {
   CastSimplify(&copied);
   Simplify(&copied);
   UnrollLoop(&copied);
+  VLOG(4) << "After Optimize UnrollLoop:" << copied;
+
   VectorizeLoops(&copied, target);
+  VLOG(4) << "After Optimize VectorizeLoops:" << copied;
 #ifdef CINN_WITH_CUDA
-  if (FLAGS_cinn_ir_schedule) ir::SetCudaAxisInfo(&copied);
-  RemoveGpuForloopsAxis(&copied);
+  if (FLAGS_cinn_ir_schedule && copied.as_lowered_func()) {
+    ir::SetCudaAxisInfo(&copied);
+  }
+  if (remove_gpu_for_loops) {
+    RemoveGpuForloopsAxis(&copied);
+  }
   CudaSyncThreadsDropIfThenElse(&copied);
 #endif
 
   RemoveNestedBlock(&copied);
+  VLOG(4) << "After Optimize RemoveNestedBlock:" << copied;
 
   MapExternCall(&copied, target);
+  VLOG(10) << "After Optimize MapExternCall:" << copied;
+
   ExternCallMultiOutputShallowStore(&copied);
+  VLOG(10) << "After Optimize ExternCallMultiOutputShallowStore:" << copied;
 
   CastSimplify(&copied);
+  VLOG(10) << "After Optimize CastSimplify:" << copied;
+
   Simplify(&copied);
+  VLOG(10) << "After Optimize Simplify:" << copied;
+
   IfSimplify(&copied);
+  VLOG(10) << "After Optimize IfSimplify:" << copied;
 
   if (runtime_debug_info) {
     LOG(WARNING) << "Turn on runtime debug information output";
@@ -81,10 +97,15 @@ ir::Module Optimize(const ir::Module& module, const Target& target) {
     UnrollLoop(&copied);
     VectorizeLoops(&copied, Target());
   }
+  VLOG(10) << "After VectorizeLoops:" << copied.as_module_ref();
   RemoveScheduleBlock(&copied);
+  VLOG(10) << "After RemoveScheduleBlock:" << copied.as_module_ref();
   LowerFunctionCallBindVars(&copied);
+  VLOG(10) << "After LowerFunctionCallBindVars:" << copied.as_module_ref();
   CallArgListToPodValue(&copied);
+  VLOG(10) << "After CallArgListToPodValue:" << copied.as_module_ref();
   LowerIntrin(&copied, target);
+  VLOG(10) << "After LowerIntrin:" << copied.as_module_ref();
 
   return copied.as_module_ref();
 }

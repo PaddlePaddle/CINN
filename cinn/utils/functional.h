@@ -39,7 +39,7 @@ auto Min(T &&t) {
 }
 
 template <typename T, typename... Ts>
-auto Min(T &&t, Ts &&... ts) {
+auto Min(T &&t, Ts &&...ts) {
   return std::min(t, Min(ts...));
 }
 
@@ -49,7 +49,7 @@ auto Max(T &&t) {
 }
 
 template <typename T, typename... Ts>
-auto Max(T &&t, Ts &&... ts) {
+auto Max(T &&t, Ts &&...ts) {
   return std::max(t, Max(ts...));
 }
 
@@ -118,6 +118,10 @@ template <typename T>
 inline uint64_t HashCombine(uint64_t seed, const T &value) {
   return seed ^ (std::hash<T>()(value) + 0x9e3779b9 + (seed << 6) + (seed >> 2));
 }
+
+std::vector<int> GetPositiveAxes(const std::vector<int> &axes, int rank);
+
+int GetPositiveAxes(int axes, int rank);
 
 }  // namespace utils
 }  // namespace cinn

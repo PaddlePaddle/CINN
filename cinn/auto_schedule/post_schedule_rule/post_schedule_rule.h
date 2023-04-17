@@ -1,4 +1,4 @@
-// Copyright (c) 2022 CINN Authors. All Rights Reserved.
+// Copyright (c) 2023 CINN Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,23 +13,25 @@
 // limitations under the License.
 
 #pragma once
-#include "cinn/frontend/net_builder.h"
+#include "cinn/ir/ir_schedule.h"
 
 namespace cinn {
 namespace auto_schedule {
 
-class TestProgramBuilder {
+/**
+ * Base class for rules of post process,
+ * used to process schedules that rely on mutate results.
+ */
+class PostScheduleRule {
  public:
-  virtual frontend::Program operator()() = 0;
-};
+  PostScheduleRule() = default;
 
-class TestOpBuilder : public TestProgramBuilder {
- public:
-  TestOpBuilder(const std::string& name) : builder_(name) {}
-  frontend::Program operator()() { return builder_.Build(); }
-
- protected:
-  frontend::NetBuilder builder_;
+  /**
+   * @brief Apply the post schedule rule to the given SearchState.
+   * @param state The given SearchState for post schedule.
+   * @return True if apply successfully.
+   */
+  virtual bool Apply(ir::IRSchedule* schedule) = 0;
 };
 
 }  // namespace auto_schedule

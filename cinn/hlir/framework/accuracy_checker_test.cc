@@ -25,7 +25,7 @@
 #include "cinn/hlir/framework/instruction.h"
 #include "cinn/hlir/framework/op_strategy.h"
 
-DECLARE_bool(cinn_self_check_accuracy);
+DECLARE_string(cinn_self_check_accuracy);
 
 namespace cinn {
 namespace hlir {
@@ -109,14 +109,14 @@ TEST(AccuracyChecker, instruction) {
   auto fn_ptr = jit->Lookup("fn_sqrt");
   CHECK(fn_ptr);
 
-  FLAGS_cinn_self_check_accuracy = true;
+  FLAGS_cinn_self_check_accuracy = "true";
   Instruction instr(target, &scope, {"x"}, {"y"});
   instr.SetLoweredFunc(reinterpret_cast<void*>(fn_ptr), "fn_sqrt");
   // should call Finalize explicitly before Run
   instr.Finalize();
 
   instr.Run();
-  FLAGS_cinn_self_check_accuracy = false;
+  FLAGS_cinn_self_check_accuracy = "";
 }
 
 void InitName2PodArgs(Target target,
@@ -148,13 +148,13 @@ TEST(AccuracyChecker, instruction_podargs) {
   auto fn_ptr = jit->Lookup("fn_sqrt");
   CHECK(fn_ptr);
 
-  FLAGS_cinn_self_check_accuracy = true;
+  FLAGS_cinn_self_check_accuracy = "true";
   Instruction instr(target, nullptr, {"x"}, {"y"});
   instr.SetLoweredFunc(reinterpret_cast<void*>(fn_ptr), "fn_sqrt");
   instr.Finalize();
 
   instr.Run(&name2podargs);
-  FLAGS_cinn_self_check_accuracy = false;
+  FLAGS_cinn_self_check_accuracy = "";
 }
 
 }  // namespace framework

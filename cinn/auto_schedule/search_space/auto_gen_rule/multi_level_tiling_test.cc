@@ -22,7 +22,9 @@
 #include <vector>
 
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
+#include "cinn/auto_schedule/search_space/auto_gen_rule/test_helper.h"
 #include "cinn/cinn.h"
+#include "cinn/frontend/syntax.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_printer.h"
@@ -32,6 +34,7 @@
 #include "cinn/lang/lower.h"
 #include "cinn/poly/stage.h"
 #include "cinn/utils/string.h"
+#include "tests/program_builder.h"
 
 namespace cinn {
 namespace auto_schedule {
@@ -45,7 +48,7 @@ TEST(MultiLevelTile, SampleSplitTwo) {
   Target target = common::DefaultHostTarget();
 #endif
 
-  MultiLevelTiling multi_level_tiling(target);
+  MultiLevelTiling multi_level_tiling(target, MultiLevelTiling::kConfigs.at(target.arch));
 
   for (int i = 0; i < 100; ++i) {
     size_t number_to_split    = rand() % 65535 + 2;  // random number in [2, 2^16]
@@ -64,7 +67,7 @@ TEST(MultiLevelTile, SampleTileSplit) {
   Target target = common::DefaultHostTarget();
 #endif
 
-  MultiLevelTiling multi_level_tiling(target);
+  MultiLevelTiling multi_level_tiling(target, MultiLevelTiling::kConfigs.at(target.arch));
 
   for (int i = 0; i < 100; ++i) {
     int number_to_split    = rand() % 65535 + 2;  // random number in [2, 2^16]
@@ -105,7 +108,7 @@ TEST(MultiLevelTile, SimpleLoops) {
   VLOG(6) << "Expr before MultiLevelTiling: ";
   VLOG(6) << ast_expr;
 
-  MultiLevelTiling multi_level_tiling(target);
+  MultiLevelTiling multi_level_tiling(target, MultiLevelTiling::kConfigs.at(target.arch));
   ir::IRSchedule ir_schedule(ir::ModuleExpr({ast_expr}));
   SearchState state(ir_schedule, 0, {});
   EXPECT_EQ(multi_level_tiling.Init(&ir_schedule), RuleApplyType::kApplyAndPruneOtherRules);
@@ -157,7 +160,7 @@ TEST(MulitLevelTile, MatrixMultiply) {
   VLOG(6) << "Expr before MultiLevelTiling: ";
   VLOG(6) << ast_expr;
 
-  MultiLevelTiling multi_level_tiling(target);
+  MultiLevelTiling multi_level_tiling(target, MultiLevelTiling::kConfigs.at(target.arch));
   ir::IRSchedule ir_schedule(ir::ModuleExpr({ast_expr}));
   SearchState state(ir_schedule, 0, {});
   EXPECT_EQ(multi_level_tiling.Init(&ir_schedule), RuleApplyType::kApplyAndPruneOtherRules);
@@ -179,6 +182,366 @@ TEST(MulitLevelTile, MatrixMultiply) {
 
   test_func(&ir_schedule);
   test_func(&new_states[0]->ir_schedule);
+}
+
+class TestMultiLevelTiling : public TestAutoGenRuleBase {
+ public:
+  int fixed_rand_seed = 1;
+  std::vector<std::string> default_input_names;
+  std::vector<std::string> default_output_names;
+};
+
+TEST_F(TestMultiLevelTiling, Matmul) {
+  default_input_names            = {"X", "Y"};
+  default_output_names           = {"temp_matmul_out"};
+  std::vector<int32_t> X_shape   = {32, 32};
+  std::vector<int32_t> Y_shape   = {32, 32};
+  std::vector<int32_t> out_shape = {32, 32};
+
+  Initialize(common::DefaultNVGPUTarget());
+  frontend::Program matmul_op = tests::OpBuilder("matmul").Build({{"X", X_shape}, {"Y", Y_shape}});
+  ir::IRSchedule ir_schedule  = MakeIRSchedule(matmul_op, fixed_rand_seed);
+  SearchState state(ir_schedule);
+  VLOG(6) << "Original state:\n" << state->DebugString();
+
+  // Apply MultiLevelTiling
+  MultiLevelTiling multi_level_tiling(target_, MultiLevelTiling::kConfigs.at(target_.arch));
+  EXPECT_EQ(multi_level_tiling.AnalyseApplyType(state, default_output_names[0]),
+            RuleApplyType::kApplyAndPruneOtherRules);
+  auto new_states = multi_level_tiling.ApplyOnBlock(state, default_output_names[0]);
+  VLOG(6) << "After MultiLevelTiling, state:\n" << new_states[0]->DebugString();
+  std::string ir          = GetIR(new_states[0]->ir_schedule);
+  std::string expected_ir = R"ROC(Expr 0 {
+{
+  ScheduleBlock(root)
+  {
+    {
+      thread_bind[blockIdx.x] for (i_0_j_0_fused, 0, 4)
+      {
+        thread_bind[threadIdx.x] for (i_1_j_1_fused, 0, 1)
+        {
+          serial for (i_2, 0, 1)
+          {
+            serial for (j_2, 0, 1)
+            {
+              serial for (i_3, 0, 1)
+              {
+                serial for (j_3, 0, 1)
+                {
+                  serial for (i_4, 0, 8)
+                  {
+                    serial for (j_4, 0, 32)
+                    {
+                      ScheduleBlock(temp_matmul_out__reduce_init)
+                      {
+                        i0, i1 = axis.bind(((8 * i_0_j_0_fused) + ((8 * i_1_j_1_fused) + ((8 * i_2) + ((8 * i_3) + i_4)))), ((32 * j_2) + ((32 * j_3) + j_4)))
+                        {
+                          temp_matmul_out__reduce_init[i0, i1] = 0.00000000f
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              {
+                serial for (reduce_k_0, 0, 4)
+                {
+                  serial for (ax0_0, 0, 8)
+                  {
+                    serial for (ax1_0, 0, 32)
+                    {
+                      ScheduleBlock(Y_reshape_shared_temp_buffer)
+                      {
+                        v0, v1 = axis.bind(((8 * reduce_k_0) + ax0_0), ((32 * j_2) + ax1_0))
+                        attrs(compute_at_extra_var:ax0_0,ax1_0)
+                        {
+                          Y_reshape_shared_temp_buffer[v0, v1] = Y_reshape[v0, v1]
+                        }
+                      }
+                    }
+                  }
+                  serial for (ax0, 0, 8)
+                  {
+                    serial for (ax1, 0, 8)
+                    {
+                      ScheduleBlock(X_reshape_shared_temp_buffer)
+                      {
+                        v0, v1 = axis.bind((((8 * i_0_j_0_fused) + ((8 * i_1_j_1_fused) + (8 * i_2))) + ax0), ((8 * reduce_k_0) + ax1))
+                        attrs(compute_at_extra_var:ax0,ax1)
+                        {
+                          X_reshape_shared_temp_buffer[v0, v1] = X_reshape[v0, v1]
+                        }
+                      }
+                    }
+                  }
+                  serial for (reduce_k_1, 0, 1)
+                  {
+                    serial for (i_3, 0, 1)
+                    {
+                      serial for (j_3, 0, 1)
+                      {
+                        serial for (reduce_k_2, 0, 8)
+                        {
+                          serial for (i_4, 0, 8)
+                          {
+                            serial for (j_4, 0, 32)
+                            {
+                              ScheduleBlock(temp_matmul_out_local_temp_buffer)
+                              {
+                                i0, i1, i2 = axis.bind(((8 * i_0_j_0_fused) + ((8 * i_1_j_1_fused) + ((8 * i_2) + ((8 * i_3) + i_4)))), ((32 * j_2) + ((32 * j_3) + j_4)), ((8 * reduce_k_0) + ((8 * reduce_k_1) + reduce_k_2)))
+                                read_buffers(_temp_matmul_out[i0(0:32), i1(0:32)], _X[i0(0:32), i2(0:32)], _Y[i2(0:32), i1(0:32)])
+                                write_buffers(_temp_matmul_out[i0(0:32), i1(0:32)])
+                                {
+                                  temp_matmul_out_local_temp_buffer[i0, i1] = (temp_matmul_out_local_temp_buffer[i0, i1] + (X_reshape_shared_temp_buffer[i0, i2] * Y_reshape_shared_temp_buffer[i2, i1]))
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+                serial for (ax0_1, 0, 8)
+                {
+                  serial for (ax1_1, 0, 32)
+                  {
+                    ScheduleBlock(temp_matmul_out)
+                    {
+                      v0, v1 = axis.bind((((8 * i_0_j_0_fused) + ((8 * i_1_j_1_fused) + (8 * i_2))) + ax0_1), ((32 * j_2) + ax1_1))
+                      attrs(reverse_compute_at_extra_var:ax0_1,ax1_1)
+                      {
+                        temp_matmul_out[v0, v1] = temp_matmul_out_local_temp_buffer[v0, v1]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+}  // end Expr 0
+)ROC";
+  CHECK_EQ(ir, expected_ir);
+
+  // build ir::Module and debug source code
+  auto ir_module   = BuildIRModule(new_states[0]->ir_schedule);
+  auto source_code = GenSourceCode(ir_module);
+  VLOG(6) << "scheduled source code:\n" << source_code;
+
+  // execute and check precision
+  CheckResult(
+      GenExecutableKernel(ir_module),
+      GenExecutableKernel(BuildIRModule(MakeIRSchedule(matmul_op, fixed_rand_seed, /* apply_manual_schedule*/ true))),
+      default_input_names,
+      default_output_names,
+      {X_shape, Y_shape},
+      {out_shape},
+      target_);
+}
+
+TEST_F(TestMultiLevelTiling, ReduceSum) {
+  default_input_names             = {"X"};
+  default_output_names            = {"var_0_tmp"};
+  std::vector<int32_t> X_shape    = {1, 16, 32};
+  std::vector<int32_t> out_shape  = {1, 16, 1};
+  std::vector<int32_t> reduce_dim = {2};
+
+  Initialize(common::DefaultNVGPUTarget());
+  frontend::Program reduce_sum_op =
+      tests::OpBuilder("reduce_sum").Build({{"X", X_shape}}, {{"dim", reduce_dim}, {"keep_dim", false}});
+  ir::IRSchedule ir_schedule = MakeIRSchedule(reduce_sum_op);
+  SearchState state(ir_schedule);
+  VLOG(6) << "Original state:\n" << state->DebugString();
+
+  // Apply MultiLevelTiling
+  MultiLevelTiling multi_level_tiling(target_, MultiLevelTiling::kConfigs.at(target_.arch));
+  EXPECT_EQ(multi_level_tiling.AnalyseApplyType(state, default_output_names[0]), RuleApplyType::kCannotApply);
+}
+
+TEST_F(TestMultiLevelTiling, Pool2d) {
+  default_input_names  = {"input"};
+  default_output_names = {"var_0"};
+  std::vector<int32_t> input_shape{2, 8, 16, 16};
+  std::vector<int32_t> output_shape{2, 8, 8, 8};
+  std::string pooling_type = "max";
+  std::vector<int> ksize{3, 3};
+  std::vector<int> strides{2, 2};
+  std::vector<int> paddings{1, 1, 1, 1};
+  bool ceil_mode                   = false;
+  bool exclusive                   = true;
+  bool global_pooling              = false;
+  std::string data_format          = "NCHW";
+  bool adaptive                    = false;
+  std::string padding_algorithm    = "EXPLICIT";
+  frontend::Program pool2d_program = tests::OpBuilder("pool2d").Build({{"input", input_shape}},
+                                                                      {{"pool_type", pooling_type},
+                                                                       {"kernel_size", ksize},
+                                                                       {"stride_size", strides},
+                                                                       {"padding_size", paddings},
+                                                                       {"ceil_mode", ceil_mode},
+                                                                       {"exclusive", exclusive},
+                                                                       {"global_pooling", global_pooling},
+                                                                       {"data_format", data_format},
+                                                                       {"adaptive", adaptive},
+                                                                       {"padding_algorithm", padding_algorithm}});
+
+  Initialize(common::DefaultNVGPUTarget());
+  ir::IRSchedule ir_schedule = MakeIRSchedule(pool2d_program, fixed_rand_seed);
+  SearchState state(ir_schedule);
+  VLOG(6) << "Original state:\n" << state->DebugString();
+
+  // Apply MultiLevelTiling
+  MultiLevelTiling::Config mlt_config = {
+      /*bind_axis*/ std::vector<std::string>{"blockIdx.x", "threadIdx.x"},
+      /*tile_struct*/ std::string("SSRS"),
+      /*read_cache_memory_type*/ std::string("shared"),
+      /*read_cache_levels*/ std::vector<int>{3},
+      /*write_cache_memory_type*/ std::string("local"),
+      /*write_cache_levels*/ std::vector<int>{2},
+  };
+  MultiLevelTiling multi_level_tiling(target_, mlt_config);
+  EXPECT_EQ(multi_level_tiling.AnalyseApplyType(state, default_output_names[0]),
+            RuleApplyType::kApplyAndPruneOtherRules);
+  auto new_states = multi_level_tiling.ApplyOnBlock(state, default_output_names[0]);
+  VLOG(6) << "After MultiLevelTiling, state:\n" << new_states[0]->DebugString();
+  std::string ir          = GetIR(new_states[0]->ir_schedule);
+  std::string expected_ir = R"ROC(Expr 0 {
+{
+  ScheduleBlock(root)
+  {
+    serial for (i, 0, 2)
+    {
+      serial for (j, 0, 8)
+      {
+        serial for (k, 0, 18)
+        {
+          serial for (a, 0, 18)
+          {
+            ScheduleBlock(pad_temp_0)
+            {
+              i0, i1, i2, i3 = axis.bind(i, j, k, a)
+              pad_temp_0[i0, i1, i2, i3] = select(((i3 < 17) and ((i3 >= 1) and ((i2 < 17) and (i2 >= 1)))), input[i0, i1, (-1 + i2), (-1 + i3)], -3.40282347e+38f)
+            }
+          }
+        }
+      }
+    }
+  }
+}
+}  // end Expr 0
+Expr 1 {
+{
+  ScheduleBlock(root_0)
+  {
+    {
+      thread_bind[blockIdx.x] for (i_0_j_0_k_0_a_0_fused, 0, 16)
+      {
+        thread_bind[threadIdx.x] for (i_1_j_1_k_1_a_1_fused, 0, 4)
+        {
+          serial for (i_2, 0, 1)
+          {
+            serial for (j_2, 0, 4)
+            {
+              serial for (k_2, 0, 1)
+              {
+                serial for (a_2, 0, 4)
+                {
+                  ScheduleBlock(var_0__reduce_init)
+                  {
+                    i0, i1, i2, i3 = axis.bind(((((i_0_j_0_k_0_a_0_fused / 2) / 2) / 2) + ((i_1_j_1_k_1_a_1_fused / 4) + i_2)), ((4 * (((i_0_j_0_k_0_a_0_fused / 2) / 2) % 2)) + j_2), ((i_1_j_1_k_1_a_1_fused % 4) + ((4 * ((i_0_j_0_k_0_a_0_fused / 2) % 2)) + k_2)), ((4 * (i_0_j_0_k_0_a_0_fused % 2)) + a_2))
+                    {
+                      var_0__reduce_init[i0, i1, i2, i3] = -3.40282347e+38f
+                    }
+                  }
+                }
+              }
+            }
+          }
+          {
+            serial for (kernel_idx, 0, 3)
+            {
+              serial for (kernel_idx_0, 0, 3)
+              {
+                serial for (ax0, 0, 4)
+                {
+                  serial for (ax1, 0, 7)
+                  {
+                    ScheduleBlock(pad_temp_0_shared_temp_buffer)
+                    {
+                      v0, v1, v2, v3 = axis.bind(((((i_0_j_0_k_0_a_0_fused / 2) / 2) / 2) + (i_1_j_1_k_1_a_1_fused / 4)), ((4 * (((i_0_j_0_k_0_a_0_fused / 2) / 2) % 2)) + ax0), ((8 * ((i_0_j_0_k_0_a_0_fused / 2) % 2)) + ((2 * (i_1_j_1_k_1_a_1_fused % 4)) + kernel_idx)), (((8 * (i_0_j_0_k_0_a_0_fused % 2)) + kernel_idx_0) + ax1))
+                      attrs(compute_at_extra_var:ax0,ax1)
+                      {
+                        pad_temp_0_shared_temp_buffer[v0, v1, v2, v3] = pad_temp_0[v0, v1, v2, v3]
+                      }
+                    }
+                  }
+                }
+                serial for (i_2, 0, 1)
+                {
+                  serial for (j_2, 0, 4)
+                  {
+                    serial for (k_2, 0, 1)
+                    {
+                      serial for (a_2, 0, 4)
+                      {
+                        ScheduleBlock(var_0_local_temp_buffer)
+                        {
+                          i0, i1, i2, i3, i4, i5 = axis.bind(((((i_0_j_0_k_0_a_0_fused / 2) / 2) / 2) + ((i_1_j_1_k_1_a_1_fused / 4) + i_2)), ((4 * (((i_0_j_0_k_0_a_0_fused / 2) / 2) % 2)) + j_2), ((i_1_j_1_k_1_a_1_fused % 4) + ((4 * ((i_0_j_0_k_0_a_0_fused / 2) % 2)) + k_2)), ((4 * (i_0_j_0_k_0_a_0_fused % 2)) + a_2), kernel_idx, kernel_idx_0)
+                          read_buffers(_var_0[i0(0:2), i1(0:8), i2(0:8), i3(0:8)], _pad_temp_0[i0(0:2), i1(0:8)])
+                          write_buffers(_var_0[i0(0:2), i1(0:8), i2(0:8), i3(0:8)])
+                          {
+                            var_0_local_temp_buffer[i0, i1, i2, i3] = cinn_max(var_0_local_temp_buffer[i0, i1, i2, i3], pad_temp_0_shared_temp_buffer[i0, i1, ((2 * i2) + i4), ((2 * i3) + i5)])
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            serial for (ax0_0, 0, 4)
+            {
+              serial for (ax1_0, 0, 4)
+              {
+                ScheduleBlock(var_0)
+                {
+                  v0, v1, v2, v3 = axis.bind(((((i_0_j_0_k_0_a_0_fused / 2) / 2) / 2) + (i_1_j_1_k_1_a_1_fused / 4)), ((4 * (((i_0_j_0_k_0_a_0_fused / 2) / 2) % 2)) + ax0_0), ((i_1_j_1_k_1_a_1_fused % 4) + (4 * ((i_0_j_0_k_0_a_0_fused / 2) % 2))), ((4 * (i_0_j_0_k_0_a_0_fused % 2)) + ax1_0))
+                  attrs(reverse_compute_at_extra_var:ax0_0,ax1_0)
+                  {
+                    var_0[v0, v1, v2, v3] = var_0_local_temp_buffer[v0, v1, v2, v3]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+}  // end Expr 1
+)ROC";
+  CHECK_EQ(ir, expected_ir);
+
+  // build ir::Module and debug source code
+  auto ir_module   = BuildIRModule(new_states[0]->ir_schedule);
+  auto source_code = GenSourceCode(ir_module);
+  VLOG(6) << "scheduled source code:\n" << source_code;
+
+  // execute and check precision
+  CheckResult(GenExecutableKernel(ir_module),
+              GenExecutableKernel(
+                  BuildIRModule(MakeIRSchedule(pool2d_program, fixed_rand_seed, /* apply_manual_schedule*/ true))),
+              default_input_names,
+              default_output_names,
+              {input_shape},
+              {output_shape},
+              target_);
 }
 
 }  // namespace auto_schedule

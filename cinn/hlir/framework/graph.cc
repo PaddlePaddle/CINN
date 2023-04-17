@@ -18,6 +18,7 @@
 #include <sstream>
 
 #include "cinn/hlir/framework/visualize_helper.h"
+#include "cinn/runtime/flags.h"
 #include "cinn/utils/string.h"
 
 DECLARE_string(cinn_fusion_groups_graphviz_dir);
@@ -26,12 +27,15 @@ namespace cinn {
 namespace hlir {
 namespace framework {
 
+using DTypeDict = absl::flat_hash_map<std::string, common::Type>;
+using ShapeDict = absl::flat_hash_map<std::string, shape_t>;
+
 void Graph::Initialize(const frontend::Program& prog,
                        const std::unordered_set<std::string>& fetch_var_ids,
                        const Target& target) {
   target_ = target;
-  absl::flat_hash_map<std::string, shape_t> shape_dict;
-  absl::flat_hash_map<std::string, common::Type> dtype_dict;
+  ShapeDict shape_dict;
+  DTypeDict dtype_dict;
   int counter = 0;
   for (size_t i = 0; i < prog.size(); i++) {
     auto temp = prog[i];
@@ -80,9 +84,22 @@ void Graph::Initialize(const frontend::Program& prog,
 
 std::vector<std::vector<Node*>> Graph::FusionGroupsToGroups() {
   std::vector<std::vector<Node*>> groups;
-  groups.resize(fusion_groups.size());
-  for (size_t i = 0; i < fusion_groups.size(); ++i) {
-    groups[i] = fusion_groups[i]->CollectNodes();
+  if (fusion_groups.empty()) {
+    // if no fusion_groups, the graph will be treated as a big group
+    const auto& nodes = this->CollectNodes([](const common::GraphNode* node) {
+      return node->safe_as<Node>() != nullptr && node->safe_as<Node>()->op() != nullptr;
+    });
+    std::vector<Node*> group;
+    group.reserve(nodes.size());
+    for (auto* node : nodes) {
+      group.emplace_back(node->safe_as<Node>());
+    }
+    groups.emplace_back(std::move(group));
+  } else {
+    groups.resize(fusion_groups.size());
+    for (size_t i = 0; i < fusion_groups.size(); ++i) {
+      groups[i] = fusion_groups[i]->CollectNodes();
+    }
   }
   return groups;
 }
@@ -92,7 +109,7 @@ std::string Graph::DebugGroupedGraph(const std::unordered_set<std::string>& fetc
     return DebugGroupedGraph(FusionGroupsToGroups(), fetch_var_ids);
   }
 
-  std::vector<std::vector<Node*>> graph_ops(1);
+  std::vector<Node*> graph_ops;
   auto nodes_inorder = std::get<0>(topological_order());
   for (auto* graph_node : nodes_inorder) {
     auto node = graph_node->safe_as<Node>();
@@ -101,28 +118,155 @@ std::string Graph::DebugGroupedGraph(const std::unordered_set<std::string>& fetc
       continue;
     }
 
-    graph_ops[0].emplace_back(node);
+    graph_ops.emplace_back(node);
   }
 
-  return DebugGroupedGraph(graph_ops, fetch_var_ids);
+  std::stringstream debug_str;
+  debug_str << "Graph {\n";
+  debug_str << DebugGroupedGraph(graph_ops, fetch_var_ids);
+  debug_str << "}\n";
+  return debug_str.str();
+}
+
+std::string Graph::DebugGroupedGraph(const std::vector<Node*>& group,
+                                     const std::unordered_set<std::string>& fetch_var_ids) {
+  auto& shape_dict = HasAttr("infershape") ? GetAttrs<ShapeDict>("infershape") : ShapeDict{};
+  auto& dtype_dict = HasAttr("inferdtype") ? GetAttrs<DTypeDict>("inferdtype") : DTypeDict{};
+
+  auto get_all_out_names = [](const std::vector<Node*>& nodes) {
+    // collect all op's output var name in group
+    std::unordered_set<std::string> out_names;
+    for (auto* node : nodes) {
+      for (const auto& link : node->outlinks()) {
+        auto* out_node = link->sink()->safe_as<NodeData>();
+        out_names.emplace(out_node->id());
+      }
+    }
+    return out_names;
+  };
+  auto get_feed_list = [](const std::vector<Node*>& nodes, const std::unordered_set<std::string>& out_names) {
+    // if the op's input var name cannot found in out_names, it is the group's feed var
+    std::unordered_set<std::string> feed_list;
+    for (auto* node : nodes) {
+      for (const auto& link : node->inlinks()) {
+        auto* in_node = link->source()->safe_as<NodeData>();
+        if (!out_names.count(in_node->id())) {
+          feed_list.emplace(in_node->id());
+        }
+      }
+    }
+    return std::vector<std::string>(feed_list.begin(), feed_list.end());
+  };
+  auto get_fetch_list = [&](const std::vector<Node*>& nodes, const std::unordered_set<std::string>& out_names) {
+    // if the fetch var in out_names, it's the group's fetch var, otherwise not
+    std::unordered_set<std::string> in_names;
+    for (auto* node : nodes) {
+      for (const auto& link : node->inlinks()) {
+        auto* in_node = link->source()->safe_as<NodeData>();
+        in_names.emplace(in_node->id());
+      }
+    }
+    std::vector<std::string> fetch_list;
+    for (const auto& out : out_names) {
+      if (!in_names.count(out) || fetch_var_ids.count(out)) {
+        // if the var not any op's input, or in fetch_var_ids, it's the group's fetch list
+        fetch_list.emplace_back(out);
+      }
+    }
+    return fetch_list;
+  };
+
+  const auto& out_names = get_all_out_names(group);
+  const auto& feed_list = get_feed_list(group, out_names);
+
+  std::stringstream debug_str;
+  // generator python test code
+  for (const auto& id : feed_list) {
+    const auto& shape = shape_dict.count(id) ? cinn::utils::Join(shape_dict.at(id), ", ") : "-1";
+    const auto& dtype = dtype_dict.count(id) ? common::Type2Str(dtype_dict.at(id)) : "float32";
+
+    // generator python create_input code
+    debug_str << "    " << id << " = builder.create_input(type=\"" << dtype << "\", shape=[" << shape << "], id_hint=\""
+              << id << "\")\n";
+  }
+  debug_str << "\n";
+  // generator builder.op code
+  for (auto* node : group) {
+    debug_str << "    " << DebugString(node) << "\n";
+  }
+  debug_str << "\n";
+  // generator
+  debug_str << "    feed_list = [" << cinn::utils::Join(feed_list, ", ") << "]\n";
+  debug_str << "    fetch_list = [" << cinn::utils::Join(get_fetch_list(group, out_names), ", ") << "]\n";
+
+  return debug_str.str();
+}
+
+std::string Graph::GenerateGroupPythonCode(const std::vector<Node*>& group,
+                                           const std::unordered_set<std::string>& fetch_var_ids) {
+  std::stringstream ss;
+  ss << "#!/usr/bin/env python3\n";
+  ss << "# Please set \"export PYTHONPATH=${CINN_ROOT}/build/python:${PYTHONPATH}\" first\n";
+  ss << "\n";
+  ss << "import unittest\n";
+  ss << "import numpy as np\n";
+  ss << "from cinn.frontend import NetBuilder\n";
+  ss << "from cinn.common import DefaultNVGPUTarget\n";
+  ss << "from tests.ops.op_test import OpTest\n";
+  ss << "\n";
+  ss << "class TestGroup(unittest.TestCase):\n";
+  ss << "  def test_group(self):\n";
+  ss << "    builder = NetBuilder(\"group_test\")\n";
+  ss << "\n";
+  ss << DebugGroupedGraph(group, fetch_var_ids);
+  ss << "\n";
+  ss << "    prog = builder.build()\n";
+  ss << "\n";
+  ss << "    feed_data = [OpTest.random(shape=var.shape(), dtype=var.type()) for var in feed_list]\n";
+  ss << "    result = prog.build_and_get_output(DefaultNVGPUTarget(), feed_list, feed_data, fetch_list)\n";
+  ss << "\n";
+  ss << "    result = [res.numpy(DefaultNVGPUTarget()) for res in result]\n";
+  ss << "    for i in range(len(result)):\n";
+  ss << "      info_str = fetch_list[i].name()\n";
+  ss << "      info_str += \", shape=\" + str(result[i].shape)\n";
+  ss << "      info_str += \", dtype=\" + str(result[i].dtype) + \":\\n\"\n";
+  ss << "      info_str += str(result[i])\n";
+  ss << "      print(info_str)\n";
+
+  ss << "\n";
+  ss << "\n";
+  ss << "if __name__ == \"__main__\":\n";
+  ss << "  unittest.main()\n";
+  ss << "\n";
+  return ss.str();
 }
 
 std::string Graph::DebugGroupedGraph(const std::vector<std::vector<Node*>>& groups,
                                      const std::unordered_set<std::string>& fetch_var_ids) {
-  std::stringstream debug_str;
-  for (auto& id : fetch_var_ids) {
-    debug_str << "Fetch: " << id << "\n";
+  std::unordered_set<std::string> fetch_list;
+  if (!fetch_var_ids.empty()) {
+    fetch_list = fetch_var_ids;
+  } else {
+    for (auto* var : this->outputs) {
+      if (var) {
+        continue;
+      }
+      fetch_list.insert(var->id());
+    }
   }
 
+  std::stringstream debug_str;
   int group_id = 0;
   for (auto& group : groups) {
     debug_str << "Group " << group_id++ << " {\n";
-    for (auto* node : group) {
-      debug_str << "  " << DebugString(node) << "\n";
-    }
-    debug_str << "}"
-              << "\n";
+    debug_str << DebugGroupedGraph(group, fetch_list);
+    debug_str << "}\n";
   }
+  debug_str << "\n";
+
+  debug_str << "graph_fetch_list=["
+            << cinn::utils::Join(std::vector<std::string>(fetch_list.begin(), fetch_list.end()), ", ") << "]\n";
+
   return debug_str.str();
 }
 
@@ -130,27 +274,48 @@ void Graph::VisualizeGroupedGraph(const std::unordered_set<std::string>& fetch_v
   VisualizeGroupedGraph(FusionGroupsToGroups(), fetch_var_ids);
 }
 
-void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
+void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& origin_groups,
                                   const std::unordered_set<std::string>& fetch_var_ids) {
-  VLOG(4) << DebugGroupedGraph(groups, fetch_var_ids);
-
-  if (FLAGS_cinn_fusion_groups_graphviz_dir.empty()) {
+  if (cinn::runtime::CheckStringFlagFalse(FLAGS_cinn_fusion_groups_graphviz_dir)) {
     return;
   }
 
-  viz_path_ = utils::StringFormat(
-      "%s/fusion_groups_%d/", FLAGS_cinn_fusion_groups_graphviz_dir.c_str(), viz_count_.fetch_add(1));
-  VLOG(4) << "The visualized path of CINN fusion groups: " << viz_path_;
+  const auto& groups = RemoveAccCheckGroups(origin_groups);
+
+  int viz_id = viz_count_.fetch_add(1);
+  viz_path_  = utils::StringFormat("%s/fusion_groups_%d/", FLAGS_cinn_fusion_groups_graphviz_dir.c_str(), viz_id);
   if (!MakeDirectory(viz_path_, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)) {
+    LOG_IF(WARNING, viz_id == 0) << "Failed to make directory: \"" << viz_path_
+                                 << "\", the CINN subgraph's fusion group information will not print.";
+    viz_path_.clear();
     return;
+  }
+  LOG_IF(INFO, viz_id == 0) << "The CINN subgraph's fusion group information will writing into path: \""
+                            << FLAGS_cinn_fusion_groups_graphviz_dir << "\"";
+
+  for (int i = 0; i < groups.size(); i++) {
+    WriteToFile(viz_path_ + "test_group_" + std::to_string(i) + ".py",
+                GenerateGroupPythonCode(groups[i], fetch_var_ids));
   }
 
   Summary(groups, viz_path_);
 
-  auto& shape_dict = HasAttr("infershape") ? GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape")
-                                           : absl::flat_hash_map<std::string, shape_t>{};
-  auto& dtype_dict = HasAttr("inferdtype") ? GetAttrs<absl::flat_hash_map<std::string, common::Type>>("inferdtype")
-                                           : absl::flat_hash_map<std::string, common::Type>{};
+  WriteToFile(viz_path_ + "grouped_graph.dot", VisualizeGraph(groups, fetch_var_ids));
+
+  const auto& group_dots = VisualizeGroups(groups, fetch_var_ids);
+  for (int i = 0; i < group_dots.size(); ++i) {
+    WriteToFile(GetFilePathForGroup(groups, i, viz_path_), group_dots[i]);
+  }
+}
+
+std::string Graph::VisualizeGraph(const std::unordered_set<std::string>& fetch_var_ids) {
+  return VisualizeGraph(FusionGroupsToGroups(), fetch_var_ids);
+}
+
+std::string Graph::VisualizeGraph(const std::vector<std::vector<Node*>>& groups,
+                                  const std::unordered_set<std::string>& fetch_var_ids) {
+  auto& shape_dict = HasAttr("infershape") ? GetAttrs<ShapeDict>("infershape") : ShapeDict{};
+  auto& dtype_dict = HasAttr("inferdtype") ? GetAttrs<DTypeDict>("inferdtype") : DTypeDict{};
 
   std::unordered_map<std::string, int> recompute_nodes;
   FindRecomputeNodes(groups, &recompute_nodes);
@@ -180,25 +345,24 @@ void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
     }
     group_id++;
   }
-
-  std::string filepath = viz_path_ + "grouped_graph.dot";
-  WriteToFile(filepath, dot());
-
-  VisualizeGroups(groups, fetch_var_ids);
+  return dot();
 }
 
-void Graph::VisualizeGroups(const std::vector<std::vector<Node*>>& groups,
-                            const std::unordered_set<std::string>& fetch_var_ids) {
-  auto& shape_dict = HasAttr("infershape") ? GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape")
-                                           : absl::flat_hash_map<std::string, shape_t>{};
-  auto& dtype_dict = HasAttr("inferdtype") ? GetAttrs<absl::flat_hash_map<std::string, common::Type>>("inferdtype")
-                                           : absl::flat_hash_map<std::string, common::Type>{};
+std::vector<std::string> Graph::VisualizeGroups(const std::unordered_set<std::string>& fetch_var_ids) {
+  return VisualizeGroups(FusionGroupsToGroups(), fetch_var_ids);
+}
+
+std::vector<std::string> Graph::VisualizeGroups(const std::vector<std::vector<Node*>>& groups,
+                                                const std::unordered_set<std::string>& fetch_var_ids) {
+  auto& shape_dict = HasAttr("infershape") ? GetAttrs<ShapeDict>("infershape") : ShapeDict{};
+  auto& dtype_dict = HasAttr("inferdtype") ? GetAttrs<DTypeDict>("inferdtype") : DTypeDict{};
 
   std::unordered_map<std::string, int> recompute_nodes;
   FindRecomputeNodes(groups, &recompute_nodes);
 
   utils::ResetDotCounters();
 
+  std::vector<std::string> dot_vec;
   int group_id = 0;
   for (auto& group : groups) {
     utils::DotLang dot;
@@ -242,6 +406,9 @@ void Graph::VisualizeGroups(const std::vector<std::vector<Node*>>& groups,
           for (auto& outnode_outlink : outnode->outlinks()) {
             auto* out_outnode = outnode_outlink->sink()->safe_as<Node>();
             if (out_outnode && !nodes_set.count(out_outnode)) {
+              if (IsAccCheckOp(out_outnode)) {
+                continue;
+              }
               nodes_set.insert(out_outnode);
               dot.AddNode(out_outnode->id(), GetOutlinkOpAttrs());
               dot.AddEdge(dot_outnode_id, out_outnode->id(), {});
@@ -250,12 +417,11 @@ void Graph::VisualizeGroups(const std::vector<std::vector<Node*>>& groups,
         }
       }
     }
-
-    std::string filepath = GetFilePathForGroup(groups, group_id, viz_path_);
-    WriteToFile(filepath, dot());
+    dot_vec.emplace_back(dot());
 
     group_id++;
   }
+  return dot_vec;
 }
 
 std::atomic_size_t Graph::viz_count_{0};
@@ -303,6 +469,13 @@ std::unordered_set<NodeData*> Graph::Group::GetOutputNodeDatas() {
   }
 
   return group_outputs;
+}
+
+void Graph::SaveSourceCode(const std::string& code) {
+  if (cinn::runtime::CheckStringFlagFalse(FLAGS_cinn_fusion_groups_graphviz_dir) || viz_path_.empty()) {
+    return;
+  }
+  WriteToFile(viz_path_ + "source_code.cu", code);
 }
 
 }  // namespace framework

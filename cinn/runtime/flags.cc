@@ -17,6 +17,8 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
+#include <unordered_set>
+
 #ifdef CINN_WITH_CUDNN
 DEFINE_bool(cinn_cudnn_deterministic,
             false,
@@ -57,10 +59,10 @@ DEFINE_bool(cinn_use_fill_constant_folding,
             BoolFromEnv("FLAGS_cinn_use_fill_constant_folding", false),
             "Whether use the FillConstantFolding pass.");
 
-DEFINE_bool(cinn_check_fusion_accuracy_pass,
-            BoolFromEnv("FLAGS_cinn_check_fusion_accuracy_pass", false),
-            "Check the correct of fusion kernels, if the results not satisfied 'allclose(rtol=1e-05f, atol=1e-08f)', "
-            "report error and exited.");
+DEFINE_string(cinn_check_fusion_accuracy_pass,
+              StringFromEnv("FLAGS_cinn_check_fusion_accuracy_pass", ""),
+              "Check the correct of fusion kernels, if the results not satisfied 'allclose(rtol=1e-05f, atol=1e-08f)', "
+              "report error and exited.");
 
 DEFINE_bool(cinn_use_cuda_vectorize,
             BoolFromEnv("FLAGS_cinn_use_cuda_vectorize", false),
@@ -72,14 +74,22 @@ DEFINE_bool(cinn_ir_schedule,
 
 DEFINE_bool(use_reduce_split_pass, BoolFromEnv("FLAGS_use_reduce_split_pass", false), "Whether use reduce split pass.");
 
+DEFINE_bool(cinn_use_dense_merge_pass,
+            BoolFromEnv("FLAGS_cinn_use_dense_merge_pass", false),
+            "Whether use dense merge pass.");
+
+DEFINE_bool(nvrtc_compile_to_cubin,
+            BoolFromEnv("FLAGS_nvrtc_compile_to_cubin", false),
+            "Whether nvrtc compile cuda source into cubin instead of ptx (only works after cuda-11.1).");
+
 // FLAGS for performance analysis and accuracy debug
 DEFINE_bool(cinn_sync_run,
             BoolFromEnv("FLAGS_cinn_sync_run", false),
             "Whether sync all devices after each instruction run, which is used for debug.");
 
-DEFINE_bool(cinn_self_check_accuracy,
-            BoolFromEnv("FLAGS_cinn_self_check_accuracy", false),
-            "Whether self-check accuracy after each instruction run, which is used for debug.");
+DEFINE_string(cinn_self_check_accuracy,
+              StringFromEnv("FLAGS_cinn_self_check_accuracy", ""),
+              "Whether self-check accuracy after each instruction run, which is used for debug.");
 
 DEFINE_int64(cinn_self_check_accuracy_num,
              Int64FromEnv("FLAGS_cinn_self_check_accuracy_num", 0L),
@@ -93,6 +103,10 @@ DEFINE_string(cinn_source_code_save_path,
               StringFromEnv("FLAGS_cinn_source_code_save_path", ""),
               "Specify the directory path of generated source code, which is used for debug.");
 
+DEFINE_string(cinn_pass_visualize_dir,
+              StringFromEnv("FLAGS_cinn_pass_visualize_dir", ""),
+              "Specify the directory path of pass visualize file of graph, which is used for debug.");
+
 DEFINE_bool(enable_auto_tuner, BoolFromEnv("FLAGS_enable_auto_tuner", false), "Whether enable auto tuner.");
 
 DEFINE_bool(auto_schedule_use_cost_model,
@@ -100,8 +114,27 @@ DEFINE_bool(auto_schedule_use_cost_model,
             "Whether to use cost model in auto schedule, this is an on-developing flag and it will be removed when "
             "cost model is stable.");
 
+DEFINE_bool(enhance_vertical_fusion_with_recompute,
+            BoolFromEnv("FLAGS_enhance_vertical_fusion_with_recompute", false),
+            "Whether to enhance check logic on vertical fusion with recompute");
+
 namespace cinn {
 namespace runtime {
+
+bool CheckStringFlagTrue(const std::string& flag) {
+  // from gflag FlagValue::ParseFrom:
+  // https://github.com/gflags/gflags/blob/master/src/gflags.cc#L292
+  static const std::unordered_set<std::string> kTrue = {"1", "t", "true", "y", "yes", "T", "True", "TRUE", "Y", "yes"};
+  return kTrue.count(flag);
+}
+
+bool CheckStringFlagFalse(const std::string& flag) {
+  // from gflag FlagValue::ParseFrom:
+  // https://github.com/gflags/gflags/blob/master/src/gflags.cc#L292
+  static const std::unordered_set<std::string> kFalse = {
+      "0", "f", "false", "n", "no", "F", "False", "FALSE", "N", "No", "NO"};
+  return flag.empty() || kFalse.count(flag);
+}
 
 void SetCinnCudnnDeterministic(bool state) {
 #ifdef CINN_WITH_CUDNN
@@ -118,6 +151,21 @@ bool GetCinnCudnnDeterministic() {
   LOG(FATAL) << "CINN is compiled without cuDNN, this api is invalid!";
   return false;
 #endif
+}
+
+unsigned long long RandomSeed::seed_ = 0ULL;
+
+unsigned long long RandomSeed::GetOrSet(unsigned long long seed) {
+  if (seed != 0ULL) {
+    seed_ = seed;
+  }
+  return seed_;
+}
+
+unsigned long long RandomSeed::Clear() {
+  auto old_seed = seed_;
+  seed_         = 0ULL;
+  return old_seed;
 }
 
 }  // namespace runtime

@@ -20,6 +20,8 @@
 
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/pe/broadcast.h"
+#include "cinn/utils/functional.h"
+#include "cinn/utils/profiler.h"
 
 namespace cinn {
 namespace frontend {
@@ -33,6 +35,7 @@ using utils::ShapeType;
 NetBuilder::NetBuilder(const std::string& name) : name_(name) {}
 
 Program NetBuilder::Build(bool in_reverse) {
+  utils::RecordEvent("NetBuilder::Build", utils::EventType::kProgram);
   std::vector<Instruction> instrs;
   if (in_reverse) {
     instrs.reserve(instrs_.size());
@@ -84,7 +87,7 @@ const std::vector<Variable>& NetBuilder::CustomInstr(const std::string& type,
   for (auto& kv : attrs) {
     instr.SetAttr(kv.first, kv.second);
   }
-
+  utils::RecordEvent("NetBuilder." + type, utils::EventType::kProgram);
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutputs();
@@ -163,10 +166,12 @@ NETBUILDER_UNARY_OP_DEF(Reciprocal, reciprocal)
     return BinaryOp(#op_type__, lhs, rhs, axis);                                         \
   }
 NETBUILDER_BINARY_OP_DEF(Add, elementwise_add)
+NETBUILDER_BINARY_OP_DEF(ElementwiseAdd, elementwise_add)
 NETBUILDER_BINARY_OP_DEF(Atan2, atan2)
 NETBUILDER_BINARY_OP_DEF(Multiply, elementwise_mul)
+NETBUILDER_BINARY_OP_DEF(ElementwiseMul, elementwise_mul)
 NETBUILDER_BINARY_OP_DEF(Divide, divide)
-NETBUILDER_BINARY_OP_DEF(Subtract, substract)
+NETBUILDER_BINARY_OP_DEF(Subtract, subtract)
 NETBUILDER_BINARY_OP_DEF(FloorDivide, floor_divide)
 NETBUILDER_BINARY_OP_DEF(Mod, mod)
 NETBUILDER_BINARY_OP_DEF(Remainder, remainder)
@@ -236,7 +241,36 @@ Variable NetBuilder::FillConstant(
   auto out =
       CustomInstr("fill_constant", {}, {{"shape", shape}, {"value", value}, {"dtype", dtype}, {"force_cpu", force_cpu}})
           .front();
-  out.set_id(cinn::utils::TransValidVarName(name));
+  if (!name.empty()) {
+    out.set_id(cinn::utils::TransValidVarName(name));
+  }
+  return out;
+}
+
+Variable NetBuilder::FillConstant(const std::vector<int>& shape,
+                                  const std::string& str_value,
+                                  const std::string& name,
+                                  const std::string& dtype,
+                                  bool force_cpu) {
+  const auto& type = common::Str2Type(dtype);
+
+  utils::Attribute value;
+  if (type.is_float()) {
+    value = std::stod(str_value);
+  } else if (type.is_int() || type.is_uint()) {
+    value = static_cast<int64_t>(std::stoll(str_value));
+  } else if (type.is_bool()) {
+    static std::unordered_set<std::string> true_string = {"1", "t", "T", "true", "True", "TRUE"};
+    value                                              = static_cast<bool>(true_string.count(str_value));
+  } else {
+    LOG(FATAL) << "FillConstant only support int/float/bool, but here " << dtype;
+  }
+  auto out =
+      CustomInstr("fill_constant", {}, {{"shape", shape}, {"value", value}, {"dtype", dtype}, {"force_cpu", force_cpu}})
+          .front();
+  if (!name.empty()) {
+    out.set_id(cinn::utils::TransValidVarName(name));
+  }
   return out;
 }
 
@@ -304,7 +338,7 @@ Variable NetBuilder::Reshape(const Variable& operand, const std::vector<int>& sh
 }
 
 Variable NetBuilder::Transpose(const Variable& operand, const std::vector<int>& axis) {
-  return CustomInstr("transpose", {operand}, {{"axis", axis}}).front();
+  return CustomInstr("transpose", {operand}, {{"axis", utils::GetPositiveAxes(axis, operand->shape.size())}}).front();
 }
 
 Variable NetBuilder::Slice(const Variable& operand,
@@ -338,7 +372,7 @@ Variable NetBuilder::SliceAssign(const Variable& input,
 }
 
 Variable NetBuilder::Reverse(const Variable& operand, const std::vector<int>& axis) {
-  return CustomInstr("reverse", {operand}, {{"axis", axis}}).front();
+  return CustomInstr("reverse", {operand}, {{"axis", utils::GetPositiveAxes(axis, operand->shape.size())}}).front();
 }
 
 Variable NetBuilder::Select(const Variable& condition, const Variable& true_value, const Variable& false_value) {
@@ -418,6 +452,11 @@ Variable NetBuilder::Cast(const Variable& operand, const std::string& dtype) {
   return CustomInstr("cast", {operand}, {{"dtype", dtype}}).front();
 }
 
+Variable NetBuilder::BitcastConvert(const Variable& operand, const std::string& dtype) {
+  std::string input_data_type = common::Type2Str(operand->type);
+  return CustomInstr("bitcast_convert", {operand}, {{"dtype", dtype}, {"input_data_type", input_data_type}}).front();
+}
+
 Variable NetBuilder::OneHot(const Variable& indices,
                             const Variable& on_value,
                             const Variable& off_value,
@@ -459,48 +498,24 @@ Variable NetBuilder::Conv(const Variable& lhs,
       .front();
 }
 
-Variable NetBuilder::ArgSort(const Variable& operand, const int& axis, const bool& is_ascend) {
-  Instruction instr("argsort", {operand});
-  instr.SetAttr("axis", axis);
-  instr.SetAttr("is_ascend", is_ascend);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+std::vector<Variable> NetBuilder::ArgSort(const Variable& operand, const int& axis, const bool& is_ascend) {
+  return CustomInstr("argsort", {operand}, {{"axis", axis}, {"is_ascend", is_ascend}});
 }
 
 Variable NetBuilder::Sort(const Variable& operand, const int& axis, const bool& is_ascend) {
-  Instruction instr("sort", {operand});
-  instr.SetAttr("axis", axis);
-  instr.SetAttr("is_ascend", is_ascend);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return CustomInstr("sort", {operand}, {{"axis", axis}, {"is_ascend", is_ascend}}).front();
 }
 
 Variable NetBuilder::Argmax(const Variable& x, const int& axis, const bool& keep_dim) {
-  Instruction instr("argmax", {x});
-  instr.SetAttr("axis", axis);
-  instr.SetAttr("keep_dim", keep_dim);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return CustomInstr("argmax", {x}, {{"axis", axis}, {"keep_dim", keep_dim}}).front();
 }
 
 Variable NetBuilder::Argmin(const Variable& x, const int& axis, const bool& keep_dim) {
-  Instruction instr("argmin", {x});
-  instr.SetAttr("axis", axis);
-  instr.SetAttr("keep_dim", keep_dim);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return CustomInstr("argmin", {x}, {{"axis", axis}, {"keep_dim", keep_dim}}).front();
 }
 
 Variable NetBuilder::LookupTable(const Variable& table, const Variable& ids, int64_t padding_idx) {
-  Instruction instr("lookup_table", {table, ids});
-  instr.SetAttr<int32_t>("padding_idx", padding_idx);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return CustomInstr("lookup_table", {table, ids}, {{"padding_idx", padding_idx}}).front();
 }
 
 Variable NetBuilder::Conv2d(const Variable& a,
@@ -599,6 +614,10 @@ Variable NetBuilder::Repeat(const Variable& x, int repeats, int axis) {
   return CustomInstr("repeat", {x}, {{"repeats", repeats}, {"axis", axis}}).front();
 }
 
+Variable NetBuilder::Resize(const Variable& x, const std::vector<int>& out_shape, const std::string& mode) {
+  return CustomInstr("resize", {x}, {{"out_shape", out_shape}, {"mode", mode}}).front();
+}
+
 std::vector<Variable> NetBuilder::BatchNorm(const Variable& a,
                                             const Variable& scale,
                                             const Variable& bias,
@@ -649,10 +668,6 @@ Variable NetBuilder::Sum(const std::vector<Variable>& inputs) {
   ;
 }
 
-Variable NetBuilder::Clip(const std::vector<Variable>& inputs, const float& max_val, const float& min_val) {
-  return CustomInstr("clip", inputs, {{"max_val", max_val}, {"min_val", min_val}}).front();
-}
-
 Variable NetBuilder::Arange(const float start, const float stop, const float step, const std::string& dtype) {
   return CustomInstr("arange", {}, {{"start", start}, {"stop", stop}, {"step", step}, {"dtype", dtype}}).front();
 }
@@ -677,20 +692,68 @@ Variable NetBuilder::GaussianRandom(
       .front();
 }
 
-Variable NetBuilder::UniformRandom(
-    const std::vector<int>& shape, float min, float max, int seed, const std::string& dtype) {
+Variable NetBuilder::UniformRandom(const std::vector<int>& shape,
+                                   float min,
+                                   float max,
+                                   int seed,
+                                   const std::string& dtype,
+                                   int diag_num,
+                                   int diag_step,
+                                   float diag_val) {
   auto uniform_out =
       CustomInstr(
           "uniform_random", {}, {{"shape", shape}, {"min", min}, {"max", max}, {"seed", seed}, {"dtype", dtype}})
           .front();
+  if (min == 0.0f && max == 1.0f) {
+    return uniform_out;
+  }
   auto uniform_range   = FillConstant(shape, max - min, UniqName("uniform_range"), dtype);
   auto uniform_mul_out = Multiply(uniform_out, uniform_range);
   auto uniform_min     = FillConstant(shape, min, UniqName("uniform_min"), dtype);
-  return Add(uniform_mul_out, uniform_min);
+  auto uniform_res     = Add(uniform_mul_out, uniform_min);
+  if (diag_num > 0) {
+    int numel = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<int>());
+    CHECK_GT(numel, (diag_num - 1) * (diag_step + 1)) << "(diag_num - 1) * (diag_step + 1) should smaller than numel!";
+    auto diag_index =
+        Arange(0.0f, static_cast<float>(diag_num * (diag_step + 1)), static_cast<float>(diag_step + 1), "int32");
+    auto diag_val_tensor = FillConstant(diag_index->shape, diag_val, "diag_val", dtype);
+    auto uniform_flatten = Reshape(uniform_res, {-1});
+    auto uniform_scatter = ScatterAssign(uniform_flatten, diag_val_tensor, diag_index);
+    uniform_res          = Reshape(uniform_scatter, shape);
+  }
+  return uniform_res;
+}
+
+Variable NetBuilder::RandInt(const std::vector<int>& shape, int min, int max, int seed, const std::string& dtype) {
+  CHECK_GT(max, min) << "max: " << max << "should greater than"
+                     << "min: " << min;
+  auto randint_out   = CustomInstr("randint", {}, {{"shape", shape}, {"seed", seed}, {"dtype", dtype}}).front();
+  randint_out        = Cast(randint_out, dtype);
+  auto randint_range = FillConstant(shape, max - min, UniqName("randint_range"), dtype);
+  auto randint_mod   = Mod(randint_out, randint_range);
+  auto randint_min   = FillConstant(shape, min, UniqName("randint_min"), dtype);
+  auto randint_ret   = Add(randint_mod, randint_min);
+  return randint_ret;
 }
 
 Variable NetBuilder::Cholesky(const Variable& x, bool upper) {
-  return CustomInstr("cholesky", {x}, {{"upper", upper}}).front();
+  auto cholesky_out = CustomInstr("cholesky", {x}, {{"upper", upper}}).front();
+  // Set upper/lower triangle of matrices to 0
+  auto x_ndim = x->shape.size();
+  CHECK_GE(x_ndim, 2) << "The input matrix x shape size should >= 2! Please check again.";
+  CHECK_EQ(x->shape[x_ndim - 1], x->shape[x_ndim - 2])
+      << "The input matrix x's last 2 dimensions must be the same! Please check again.";
+  int m          = x->shape[x_ndim - 1];
+  auto m_tensor  = FillConstant({m * m}, m);
+  auto index     = Arange(0.0f, static_cast<float>(m * m), 1.0f, "int32");
+  auto index_row = Mod(index, m_tensor);
+  auto index_col = FloorDivide(index, m_tensor);
+  auto mask      = upper ? GreaterEqual(index_row, index_col) : LessEqual(index_row, index_col);
+  auto mask_mat  = Reshape(mask, {m, m});
+  auto mask_full = BroadcastTo(mask_mat, x->shape);
+  auto zeros     = FillConstant(x->shape, 0.0f, "zeros", common::Type2Str(x->type));
+  auto out       = Select(mask_full, cholesky_out, zeros);
+  return out;
 }
 
 Variable NetBuilder::TriangularSolve(
@@ -727,15 +790,6 @@ Variable NetBuilder::TriangularSolve(
                       {"transpose_a", transpose_a},
                       {"unit_diagonal", unit_diagonal}})
       .front();
-}
-
-Variable NetBuilder::Norm(const Variable& x, int axis, float epsilon) {
-  Instruction instr("norm", {x});
-  instr.SetAttr<int32_t>("axis", axis);
-  instr.SetAttr<float>("epsilon", epsilon);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
 }
 
 std::vector<Variable> NetBuilder::TopK(const Variable& x, int k, int axis, bool largest) {

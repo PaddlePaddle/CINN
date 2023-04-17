@@ -53,7 +53,7 @@ HLIR_DCL_BC_PE(Add);
 //! Compute Atan2 with auto-broadcasting.
 HLIR_DCL_BC_PE(Atan2);
 //! Compute A - B with auto-broadcasting.
-HLIR_DCL_BC_PE(Substract);
+HLIR_DCL_BC_PE(Subtract);
 //! Compute A * B with auto-broadcasting.
 HLIR_DCL_BC_PE(Multiply);
 //! Compute A / B with auto-broadcasting.
@@ -115,6 +115,7 @@ ir::Tensor BroadcastTo(const ir::Tensor& A,
 // This operator checks if all x and y satisfy the condition: |x - y| <= atol + rtol * |y|
 ir::Tensor IsClose(const ir::Tensor& x,
                    const ir::Tensor& y,
+                   int axis                    = -1,
                    float rtol                  = 1e-05f,
                    float atol                  = 1e-08f,
                    bool equal_nan              = false,

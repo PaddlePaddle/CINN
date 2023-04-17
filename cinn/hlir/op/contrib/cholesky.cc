@@ -69,7 +69,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForCholesky(const framework::Node
     *ret = CINNValuePack{res};
   });
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(cholesky_compute, GetInjectiveScheduleFunc(output_shapes, target), "strategy.cholesky.x86", 1);
+  strategy->AddImpl(cholesky_compute, GetElementwiseScheduleFunc(output_shapes, target), "strategy.cholesky.x86", 1);
   return strategy;
 }
 
@@ -86,7 +86,8 @@ std::vector<framework::shape_t> InferShapeForCholesky(const std::vector<framewor
 
 std::vector<Type> InferDtypeForCholesky(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_type.size(), 1U) << "The input's shape size should be 1! Please check again.";
-  CHECK(inputs_type[0].is_float()) << "The input's dtype should be float32! Please check again.";
+  CHECK(inputs_type[0].is_float(32) || inputs_type[0].is_float(64))
+      << "The input's dtype should be float32 or float64! Please check again.";
   return inputs_type;
 }
 
@@ -102,7 +103,7 @@ CINN_REGISTER_HELPER(cholesky_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForCholesky)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForCholesky))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForCholesky))
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElementWise)
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kNonFusible)
       .set_support_level(4);
 
   return true;

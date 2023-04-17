@@ -24,7 +24,9 @@
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/tensor.h"
+#include "cinn/optim/remove_nested_block.h"
 #include "cinn/optim/replace_var_with_expr.h"
+#include "cinn/optim/transform_polyfor_to_for.h"
 #include "cinn/poly/stage.h"
 
 namespace cinn {
@@ -90,7 +92,14 @@ Expr LowerGroup(const poly::ScheduleGroup& group,
   poly::AstGen gen(context, stages, group);
   isl::ast_node ast = gen.Build();
   ir::Expr e;
-  poly::IslAstNodeToCinnExpr(ast, &e);
+
+  // The code where adds length 1 loop back to CINN Expr, if you do not want to
+  // add back, call poly::IslAstNodeToCinnExpr(ast, &e) instead of
+  // poly::IslAstNodeToCinnExpr(ast, gen.domain(), &e);
+
+  VLOG(6) << "before ast to expr";
+  // poly::IslAstNodeToCinnExpr(ast, &e);
+  poly::IslAstNodeToCinnExpr(ast, gen.domain(), &e);
   // now we get a workable expression, but the statement are something like `B(((16 * po0) + po1), po2)`, we need to
   // transform this to some realworld statement in CINN.
 
@@ -198,7 +207,9 @@ Expr LowerGroup(const poly::ScheduleGroup& group,
     }
     std::reverse(traverse_order.begin(), traverse_order.end());
 
+    VLOG(6) << "Before TransformGpuForLoops, e =\n" << e;
     optim::TransformGpuForloops(forloop_infos, traverse_order, global_tensor_map, resized_buffer_cache, &e);
+    VLOG(6) << "After TransformGpuForLoops, e =\n" << e;
     auto axis_info = optim::GatherAxisInfoFromStages(stages);
     if (axis_info.valid()) cuda_axis_info->ExtendWith(axis_info);
   }
@@ -644,17 +655,24 @@ std::vector<ir::LoweredFunc> LowerImpl::operator()() {
       func           = ir::_LoweredFunc_::Make(fn_name_, func_args, func_iterator, temp_buffers);
     }
 
-    // some necessary modification.
-    optim::ComputeInlineExpand(&func->body, stages_, &all_tensor_map);
+    if (support_ir_schedule_) {
+      optim::TransformPolyForToFor(&func->body);
+      optim::RemoveNestedBlock(&func->body);
+      func->body = ir::Block::Make({func->body});
+      result.push_back(ir::LoweredFunc(func.get()));
+      num_func++;
+    } else {
+      optim::ComputeInlineExpand(&func->body, stages_, &all_tensor_map);
+      auto res =
+          optim::Optimize(func, target_, FLAGS_cinn_runtime_display_debug_info, /* remove_gpu_for_loops = */ false);
 
-    auto res = optim::Optimize(func, target_, FLAGS_cinn_runtime_display_debug_info);
-
-    if (cuda_axis_info_.size() > num_func && cuda_axis_info_[num_func].valid()) {
-      auto* res_func           = res.as_lowered_func();
-      res_func->cuda_axis_info = cuda_axis_info_[num_func];
+      if (cuda_axis_info_.size() > num_func && cuda_axis_info_[num_func].valid()) {
+        auto* res_func           = res.as_lowered_func();
+        res_func->cuda_axis_info = cuda_axis_info_[num_func];
+      }
+      result.push_back(ir::LoweredFunc(res.get()));
+      num_func++;
     }
-    result.push_back(ir::LoweredFunc(res.get()));
-    num_func++;
   }
   return result;
 }

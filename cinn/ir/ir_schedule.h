@@ -388,6 +388,17 @@ class IRSchedule {
                                       int max_innermost_factor,
                                       const std::vector<int>& decision = {});
 
+  /**
+   * \brief Randomly sample an integer according to the given distribution.
+   * @param candidates Candidate set of integers.
+   * @param probs Probability distribution of candidate integer set.
+   * @param decision the decision data of the last sample, or the artificially given decision data.
+   * @return Random variables sampled.
+   */
+  Expr SampleCategorical(const std::vector<int>& candidates,
+                         const std::vector<float>& probs,
+                         const std::vector<int>& decision = {});
+
  private:
   // Init the random seed with a new seed
   void InitSeed(utils::LinearRandomEngine::StateType rand_seed);
@@ -527,6 +538,32 @@ class LeafBlockRemovalPlan : public ir::IRMutator<> {
   const Expr& block_;
   Expr* source_expr_;
   Expr* target_expr_;
+};
+
+class ComputeInlineChecker : public ir::IRMutator<> {
+ public:
+  ComputeInlineChecker(IRSchedule& schedule, Expr& block) : ir_schedule_(schedule), block_(block) {}
+
+  bool Check();
+
+  void BuildDataDependency();
+
+ private:
+  void Visit(const ir::Load* expr, Expr* op) {
+    // Check there is Load Expr corresponds to Store Expr
+    if ((store_.As<ir::Store>()->tensor).as_tensor_ref()->name == expr->tensor.as_tensor_ref()->name) {
+      should_skip_ = false;
+      return;
+    }
+    IRMutator::Visit(expr, op);
+  }
+
+ private:
+  IRSchedule& ir_schedule_;
+  Expr& block_;
+
+  Expr store_;
+  bool should_skip_{true};
 };
 
 }  // namespace ir

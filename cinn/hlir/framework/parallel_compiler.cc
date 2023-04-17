@@ -21,6 +21,7 @@
 #include "cinn/backends/codegen_cuda_dev.h"
 #include "cinn/backends/codegen_cuda_host.h"
 #include "cinn/backends/codegen_cuda_util.h"
+#include "cinn/backends/compiler.h"
 #include "cinn/backends/llvm/codegen_x86.h"
 #include "cinn/backends/llvm/runtime_symbol_registry.h"
 #include "cinn/backends/nvrtc/nvrtc_util.h"
@@ -29,7 +30,6 @@
 #include "cinn/ir/module.h"
 
 DECLARE_int32(cinn_parallel_compile_size);
-DECLARE_string(cinn_source_code_save_path);
 
 namespace cinn {
 namespace hlir {
@@ -80,8 +80,11 @@ void ParallelCompiler::SplitTask() {
 
 void RunTask(ParallelCompiler::Task* task) {
   VLOG(2) << "Stark run sub-task, Thread Id : " << std::this_thread::get_id();
+  VLOG(4) << "Start Lowering";
   task->Lowering();
+  VLOG(4) << "Start CodegenAndJit";
   task->CodegenAndJit();
+  VLOG(4) << "Start BuildInstruction";
   task->BuildInstruction();
   VLOG(2) << "Finish run sub-task, Thread Id : " << std::this_thread::get_id();
 }
@@ -130,6 +133,9 @@ void ParallelCompiler::Task::Lowering() {
       continue;
     }
     auto& group = graph->fusion_groups[idx];
+    VLOG(1) << "=============================================";
+    VLOG(1) << "Lowering Group:\n" << graph->DebugGroupedGraph(group->CollectNodes());
+    VLOG(1) << "=============================================";
     lowered_funcs.emplace_back(std::move(op_lowerer.Lower(group)));
     CHECK_EQ(lowered_funcs.back().size(), 1) << "Lowerd Function Is Not Equal 1!";
   }
@@ -151,35 +157,22 @@ void ParallelCompiler::Task::CodegenAndJit() {
     auto hmodule        = std::get<0>(splited_module);
     auto dmodule        = std::get<1>(splited_module);
 
-    VLOG(3) << "Host Code : " << hmodule;
-    VLOG(3) << "Host Code : " << dmodule;
+    VLOG(3) << "Host Code:\n" << hmodule;
+    VLOG(3) << "Device Code:\n" << dmodule;
     backends::CodeGenCUDA_Dev codegen(target);
     auto cuda_c = codegen.Compile(dmodule);
+    CHECK(!cuda_c.empty()) << "Compile CUDA C code failed from device module:\n" << dmodule;
 
-    if (FLAGS_cinn_source_code_save_path.empty()) {
-      if (cuda_c.size() > DebugLogMaxLen) {
-        VLOG(3) << "[CUDA] source code-0:\n" << cuda_c.substr(0, DebugLogMaxLen);
-        for (int i = 1; i * DebugLogMaxLen < cuda_c.size(); ++i) {
-          VLOG(3) << "[CUDA] source code-" << i << ":\n" << cuda_c.substr(DebugLogMaxLen * i, DebugLogMaxLen);
-        }
-      } else {
-        VLOG(3) << "[CUDA] source code:\n" << cuda_c;
-      }
-    } else {
-      VLOG(4) << "Write to " << FLAGS_cinn_source_code_save_path;
-      std::ofstream of(FLAGS_cinn_source_code_save_path, std::ofstream::out | std::ofstream::app);
-      CHECK(of.is_open()) << "Failed to open " << FLAGS_cinn_source_code_save_path;
-      of << cuda_c << std::endl;
-      of.close();
-    }
+    cinn::backends::SourceCodePrint::GetInstance()->write(cuda_c);
+    graph->SaveSourceCode(cuda_c);
 
     using runtime::cuda::CUDAModule;
     backends::nvrtc::Compiler compiler;
     auto ptx = compiler(cuda_c);
-    CHECK(!ptx.empty());
+    CHECK(!ptx.empty()) << "Compile PTX failed from source code:\n" << cuda_c;
 
     // load cumodule
-    cumodule.reset(new CUDAModule(ptx, CUDAModule::Kind::PTX));
+    cumodule.reset(new CUDAModule(ptx, compiler.compile_to_cubin() ? CUDAModule::Kind::CUBIN : CUDAModule::Kind::PTX));
     // register kernel
     backends::RuntimeSymbols symbols;
     for (auto& fn : dmodule.functions()) {

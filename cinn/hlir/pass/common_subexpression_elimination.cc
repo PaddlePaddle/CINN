@@ -18,7 +18,7 @@
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
-#include "cinn/hlir/framework/op_lowering.h"
+#include "cinn/hlir/framework/op_lowering_util.h"
 #include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/pass/use_pass.h"
 #include "cinn/utils/string.h"
@@ -222,7 +222,7 @@ void CommonSubexpressionElimination(Graph* graph, std::vector<GraphNode*> store_
   while (!store_nodes.empty()) {
     auto* graph_node = store_nodes[0];
     store_nodes.erase(store_nodes.begin());
-    LOG(INFO) << "size of store_nodes is " << store_nodes.size();
+    VLOG(4) << "size of store_nodes is " << store_nodes.size();
     auto node = graph_node->safe_as<Node>();
     if (node) {
       auto& node_type  = node->op()->name;
@@ -260,7 +260,7 @@ void CommonSubexpressionElimination(Graph* graph, std::vector<GraphNode*> store_
           }
         }
         remove_nodes.push_back(node);
-        LOG(INFO) << "remove " << node->id() << " node.";
+        VLOG(4) << "remove " << node->id() << " node.";
         break;
       }
       if (!found) {

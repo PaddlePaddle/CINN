@@ -14,11 +14,29 @@
 
 #pragma once
 
+#include <string>
+
 namespace cinn {
 namespace runtime {
 
+bool CheckStringFlagTrue(const std::string &flag);
+bool CheckStringFlagFalse(const std::string &flag);
+
 void SetCinnCudnnDeterministic(bool state);
 bool GetCinnCudnnDeterministic();
+
+class RandomSeed {
+ public:
+  static unsigned long long GetOrSet(unsigned long long seed = 0);
+  static unsigned long long Clear();
+
+ private:
+  RandomSeed()                   = default;
+  RandomSeed(const RandomSeed &) = delete;
+  RandomSeed &operator=(const RandomSeed &) = delete;
+
+  static unsigned long long seed_;
+};
 
 }  // namespace runtime
 }  // namespace cinn

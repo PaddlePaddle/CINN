@@ -68,6 +68,8 @@ ExternalProject_Add(
     INSTALL_COMMAND
         ${CMAKE_COMMAND} -E copy_directory ${MKLML_DOWNLOAD_DIR}/include ${MKLML_INC_DIR} &&
         ${CMAKE_COMMAND} -E copy_directory ${MKLML_DOWNLOAD_DIR}/lib ${MKLML_LIB_DIR}
+    BUILD_BYPRODUCTS ${MKLML_SHARED_LIB}
+    BUILD_BYPRODUCTS ${MKLML_SHARED_IOMP_LIB}
 )
 
 
@@ -75,7 +77,9 @@ INCLUDE_DIRECTORIES(${MKLML_INC_DIR})
 
 SET(dummyfile ${CMAKE_CURRENT_BINARY_DIR}/mklml_dummy.c)
 
-FILE(WRITE ${dummyfile} "const char * dummy = \"${dummyfile}\";")
+if (NOT EXISTS ${dummyfile})
+  FILE(WRITE ${dummyfile} "const char * dummy = \"${dummyfile}\";")
+endif()
 ADD_LIBRARY(mklml STATIC ${dummyfile})
 add_definitions(-DCINN_WITH_MKL_CBLAS)
 

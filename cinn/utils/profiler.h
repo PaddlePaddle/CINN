@@ -14,27 +14,56 @@
 
 #pragma once
 
+#include <functional>
 #include <string>
 
 #ifdef CINN_WITH_NVTX
 #include <nvToolsExt.h>
 #endif
 
+#include "cinn/utils/event.h"
+
 namespace cinn {
 namespace utils {
 
-class RecordEvent {
+enum class ProfilerState {
+  kDisabled,  // disabled state
+  kCPU,       // CPU profiling state
+  kCUDA,      // GPU profiling state
+  kAll
+};
+
+class ProfilerHelper {
  public:
-  RecordEvent(const std::string& name) {
-#ifdef CINN_WITH_NVTX
-    nvtxRangePushA(name.c_str());
-#endif
+  static ProfilerState g_state;
+
+  static void EnableAll() { g_state = ProfilerState::kAll; }
+  static void EnableCPU() { g_state = ProfilerState::kCPU; }
+  static void EnableCUDA() { g_state = ProfilerState::kCUDA; }
+
+  static bool IsEnable() { return ProfilerHelper::g_state != ProfilerState::kDisabled; }
+
+  static bool IsEnableCPU() {
+    return ProfilerHelper::g_state == ProfilerState::kAll || ProfilerHelper::g_state == ProfilerState::kCPU;
   }
-  ~RecordEvent() {
-#ifdef CINN_WITH_NVTX
-    nvtxRangePop();
-#endif
+
+  static bool IsEnableCUDA() {
+    return ProfilerHelper::g_state == ProfilerState::kAll || ProfilerHelper::g_state == ProfilerState::kCUDA;
   }
+};
+
+class RecordEvent {
+  using CallBack = std::function<void()>;
+
+ public:
+  RecordEvent(const std::string& name, EventType type = EventType::kOrdinary);
+
+  void End();
+
+  ~RecordEvent() { End(); }
+
+ private:
+  CallBack call_back_;
 };
 
 void SynchronizeAllDevice();

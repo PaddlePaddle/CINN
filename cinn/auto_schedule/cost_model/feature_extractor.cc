@@ -59,7 +59,9 @@ Feature FeatureExtractor::Extract(const ir::ModuleExpr &mod_expr, const common::
   void FeatureExtractor::Visit(const NodeType *x) {         \
     std::vector<const Expr *> sub_exprs = x->expr_fields(); \
     for (const Expr *e : sub_exprs) {                       \
-      Visit(e);                                             \
+      if (e->defined()) {                                   \
+        Visit(e);                                           \
+      }                                                     \
     }                                                       \
   }
 
@@ -92,7 +94,9 @@ NotVisitExprFields(_Tensor_)
     }                                                                                             \
     std::vector<const Expr *> sub_exprs = x->expr_fields();                                       \
     for (const Expr *e : sub_exprs) {                                                             \
-      Visit(e);                                                                                   \
+      if (e->defined()) {                                                                         \
+        Visit(e);                                                                                 \
+      }                                                                                           \
     }                                                                                             \
   }
 
@@ -123,7 +127,9 @@ VisitForDtypePattern(Let, other_call);
     }                                                                                             \
     std::vector<const Expr *> sub_exprs = x->expr_fields();                                       \
     for (const Expr *e : sub_exprs) {                                                             \
-      Visit(e);                                                                                   \
+      if (e->defined()) {                                                                         \
+        Visit(e);                                                                                 \
+      }                                                                                           \
     }                                                                                             \
   }
 
@@ -135,7 +141,9 @@ VisitForMultiOperandsDtypePattern(Product, mul);
     feature_.CurrentLoopBlock().member += 1;                \
     std::vector<const Expr *> sub_exprs = x->expr_fields(); \
     for (const Expr *e : sub_exprs) {                       \
-      Visit(e);                                             \
+      if (e->defined()) {                                   \
+        Visit(e);                                           \
+      }                                                     \
     }                                                       \
   }
 

@@ -134,7 +134,6 @@ class RemoveIdentityPass : public ProgramPass {
                  const common::Target& target) override {
     CollectInfo(*program, fetch_ids);
 
-    VLOG(3) << "Before RemoveIdentityPass: " << *program;
     VLOG(3) << "Total remove " << remove_idxs_.size() << " instructions.";
 
     NetBuilder builder("remove_identity_builder");
@@ -179,7 +178,6 @@ class RemoveIdentityPass : public ProgramPass {
       builder.AppendInstruction(instr);
     }
     *program = builder.Build();
-    VLOG(3) << "After RemoveIdentityPass: " << *program;
   }
 
   void Clear() override {
