@@ -1296,7 +1296,8 @@ void SyncThreadWithShared(ir::IRSchedule& ir_sch,
                           const std::unordered_set<Node*>& nodes_inline,
                           const std::unordered_set<Node*>& nodes_set,
                           const absl::flat_hash_map<std::string, shape_t>& shape_dict,
-                          const std::unordered_map<std::string, ir::Tensor>& tensor_map) {
+                          const std::unordered_map<std::string, ir::Tensor>& tensor_map,
+                          const GroupPtr& group) {
   auto exprs_inorder    = ir_sch.GetAllBlocks();
   auto node_data_set    = GetNodeDataSet(nodes_set);
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
@@ -1358,7 +1359,7 @@ void SyncThreadWithShared(ir::IRSchedule& ir_sch,
         do_set_buffer_to_shared = true;
       }
     }
-    if (do_set_buffer_to_shared) {
+    if (do_set_buffer_to_shared && group->output_nodes.find(node) == group->output_nodes.end()) {
       auto block = ir_sch.GetBlock(node_data->id());
       ir_sch.SetBuffer(block, "shared", true);
     }

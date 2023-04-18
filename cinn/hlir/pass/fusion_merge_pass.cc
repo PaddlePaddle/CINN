@@ -43,7 +43,7 @@ using ConditionFunction = std::function<bool(const FusionHelperBase*, const Grou
 // code generation.
 class FusionMergePassHelper : public FusionHelperBase {
  public:
-  FusionMergePassHelper(const Graph* graph) : FusionHelperBase(graph) {
+  FusionMergePassHelper(const Graph* graph) : FusionHelperBase(graph), graph_output_node_data_(graph->outputs) {
     fusion_groups_ = graph->fusion_groups;
     // init fusion relation.
     InitFusionRelation();
@@ -56,6 +56,7 @@ class FusionMergePassHelper : public FusionHelperBase {
   GroupList operator()() {
     // run fusion merge untill no update.
     DoFusionMerge();
+    AddGlobalOutputNodesToGroups();
     for (auto& group : fusion_groups_) {
       VLOG(3) << "Fusion Group -> " << group->group_id;
       for (auto& sub_group : group->fused_sub_groups) {
@@ -72,6 +73,18 @@ class FusionMergePassHelper : public FusionHelperBase {
   }
 
  private:
+  void AddGlobalOutputNodesToGroups() {
+    for (auto group : fusion_groups_) {
+      for (const auto& output_node_data : graph_output_node_data_) {
+        Node* node                         = output_node_data->source_node.get();
+        std::unordered_set<Node*> node_set = group->NodeSet();
+        if (node_set.find(node) != node_set.end()) {
+          group->output_nodes.insert(node);
+        }
+      }
+    }
+  }
+
   void DoFusionMerge() {
     VLOG(3) << "DoFusionMerge...!";
     while (DoHorizontalFusion()) {
@@ -988,6 +1001,7 @@ class FusionMergePassHelper : public FusionHelperBase {
   }
 
   GroupList fusion_groups_;
+  const std::vector<NodeData*>& graph_output_node_data_;
   std::unordered_map<GroupPtr, int, Hasher, Comparator> fusion_groups_index_;
   std::unordered_map<NodeData*, std::unordered_set<GroupPtr, Hasher, Comparator>> input_to_consumers_;
 
