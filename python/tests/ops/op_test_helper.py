@@ -27,18 +27,18 @@ args = parser.parse_args()
 
 class TestCaseHelper():
     """
-    构造测试用例输入参数的辅助类
+    Helper class for constructing test cases.
     """
 
     def init_attrs(self):
         """
-        初始化所有需要测试的属性
+        Initialize attributes for op
         """
         raise Exception("Not implemented.")
 
     def _flatten_tuple(self, cur_tuple):
         """
-        将tuple中嵌套的字典展开
+        Expand the nested dict in tuple
         """
         new_dict = []
         for cur_dict in cur_tuple:
@@ -48,7 +48,7 @@ class TestCaseHelper():
 
     def _init_cases(self):
         """
-        生成所有的测试用例
+        Generate all test cases
         """
         self.all_cases = []
         attrs_cases = (dict(zip(self.attrs.keys(), values))
@@ -58,7 +58,7 @@ class TestCaseHelper():
 
     def _make_all_classes(self):
         """
-        动态构造所有测试类
+        Generate test classes
         """
         self.init_attrs()
         self._init_cases()
@@ -75,7 +75,7 @@ class TestCaseHelper():
 
     def run(self):
         """
-        运行所有的测试类
+        Run all test classes
         """
         self._make_all_classes()
         test_suite = unittest.TestSuite()
