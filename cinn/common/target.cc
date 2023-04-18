@@ -55,14 +55,18 @@ int Target::max_num_threads() const {
 int Target::get_multi_processor_count() const {
   CHECK(arch == Arch::NVGPU) << "The target is not NVGPU! Cannot get multi processor count";
   int num_sm = 0;
+#ifdef CINN_WITH_CUDA
   cudaDeviceGetAttribute(&num_sm, cudaDeviceAttr::cudaDevAttrMultiProcessorCount, 0);
+#endif
   return num_sm;
 }
 
 int Target::get_max_threads_per_sm() const {
   CHECK(arch == Arch::NVGPU) << "The target is not NVGPU! Cannot get max threads per stream processor";
   int max_thread = 0;
+#ifdef CINN_WITH_CUDA
   cudaDeviceGetAttribute(&max_thread, cudaDeviceAttr::cudaDevAttrMaxThreadsPerMultiProcessor, 0);
+#endif
   return max_thread;
 }
 
