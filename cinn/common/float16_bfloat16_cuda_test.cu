@@ -18,6 +18,7 @@
 #include <random>
 #include <vector>
 
+#include "cinn/common/bfloat16.h"
 #include "cinn/common/float16.h"
 
 namespace cinn {
@@ -107,6 +108,30 @@ __global__ void test_fp16_cuda_kernel(const float16* x, const float16* y, const 
   }
 }
 
+__global__ void cast_fp32_to_bf16_cuda_kernel(const float* input, const int num, bfloat16* out) {
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  if (idx < num) {
+    out[idx] = bfloat16(input[idx]);
+  }
+}
+
+__global__ void cast_bf16_to_fp32_cuda_kernel(const bfloat16* input, const int num, float* out) {
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  if (idx < num) {
+    out[idx] = float(input[idx]);
+  }
+}
+
+__global__ void test_bf16_cuda_kernel(const bfloat16* x, const bfloat16* y, const int num, bfloat16* out) {
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  if (idx < num) {
+    bfloat16 x_i = x[idx], y_i = y[idx];
+    x_i += bfloat16(1);
+
+    out[idx] = (x_i + y_i) * (x_i - y_i);
+  }
+}
+
 __global__ void test_fp32_cuda_kernel(const float* x, const float* y, const int num, float* out) {
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (idx < num) {
@@ -117,7 +142,7 @@ __global__ void test_fp32_cuda_kernel(const float* x, const float* y, const int 
   }
 }
 
-TEST(FP16, basic_cuda) {
+TEST(FP16_BF16, basic_cuda) {
 #ifdef CUDA_VERSION
   LOG(INFO) << "CUDA version: " << CUDA_VERSION;
 #endif
@@ -155,7 +180,9 @@ TEST(FP16, basic_cuda) {
   }
 
   CudaMem x_fp16_device, y_fp16_device, out_fp16_device;
-  {  // step2 : compute fp16 result
+  CudaMem x_bf16_device, y_bf16_device, out_bf16_device;
+  {  // step3 : compute fp16/bf16 result
+    // step3.1 : compute fp16 result
     auto x_fp16_ptr   = x_fp16_device.mutable_data<float16>(num);
     auto y_fp16_ptr   = y_fp16_device.mutable_data<float16>(num);
     auto out_fp16_ptr = out_fp16_device.mutable_data<float16>(num);
@@ -164,24 +191,42 @@ TEST(FP16, basic_cuda) {
     cast_fp32_to_fp16_cuda_kernel<<<grid, block, 0, stream>>>(y_fp32_device.data<float>(), num, y_fp16_ptr);
 
     test_fp16_cuda_kernel<<<grid, block, 0, stream>>>(x_fp16_ptr, y_fp16_ptr, num, out_fp16_ptr);
+
+    // step3.2 : compute bf16 result
+    auto x_bf16_ptr   = x_bf16_device.mutable_data<bfloat16>(num);
+    auto y_bf16_ptr   = y_bf16_device.mutable_data<bfloat16>(num);
+    auto out_bf16_ptr = out_bf16_device.mutable_data<bfloat16>(num);
+
+    cast_fp32_to_bf16_cuda_kernel<<<grid, block, 0, stream>>>(x_fp32_device.data<float>(), num, x_bf16_ptr);
+    cast_fp32_to_bf16_cuda_kernel<<<grid, block, 0, stream>>>(y_fp32_device.data<float>(), num, y_bf16_ptr);
+
+    test_bf16_cuda_kernel<<<grid, block, 0, stream>>>(x_bf16_ptr, y_bf16_ptr, num, out_bf16_ptr);
   }
 
   CudaMem fp32res_fp16_device;
-  {  // step3 : cast fp16 result to fp32 result
+  CudaMem fp32res_bf16_device;
+  {  // step4 : cast fp16/bf16 result to fp32 result
+    // step4.1 : cast fp16 result to fp32 result
     auto fp32res_fp16_ptr = fp32res_fp16_device.mutable_data<float>(num);
     cast_fp16_to_fp32_cuda_kernel<<<grid, block, 0, stream>>>(out_fp16_device.data<float16>(), num, fp32res_fp16_ptr);
+
+    // step4.2 : cast bf16 result to fp32 result
+    auto fp32res_bf16_ptr = fp32res_bf16_device.mutable_data<float>(num);
+    cast_bf16_to_fp32_cuda_kernel<<<grid, block, 0, stream>>>(out_bf16_device.data<bfloat16>(), num, fp32res_bf16_ptr);
   }
 
-  std::vector<float> out_fp32_host(num), out_fp16_host(num);
-  {  // step4 : copy result from device to host
+  std::vector<float> out_fp32_host(num), out_fp16_host(num), out_bf16_host(num);
+  {  // step5 : copy result from device to host
     out_fp32_device.MemcpyToHost(out_fp32_host.data(), num * sizeof(float), stream);
     fp32res_fp16_device.MemcpyToHost(out_fp16_host.data(), num * sizeof(float), stream);
+    fp32res_bf16_device.MemcpyToHost(out_bf16_host.data(), num * sizeof(float), stream);
   }
 
   cudaStreamSynchronize(stream);
 
   for (int i = 0; i < num; ++i) {
     ASSERT_NEAR(out_fp32_host[i], out_fp16_host[i], 1e-2f);
+    ASSERT_NEAR(out_fp32_host[i], out_bf16_host[i], 1e-1f);
   }
 
   cudaStreamDestroy(stream);
