@@ -19,6 +19,7 @@
 #include <algorithm>
 
 #include "cinn/common/ir_util.h"
+#include "cinn/common/target.h"
 #include "cinn/hlir/pe/broadcast.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/tensor.h"
@@ -685,9 +686,25 @@ std::vector<ir::Tensor> TwoStepBlockReduceInternal(const ir::Tensor& A,
                                                    ir::Expr initial) {
   CHECK(!WithoutLastDimInReduce(A->shape, axes)) << "Can't find last axis in reduce!";
 
-  int lane             = A->shape[axes.back()].as_int32();
-  int index            = static_cast<int>(axes.size()) - 2;
+  int lane  = A->shape[axes.back()].as_int32();
+  int index = static_cast<int>(axes.size()) - 2;
+  int P     = 1;
+  for (int i = 0; i < A->shape.size(); i++) {
+    if (find(axes.begin(), axes.end(), i) != axes.end()) {
+      continue;
+    }
+    if (find(axes.begin(), axes.end(), i - A->shape.size()) != axes.end()) {
+      continue;
+    }
+    P = P * A->shape[i].as_int32();
+  }
+  int M                = common::DefaultNVGPUTarget().get_multi_processor_count();
+  int N                = common::DefaultNVGPUTarget().get_max_threads_per_sm();
+  int L                = N / 32;
+  int C                = P / L;
   auto max_num_threads = common::DefaultNVGPUTarget().max_num_threads();
+  if (M < C) max_num_threads = 32;
+
   for (; index >= 0; --index) {
     if (lane >= max_num_threads / 2) {
       break;

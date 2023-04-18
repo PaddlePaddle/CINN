@@ -461,19 +461,35 @@ void LoopAssignReduceWithoutLast(ir::IRSchedule& ir_sch,
 void LoopAssignReduceWithLast(ir::IRSchedule& ir_sch,
                               const std::string& block_name,
                               const std::vector<int>& inshape,
-                              const std::vector<int>& axes,
+                              std::vector<int>& axes,
                               const common::Target& target) {
+  axes[0] = inshape.size() - 1;
   // find first reduce and second reduce axis.
-  int lane             = 1;
-  int index            = static_cast<int>(axes.size()) - 1;
-  auto max_num_threads = target.max_num_threads();
+  int lane  = 1;
+  int index = static_cast<int>(axes.size()) - 1;
+  int P     = 1;
+  for (int i = 0; i < inshape.size(); i++) {
+    if (find(axes.begin(), axes.end(), i) != axes.end()) {
+      continue;
+    }
+    if (find(axes.begin(), axes.end(), i - inshape.size()) != axes.end()) {
+      continue;
+    }
+    P = P * inshape[i];
+  }
+  int M                = target.get_multi_processor_count();
+  int N                = target.get_max_threads_per_sm();
+  int L                = N / 32;
+  int C                = P / L;
+  auto max_num_threads = common::DefaultNVGPUTarget().max_num_threads();
+  if (M < C) max_num_threads = 32;
   for (; index >= 0; --index) {
     if (index + 1 < axes.size() && axes[index] != axes[index + 1] - 1) {
       break;
     }
     lane *= inshape[axes[index]];
     if (index == 0 && lane <= max_num_threads) {
-      LOG(FATAL) << "Error! lane is less equal than max_num_threads, Please check!";
+      LOG(FATAL) << "Error! lane is less equal than max_num_threads, Please check!" << lane;
     }
     if (lane >= max_num_threads / 2) {
       if (lane <= max_num_threads) {
