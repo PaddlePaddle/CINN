@@ -471,11 +471,18 @@ std::unordered_set<NodeData*> Graph::Group::GetOutputNodeDatas() {
   return group_outputs;
 }
 
-void Graph::SaveSourceCode(const std::string& code) {
+void Graph::SaveSourceCode(int group_idx, const std::string& code) {
   if (cinn::runtime::CheckStringFlagFalse(FLAGS_cinn_fusion_groups_graphviz_dir) || viz_path_.empty()) {
     return;
   }
-  WriteToFile(viz_path_ + "source_code.cu", code);
+  WriteToFile(utils::StringFormat("%s/source_code_of_group_%d.cu", viz_path_.c_str(), group_idx), code);
+}
+
+void Graph::SavePTXCode(int group_idx, const std::string& ptx) {
+  if (cinn::runtime::CheckStringFlagFalse(FLAGS_cinn_fusion_groups_graphviz_dir) || viz_path_.empty()) {
+    return;
+  }
+  WriteToFile(utils::StringFormat("%s/source_code_of_group_%d.ptx", viz_path_.c_str(), group_idx), ptx);
 }
 
 }  // namespace framework
