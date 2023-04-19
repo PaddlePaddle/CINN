@@ -36,13 +36,14 @@ namespace cinn {
 namespace hlir {
 namespace framework {
 
-bool PassPrinter::Begin() {
+bool PassPrinter::Begin(const std::unordered_set<std::string>& fetch_ids) {
   if (FLAGS_cinn_pass_visualize_dir.empty()) {
     VLOG(3) << "No set \"FLAGS_cinn_pass_visualize_dir\", the pass visualize information will print directly.";
     save_path_.clear();
     return false;
   }
-  pass_id_ = 0;
+  pass_id_   = 0;
+  fetch_ids_ = fetch_ids;
 
   save_path_ = utils::StringFormat("%s/fusion_groups_%d/", FLAGS_cinn_pass_visualize_dir.c_str(), graph_id_);
   if (!MakeDirectory(save_path_, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)) {
@@ -82,7 +83,7 @@ bool PassPrinter::PassEnd(const std::string& pass_name, const frontend::Program&
 }
 
 bool PassPrinter::PassBegin(const std::string& pass_name, Graph* g) {
-  const auto& graph_info = g->DebugGroupedGraph();
+  const auto& graph_info = g->DebugGroupedGraph(fetch_ids_);
   if (save_path_.empty()) {
     VLOG(3) << "Before " << pass_name << " Pass:\n" << graph_info;
     return false;
@@ -91,7 +92,7 @@ bool PassPrinter::PassBegin(const std::string& pass_name, Graph* g) {
       utils::StringFormat("%s/pass_%d_%s_before.txt", save_path_.c_str(), pass_id_, pass_name.c_str());
   WriteToFile(file_path, graph_info);
 
-  const auto& dot_info = g->VisualizeGraph();
+  const auto& dot_info = g->VisualizeGraph(fetch_ids_);
   const std::string& dot_path =
       utils::StringFormat("%s/pass_%d_%s_before.dot", save_path_.c_str(), pass_id_, pass_name.c_str());
   WriteToFile(dot_path, dot_info);
@@ -99,7 +100,7 @@ bool PassPrinter::PassBegin(const std::string& pass_name, Graph* g) {
 }
 
 bool PassPrinter::PassEnd(const std::string& pass_name, Graph* g) {
-  const auto& graph_info = g->DebugGroupedGraph();
+  const auto& graph_info = g->DebugGroupedGraph(fetch_ids_);
   if (save_path_.empty()) {
     VLOG(3) << "After " << pass_name << " Pass:\n" << graph_info;
     return false;
@@ -108,7 +109,7 @@ bool PassPrinter::PassEnd(const std::string& pass_name, Graph* g) {
       utils::StringFormat("%s/pass_%d_%s_after.txt", save_path_.c_str(), pass_id_, pass_name.c_str());
   WriteToFile(file_path, graph_info);
 
-  const auto& dot_info = g->VisualizeGraph();
+  const auto& dot_info = g->VisualizeGraph(fetch_ids_);
   const std::string& dot_path =
       utils::StringFormat("%s/pass_%d_%s_after.dot", save_path_.c_str(), pass_id_, pass_name.c_str());
   WriteToFile(dot_path, dot_info);
@@ -119,6 +120,10 @@ bool PassPrinter::PassEnd(const std::string& pass_name, Graph* g) {
 
 bool PassPrinter::End() {
   ++graph_id_;
+
+  pass_id_ = 0;
+  fetch_ids_.clear();
+  save_path_.clear();
   return true;
 }
 
@@ -336,10 +341,6 @@ void FindRecomputeNodes(const std::vector<std::vector<Node*>>& groups,
                         std::unordered_map<std::string, int>* recompute_nodes) {
   std::unordered_map<std::string, int> op_count;
   for (auto& group : groups) {
-    if (IsAccCheckGroup(group)) {
-      continue;
-    }
-
     for (auto* node : group) {
       op_count[node->id()]++;
     }

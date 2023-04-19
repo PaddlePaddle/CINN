@@ -206,6 +206,8 @@ class Graph : public cinn::common::Graph {
   void VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
                              const std::unordered_set<std::string>& fetch_var_ids = {});
 
+  void SaveSourceCode(const std::string& code);
+
  private:
   std::string DebugGroupedGraph(const std::vector<std::vector<Node*>>& groups,
                                 const std::unordered_set<std::string>& fetch_var_ids = {});
