@@ -55,7 +55,6 @@ CINN_REGISTER_HELPER(op_external_api) {
   CINN_OP_REGISTER_EXTERNAL_API(cublas_gemm, default_nvgpu).set_api_name("cinn_call_cublas");
   CINN_OP_REGISTER_EXTERNAL_API(cublas_matmul, default_nvgpu).set_api_name("cinn_call_cublas");
   CINN_OP_REGISTER_EXTERNAL_API(gaussian_random, default_nvgpu).set_api_name("cinn_call_gaussian_random");
-  CINN_OP_REGISTER_EXTERNAL_API(uniform_random, default_nvgpu).set_api_name("cinn_call_uniform_random");
   CINN_OP_REGISTER_EXTERNAL_API(randint, default_nvgpu).set_api_name("cinn_call_randint");
   CINN_OP_REGISTER_EXTERNAL_API(cholesky, default_nvgpu).set_api_name("cinn_call_cholesky_nvgpu");
   CINN_OP_REGISTER_EXTERNAL_API(cholesky, default_host).set_api_name("cinn_call_cholesky_host");

@@ -45,6 +45,9 @@ ExternFunctionProtoRegistry::ExternFunctionProtoRegistry() {
     Register(proto->name, proto);
   }
 
+  auto* proto = new FunctionProto("cinn_nvgpu_uniform_random_fp32", {Int(32)}, Float(32));
+  Register(proto->name, proto);
+
   auto* n = detail::CreateTanhVProto();
   Register(n->name, n);
 }
