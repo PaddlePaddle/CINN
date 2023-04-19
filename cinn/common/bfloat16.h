@@ -48,6 +48,15 @@
 #define CINN_ALIGN(x)
 #endif  // __cplusplus
 
+// The `HOST` macro definition is not used here, it has a potential
+// conflict with the enumeration `kHOST` representing the backend.
+#ifndef __host__
+#define __host__
+#endif
+#ifndef __device__
+#define __device__
+#endif
+
 #ifdef __cplusplus
 namespace cinn {
 namespace common {
