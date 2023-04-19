@@ -463,7 +463,6 @@ void LoopAssignReduceWithLast(ir::IRSchedule& ir_sch,
                               const std::vector<int>& inshape,
                               std::vector<int>& axes,
                               const common::Target& target) {
-  axes[0] = inshape.size() - 1;
   // If the number of current device SM is smaller than the number of SM
   // required by Warp Reduce, the performance of Warp Reduce is better.
   // Otherwise, use Block Reduce.
@@ -489,7 +488,7 @@ void LoopAssignReduceWithLast(ir::IRSchedule& ir_sch,
     }
     lane *= inshape[axes[index]];
     if (index == 0 && lane <= max_num_threads) {
-      LOG(FATAL) << "Error! lane is less equal than max_num_threads, Please check!" << lane;
+      LOG(FATAL) << "Error! lane is less equal than max_num_threads, Please check!";
     }
     if (lane >= max_num_threads / 2) {
       if (lane <= max_num_threads) {

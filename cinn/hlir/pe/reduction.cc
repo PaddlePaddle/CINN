@@ -19,7 +19,6 @@
 #include <algorithm>
 
 #include "cinn/common/ir_util.h"
-#include "cinn/common/target.h"
 #include "cinn/hlir/pe/broadcast.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/tensor.h"
