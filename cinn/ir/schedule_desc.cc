@@ -566,7 +566,7 @@ void ScheduleDesc::Pop() {
 }
 
 void ScheduleDesc::Replay(IRSchedule* schedule, bool without_post_schedule) const {
-  ReplayWithProto(this->ToProto(), schedule);
+  ReplayWithProto(this->ToProto(), schedule, without_post_schedule);
 }
 
 proto::ScheduleDesc ScheduleDesc::ToProto() const {

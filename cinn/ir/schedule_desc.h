@@ -75,7 +75,7 @@ class ScheduleDesc {
   /**
    * \brief Replay this description to a new IRSchedule that is initialzied by a semantics-euqal original ModuleExpr.
    * @param schedule The original IRSchedule to be replayed the description on.
-   * @param without_post_schedule Determine whether whether to delete the post schedules.
+   * @param without_post_schedule Determine whether to delete the post schedules.
    */
   void Replay(IRSchedule* schedule, bool without_post_schedule = false) const;
 
@@ -93,7 +93,7 @@ class ScheduleDesc {
    * \brief Fork this ScheduleDesc and update a step of the new ScheduleDesc with a new decision.
    * @param step_idx The index of the step to be update.
    * @param decision The new decision.
-   * @param without_post_schedule Determine whether whether to delete the post schedules.
+   * @param without_post_schedule Determine whether to delete the post schedules.
    * @return The new ScheduleDesc.
    */
   ScheduleDesc ForkAndUpdate(int step_idx, utils::Attribute decision, bool without_post_schedule) const;
