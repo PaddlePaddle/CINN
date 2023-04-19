@@ -57,13 +57,7 @@ class ParallelCompiler {
          std::shared_ptr<Graph>& g,
          const CompileOptions& cp,
          const Target& t)
-        : compiler(p),
-          scope(s),
-          graph(g),
-          options(cp),
-          target(t),
-          task_mtx_(std::make_unique<std::mutex>()),
-          instructions(g->fusion_groups.size()) {}
+        : compiler(p), scope(s), graph(g), options(cp), target(t), task_mtx_(std::make_unique<std::mutex>()) {}
     void Run();
     std::vector<ir::LoweredFunc> Lowering(OpLowerer* lower, std::shared_ptr<Graph::Group>& group, int idx);
     void CodegenAndJit(const std::vector<ir::LoweredFunc>& func, int idx);

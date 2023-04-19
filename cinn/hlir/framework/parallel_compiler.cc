@@ -70,9 +70,13 @@ void ParallelCompiler::SplitTask() {
   CHECK(graph_->fusion_groups.size());
   CHECK(graph_->fusion_groups.size() == option_.lowered_funcs.size() || option_.lowered_funcs.size() == 0);
   // split task
-  int num_per_task = std::max((graph_->fusion_groups.size() - 1) / FLAGS_cinn_parallel_compile_size + 1, 16UL);
+  size_t flag_parallel_num = graph_->fusion_groups.size();
+  if (FLAGS_cinn_parallel_compile_size > 0) {
+    flag_parallel_num = FLAGS_cinn_parallel_compile_size;
+  }
+  int task_num = std::min(graph_->fusion_groups.size(), flag_parallel_num);
 
-  for (int idx = 0; idx < graph_->fusion_groups.size(); idx += num_per_task) {
+  for (int idx = 0; idx < task_num; ++idx) {
     tasks_.emplace_back(this, scope_, graph_, option_, target_);
   }
   VLOG(2) << "Split task to " << tasks_.size() << " sub-task!";
@@ -116,13 +120,11 @@ void ParallelCompiler::Task::Run() {
   auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
 
   OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-
   while (true) {
     int idx = compiler->GetGroupIdx();
     if (idx < 0) {
       break;
     }
-    gidx.push_back(idx);
 
     auto& group = graph->fusion_groups[idx];
 
@@ -137,10 +139,9 @@ void ParallelCompiler::Task::Run() {
     VLOG(2) << "Start BuildInstruction of Group " << idx;
     auto instr = BuildInstruction(group);
 
-    {
-      std::lock_guard<std::mutex> guard(*task_mtx_);
-      instructions[idx].swap(instr);
-    }
+    std::lock_guard<std::mutex> lock(*task_mtx_);
+    gidx.push_back(idx);
+    instructions.emplace_back(instr.release());
   }
 }
 
@@ -206,8 +207,8 @@ void ParallelCompiler::Task::CodegenAndJit(const std::vector<ir::LoweredFunc>& f
 std::unique_ptr<Instruction> ParallelCompiler::Task::BuildInstruction(std::shared_ptr<Graph::Group>& group) {
   // create instruction.
   CHECK(group->input_names.size() > 0 || group->output_names.size() > 0);
-  auto instr = std::unique_ptr<Instruction>(
-      new Instruction(target, scope.get(), group->input_names, group->output_names, group->GetFuncName()));
+  auto instr =
+      std::make_unique<Instruction>(target, scope.get(), group->input_names, group->output_names, group->GetFuncName());
 
   auto fn_ptr = engine->Lookup(group->GetFuncName());
   CHECK(fn_ptr) << "Can't find jit function : " << group->GetFuncName();
