@@ -238,10 +238,23 @@ std::unordered_map<Node*, Node*> BuildVirtualConsumer(const GroupPtr& group,
     }
   }
 
+  if (!g_node) {
+    for (auto t_node : group->output_nodes) {
+      if (op_pattern_dict[t_node->op()] != framework::kReduction) {
+        continue;
+      }
+
+      if (GetConsumersInSet(t_node, nodes_set).size() == 0) {
+        g_node = t_node;
+        break;
+      }
+    }
+  }
+
   // try to find reducer with different shape.
   for (auto t_node : group->output_nodes) {
     if (op_pattern_dict[t_node->op()] == framework::kReduction) {
-      if (g_node) {
+      if (g_node && op_pattern_dict[g_node->op()] != framework::kReduction) {
         virtual_consumers[t_node] = g_node;
       }
       continue;
