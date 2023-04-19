@@ -1966,24 +1966,20 @@ Expr IRSchedule::GetBlock(const std::string& block_name) const {
   return result;
 }
 
-std::vector<Expr> IRSchedule::Split(const Expr& loop, const std::vector<int>& factors, bool can_mutate) {
-  std::vector<Expr> decision =
-      SamplePerfectTile(loop, factors.size(), loop.As<ir::For>()->extent.as_int32(), factors, can_mutate);
-  auto results = Split(loop, decision);
+std::vector<Expr> IRSchedule::Split(const Expr& loop, const std::vector<int>& factors) {
+  std::vector<Expr> decision = SamplePerfectTile(loop, factors.size(), loop.As<ir::For>()->extent.as_int32(), factors);
+  auto results               = Split(loop, decision);
   return results;
 }
 
-std::vector<Expr> IRSchedule::Split(const std::string& block_name,
-                                    int loop_index,
-                                    const std::vector<int>& factors,
-                                    bool can_mutate) {
+std::vector<Expr> IRSchedule::Split(const std::string& block_name, int loop_index, const std::vector<int>& factors) {
   std::vector<Expr> all_loops = this->GetLoops(block_name);
   Expr loop_expr;
   CHECK_LT(loop_index, (int)all_loops.size()) << "The loop index in Split should be less than total loop's number.";
   CHECK_GE(loop_index, 0) << "The loop index in Split should be >= 0.";
   loop_expr = all_loops[loop_index];
 
-  return this->Split(loop_expr, factors, can_mutate);
+  return this->Split(loop_expr, factors);
 }
 
 std::vector<Expr> IRSchedule::Split(const Expr& loop, const std::vector<Expr>& factors) {
@@ -2165,8 +2161,10 @@ void IRSchedule::CopyTransformAndLoopInfo(const std::string& block_name, const s
   // don't support to trace, because we can't ensure both blocks are from the same ModuleExpr
 }
 
-std::vector<Expr> IRSchedule::SamplePerfectTile(
-    const Expr& loop, int n, int max_innermost_factor, const std::vector<int>& decision, bool can_mutate) {
+std::vector<Expr> IRSchedule::SamplePerfectTile(const Expr& loop,
+                                                int n,
+                                                int max_innermost_factor,
+                                                const std::vector<int>& decision) {
   std::vector<Expr> factors;
   std::vector<int> new_decision;
   if (decision.empty()) {
@@ -2177,13 +2175,11 @@ std::vector<Expr> IRSchedule::SamplePerfectTile(
     new_decision = decision;
     std::transform(decision.begin(), decision.end(), std::back_inserter(factors), [](int x) { return Expr(x); });
   }
-  trace_.Append(ScheduleDesc::Step("SamplePerfectTile",
-                                   {{"loop", std::vector<Expr>({loop})}},
-                                   {{"n", n},
-                                    {"max_innermost_factor", max_innermost_factor},
-                                    {"decision", new_decision},
-                                    {"can_mutate", can_mutate}},
-                                   factors));
+  trace_.Append(
+      ScheduleDesc::Step("SamplePerfectTile",
+                         {{"loop", std::vector<Expr>({loop})}},
+                         {{"n", n}, {"max_innermost_factor", max_innermost_factor}, {"decision", new_decision}},
+                         factors));
   return factors;
 }
 

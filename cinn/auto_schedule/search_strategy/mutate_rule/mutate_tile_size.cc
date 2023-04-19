@@ -43,10 +43,6 @@ std::vector<SampledTile> FindSampledTiles(const ScheduleDesc& trace) {
     if (step.type == "SamplePerfectTile") {
       std::vector<int> tile_factors = absl::get<std::vector<int>>(step.attrs.at("decision"));
       CHECK(tile_factors.size() >= 2) << "factors size must be greater equal than 2, which is " << tile_factors.size();
-      bool can_mutate = absl::get<bool>(step.attrs.at("can_mutate"));
-      if (can_mutate) {
-        tiles.push_back(std::make_tuple(step, tile_factors, step_idx));
-      }
     }
     ++step_idx;
   }

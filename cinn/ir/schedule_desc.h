@@ -54,7 +54,7 @@ class ScheduleDesc {
    * \brief Re-applied a scheduling process represented as a proto::ScheduleDesc to a new IRSchedule object.
    * @param desc_proto The proto of the ScheduleDesc to be re-applied.
    * @param sch The original IRSchedule to be replayed the description on.
-   * @param without_post_schedule Determine whether whether to delete the post schedules.
+   * @param without_post_schedule Determine whether to delete the post schedules.
    */
   static std::vector<Expr> ReplayWithProto(const proto::ScheduleDesc& desc_proto,
                                            IRSchedule* sch,

@@ -149,11 +149,10 @@ TEST_F(TestScheduleDesc, Append_Replay) {
   trace.Append(ScheduleDesc::Step(
       "FuseWithName", {}, {{"block_name", std::string("B")}, {"loops_index", std::vector<int>({0, 1})}}, {fused}));
   auto sample = ir_sch.SamplePerfectTile(fused, 2, 1, {4, -1});
-  trace.Append(ScheduleDesc::Step(
-      "SamplePerfectTile",
-      {{"loop", std::vector<Expr>({fused})}},
-      {{"n", 2}, {"max_innermost_factor", 1}, {"decision", std::vector<int>{4, -1}}, {"can_mutate", false}},
-      sample));
+  trace.Append(ScheduleDesc::Step("SamplePerfectTile",
+                                  {{"loop", std::vector<Expr>({fused})}},
+                                  {{"n", 2}, {"max_innermost_factor", 1}, {"decision", std::vector<int>{4, -1}}},
+                                  sample));
   auto splited = ir_sch.Split(fused, sample);
   trace.Append(ScheduleDesc::Step("Split", {{"loop", std::vector<Expr>({fused})}, {"factors", sample}}, {}, splited));
 
@@ -162,11 +161,10 @@ TEST_F(TestScheduleDesc, Append_Replay) {
   fused = ir_sch.Fuse(loops);
   trace.Append(ScheduleDesc::Step("Fuse", {{"loops", loops}}, {}, {fused}));
   sample = ir_sch.SamplePerfectTile(fused, 2, 1, {256, -1});
-  trace.Append(ScheduleDesc::Step(
-      "SamplePerfectTile",
-      {{"loop", std::vector<Expr>({fused})}},
-      {{"n", 2}, {"max_innermost_factor", 1}, {"decision", std::vector<int>{256, -1}}, {"can_mutate", false}},
-      sample));
+  trace.Append(ScheduleDesc::Step("SamplePerfectTile",
+                                  {{"loop", std::vector<Expr>({fused})}},
+                                  {{"n", 2}, {"max_innermost_factor", 1}, {"decision", std::vector<int>{256, -1}}},
+                                  sample));
   splited = ir_sch.Split(fused, sample);
   trace.Append(ScheduleDesc::Step("Split", {{"loop", std::vector<Expr>({fused})}, {"factors", sample}}, {}, splited));
 
@@ -254,11 +252,10 @@ TEST_F(TestScheduleDesc, StepKind_Split) {
   auto loops = ir_sch_split_base.GetLoops("B");
   trace.Append(ScheduleDesc::Step("GetLoopsWithName", {}, {{"block_name", std::string("B")}}, loops));
   auto sample = ir_sch_split_base.SamplePerfectTile(loops.front(), 2, 1, {4, -1});
-  trace.Append(ScheduleDesc::Step(
-      "SamplePerfectTile",
-      {{"loop", std::vector<Expr>({loops.front()})}},
-      {{"n", 2}, {"max_innermost_factor", 1}, {"decision", std::vector<int>{4, -1}}, {"can_mutate", false}},
-      sample));
+  trace.Append(ScheduleDesc::Step("SamplePerfectTile",
+                                  {{"loop", std::vector<Expr>({loops.front()})}},
+                                  {{"n", 2}, {"max_innermost_factor", 1}, {"decision", std::vector<int>{4, -1}}},
+                                  sample));
   auto splited = ir_sch_split_base.Split(loops.front(), sample);
   trace.Append(
       ScheduleDesc::Step("Split", {{"loop", std::vector<Expr>({loops.front()})}, {"factors", sample}}, {}, splited));
@@ -467,11 +464,10 @@ TEST_F(TestScheduleDesc, StepKind_Reorder) {
   auto loops = ir_sch.GetLoops("B");
   trace.Append(ScheduleDesc::Step("GetLoopsWithName", {}, {{"block_name", std::string("B")}}, loops));
   auto sample = ir_sch.SamplePerfectTile(loops[0], 2, 1, {-1, 4});
-  trace.Append(ScheduleDesc::Step(
-      "SamplePerfectTile",
-      {{"loop", std::vector<Expr>({loops[0]})}},
-      {{"n", 2}, {"max_innermost_factor", 1}, {"decision", std::vector<int>{-1, 4}}, {"can_mutate", false}},
-      sample));
+  trace.Append(ScheduleDesc::Step("SamplePerfectTile",
+                                  {{"loop", std::vector<Expr>({loops[0]})}},
+                                  {{"n", 2}, {"max_innermost_factor", 1}, {"decision", std::vector<int>{-1, 4}}},
+                                  sample));
   auto splited = ir_sch.Split(loops[0], sample);
   trace.Append(
       ScheduleDesc::Step("Split", {{"loop", std::vector<Expr>({loops[0]})}, {"factors", sample}}, {}, splited));
@@ -479,11 +475,10 @@ TEST_F(TestScheduleDesc, StepKind_Reorder) {
   loops = ir_sch.GetLoops("B");
   trace.Append(ScheduleDesc::Step("GetLoopsWithName", {}, {{"block_name", std::string("B")}}, loops));
   sample = ir_sch.SamplePerfectTile(loops[2], 2, 1, {-1, 2});
-  trace.Append(ScheduleDesc::Step(
-      "SamplePerfectTile",
-      {{"loop", std::vector<Expr>({loops[2]})}},
-      {{"n", 2}, {"max_innermost_factor", 1}, {"decision", std::vector<int>{-1, 2}}, {"can_mutate", false}},
-      sample));
+  trace.Append(ScheduleDesc::Step("SamplePerfectTile",
+                                  {{"loop", std::vector<Expr>({loops[2]})}},
+                                  {{"n", 2}, {"max_innermost_factor", 1}, {"decision", std::vector<int>{-1, 2}}},
+                                  sample));
   splited = ir_sch.Split(loops[2], sample);
   trace.Append(
       ScheduleDesc::Step("Split", {{"loop", std::vector<Expr>({loops[2]})}, {"factors", sample}}, {}, splited));
@@ -502,11 +497,10 @@ TEST_F(TestScheduleDesc, StepKind_ReorderWithBlock) {
   auto loops            = ir_sch.GetLoops("B");
   trace.Append(ScheduleDesc::Step("GetLoopsWithName", {}, {{"block_name", std::string("B")}}, loops));
   auto sample = ir_sch.SamplePerfectTile(loops[0], 2, 1, {-1, 4});
-  trace.Append(ScheduleDesc::Step(
-      "SamplePerfectTile",
-      {{"loop", std::vector<Expr>({loops[0]})}},
-      {{"n", 2}, {"max_innermost_factor", 1}, {"decision", std::vector<int>{-1, 4}}, {"can_mutate", false}},
-      sample));
+  trace.Append(ScheduleDesc::Step("SamplePerfectTile",
+                                  {{"loop", std::vector<Expr>({loops[0]})}},
+                                  {{"n", 2}, {"max_innermost_factor", 1}, {"decision", std::vector<int>{-1, 4}}},
+                                  sample));
   auto splited = ir_sch.Split(loops[0], sample);
   trace.Append(
       ScheduleDesc::Step("Split", {{"loop", std::vector<Expr>({loops[0]})}, {"factors", sample}}, {}, splited));
@@ -514,11 +508,10 @@ TEST_F(TestScheduleDesc, StepKind_ReorderWithBlock) {
   loops = ir_sch.GetLoops("B");
   trace.Append(ScheduleDesc::Step("GetLoopsWithName", {}, {{"block_name", std::string("B")}}, loops));
   sample = ir_sch.SamplePerfectTile(loops[2], 2, 1, {-1, 2});
-  trace.Append(ScheduleDesc::Step(
-      "SamplePerfectTile",
-      {{"loop", std::vector<Expr>({loops[2]})}},
-      {{"n", 2}, {"max_innermost_factor", 1}, {"decision", std::vector<int>{-1, 2}}, {"can_mutate", false}},
-      sample));
+  trace.Append(ScheduleDesc::Step("SamplePerfectTile",
+                                  {{"loop", std::vector<Expr>({loops[2]})}},
+                                  {{"n", 2}, {"max_innermost_factor", 1}, {"decision", std::vector<int>{-1, 2}}},
+                                  sample));
   splited = ir_sch.Split(loops[2], sample);
   trace.Append(
       ScheduleDesc::Step("Split", {{"loop", std::vector<Expr>({loops[2]})}, {"factors", sample}}, {}, splited));
@@ -541,11 +534,10 @@ TEST_F(TestScheduleDesc, StepKind_ReorderWithName) {
   auto loops = ir_sch.GetLoops("B");
   trace.Append(ScheduleDesc::Step("GetLoopsWithName", {}, {{"block_name", std::string("B")}}, loops));
   auto sample = ir_sch.SamplePerfectTile(loops[0], 2, 1, {-1, 4});
-  trace.Append(ScheduleDesc::Step(
-      "SamplePerfectTile",
-      {{"loop", std::vector<Expr>({loops[0]})}},
-      {{"n", 2}, {"max_innermost_factor", 1}, {"decision", std::vector<int>{-1, 4}}, {"can_mutate", false}},
-      sample));
+  trace.Append(ScheduleDesc::Step("SamplePerfectTile",
+                                  {{"loop", std::vector<Expr>({loops[0]})}},
+                                  {{"n", 2}, {"max_innermost_factor", 1}, {"decision", std::vector<int>{-1, 4}}},
+                                  sample));
   auto splited = ir_sch.Split(loops[0], sample);
   trace.Append(
       ScheduleDesc::Step("Split", {{"loop", std::vector<Expr>({loops[0]})}, {"factors", sample}}, {}, splited));
@@ -553,11 +545,10 @@ TEST_F(TestScheduleDesc, StepKind_ReorderWithName) {
   loops = ir_sch.GetLoops("B");
   trace.Append(ScheduleDesc::Step("GetLoopsWithName", {}, {{"block_name", std::string("B")}}, loops));
   sample = ir_sch.SamplePerfectTile(loops[2], 2, 1, {-1, 2});
-  trace.Append(ScheduleDesc::Step(
-      "SamplePerfectTile",
-      {{"loop", std::vector<Expr>({loops[2]})}},
-      {{"n", 2}, {"max_innermost_factor", 1}, {"decision", std::vector<int>{-1, 2}}, {"can_mutate", false}},
-      sample));
+  trace.Append(ScheduleDesc::Step("SamplePerfectTile",
+                                  {{"loop", std::vector<Expr>({loops[2]})}},
+                                  {{"n", 2}, {"max_innermost_factor", 1}, {"decision", std::vector<int>{-1, 2}}},
+                                  sample));
   splited = ir_sch.Split(loops[2], sample);
   trace.Append(
       ScheduleDesc::Step("Split", {{"loop", std::vector<Expr>({loops[2]})}, {"factors", sample}}, {}, splited));
@@ -772,11 +763,10 @@ TEST_F(TestScheduleDesc, StepKind_SamplePerfectTile) {
   auto result = ir_sch.SamplePerfectTile(loops[0], 2, 64);
   std::vector<int> decision;
   std::transform(result.begin(), result.end(), std::back_inserter(decision), [](Expr x) { return x.as_int32(); });
-  trace.Append(
-      ScheduleDesc::Step("SamplePerfectTile",
-                         {{"loop", std::vector<Expr>({loops[0]})}},
-                         {{"n", 2}, {"max_innermost_factor", 64}, {"decision", decision}, {"can_mutate", false}},
-                         result));
+  trace.Append(ScheduleDesc::Step("SamplePerfectTile",
+                                  {{"loop", std::vector<Expr>({loops[0]})}},
+                                  {{"n", 2}, {"max_innermost_factor", 64}, {"decision", decision}},
+                                  result));
   CheckTracingOutputs(result, trace);
   CheckTracingOutputs(result, ir_sch.GetTraceDesc());
   CheckReplayResult(ir_sch, trace);

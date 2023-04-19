@@ -465,7 +465,7 @@ CINN_BUILD_STEP_KIND(FlattenLoops)
 
 CINN_BUILD_STEP_KIND(SamplePerfectTile)
     .Inputs({"loop"})
-    .Attrs({"n", "max_innermost_factor", "decision", "can_mutate"})
+    .Attrs({"n", "max_innermost_factor", "decision"})
     .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(&IRSchedule::SamplePerfectTile)));
 
 CINN_BUILD_STEP_KIND(TagPostSchedule)
