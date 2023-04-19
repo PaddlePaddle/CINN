@@ -1426,8 +1426,6 @@ Expr ReverseComputeInliner::ReplaceTargetTensor(Expr* store) {
   idx_sub_var_.reserve(n);
   idx_sub_expr_.reserve(n);
   for (int i = 0; i < n; ++i) {
-    LOG(INFO) << indices[i].as_var_ref();
-    LOG(INFO) << Expr(idx_vars_[i]);
     idx_sub_var_.emplace_back(indices[i].as_var_ref());
     idx_sub_expr_.emplace_back(idx_vars_[i]);
   }
@@ -1438,8 +1436,7 @@ Expr ReverseComputeInliner::ReplaceTargetTensor(Expr* store) {
 }
 
 void ScheduleImpl::ReverseComputeInline(const Expr& schedule_block) {
-  Expr root = this->GetRootBlock(schedule_block);
-  //  Expr inlined_store = CheckReverseComputeInlineValidationAndGetStore(schedule_block, root);
+  Expr root          = this->GetRootBlock(schedule_block);
   auto exprs         = CheckReverseComputeInlineValidationAndGetExprs(schedule_block, root);
   Expr inlined_load  = std::get<0>(exprs);
   Expr inlined_store = std::get<1>(exprs);
