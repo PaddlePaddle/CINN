@@ -31,12 +31,12 @@
 
 DECLARE_bool(cinn_use_fill_constant_folding);
 DECLARE_bool(cinn_use_op_fusion);
-DECLARE_bool(cinn_use_cublas_gemm);
 DECLARE_bool(cinn_use_common_subexpression_elimination);
 DECLARE_string(cinn_check_fusion_accuracy_pass);
 DECLARE_bool(cinn_use_custom_call);
 DECLARE_bool(use_reduce_split_pass);
 DECLARE_bool(cinn_use_dense_merge_pass);
+DECLARE_string(cinn_custom_call_deny_ops);
 
 namespace cinn {
 namespace frontend {
@@ -52,7 +52,13 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
   options.program_passes.emplace_back("RemoveIdentity");
 
 #ifdef CINN_WITH_CUDA
-  if (FLAGS_cinn_use_cublas_gemm) {
+  auto can_find_custom_call_deny_op = [](const std::string& op) {
+    return FLAGS_cinn_custom_call_deny_ops.find(op) != std::string::npos;
+  };
+  bool is_gemm_use_cublas = FLAGS_cinn_use_custom_call && !can_find_custom_call_deny_op("matmul") &&
+                            !can_find_custom_call_deny_op("cublas_gemm") &&
+                            !can_find_custom_call_deny_op("cublas_matmul");
+  if (is_gemm_use_cublas) {
     options.program_passes.emplace_back("TransposeFoldingInput");
     options.program_passes.emplace_back("GemmRewriter");
     options.program_passes.emplace_back("TransposeFoldingOutput");
