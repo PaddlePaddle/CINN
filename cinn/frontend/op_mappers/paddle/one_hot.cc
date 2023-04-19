@@ -32,10 +32,8 @@ void OneHotOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
   auto on_value  = ctx.Builder()->FillConstant({1}, 1, cinn::UniqName(x_name + "_on_value"), "int32");
   auto off_value = ctx.Builder()->FillConstant({1}, 0, cinn::UniqName(x_name + "_off_value"), "int32");
 
-  auto dtype_id = utils::GetAttrOrDefault<int>(op_desc, "dtype", static_cast<int>(paddle::cpp::VarDescAPI::Type::FP32));
-  auto dtype_pd = static_cast<paddle::cpp::VarDescAPI::Type>(dtype_id);
-  auto dtype_cinn = utils::CppVarType2CommonType(dtype_pd);
-  auto dtype      = common::Type2Str(dtype_cinn);
+  auto dtype = utils::GetPaddleDtype(op_desc, "dtype", paddle::cpp::VarDescAPI::Type::FP32);
+  CHECK(!dtype.empty()) << "The op \"ont_hot\"'s attribute \"dtype\" should not be unknown type! Please check.";
 
   auto x   = ctx.GetVar(x_name);
   x        = ctx.Builder()->Slice(x, {static_cast<int>(x->shape.size()) - 1}, {0}, {1}, {}, {1}, {});
@@ -57,10 +55,8 @@ void OneHotV2OpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext&
   auto on_value  = ctx.Builder()->FillConstant({1}, 1, cinn::UniqName(x_name + "_on_value"), "int32");
   auto off_value = ctx.Builder()->FillConstant({1}, 0, cinn::UniqName(x_name + "_off_value"), "int32");
 
-  auto dtype_id = utils::GetAttrOrDefault<int>(op_desc, "dtype", static_cast<int>(paddle::cpp::VarDescAPI::Type::FP32));
-  auto dtype_pd = static_cast<paddle::cpp::VarDescAPI::Type>(dtype_id);
-  auto dtype_cinn = utils::CppVarType2CommonType(dtype_pd);
-  auto dtype      = common::Type2Str(dtype_cinn);
+  auto dtype = utils::GetPaddleDtype(op_desc, "dtype", paddle::cpp::VarDescAPI::Type::FP32);
+  CHECK(!dtype.empty()) << "The op \"one_hot_v2\"'s attribute \"dtype\" should not be unknown type! Please check.";
 
   auto x   = ctx.GetVar(x_name);
   auto out = ctx.Builder()->OneHot(x, on_value, off_value, depth, axis, dtype);
