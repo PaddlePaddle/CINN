@@ -59,7 +59,7 @@ TEST(MutateTileSize, Basic) {
 
   // apply schedule
   auto loops   = ir_schedule.GetLoops("C");
-  auto factors = ir_schedule.SamplePerfectTile(loops[0], 2, kSize, {}, true);
+  auto factors = ir_schedule.SamplePerfectTile(loops[0], 2, kSize);
   auto splited = ir_schedule.Split(loops[0], factors);
 
   // apply mutate
