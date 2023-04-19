@@ -75,7 +75,7 @@ void ReduceOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
 
   CHECK(out) << "Not support Reduce " << reduce_type << "! Please check.";
 
-  auto dtype = utils::GetPaddleDtype(op_desc, "out_dtype", paddle::cpp::VarDescAPI::Type::FP32);
+  auto dtype = utils::GetPaddleDtype(op_desc, "out_dtype", static_cast<paddle::cpp::VarDescAPI::Type>(-1));
   if (!dtype.empty() && common::Type2Str(out.value()->type) != dtype) {
     out = ctx.Builder()->Cast(out.value(), dtype);
   }
