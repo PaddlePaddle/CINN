@@ -45,7 +45,7 @@ namespace cinn {
 namespace ir {
 
 /**
- * A struct helps to implment Schedule primitives.
+ * A struct helps to implement Schedule primitives.
  */
 class ScheduleImpl {
  public:
@@ -96,6 +96,7 @@ class ScheduleImpl {
   void Vectorize(const Expr& loop, int factor);
   void Unroll(const Expr& loop);
   void ComputeInline(const Expr& schedule_block);
+  void ReverseComputeInline(const Expr& schedule_block);
   void Bind(const Expr& loop, const std::string& thread_axis);
   Expr Rfactor(const Expr& rf_loop, int rf_axis);
   Expr AddUnitLoop(const Expr& block) const;
@@ -1371,6 +1372,85 @@ void ComputeInlineChecker::BuildDataDependency() {
   ir_schedule_.SyncThreads(loops.back(), true);
 }
 
+bool ReverseComputeInliner::BodyPatternAllowInline() {
+  if (!inlined_store_.defined()) {
+    return false;
+  }
+  if (!inlined_load_.defined()) {
+    return false;
+  }
+  if (!target_store_.defined()) {
+    return false;
+  }
+  CHECK(inlined_store_.As<Store>());
+  CHECK(inlined_load_.As<Load>());
+  CHECK(target_store_.As<Store>());
+  auto find_vars = ir::CollectIRNodesWithoutTensor(inlined_store_, [&](const Expr* x) { return x->as_var(); });
+  std::set<Var, CompVar> vars_set;
+  for (auto& i : find_vars) vars_set.insert(i.as_var_ref());
+  int n_vars = vars_set.size();
+  if (!UpdateAndCheckIndexVars(inlined_store_.As<Store>()->indices, n_vars)) {
+    return false;
+  }
+  return true;
+}
+
+void ReverseComputeInliner::Visit(const ir::Load* expr, Expr* op) {
+  if ((expr->tensor).as_tensor_ref()->name == inlined_tensor_->name) {
+    *op = inlined_store_.As<Store>()->value;
+    return;
+  }
+  IRMutator::Visit(expr, op);
+}
+
+void ReverseComputeInliner::Visit(const ir::Store* expr, Expr* op) {
+  if ((expr->tensor).as_tensor_ref()->name == inlined_tensor_->name) {
+    *op = ReplaceTargetTensor(op);
+    return;
+  }
+  IRMutator::Visit(expr, op);
+}
+
+//! Replace the 'Load' node on the tensor to 'Load' node of its producers.
+Expr ReverseComputeInliner::ReplaceInlinedTensor(Expr* load) {
+  CHECK(load->As<ir::Load>());
+  SetIndexSubstitution(load->As<ir::Load>()->indices);
+  Expr value_copy = optim::IRCopy(inlined_store_.As<Store>()->value);
+  return value_copy;
+}
+
+Expr ReverseComputeInliner::ReplaceTargetTensor(Expr* store) {
+  auto indices = inlined_load_.As<ir::Load>()->indices;
+  CHECK_EQ(indices.size(), idx_vars_.size());
+  size_t n = idx_vars_.size();
+  idx_sub_var_.reserve(n);
+  idx_sub_expr_.reserve(n);
+  for (int i = 0; i < n; ++i) {
+    idx_sub_var_.emplace_back(indices[i].as_var_ref());
+    idx_sub_expr_.emplace_back(idx_vars_[i]);
+  }
+
+  Expr value_copy = optim::IRCopy(target_store_);
+  ReplaceExpr(&value_copy, idx_sub_var_, idx_sub_expr_);
+  return value_copy;
+}
+
+void ScheduleImpl::ReverseComputeInline(const Expr& schedule_block) {
+  Expr root          = this->GetRootBlock(schedule_block);
+  auto exprs         = CheckReverseComputeInlineValidationAndGetExprs(schedule_block, root);
+  Expr inlined_load  = std::get<0>(exprs);
+  Expr inlined_store = std::get<1>(exprs);
+  Expr target_store  = std::get<2>(exprs);
+  ReverseComputeInliner inliner(
+      inlined_store.As<ir::Store>()->tensor.as_tensor_ref(), inlined_store, inlined_load, target_store);
+  CHECK(inliner.BodyPatternAllowInline());
+  // Create a plan that removes the block to be inlined
+  LeafBlockRemovalPlan remove_plan(schedule_block, &inliner.src_stmt, &inliner.tgt_stmt);
+  remove_plan(&root);
+  inliner(&root);
+  inliner(&root);
+}
+
 struct FindBlockParent : public ir::IRMutator<> {
  public:
   FindBlockParent(const std::string& block_name) : block_name_(block_name) {}
@@ -2102,6 +2182,12 @@ void IRSchedule::Unroll(const Expr& loop) {
 void IRSchedule::ComputeInline(const Expr& schedule_block) {
   impl_->ComputeInline(schedule_block);
   trace_.Append(ScheduleDesc::Step("ComputeInline", {{"schedule_block", std::vector<Expr>({schedule_block})}}, {}, {}));
+}
+
+void IRSchedule::ReverseComputeInline(const Expr& schedule_block) {
+  impl_->ReverseComputeInline(schedule_block);
+  trace_.Append(
+      ScheduleDesc::Step("ReverseComputeInline", {{"schedule_block", std::vector<Expr>({schedule_block})}}, {}, {}));
 }
 
 void IRSchedule::Bind(const Expr& loop, const std::string& thread_axis) {
