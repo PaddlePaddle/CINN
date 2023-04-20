@@ -168,8 +168,9 @@ class IRSchedule {
    * \brief Move a producer block's location under a specific loop.
    * @param block The block we want to move its computation location.
    * @param loop The loop we will move the block to.
+   * @param keep_unit_loops Whether to keep the unit loop.
    */
-  void ComputeAt(const Expr& block, const Expr& loop);
+  void ComputeAt(const Expr& block, const Expr& loop, bool keep_unit_loops = false);
 
   /**
    * \brief Move a block's location under a loop without considering their dependency.
@@ -182,8 +183,9 @@ class IRSchedule {
    * \brief Move a consumer block's location under a specific loop.
    * @param block The block we want to move its computation location.
    * @param loop The loop we will move the block to.
+   * @param keep_unit_loops Whether to keep the unit loop.
    */
-  void ReverseComputeAt(const Expr& block, const Expr& loop);
+  void ReverseComputeAt(const Expr& block, const Expr& loop, bool keep_unit_loops = false);
 
   /**
    * \brief Find an expr's root ScheduleBlockRealize node
@@ -393,6 +395,12 @@ class IRSchedule {
                                       int n,
                                       int max_innermost_factor,
                                       const std::vector<int>& decision = {});
+
+  /*!
+   * \brief Insert a tag in schedule_desc to mark the beginning of post processing,
+   * the schedue primitive itself does not make any changes to the IR.
+   */
+  void TagPostSchedule();
 
   /**
    * \brief Randomly sample an integer according to the given distribution.

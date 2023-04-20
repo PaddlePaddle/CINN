@@ -246,31 +246,25 @@ TEST_F(TestMultiLevelTiling, Matmul) {
               {
                 serial for (reduce_k_0, 0, 4)
                 {
-                  serial for (ax0_0, 0, 8)
+                  serial for (ax0_0_ax1_0_fused, 0, 256)
                   {
-                    serial for (ax1_0, 0, 32)
+                    ScheduleBlock(Y_reshape_shared_temp_buffer)
                     {
-                      ScheduleBlock(Y_reshape_shared_temp_buffer)
+                      v0, v1 = axis.bind(((ax0_0_ax1_0_fused / 32) + (8 * reduce_k_0)), ((ax0_0_ax1_0_fused % 32) + (32 * j_2)))
+                      attrs(compute_at_extra_var:ax0_0,ax1_0, cooperative_process:0)
                       {
-                        v0, v1 = axis.bind(((8 * reduce_k_0) + ax0_0), ((32 * j_2) + ax1_0))
-                        attrs(compute_at_extra_var:ax0_0,ax1_0)
-                        {
-                          Y_reshape_shared_temp_buffer[v0, v1] = Y_reshape[v0, v1]
-                        }
+                        Y_reshape_shared_temp_buffer[v0, v1] = Y_reshape[v0, v1]
                       }
                     }
                   }
-                  serial for (ax0, 0, 8)
+                  serial for (ax0_ax1_fused, 0, 64)
                   {
-                    serial for (ax1, 0, 8)
+                    ScheduleBlock(X_reshape_shared_temp_buffer)
                     {
-                      ScheduleBlock(X_reshape_shared_temp_buffer)
+                      v0, v1 = axis.bind(((ax0_ax1_fused / 8) + ((8 * i_0_j_0_fused) + ((8 * i_1_j_1_fused) + (8 * i_2)))), ((ax0_ax1_fused % 8) + (8 * reduce_k_0)))
+                      attrs(compute_at_extra_var:ax0,ax1, cooperative_process:0)
                       {
-                        v0, v1 = axis.bind((((8 * i_0_j_0_fused) + ((8 * i_1_j_1_fused) + (8 * i_2))) + ax0), ((8 * reduce_k_0) + ax1))
-                        attrs(compute_at_extra_var:ax0,ax1)
-                        {
-                          X_reshape_shared_temp_buffer[v0, v1] = X_reshape[v0, v1]
-                        }
+                        X_reshape_shared_temp_buffer[v0, v1] = X_reshape[v0, v1]
                       }
                     }
                   }
@@ -467,17 +461,14 @@ Expr 1 {
             {
               serial for (kernel_idx_0, 0, 3)
               {
-                serial for (ax0, 0, 4)
+                serial for (ax0_ax1_ax2_ax3_fused, 0, 28)
                 {
-                  serial for (ax1, 0, 7)
+                  ScheduleBlock(pad_temp_0_shared_temp_buffer)
                   {
-                    ScheduleBlock(pad_temp_0_shared_temp_buffer)
+                    v0, v1, v2, v3 = axis.bind(((((i_0_j_0_k_0_a_0_fused / 2) / 2) / 2) + ((i_1_j_1_k_1_a_1_fused / 4) + ((ax0_ax1_ax2_ax3_fused / 7) / 4))), (((ax0_ax1_ax2_ax3_fused / 7) % 4) + (4 * (((i_0_j_0_k_0_a_0_fused / 2) / 2) % 2))), ((8 * ((i_0_j_0_k_0_a_0_fused / 2) % 2)) + ((2 * (i_1_j_1_k_1_a_1_fused % 4)) + kernel_idx)), ((ax0_ax1_ax2_ax3_fused % 7) + ((8 * (i_0_j_0_k_0_a_0_fused % 2)) + kernel_idx_0)))
+                    attrs(compute_at_extra_var:ax0,ax1,ax2,ax3, cooperative_process:0)
                     {
-                      v0, v1, v2, v3 = axis.bind(((((i_0_j_0_k_0_a_0_fused / 2) / 2) / 2) + (i_1_j_1_k_1_a_1_fused / 4)), ((4 * (((i_0_j_0_k_0_a_0_fused / 2) / 2) % 2)) + ax0), ((8 * ((i_0_j_0_k_0_a_0_fused / 2) % 2)) + ((2 * (i_1_j_1_k_1_a_1_fused % 4)) + kernel_idx)), (((8 * (i_0_j_0_k_0_a_0_fused % 2)) + kernel_idx_0) + ax1))
-                      attrs(compute_at_extra_var:ax0,ax1)
-                      {
-                        pad_temp_0_shared_temp_buffer[v0, v1, v2, v3] = pad_temp_0[v0, v1, v2, v3]
-                      }
+                      pad_temp_0_shared_temp_buffer[v0, v1, v2, v3] = pad_temp_0[v0, v1, v2, v3]
                     }
                   }
                 }
@@ -504,16 +495,22 @@ Expr 1 {
                 }
               }
             }
-            serial for (ax0_0, 0, 4)
+            serial for (ax0_0, 0, 1)
             {
               serial for (ax1_0, 0, 4)
               {
-                ScheduleBlock(var_0)
+                serial for (ax2_0, 0, 1)
                 {
-                  v0, v1, v2, v3 = axis.bind(((((i_0_j_0_k_0_a_0_fused / 2) / 2) / 2) + (i_1_j_1_k_1_a_1_fused / 4)), ((4 * (((i_0_j_0_k_0_a_0_fused / 2) / 2) % 2)) + ax0_0), ((i_1_j_1_k_1_a_1_fused % 4) + (4 * ((i_0_j_0_k_0_a_0_fused / 2) % 2))), ((4 * (i_0_j_0_k_0_a_0_fused % 2)) + ax1_0))
-                  attrs(reverse_compute_at_extra_var:ax0_0,ax1_0)
+                  serial for (ax3_0, 0, 4)
                   {
-                    var_0[v0, v1, v2, v3] = var_0_local_temp_buffer[v0, v1, v2, v3]
+                    ScheduleBlock(var_0)
+                    {
+                      v0, v1, v2, v3 = axis.bind((((((i_0_j_0_k_0_a_0_fused / 2) / 2) / 2) + (i_1_j_1_k_1_a_1_fused / 4)) + ax0_0), ((4 * (((i_0_j_0_k_0_a_0_fused / 2) / 2) % 2)) + ax1_0), (((i_1_j_1_k_1_a_1_fused % 4) + (4 * ((i_0_j_0_k_0_a_0_fused / 2) % 2))) + ax2_0), ((4 * (i_0_j_0_k_0_a_0_fused % 2)) + ax3_0))
+                      attrs(reverse_compute_at_extra_var:ax0_0,ax1_0,ax2_0,ax3_0)
+                      {
+                        var_0[v0, v1, v2, v3] = var_0_local_temp_buffer[v0, v1, v2, v3]
+                      }
+                    }
                   }
                 }
               }
