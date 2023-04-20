@@ -36,11 +36,11 @@ class ParallelCompiler {
   };
 
  public:
-  explicit ParallelCompiler(std::shared_ptr<Scope>& scope,
-                            std::shared_ptr<Graph>& graph,
+  explicit ParallelCompiler(const std::shared_ptr<Scope>& scope,
+                            const std::shared_ptr<Graph>& graph,
                             const CompileOptions& option,
                             const common::Target& target)
-      : scope_(scope), graph_(graph), option_(option), target_(target) {}
+      : scope_(scope), graph_(graph), option_(option), target_(target), index(0) {}
   ~ParallelCompiler() {}
   std::vector<std::unique_ptr<Instruction>> operator()();
 
@@ -53,8 +53,8 @@ class ParallelCompiler {
   struct Task {
    public:
     Task(ParallelCompiler* p,
-         std::shared_ptr<Scope>& s,
-         std::shared_ptr<Graph>& g,
+         const std::shared_ptr<Scope>& s,
+         const std::shared_ptr<Graph>& g,
          const CompileOptions& cp,
          const Target& t)
         : compiler(p), scope(s), graph(g), options(cp), target(t) {}
@@ -65,10 +65,10 @@ class ParallelCompiler {
                                                   std::unique_ptr<backends::ExecutionEngine>&& engine);
 
    public:
-    const Target target;
+    const Target& target;
     ParallelCompiler* compiler;
-    std::shared_ptr<Scope> scope;
-    std::shared_ptr<Graph> graph;
+    const std::shared_ptr<Scope>& scope;
+    const std::shared_ptr<Graph>& graph;
     const CompileOptions& options;
 
     std::vector<int> gidx;
@@ -78,13 +78,12 @@ class ParallelCompiler {
   int GetGroupIdx();
 
  private:
-  int index{0};
-  std::mutex mtx_;
+  std::atomic_int32_t index{0};
 
-  const common::Target target_;
+  const common::Target& target_;
   const CompileOptions& option_;
-  std::shared_ptr<Scope> scope_;
-  std::shared_ptr<Graph> graph_;
+  const std::shared_ptr<Scope>& scope_;
+  const std::shared_ptr<Graph>& graph_;
 };
 
 }  // namespace framework

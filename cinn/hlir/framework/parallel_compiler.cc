@@ -37,12 +37,15 @@ namespace framework {
 static constexpr int DebugLogMaxLen = 30000;
 
 std::vector<std::unique_ptr<Instruction>> ParallelCompiler::operator()() {
-  if (!FLAGS_cinn_parallel_compile_size) {
-    return std::vector<std::unique_ptr<Instruction>>();
-  }
   if (graph_->fusion_groups.size() == 0) {
     hlir::framework::ApplyPasses(graph_.get(), {"BuildNonFusedGroupsPass"});
   }
+
+  if (!option_.lowered_funcs.empty()) {
+    CHECK_EQ(option_.lowered_funcs.size(), graph_->fusion_groups.size());
+  }
+  tasks_.clear();
+
   // Task Spilt
   SplitTask();
   // launch task
@@ -51,29 +54,17 @@ std::vector<std::unique_ptr<Instruction>> ParallelCompiler::operator()() {
   return MergeResult();
 }
 
-OpPatternKind GetOpKind(const framework::Node* node) {
-  auto& op_pattern_dict = framework::Operator::GetAttrs<OpPatternKind>("OpPattern");
-  CHECK(op_pattern_dict.Find(node->op())) << "Don't find the pattern of op : " << node->id();
-  auto kind = op_pattern_dict[node->op()];
-
-  if (kind == framework::kBroadcast) {
-    // As binary op was defined as broadcast, actually it should be element-wise.
-    if (node->op()->name != "broadcast_to") {
-      return framework::kElementWise;
-    }
-  }
-
-  return kind;
-}
-
 void ParallelCompiler::SplitTask() {
   CHECK(graph_->fusion_groups.size());
   CHECK(graph_->fusion_groups.size() == option_.lowered_funcs.size() || option_.lowered_funcs.size() == 0);
   // split task
-  int num_per_task = FLAGS_cinn_parallel_compile_size > 0 ? FLAGS_cinn_parallel_compile_size : 8;
-  int task_num     = (graph_->fusion_groups.size() + num_per_task - 1) / num_per_task;
+  int task_num = 1;
+  if (FLAGS_cinn_parallel_compile_size > 0) {
+    int num_per_task = FLAGS_cinn_parallel_compile_size > 0 ? FLAGS_cinn_parallel_compile_size : 8;
+    task_num         = (graph_->fusion_groups.size() + num_per_task - 1) / num_per_task;
+  }
 
-  for (int idx = 0; idx < task_num; ++task_num) {
+  for (int idx = 0; idx < task_num; ++idx) {
     tasks_.emplace_back(std::make_unique<Task>(this, scope_, graph_, option_, target_));
   }
   VLOG(2) << "Split task to " << tasks_.size() << " sub-task!";
@@ -110,9 +101,8 @@ std::vector<std::unique_ptr<Instruction>> ParallelCompiler::MergeResult() {
 }
 
 void ParallelCompiler::Task::Run() {
-  if (!options.lowered_funcs.empty()) {
-    CHECK_EQ(options.lowered_funcs.size(), graph->fusion_groups.size());
-  }
+  gidx.clear();
+  instructions.clear();
 
   while (true) {
     int idx = compiler->GetGroupIdx();
@@ -125,7 +115,7 @@ void ParallelCompiler::Task::Run() {
     VLOG(1) << "Start Lowering Group " << idx << " :\n"
             << "Group " << idx << " {\n"
             << graph->DebugGroupedGraph(group->CollectNodes()) << "}\n";
-    auto func = Lowering(group, idx);
+    const auto& func = Lowering(group, idx);
 
     VLOG(2) << "Start Codegen and JIT of Group " << idx;
     auto engine = CodegenAndJit(func, idx);
@@ -158,7 +148,9 @@ std::unique_ptr<backends::ExecutionEngine> ParallelCompiler::Task::CodegenAndJit
     const std::vector<ir::LoweredFunc>& func, int idx) {
   // build module
   ir::Module::Builder builder(common::UniqName("module"), target);
-  builder.AddFunction(func[0]);
+  for (const auto& f : func) {
+    builder.AddFunction(f);
+  }
   auto ir_module = builder.Build();
 
   std::unique_ptr<backends::ExecutionEngine> engine;
@@ -227,12 +219,11 @@ std::unique_ptr<Instruction> ParallelCompiler::Task::BuildInstruction(
 }
 
 int ParallelCompiler::GetGroupIdx() {
-  std::lock_guard<std::mutex> lock(mtx_);
-  if (index < graph_->fusion_groups.size()) {
-    return index++;
-  } else {
-    return -1;
+  auto cur_index = index.fetch_add(1);
+  if (cur_index < graph_->fusion_groups.size()) {
+    return cur_index;
   }
+  return -1;
 }
 
 }  // namespace framework
