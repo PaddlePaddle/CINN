@@ -77,7 +77,7 @@ void ParallelCompiler::SplitTask() {
   int task_num = std::min(graph_->fusion_groups.size(), flag_parallel_num);
 
   for (int idx = 0; idx < task_num; ++idx) {
-    tasks_.emplace_back(this, scope_, graph_, option_, target_);
+    tasks_.emplace_back(std::make_unique<Task>(this, scope_, graph_, option_, target_));
   }
   VLOG(2) << "Split task to " << tasks_.size() << " sub-task!";
 }
@@ -92,10 +92,10 @@ void ParallelCompiler::LaunchTask() {
   // start sub-task.
   std::vector<std::thread> threads;
   for (int idx = 1; idx < tasks_.size(); ++idx) {
-    threads.emplace_back(RunTask, &tasks_[idx]);
+    threads.emplace_back(RunTask, tasks_[idx].get());
   }
 
-  RunTask(&tasks_[0]);
+  RunTask(tasks_[0].get());
   // syncthreads.
   for (auto& worker : threads) {
     worker.join();
@@ -105,8 +105,8 @@ void ParallelCompiler::LaunchTask() {
 std::vector<std::unique_ptr<Instruction>> ParallelCompiler::MergeResult() {
   std::vector<std::unique_ptr<Instruction>> res(graph_->fusion_groups.size());
   for (auto& task : tasks_) {
-    for (int idx = 0; idx < task.gidx.size(); ++idx) {
-      res[task.gidx[idx]] = std::move(task.instructions[idx]);
+    for (int idx = 0; idx < task->gidx.size(); ++idx) {
+      res[task->gidx[idx]] = std::move(task->instructions[idx]);
     }
   }
   return std::move(res);
@@ -116,10 +116,7 @@ void ParallelCompiler::Task::Run() {
   if (!options.lowered_funcs.empty()) {
     CHECK_EQ(options.lowered_funcs.size(), graph->fusion_groups.size());
   }
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
 
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
   while (true) {
     int idx = compiler->GetGroupIdx();
     if (idx < 0) {
@@ -131,38 +128,43 @@ void ParallelCompiler::Task::Run() {
     VLOG(1) << "Start Lowering Group " << idx << " :\n"
             << "Group " << idx << " {\n"
             << graph->DebugGroupedGraph(group->CollectNodes()) << "}\n";
-    auto func = Lowering(&op_lowerer, group, idx);
+    auto func = Lowering(group, idx);
 
     VLOG(2) << "Start Codegen and JIT of Group " << idx;
-    CodegenAndJit(func, idx);
+    auto engine = CodegenAndJit(func, idx);
 
     VLOG(2) << "Start BuildInstruction of Group " << idx;
-    auto instr = BuildInstruction(group);
+    auto instr = BuildInstruction(group, std::move(engine));
 
-    std::lock_guard<std::mutex> lock(*task_mtx_);
-    gidx.push_back(idx);
-    instructions.emplace_back(instr.release());
+    gidx.emplace_back(idx);
+    instructions.emplace_back(std::move(instr));
   }
 }
 
-std::vector<ir::LoweredFunc> ParallelCompiler::Task::Lowering(OpLowerer* lower,
-                                                              std::shared_ptr<Graph::Group>& group,
-                                                              int idx) {
+std::vector<ir::LoweredFunc> ParallelCompiler::Task::Lowering(std::shared_ptr<Graph::Group>& group, int idx) {
   std::vector<ir::LoweredFunc> func;
   if (options.lowered_funcs.size() > idx) {
     func = options.lowered_funcs[idx];
   } else {
-    func = lower->Lower(group);
+    auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
+    auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
+
+    OpLowerer op_lowerer(dtype_dict, shape_dict, target);
+
+    func = op_lowerer.Lower(group);
   }
   CHECK_EQ(func.size(), 1) << "Lowerd Function Is Not Equal 1!";
   return func;
 }
 
-void ParallelCompiler::Task::CodegenAndJit(const std::vector<ir::LoweredFunc>& func, int idx) {
+std::unique_ptr<backends::ExecutionEngine> ParallelCompiler::Task::CodegenAndJit(
+    const std::vector<ir::LoweredFunc>& func, int idx) {
   // build module
   ir::Module::Builder builder(common::UniqName("module"), target);
   builder.AddFunction(func[0]);
   auto ir_module = builder.Build();
+
+  std::unique_ptr<backends::ExecutionEngine> engine;
 
   // codegen compile
   if (target == common::DefaultNVGPUTarget()) {
@@ -181,17 +183,17 @@ void ParallelCompiler::Task::CodegenAndJit(const std::vector<ir::LoweredFunc>& f
     graph->SaveSourceCode(idx, cuda_c);
 
     using runtime::cuda::CUDAModule;
-    backends::nvrtc::Compiler compiler;
-    auto ptx = compiler(cuda_c);
+    backends::nvrtc::Compiler nvrtc;
+    auto ptx = nvrtc(cuda_c);
     CHECK(!ptx.empty()) << "Compile PTX failed from source code:\n" << cuda_c;
     graph->SavePTXCode(idx, ptx);
 
     // load cumodule
-    cumodule.reset(new CUDAModule(ptx, compiler.compile_to_cubin() ? CUDAModule::Kind::CUBIN : CUDAModule::Kind::PTX));
+    runtime::cuda::CUDAModule cumodule(ptx, nvrtc.compile_to_cubin() ? CUDAModule::Kind::CUBIN : CUDAModule::Kind::PTX);
     // register kernel
     backends::RuntimeSymbols symbols;
     for (auto& fn : dmodule.functions()) {
-      auto cufunc = cumodule->GetFunction(0, fn->name);
+      auto cufunc = cumodule.GetFunction(0, fn->name);
       CHECK(cufunc);
       symbols.RegisterVar(fn->name + "_ptr_", reinterpret_cast<void*>(cufunc));
     }
@@ -202,9 +204,11 @@ void ParallelCompiler::Task::CodegenAndJit(const std::vector<ir::LoweredFunc>& f
     engine = backends::ExecutionEngine::Create(backends::ExecutionOptions());
     engine->Link<backends::CodeGenX86>(ir_module);
   }
+  return engine;
 }
 
-std::unique_ptr<Instruction> ParallelCompiler::Task::BuildInstruction(std::shared_ptr<Graph::Group>& group) {
+std::unique_ptr<Instruction> ParallelCompiler::Task::BuildInstruction(
+    std::shared_ptr<Graph::Group>& group, std::unique_ptr<backends::ExecutionEngine>&& engine) {
   // create instruction.
   CHECK(group->input_names.size() > 0 || group->output_names.size() > 0);
   auto instr =

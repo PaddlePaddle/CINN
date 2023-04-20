@@ -57,11 +57,12 @@ class ParallelCompiler {
          std::shared_ptr<Graph>& g,
          const CompileOptions& cp,
          const Target& t)
-        : compiler(p), scope(s), graph(g), options(cp), target(t), task_mtx_(std::make_unique<std::mutex>()) {}
+        : compiler(p), scope(s), graph(g), options(cp), target(t) {}
     void Run();
-    std::vector<ir::LoweredFunc> Lowering(OpLowerer* lower, std::shared_ptr<Graph::Group>& group, int idx);
-    void CodegenAndJit(const std::vector<ir::LoweredFunc>& func, int idx);
-    std::unique_ptr<Instruction> BuildInstruction(std::shared_ptr<Graph::Group>& group);
+    std::vector<ir::LoweredFunc> Lowering(std::shared_ptr<Graph::Group>& group, int idx);
+    std::unique_ptr<backends::ExecutionEngine> CodegenAndJit(const std::vector<ir::LoweredFunc>& func, int idx);
+    std::unique_ptr<Instruction> BuildInstruction(std::shared_ptr<Graph::Group>& group,
+                                                  std::unique_ptr<backends::ExecutionEngine>&& engine);
 
    public:
     const Target target;
@@ -70,17 +71,10 @@ class ParallelCompiler {
     std::shared_ptr<Graph> graph;
     const CompileOptions& options;
 
-    std::unique_ptr<std::mutex> task_mtx_;
     std::vector<int> gidx;
     std::vector<std::unique_ptr<Instruction>> instructions;
-
-   public:
-    std::unique_ptr<backends::ExecutionEngine> engine;
-#ifdef CINN_WITH_CUDA
-    std::unique_ptr<runtime::cuda::CUDAModule> cumodule;
-#endif
   };
-  std::vector<Task> tasks_;
+  std::vector<std::unique_ptr<Task>> tasks_;
   int GetGroupIdx();
 
  private:
