@@ -473,9 +473,9 @@ void LoopAssignReduceWithLast(ir::IRSchedule& ir_sch,
       need_reduce_last_count *= inshape[i];
     }
   }
-  int warp_reduce_need_sm_count = (need_reduce_last_count * 32) / target.get_max_threads_per_sm();
+  int warp_reduce_need_sm_count = ceil((need_reduce_last_count * 32) / float(target.get_max_threads_per_sm()));
   // Set Num_max_threads to 32 is Warp Reduce
-  if (target.get_multi_processor_count() < warp_reduce_need_sm_count) {
+  if (target.get_multi_processor_count() < warp_reduce_need_sm_count / 2) {
     max_num_threads = 32;
   }
   // find first reduce and second reduce axis.

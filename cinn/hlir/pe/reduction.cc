@@ -694,7 +694,8 @@ std::vector<ir::Tensor> TwoStepBlockReduceInternal(const ir::Tensor& A,
       need_reduce_last_count *= A->shape[i].as_int32();
     }
   }
-  int warp_reduce_need_sm_count = (need_reduce_last_count * 32) / common::DefaultNVGPUTarget().get_max_threads_per_sm();
+  int warp_reduce_need_sm_count =
+      ceil((need_reduce_last_count * 32) / float(common::DefaultNVGPUTarget().get_max_threads_per_sm()));
   // Set Num_max_threads to 32 is Warp Reduce
   if (common::DefaultNVGPUTarget().get_multi_processor_count() < warp_reduce_need_sm_count) {
     max_num_threads = 32;
