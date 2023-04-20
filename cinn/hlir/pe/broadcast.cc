@@ -85,7 +85,7 @@ void GetBroadcastShape(const std::vector<Expr>& shape1,
 
   Expr one(1);
   int i;
-  i = axis_offset <= 0 ? 1 : *axis_offset + 1;
+  i = *axis_offset <= 0 ? 1 : *axis_offset + 1;
   for (; i <= std::min(size1, size2); ++i) {
     // traverse from right to left to get the output shape and broadcast flag
     auto* var1 = shape1_new[size1 - i].As<ir::_Var_>();

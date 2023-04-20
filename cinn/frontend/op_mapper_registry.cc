@@ -21,15 +21,17 @@ namespace frontend {
 
 void OpMapperContext::AddVar(const std::string& origin_name, const Variable& var, bool can_inplace) const {
   CHECK(can_inplace || !var_map_->count(origin_name))
-      << "Duplicate variable [" << origin_name << "] found, whose id is " << var_map_->at(origin_name)->id;
+      << "Duplicate variable \"" << origin_name << "\" found, whose id is " << var_map_->at(origin_name)->id;
   if (var_map_->count(origin_name)) {
-    VLOG(4) << "Inplace arugment [" << origin_name << "] will replace old cinn var [" << var_map_->at(origin_name)->id
-            << "]"
-            << " to new cinn var [" << var->id << "]";
+    VLOG(1) << "The Paddle inplace output var \"" << origin_name + paddle::InplaceOutSuffix
+            << "\" is mapped to CINN var \"" << var->id << "\" with shape=[" << cinn::utils::Join(var->shape, ", ")
+            << "], dtype=" << var->type << ". The input var \"" << origin_name << "\" still mapped to \""
+            << var_map_->at(origin_name)->id << "\"";
+  } else {
+    VLOG(1) << "The Paddle var \"" << origin_name << "\" is mapped to CINN var \"" << var->id << "\" with shape=["
+            << cinn::utils::Join(var->shape, ", ") << "], dtype=" << var->type;
   }
   (*var_map_)[origin_name] = var;
-  VLOG(4) << "Add variable [" << origin_name << "] to [" << var->id << "] with shape=["
-          << cinn::utils::Join(var->shape, ",") << "], dtype=" << var->type;
 }
 
 void OpMapperContext::AddVarModelToProgram(const std::string& name, const std::string& id, bool can_inplace) const {
