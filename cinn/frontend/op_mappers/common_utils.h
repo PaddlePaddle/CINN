@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "cinn/frontend/paddle/cpp/op_desc.h"
+#include "cinn/frontend/var_type_utils.h"
 #include "cinn/utils/functional.h"
 #include "cinn/utils/type_defs.h"
 
@@ -147,6 +148,18 @@ inline cinn::utils::ShapeType ToShapeType(const std::vector<T>& shape) {
 template <typename T>
 inline cinn::utils::DimType ToDimType(const T& val) {
   return static_cast<cinn::utils::DimType>(val);
+}
+
+inline std::string GetPaddleDtype(const paddle::cpp::OpDesc& op_desc,
+                                  const std::string& dtype_attr_name,
+                                  paddle::cpp::VarDescAPI::Type default_dtype) {
+  auto dtype_id = GetAttrOrDefault<int>(op_desc, dtype_attr_name, static_cast<int>(default_dtype));
+  if (dtype_id < 0) {
+    return "";
+  }
+  auto dtype_pd   = static_cast<paddle::cpp::VarDescAPI::Type>(dtype_id);
+  auto dtype_cinn = CppVarType2CommonType(dtype_pd);
+  return common::Type2Str(dtype_cinn);
 }
 
 }  // namespace utils

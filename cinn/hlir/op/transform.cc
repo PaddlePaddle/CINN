@@ -455,8 +455,19 @@ std::vector<std::vector<int>> InferShapeForConcat(const std::vector<std::vector<
   for (int i = 1; i < inputs_shape.size(); i++) {
     CHECK_EQ(inputs_shape[i].size(), input_dim)
         << "Dimensions of inputs tensors in Concat should be equal! Please check.";
+
+    for (int j = 0; j < input_dim; j++) {
+      if (j != axis) {
+        CHECK_EQ(inputs_shape[0][j], inputs_shape[i][j])
+            << "The " << j << "-th dimension of input[0] and input[" << i
+            << "] should be the same, but here input[0].shape=[" << cinn::utils::Join(inputs_shape[0], ", ")
+            << "], input[" << i << "].shape=[" << cinn::utils::Join(inputs_shape[i], ", ") << "]! Please check.";
+      }
+    }
+
     output_shape[axis] += inputs_shape[i][axis];
   }
+
   std::vector<std::vector<int>> res{output_shape};
   return res;
 }

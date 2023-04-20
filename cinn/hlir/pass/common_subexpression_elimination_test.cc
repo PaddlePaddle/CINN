@@ -52,9 +52,9 @@ TEST(common_subexpression_elimination, common_subexpression_elimination_case1) {
   auto add_1  = program.add(A, B);
   auto add_2  = program.add(B, A);
   auto add    = program.add(add_1, add_2);
-  auto t_1    = program.transpose(add, {2, 1, 0});
-  auto t_2    = program.transpose(add, {2, 1, 0});
-  auto t_3    = program.transpose(add, {2, 0, 1});
+  auto t_1    = program.transpose(add, {2, 1, 0});  // {1, 16, 32}
+  auto t_2    = program.transpose(add, {2, 1, 0});  // {1, 16, 32}
+  auto t_3    = program.transpose(add, {2, 1, 0});  // {1, 16, 32}
   auto concat = program.concat({t_1, t_2, t_3});
   auto max    = program.reduce_max(concat, {0}, true);
 
@@ -74,7 +74,7 @@ TEST(common_subexpression_elimination, common_subexpression_elimination_case1) {
   auto& prerun_instrs  = runtime_program->GetPreRunInstructions();
   auto& run_instrs     = runtime_program->GetRunInstructions();
   ASSERT_EQ(prerun_instrs.size(), 0);
-  ASSERT_EQ(run_instrs.size(), 6);
+  ASSERT_EQ(run_instrs.size(), 5);
 
   scope->Var<hlir::framework::Tensor>("A");
   scope->Var<hlir::framework::Tensor>("B");
