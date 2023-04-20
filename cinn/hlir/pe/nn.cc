@@ -1254,10 +1254,19 @@ Tensor DropoutInfer(const ir::Tensor &tensor,
                     const std::string &dropout_implementation,
                     const std::string &output_name) {
   if (dropout_implementation == "downgrade_in_infer") {
-    return Compute(
-        tensor->shape,
-        [=](const std::vector<Expr> &indice) { return tensor(indice) * (1 - dropout_prob); },
-        output_name);
+    if (tensor->type().bits() == 32) {
+      return Compute(
+          tensor->shape,
+          [=](const std::vector<Expr> &indice) { return tensor(indice) * (1 - dropout_prob); },
+          output_name);
+    } else if (tensor->type().bits() == 64) {
+      return Compute(
+          tensor->shape,
+          [=](const std::vector<Expr> &indice) { return tensor(indice) * static_cast<double>(1 - dropout_prob); },
+          output_name);
+    } else {
+      LOG(FATAL) << "Unsupport dtype in dropout_infer: " << tensor->type();
+    }
   } else if (dropout_implementation == "upscale_in_train") {
     // The name here must be consistent, otherwise it cannot participate in the fusion schedule.
     return Identity(tensor, output_name).front();
