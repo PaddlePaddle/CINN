@@ -297,6 +297,12 @@ class IRSchedule {
   void ComputeInline(const Expr& schedule_block);
 
   /**
+   * \brief  Inline a consumer block into its only producer.
+   * @param schedule_block the schedule block to be inlined.
+   */
+  void ReverseComputeInline(const Expr& schedule_block);
+
+  /**
    * \brief Bind the loop to the given thread axis.
    * @param loop the loop to Bind.
    * @param thread_axis the name of the thread axis to be bound to the loop.
@@ -474,6 +480,36 @@ class ComputeInliner : public BaseInliner {
   Expr ReplaceInlinedTensor(Expr* load);
 };
 
+/*!
+ * \brief Helper to inline a block into the its producer
+ * The derived class implements the following functionalities:
+ * 1) Substitute `Load` on the tensor to be inlined
+ * to its value calculation in the producer block
+ * 2) Analyze the producer block to determine the remapping of index variables
+ */
+class ReverseComputeInliner : public BaseInliner {
+ public:
+  explicit ReverseComputeInliner(const Tensor& inlined_tensor,
+                                 const Expr& inlined_store,
+                                 const Expr& inlined_load,
+                                 const Expr& target_store)
+      : BaseInliner(inlined_tensor, inlined_store), inlined_load_(inlined_load), target_store_(target_store) {}
+
+  bool BodyPatternAllowInline();
+
+ protected:
+  Expr inlined_load_{nullptr};
+  Expr target_store_{nullptr};
+
+ private:
+  void Visit(const ir::Load* expr, Expr* op) override;
+  void Visit(const ir::Store* expr, Expr* op) override;
+
+  //! Replace the 'Load' node on the tensor to 'Store' node of its consumers.
+  Expr ReplaceInlinedTensor(Expr* load);
+  Expr ReplaceTargetTensor(Expr* store);
+};
+
 // The struct used to remove the original block in ComputeAt.
 class LeafBlockRemovalPlan : public ir::IRMutator<> {
  public:
@@ -538,6 +574,32 @@ class LeafBlockRemovalPlan : public ir::IRMutator<> {
   const Expr& block_;
   Expr* source_expr_;
   Expr* target_expr_;
+};
+
+class ComputeInlineChecker : public ir::IRMutator<> {
+ public:
+  ComputeInlineChecker(IRSchedule& schedule, Expr& block) : ir_schedule_(schedule), block_(block) {}
+
+  bool Check();
+
+  void BuildDataDependency();
+
+ private:
+  void Visit(const ir::Load* expr, Expr* op) {
+    // Check there is Load Expr corresponds to Store Expr
+    if ((store_.As<ir::Store>()->tensor).as_tensor_ref()->name == expr->tensor.as_tensor_ref()->name) {
+      should_skip_ = false;
+      return;
+    }
+    IRMutator::Visit(expr, op);
+  }
+
+ private:
+  IRSchedule& ir_schedule_;
+  Expr& block_;
+
+  Expr store_;
+  bool should_skip_{true};
 };
 
 }  // namespace ir

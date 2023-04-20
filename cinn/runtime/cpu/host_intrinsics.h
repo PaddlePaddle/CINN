@@ -55,6 +55,28 @@ CINN_HOST_GT_NUM(int64, int64_t)
 
 #undef CINN_HOST_GT_NUM
 
+int cinn_host_resize_bilinear(const cinn_buffer_t* buf,
+                              const int c_size,
+                              const int in_h,
+                              const int in_w,
+                              const int out_h,
+                              const int out_w,
+                              const int n,
+                              const int c,
+                              const int y,
+                              const int x);
+
+int cinn_host_resize_bicubic(const cinn_buffer_t* buf,
+                             const int c_size,
+                             const int in_h,
+                             const int in_w,
+                             const int out_h,
+                             const int out_w,
+                             const int n,
+                             const int c,
+                             const int y,
+                             const int x);
+
 #define FN_INT32(func) cinn_host_##func##_int32
 
 inline int FN_INT32(pow)(int x, int y);
@@ -87,3 +109,10 @@ inline double FN_FP64(cbrt)(double x);
 
 #undef FN_FP64
 }
+
+namespace cinn {
+namespace runtime {
+
+void cinn_assert_true_host(void* v_args, int num_args, int msg, bool only_warning);
+}  // namespace runtime
+}  // namespace cinn

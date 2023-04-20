@@ -19,6 +19,7 @@
 
 #include "cinn/common/test_helper.h"
 #include "cinn/hlir/framework/accuracy_checker.h"
+#include "cinn/runtime/flags.h"
 #include "cinn/utils/profiler.h"
 
 DECLARE_bool(cinn_sync_run);
@@ -46,13 +47,11 @@ class ResultsPrint {
     }
   }
 
-  static const std::unordered_set<std::string> kFalse;
-  static const std::unordered_set<std::string> kTrue;
-
  private:
   ResultsPrint() {
-    bool print_to_file = !FLAGS_cinn_self_check_accuracy.empty() && !kTrue.count(FLAGS_cinn_self_check_accuracy) &&
-                         !kFalse.count(FLAGS_cinn_self_check_accuracy);
+    bool print_to_file = !FLAGS_cinn_self_check_accuracy.empty() &&
+                         !cinn::runtime::CheckStringFlagTrue(FLAGS_cinn_self_check_accuracy) &&
+                         !cinn::runtime::CheckStringFlagFalse(FLAGS_cinn_self_check_accuracy);
 
     if (print_to_file) {
       of_.open(FLAGS_cinn_self_check_accuracy, std::ios_base::out);
@@ -73,11 +72,6 @@ class ResultsPrint {
 
   std::ofstream of_;
 };
-
-// from gflag FlagValue::ParseFrom:
-// https://github.com/gflags/gflags/blob/master/src/gflags.cc#L292
-const std::unordered_set<std::string> ResultsPrint::kFalse = {"0", "f", "false", "n", "no"};
-const std::unordered_set<std::string> ResultsPrint::kTrue  = {"1", "t", "true", "y", "yes"};
 }  // namespace details
 
 void Instruction::UpdateArgsCache(const std::map<std::string, cinn_pod_value_t>* name2podargs) {
@@ -272,10 +266,8 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
 #endif
   utils::ProfilerRangePop();
 
-  if (!FLAGS_cinn_self_check_accuracy.empty()) {
-    if (!details::ResultsPrint::kFalse.count(FLAGS_cinn_self_check_accuracy)) {
-      CheckResults(name2podargs, stream);
-    }
+  if (!cinn::runtime::CheckStringFlagFalse(FLAGS_cinn_self_check_accuracy)) {
+    CheckResults(name2podargs, stream);
   }
   // TODO(thisjiang): revert while flags correct
   //   if (FLAGS_cinn_sync_run) {

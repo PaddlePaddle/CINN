@@ -44,8 +44,6 @@ class GemmRewriterPass : public ProgramPass {
       return;
     }
 
-    VLOG(4) << "-- Before rewriting: " << *prog;
-
     CollectInfo(*prog);
 
     NetBuilder builder("gemm_rewriter_builder");
@@ -79,7 +77,6 @@ class GemmRewriterPass : public ProgramPass {
         }
       }
     }
-    VLOG(4) << "-- After rewriting: " << *prog;
     ClearResources();
   }
 

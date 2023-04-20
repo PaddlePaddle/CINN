@@ -63,6 +63,7 @@ CINN_USE_REGISTER(paddle_flip)
 CINN_USE_REGISTER(paddle_reverse)
 CINN_USE_REGISTER(paddle_randint)
 CINN_USE_REGISTER(paddle_roll)
+CINN_USE_REGISTER(paddle_cholesky)
 CINN_USE_REGISTER(paddle_scatter)
 
 CINN_USE_REGISTER(science_broadcast)

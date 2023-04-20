@@ -575,6 +575,15 @@ class NetBuilder {
    */
   Variable Repeat(const Variable& x, int repeats, int axis);
 
+  /**
+   * @brief Resize operator does 2D scaling to the given size.
+   * @param x An input variable, the data layout of input is NCHW
+   * @param out_shape The out size to which the image will be resized.
+   * @param mode Scale method to used [nearest, bilinear, bicubic], this will default to `bilinear`.
+   * @return The resized result.
+   */
+  Variable Resize(const Variable& x, const std::vector<int>& out_shape, const std::string& mode);
+
   // *******************************************
   // Broadcast operator
   /**
@@ -774,6 +783,20 @@ class NetBuilder {
    * @return A variable with the same shape as input’s.
    */
   Variable Cast(const Variable& x, const std::string& dtype);
+
+  /**
+   * @brief This OP takes in the Variable `x` with `x.dtype` and casts it to the output with dtype.
+   * The output data shape will be calculated according to the type of input data and the specified output data type.
+   * Assuming that the input data type is "T" and it's shape is [...], the output data type is specified as "S".
+   * If the "T" is larger than "S", then the shape changes from [...] to [..., sizeof(T)/sizeof(S)].
+   * If "T" is smaller than "S", this operator requires that the rightmost dimension must be equal to
+   * sizeof(S)/sizeof(T) and the shape then goes from [..., sizeof(S)/sizeof(T)] to [...].
+   * It’s meaningless if the output dtype equals the input `dtype`, but it’s fine if you do so.
+   * @param x An input N-D variable.
+   * @param dtype Data type of the output.
+   * @return A variable with the same data buffer as input’s, but shape may different.
+   */
+  Variable BitcastConvert(const Variable& x, const std::string& dtype);
 
   /**
    *  @brief Returns a one-hot tensor where the locations repsented by indices take value `on_value`,
@@ -1045,7 +1068,10 @@ class NetBuilder {
                          float min                = -1.0f,
                          float max                = 1.0f,
                          int seed                 = 0,
-                         const std::string& dtype = "float32");
+                         const std::string& dtype = "float32",
+                         int diag_num             = 0,
+                         int diag_step            = 0,
+                         float diag_val           = 1.0f);
 
   /**
    * @brief Generate random integers in the range min to max
@@ -1056,7 +1082,7 @@ class NetBuilder {
    * @param dtype Data tpye of output variable, supported data types: int32, int64.
    */
   Variable RandInt(
-      const std::vector<int>& shape, int min = 0, int max = 0, int seed = 1, const std::string& dtype = "int64");
+      const std::vector<int>& shape, int min = 0, int max = 0, int seed = 0, const std::string& dtype = "int64");
 
   /**
    * @brief Compute cholesky decomposition of a positive definite symmetric matrix.

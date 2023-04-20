@@ -168,14 +168,13 @@ void CastOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
   auto out_name = op_desc.Output("Out").front();
 
   CHECK(op_desc.HasAttr("out_dtype")) << "The cast op should has [out_dtype] attribute!";
-  auto dtype =
-      utils::GetAttrOrDefault<int>(op_desc, "out_dtype", static_cast<int>(paddle::cpp::VarDescAPI::Type::FP32));
-  auto str_dtype = common::Type2Str(utils::CppVarType2CommonType(static_cast<paddle::cpp::VarDescAPI::Type>(dtype)));
+  auto dtype = utils::GetPaddleDtype(op_desc, "out_dtype", paddle::cpp::VarDescAPI::Type::FP32);
+  CHECK(!dtype.empty()) << "The op \"cast\"'s attribute \"out_dtype\" should not be unknown type! Please check.";
 
-  VLOG(4) << out_name << " = cast(X:" << x_name << ", out_dtype=" << str_dtype << ")";
+  VLOG(4) << out_name << " = cast(X:" << x_name << ", out_dtype=" << dtype << ")";
 
   auto x   = ctx.GetVar(x_name);
-  auto out = ctx.Builder()->Cast(x, str_dtype);
+  auto out = ctx.Builder()->Cast(x, dtype);
 
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);

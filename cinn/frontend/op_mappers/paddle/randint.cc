@@ -15,6 +15,7 @@
 #include "cinn/frontend/op_mapper_registry.h"
 #include "cinn/frontend/op_mappers/common_utils.h"
 #include "cinn/frontend/var_type_utils.h"
+#include "glog/logging.h"
 
 namespace cinn {
 namespace frontend {
@@ -32,17 +33,13 @@ void RandIntOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& 
   auto min = utils::GetAttrOrDefault<int>(op_desc, "low", 0);
 
   CHECK(op_desc.HasAttr("high")) << "Cannot find attribute \"high\" in paddle op \"randint\"! Please check.";
-  auto max  = utils::GetAttrOrDefault<int>(op_desc, "high", 1);
+  auto max = utils::GetAttrOrDefault<int>(op_desc, "high", 0);
+  CHECK_GT(max, min) << "max(" << max << ") should greater than min(" << min << ")! Please check.";
+
   auto seed = utils::GetAttrOrDefault<int>(op_desc, "seed", 0);
 
-  auto dtype_id =
-      utils::GetAttrOrDefault<int>(op_desc, "dtype", static_cast<int>(paddle::cpp::VarDescAPI::Type::INT64));
-  auto dtype_pd   = static_cast<paddle::cpp::VarDescAPI::Type>(dtype_id);
-  auto dtype_cinn = utils::CppVarType2CommonType(dtype_pd);
-  auto dtype      = common::Type2Str(dtype_cinn);
-  CHECK(dtype_id == static_cast<int>(paddle::cpp::VarDescAPI::Type::INT64) ||
-        dtype_id == static_cast<int>(paddle::cpp::VarDescAPI::Type::INT32))
-      << "the indices dtype must be int32 or int64, but got dtype = " << dtype;
+  auto dtype = utils::GetPaddleDtype(op_desc, "dtype", paddle::cpp::VarDescAPI::Type::INT64);
+  CHECK(dtype == "int32" || dtype == "int64") << "the indices dtype must be int32 or int64, but got dtype = " << dtype;
 
   auto out = ctx.Builder()->RandInt(shape, min, max, seed, dtype);
   ctx.AddVar(out_name, out);

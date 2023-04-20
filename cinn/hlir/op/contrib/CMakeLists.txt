@@ -15,7 +15,10 @@ gather_srcs(cinnapi_src SRCS
         uniform_random.cc
         cholesky.cc
         triangular_solve.cc
+        bitcast_convert.cc
         randint.cc
+        resize.cc
+        assert_true.cc
         )
 
 cc_test(test_gather_nd SRCS gather_nd_test.cc DEPS cinncore)

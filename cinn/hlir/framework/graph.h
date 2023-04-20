@@ -180,14 +180,14 @@ class Graph : public cinn::common::Graph {
    * \brief Debug the grouped graph according to fusion_groups.
    */
   std::string DebugGroupedGraph(const std::unordered_set<std::string>& fetch_var_ids = {});
-
-  /**
-   * \brief Debug the grouped graph according to user specified groups.
-   */
   std::string DebugGroupedGraph(const std::vector<Node*>& group,
                                 const std::unordered_set<std::string>& fetch_var_ids = {});
-  std::string DebugGroupedGraph(const std::vector<std::vector<Node*>>& groups,
-                                const std::unordered_set<std::string>& fetch_var_ids = {});
+
+  /**
+   * \brief Debug the grouped graph with GraphViz dot format according to fusion_groups.
+   */
+  std::string VisualizeGraph(const std::unordered_set<std::string>& fetch_var_ids = {});
+  std::vector<std::string> VisualizeGroups(const std::unordered_set<std::string>& fetch_var_ids = {});
 
   /**
    * \brief Genereate the python test code for group test
@@ -206,9 +206,17 @@ class Graph : public cinn::common::Graph {
   void VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
                              const std::unordered_set<std::string>& fetch_var_ids = {});
 
+  void SaveSourceCode(const std::string& code);
+
  private:
-  void VisualizeGroups(const std::vector<std::vector<Node*>>& groups,
-                       const std::unordered_set<std::string>& fetch_var_ids = {});
+  std::string DebugGroupedGraph(const std::vector<std::vector<Node*>>& groups,
+                                const std::unordered_set<std::string>& fetch_var_ids = {});
+
+  std::string VisualizeGraph(const std::vector<std::vector<Node*>>& groups,
+                             const std::unordered_set<std::string>& fetch_var_ids = {});
+
+  std::vector<std::string> VisualizeGroups(const std::vector<std::vector<Node*>>& groups,
+                                           const std::unordered_set<std::string>& fetch_var_ids = {});
 
   std::vector<std::vector<Node*>> FusionGroupsToGroups();
 

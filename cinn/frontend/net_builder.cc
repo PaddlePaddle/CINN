@@ -452,6 +452,11 @@ Variable NetBuilder::Cast(const Variable& operand, const std::string& dtype) {
   return CustomInstr("cast", {operand}, {{"dtype", dtype}}).front();
 }
 
+Variable NetBuilder::BitcastConvert(const Variable& operand, const std::string& dtype) {
+  std::string input_data_type = common::Type2Str(operand->type);
+  return CustomInstr("bitcast_convert", {operand}, {{"dtype", dtype}, {"input_data_type", input_data_type}}).front();
+}
+
 Variable NetBuilder::OneHot(const Variable& indices,
                             const Variable& on_value,
                             const Variable& off_value,
@@ -609,6 +614,10 @@ Variable NetBuilder::Repeat(const Variable& x, int repeats, int axis) {
   return CustomInstr("repeat", {x}, {{"repeats", repeats}, {"axis", axis}}).front();
 }
 
+Variable NetBuilder::Resize(const Variable& x, const std::vector<int>& out_shape, const std::string& mode) {
+  return CustomInstr("resize", {x}, {{"out_shape", out_shape}, {"mode", mode}}).front();
+}
+
 std::vector<Variable> NetBuilder::BatchNorm(const Variable& a,
                                             const Variable& scale,
                                             const Variable& bias,
@@ -683,22 +692,43 @@ Variable NetBuilder::GaussianRandom(
       .front();
 }
 
-Variable NetBuilder::UniformRandom(
-    const std::vector<int>& shape, float min, float max, int seed, const std::string& dtype) {
+Variable NetBuilder::UniformRandom(const std::vector<int>& shape,
+                                   float min,
+                                   float max,
+                                   int seed,
+                                   const std::string& dtype,
+                                   int diag_num,
+                                   int diag_step,
+                                   float diag_val) {
   auto uniform_out =
       CustomInstr(
           "uniform_random", {}, {{"shape", shape}, {"min", min}, {"max", max}, {"seed", seed}, {"dtype", dtype}})
           .front();
+  if (min == 0.0f && max == 1.0f) {
+    return uniform_out;
+  }
   auto uniform_range   = FillConstant(shape, max - min, UniqName("uniform_range"), dtype);
   auto uniform_mul_out = Multiply(uniform_out, uniform_range);
   auto uniform_min     = FillConstant(shape, min, UniqName("uniform_min"), dtype);
-  return Add(uniform_mul_out, uniform_min);
+  auto uniform_res     = Add(uniform_mul_out, uniform_min);
+  if (diag_num > 0) {
+    int numel = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<int>());
+    CHECK_GT(numel, (diag_num - 1) * (diag_step + 1)) << "(diag_num - 1) * (diag_step + 1) should smaller than numel!";
+    auto diag_index =
+        Arange(0.0f, static_cast<float>(diag_num * (diag_step + 1)), static_cast<float>(diag_step + 1), "int32");
+    auto diag_val_tensor = FillConstant(diag_index->shape, diag_val, "diag_val", dtype);
+    auto uniform_flatten = Reshape(uniform_res, {-1});
+    auto uniform_scatter = ScatterAssign(uniform_flatten, diag_val_tensor, diag_index);
+    uniform_res          = Reshape(uniform_scatter, shape);
+  }
+  return uniform_res;
 }
 
 Variable NetBuilder::RandInt(const std::vector<int>& shape, int min, int max, int seed, const std::string& dtype) {
-  auto randint_out = CustomInstr("randint", {}, {{"shape", shape}, {"seed", seed}, {"dtype", dtype}}).front();
   CHECK_GT(max, min) << "max: " << max << "should greater than"
                      << "min: " << min;
+  auto randint_out   = CustomInstr("randint", {}, {{"shape", shape}, {"seed", seed}, {"dtype", dtype}}).front();
+  randint_out        = Cast(randint_out, dtype);
   auto randint_range = FillConstant(shape, max - min, UniqName("randint_range"), dtype);
   auto randint_mod   = Mod(randint_out, randint_range);
   auto randint_min   = FillConstant(shape, min, UniqName("randint_min"), dtype);
@@ -707,7 +737,23 @@ Variable NetBuilder::RandInt(const std::vector<int>& shape, int min, int max, in
 }
 
 Variable NetBuilder::Cholesky(const Variable& x, bool upper) {
-  return CustomInstr("cholesky", {x}, {{"upper", upper}}).front();
+  auto cholesky_out = CustomInstr("cholesky", {x}, {{"upper", upper}}).front();
+  // Set upper/lower triangle of matrices to 0
+  auto x_ndim = x->shape.size();
+  CHECK_GE(x_ndim, 2) << "The input matrix x shape size should >= 2! Please check again.";
+  CHECK_EQ(x->shape[x_ndim - 1], x->shape[x_ndim - 2])
+      << "The input matrix x's last 2 dimensions must be the same! Please check again.";
+  int m          = x->shape[x_ndim - 1];
+  auto m_tensor  = FillConstant({m * m}, m);
+  auto index     = Arange(0.0f, static_cast<float>(m * m), 1.0f, "int32");
+  auto index_row = Mod(index, m_tensor);
+  auto index_col = FloorDivide(index, m_tensor);
+  auto mask      = upper ? GreaterEqual(index_row, index_col) : LessEqual(index_row, index_col);
+  auto mask_mat  = Reshape(mask, {m, m});
+  auto mask_full = BroadcastTo(mask_mat, x->shape);
+  auto zeros     = FillConstant(x->shape, 0.0f, "zeros", common::Type2Str(x->type));
+  auto out       = Select(mask_full, cholesky_out, zeros);
+  return out;
 }
 
 Variable NetBuilder::TriangularSolve(

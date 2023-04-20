@@ -16,9 +16,11 @@
 
 #include "cinn/hlir/framework/op_lowering_util.h"
 #include "cinn/hlir/op/external_api_registry.h"
+#include "cinn/ir/ir_schedule.h"
 #include "cinn/optim/transform_gpu_forloop.h"
 
 DECLARE_bool(cinn_ir_schedule);
+DECLARE_bool(cinn_use_cuda_vectorize);
 
 namespace cinn {
 namespace hlir {
@@ -1225,6 +1227,13 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
 
     // node can be inline.
     if (CanbeInline(node, consumers, reducer, nodes_in_order.front(), group, nodes_set, this->shape_dict_)) {
+      auto block = ir_sch.GetBlock(GetNodeData(node)->id());
+      ir::ComputeInlineChecker checker(ir_sch, block);
+      if (!checker.Check()) {
+        checker.BuildDataDependency();
+        continue;
+      }
+
       // if exist global reduce node.
       if (greducer) {
         auto loops = ir_sch.GetLoops(GetNodeData(node)->id());
@@ -1235,7 +1244,6 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
         }
       }
 
-      auto block = ir_sch.GetBlock(GetNodeData(node)->id());
       ir_sch.ComputeInline(block);
       nodes_inline.insert(node);
       continue;
@@ -1254,12 +1262,72 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
       } else if (op_pattern_dict[node->op()] != framework::kReduction) {
         ir_sch.FlattenLoops(loops, false);
       }
+
+      if (master && op_pattern_dict[node->op()] != framework::kReduction) {
+        auto master_loops = ir_sch.GetLoops(GetNodeData(master)->id());
+        std::vector<int> splits;
+        for (auto loop : master_loops) {
+          splits.push_back(loop.As<ir::For>()->extent.as_int32());
+        }
+        loops = ir_sch.GetLoops(GetNodeData(node)->id());
+        ir_sch.Split(loops[0], splits);
+      }
     }
+    VLOG(3) << "Before loop fusion, ir is: \n" << ir_sch.GetModule().GetExprs().at(0);
+    VLOG(4) << " FUSION " << node->op()->name;
     // do loop fuse.
     LoopComputeAt(ir_sch, node, master ? master : nodes_in_order.front(), group, this->shape_dict_, tensor_map);
+    VLOG(3) << "After loop fusion, ir is: \n" << ir_sch.GetModule().GetExprs().at(0);
   }
 
+  // do vectorize
+  auto all_blocks = ir_sch.GetAllBlocks();
+  VLOG(4) << "Size of blocks: " << all_blocks.size();
+  VLOG(4) << "Op Pattern : " << group->op_pattern_kind;
+
+  // only support first block?
+  auto block = all_blocks[0];
+  CHECK(block->as<ir::ScheduleBlockRealize>());
+  CHECK(block->as<ir::ScheduleBlockRealize>()->schedule_block->as<ir::ScheduleBlock>());
+  auto is_tensor_block = true;
+  auto tensor_name     = block->as<ir::ScheduleBlockRealize>()->schedule_block->as<ir::ScheduleBlock>()->name;
+  if (!tensor_map.count(tensor_name)) {
+    is_tensor_block = false;
+  }
+  if (FLAGS_cinn_use_cuda_vectorize && is_tensor_block &&
+      (group->op_pattern_kind == framework::kElementWise || group->op_pattern_kind == framework::kInjective ||
+       group->op_pattern_kind == framework::kBroadcast)) {
+    // auto loops = ir_sch.GetLoops(GetNodeData(node)->id());
+    auto loops = ir_sch.GetLoops(block);
+    VLOG(4) << "Op Pattern : " << loops.size();
+    if (loops.size() >= 1) {
+      VLOG(4) << "Before vectorize, ir is: \n" << ir_sch.GetModule().GetExprs().at(0);
+      auto loop_inner  = loops.back();
+      int vector_width = 1;
+      auto psize       = ir::GetLoopExtent(loop_inner);
+      // get dtype of vectorized var
+      auto dtype = this->type_dict_.at(tensor_name);
+      VLOG(4) << tensor_name << " dtype " << dtype;
+      if (psize % 8 == 0 && dtype.is_float(16)) {
+        vector_width = 8;
+      } else if (psize % 4 == 0) {
+        vector_width = 4;
+      } else if (psize % 2 == 0) {
+        vector_width = 2;
+      }
+      if (vector_width > 1) {
+        auto splited = ir_sch.Split(loop_inner, {-1, vector_width});
+        splited[0].As<ir::For>()->set_bind_info(loop_inner.As<ir::For>()->bind_info());
+        splited[1].As<ir::For>()->set_serial();
+        ir_sch.Vectorize(splited[1], vector_width);
+      }
+      VLOG(4) << "After vectorize, ir is: \n" << ir_sch.GetModule().GetExprs().at(0);
+    }
+  }
+
+  VLOG(3) << "Before Sync IRLowerOp schedule, ir is: \n" << ir_sch.GetModule().GetExprs().at(0);
   SyncThreadWithShared(ir_sch, nodes_inline, nodes_set, this->shape_dict_, tensor_map);
+  VLOG(4) << "After IRSchedule,  ir is: \n" << ir_sch.GetModule().GetExprs().at(0);
 }
 
 }  // namespace framework

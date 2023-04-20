@@ -49,6 +49,10 @@ class TestTranspose2Op(OpMapperTest):
             'XShape': [str(self.feed_data['x'].dtype)]
         }
 
+    def skip_check_outputs(self):
+        # in Paddle, XShape is None, its memory has been optimized
+        return {"XShape"}
+
     def test_check_results(self):
         self.check_outputs_and_grads(all_equal=True)
 

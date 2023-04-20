@@ -110,18 +110,22 @@ void Compiler::CompileCudaModule(const Module& module, const std::string& code) 
   VLOG(3) << "[CUDA] host module:\n" << host_module;
 
   VLOG(3) << "[CUDA] device module:\n" << device_module;
-  CodeGenCUDA_Dev codegen(target_);
-  auto source_code = codegen.Compile(device_module);
-
+  std::string source_code;
+  if (code.empty()) {
+    CodeGenCUDA_Dev codegen(target_);
+    source_code = codegen.Compile(device_module);
+  } else {
+    source_code = code;
+  }
+  CHECK(!source_code.empty()) << "Compile CUDA C code failed from device module:\n" << device_module;
   VLOG(3) << "[CUDA] C:\n" << source_code;
-  if (!code.empty()) source_code = code;
   SourceCodePrint::GetInstance()->write(source_code);
   using runtime::cuda::CUDAModule;
 
   backends::nvrtc::Compiler compiler;
 
   auto ptx = compiler(source_code);
-  CHECK(!ptx.empty());
+  CHECK(!ptx.empty()) << "Compile PTX failed from source code:\n" << source_code;
 
   cuda_module_.reset(
       new CUDAModule(ptx, compiler.compile_to_cubin() ? CUDAModule::Kind::CUBIN : CUDAModule::Kind::PTX));

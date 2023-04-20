@@ -22,6 +22,12 @@ namespace cinn {
 namespace hlir {
 namespace framework {
 
+namespace utils {
+struct NodeCompare {
+  bool operator()(Node* lhs, Node* rhs) const { return lhs->id() < rhs->id(); }
+};
+}  // namespace utils
+
 std::vector<NodeData*> GetInputNodeData(const Node* node) {
   std::vector<NodeData*> producers;
   for (auto& link : node->inlinks_in_order(true)) {
@@ -264,6 +270,7 @@ std::unordered_map<Node*, Node*> BuildVirtualConsumer(const GroupPtr& group,
           virtual_consumers[t_node] = reducer;
           break;
         }
+        candidates.push(producer);
         visited.insert(producer);
       }
       // if find horizontal reducer.
@@ -298,7 +305,7 @@ std::vector<Node*> TopologicalOrder(const GroupPtr& group, const std::unordered_
   std::unordered_set<Node*> nodes_set = group->NodeSet();
 
   while (!nodes_set.empty()) {
-    auto tmp_node_set = nodes_set;
+    std::set<Node*, utils::NodeCompare> tmp_node_set(nodes_set.begin(), nodes_set.end());
     for (auto node : tmp_node_set) {
       auto consumers     = FindConsumers(node, nodes_set, virtual_consumers);
       bool cant_be_erase = false;
