@@ -547,6 +547,7 @@ void cinn_call_cudnn_conv2d_forward(void *v_args,
                                     int output_h,
                                     int output_w,
                                     void *stream) {
+  LOG(INFO) << "Start Run cinn_call_cudnn_conv2d_forward";
   CHECK_EQ(num_args, 3);
   cudnnHandle_t &handle = CudnnHandle::GetInstance().GetCudnnHandle();
   CUDNN_CALL(cudnnSetStream(handle, static_cast<cudaStream_t>(stream)));

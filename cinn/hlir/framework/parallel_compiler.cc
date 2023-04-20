@@ -70,13 +70,10 @@ void ParallelCompiler::SplitTask() {
   CHECK(graph_->fusion_groups.size());
   CHECK(graph_->fusion_groups.size() == option_.lowered_funcs.size() || option_.lowered_funcs.size() == 0);
   // split task
-  size_t flag_parallel_num = graph_->fusion_groups.size();
-  if (FLAGS_cinn_parallel_compile_size > 0) {
-    flag_parallel_num = FLAGS_cinn_parallel_compile_size;
-  }
-  int task_num = std::min(graph_->fusion_groups.size(), flag_parallel_num);
+  int num_per_task = FLAGS_cinn_parallel_compile_size > 0 ? FLAGS_cinn_parallel_compile_size : 8;
+  int task_num     = (graph_->fusion_groups.size() + num_per_task - 1) / num_per_task;
 
-  for (int idx = 0; idx < task_num; ++idx) {
+  for (int idx = 0; idx < task_num; ++task_num) {
     tasks_.emplace_back(std::make_unique<Task>(this, scope_, graph_, option_, target_));
   }
   VLOG(2) << "Split task to " << tasks_.size() << " sub-task!";
@@ -174,28 +171,35 @@ std::unique_ptr<backends::ExecutionEngine> ParallelCompiler::Task::CodegenAndJit
     auto dmodule        = std::get<1>(splited_module);
 
     VLOG(3) << "Host Code:\n" << hmodule;
-    VLOG(3) << "Device Code:\n" << dmodule;
-    backends::CodeGenCUDA_Dev codegen(target);
-    auto cuda_c = codegen.Compile(dmodule);
-    CHECK(!cuda_c.empty()) << "Compile CUDA C code failed from device module:\n" << dmodule;
 
-    cinn::backends::SourceCodePrint::GetInstance()->write(cuda_c);
-    graph->SaveSourceCode(idx, cuda_c);
-
-    using runtime::cuda::CUDAModule;
-    backends::nvrtc::Compiler nvrtc;
-    auto ptx = nvrtc(cuda_c);
-    CHECK(!ptx.empty()) << "Compile PTX failed from source code:\n" << cuda_c;
-    graph->SavePTXCode(idx, ptx);
-
-    // load cumodule
-    runtime::cuda::CUDAModule cumodule(ptx, nvrtc.compile_to_cubin() ? CUDAModule::Kind::CUBIN : CUDAModule::Kind::PTX);
-    // register kernel
     backends::RuntimeSymbols symbols;
-    for (auto& fn : dmodule.functions()) {
-      auto cufunc = cumodule.GetFunction(0, fn->name);
-      CHECK(cufunc);
-      symbols.RegisterVar(fn->name + "_ptr_", reinterpret_cast<void*>(cufunc));
+
+    const auto& device_funcs = dmodule.functions();
+    if (!device_funcs.empty()) {
+      VLOG(3) << "Device Code:\n" << dmodule;
+
+      backends::CodeGenCUDA_Dev codegen(target);
+      auto cuda_c = codegen.Compile(dmodule);
+      CHECK(!cuda_c.empty()) << "Compile CUDA C code failed from device module:\n" << dmodule;
+
+      cinn::backends::SourceCodePrint::GetInstance()->write(cuda_c);
+      graph->SaveSourceCode(idx, cuda_c);
+
+      using runtime::cuda::CUDAModule;
+      backends::nvrtc::Compiler nvrtc;
+      auto ptx = nvrtc(cuda_c);
+      CHECK(!ptx.empty()) << "Compile PTX failed from source code:\n" << cuda_c;
+      graph->SavePTXCode(idx, ptx);
+
+      // load cumodule
+      runtime::cuda::CUDAModule cumodule(ptx,
+                                         nvrtc.compile_to_cubin() ? CUDAModule::Kind::CUBIN : CUDAModule::Kind::PTX);
+      // register kernel
+      for (auto& fn : device_funcs) {
+        auto cufunc = cumodule.GetFunction(0, fn->name);
+        CHECK(cufunc);
+        symbols.RegisterVar(fn->name + "_ptr_", reinterpret_cast<void*>(cufunc));
+      }
     }
     engine = backends::ExecutionEngine::Create(backends::ExecutionOptions(), std::move(symbols));
     engine->Link<backends::CodeGenCUDA_Host>(hmodule);
