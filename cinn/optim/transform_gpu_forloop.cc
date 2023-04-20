@@ -330,6 +330,7 @@ class SharedBufferVisitor : public ir::IRMutator<> {
       for (auto axis : gpu_axis) {
         optim::ReplaceVarWithExpr(expr, ir::Var(axis), ir::Expr(0));
       }
+      *expr = common::AutoSimplify(*expr);
     }
   }
 
@@ -346,6 +347,7 @@ class SharedBufferVisitor : public ir::IRMutator<> {
       for (auto axis : gpu_axis) {
         optim::ReplaceVarWithExpr(expr, ir::Var(axis), ir::Expr(0));
       }
+      *expr = common::AutoSimplify(*expr);
     }
   }
 
@@ -360,10 +362,10 @@ class ResizeBufferSizeVisitor : public ir::IRMutator<> {
   void Visit(const ir::Store *op, Expr *expr) override {
     auto store        = expr->As<ir::Store>();
     auto store_tensor = store->tensor.as_tensor_ref();
+
     if (!store_tensor->buffer.defined()) {
       return;
     }
-
     if (store_tensor->buffer->memory_type == ir::MemoryType::Heap) {
       return;
     }
@@ -401,6 +403,7 @@ class ResizeBufferSizeVisitor : public ir::IRMutator<> {
     auto extent_i = for_ir->extent;
 
     if (extent_i.is_constant()) loop_2_extent_[var_name] = extent_i.as_int32();
+    IRMutator::Visit(op, expr);
   }
 
   int BuffeSize(ir::Expr indice) {
