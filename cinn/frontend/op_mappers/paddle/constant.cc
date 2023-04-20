@@ -66,10 +66,8 @@ void FillConstantOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperCont
   auto str_value = utils::GetAttrOrDefault<std::string>(op_desc, "str_value", "");
   auto force_cpu = utils::GetAttrOrDefault<bool>(op_desc, "force_cpu", false);
 
-  auto dtype_id = utils::GetAttrOrDefault<int>(op_desc, "dtype", static_cast<int>(paddle::cpp::VarDescAPI::Type::FP32));
-  auto dtype_pd = static_cast<paddle::cpp::VarDescAPI::Type>(dtype_id);
-  auto dtype_cinn = utils::CppVarType2CommonType(dtype_pd);
-  auto dtype      = common::Type2Str(dtype_cinn);
+  auto dtype = utils::GetPaddleDtype(op_desc, "dtype", paddle::cpp::VarDescAPI::Type::FP32);
+  CHECK(!dtype.empty()) << "The op \"fill_constant\"'s attribute \"dtype\" should not be unknown type! Please check.";
 
   absl::optional<Variable> out;
   if (op_desc.HasInput("ValueTensor") && !op_desc.Input("ValueTensor").empty()) {
@@ -82,7 +80,7 @@ void FillConstantOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperCont
 
     CHECK(value_tensor->shape == cinn::utils::ShapeType{1}) << "The shape of [ValueTensor] should be [1], but here ["
                                                             << cinn::utils::Join(value_tensor->shape, ", ") << "]";
-    if (value_tensor->type != dtype_cinn) {
+    if (common::Type2Str(value_tensor->type) != dtype) {
       value_tensor = ctx.Builder()->Cast(value_tensor, dtype);
     }
     out = ctx.Builder()->BroadcastTo(value_tensor, shape);
@@ -114,16 +112,10 @@ void FillAnyLikeOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperConte
   auto shape = utils::ToShapeType(x->shape);
   auto value = utils::GetAttrOrDefault<float>(op_desc, "value");
 
-  auto dtype_id = utils::GetAttrOrDefault<int>(op_desc, "dtype", static_cast<int>(paddle::cpp::VarDescAPI::Type::FP32));
-  cinn::common::Type dtype_cinn;
-  if (dtype_id < 0) {
-    dtype_cinn = x->type;
-  } else {
-    auto dtype_pd = static_cast<paddle::cpp::VarDescAPI::Type>(dtype_id);
-    dtype_cinn    = utils::CppVarType2CommonType(dtype_pd);
+  auto dtype = utils::GetPaddleDtype(op_desc, "dtype", paddle::cpp::VarDescAPI::Type::FP32);
+  if (dtype.empty()) {
+    dtype = common::Type2Str(x->type);
   }
-
-  auto dtype = common::Type2Str(dtype_cinn);
 
   VLOG(4) << "FillAnyLikeOp: fill constant (" << value << ") with shape (" << cinn::utils::Join(shape, ", ")
           << ") and dtype [" << dtype << "]";

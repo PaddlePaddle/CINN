@@ -409,6 +409,10 @@ CINN_BUILD_STEP_KIND(ComputeInline)
     .Inputs({"schedule_block"})
     .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(&IRSchedule::ComputeInline)));
 
+CINN_BUILD_STEP_KIND(ReverseComputeInline)
+    .Inputs({"schedule_block"})
+    .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(&IRSchedule::ReverseComputeInline)));
+
 CINN_BUILD_STEP_KIND(Bind)
     .Inputs({"loop"})
     .Attrs({"thread_axis"})
