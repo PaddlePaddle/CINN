@@ -493,16 +493,6 @@ std::unordered_set<NodeData*> Graph::Group::GetOutputNodeDatas() {
   return group_outputs;
 }
 
-bool IsCustomCallGroup(const std::shared_ptr<Graph::Group>& group) {
-  if (group->op_pattern_kind != framework::kNonFusible) {
-    return false;
-  }
-
-  const auto& nodes = group->CollectNodes();
-  CHECK_EQ(nodes.size(), 1) << "The NonFusible Group should only has one node";
-  return nodes.front()->op()->name == "custom_call";
-}
-
 void Graph::SaveSourceCode(const std::vector<int>& group_idx, const std::string& code) {
   if (cinn::runtime::CheckStringFlagFalse(FLAGS_cinn_fusion_groups_graphviz_dir) || viz_path_.empty()) {
     return;
@@ -516,14 +506,7 @@ void Graph::SaveSourceCode(const std::vector<int>& group_idx, const std::string&
     return;
   }
 
-  std::vector<int> no_custom_call_idx;
-  for (auto idx : group_idx) {
-    if (!IsCustomCallGroup(this->fusion_groups[idx])) {
-      no_custom_call_idx.emplace_back(idx);
-    }
-  }
-
-  WriteToFile(code_path + "/group_" + cinn::utils::Join(no_custom_call_idx, "_") + ".cc", code);
+  WriteToFile(code_path + "/group_" + cinn::utils::Join(group_idx, "_") + ".cc", code);
 }
 
 void Graph::SavePTXCode(const std::vector<int>& group_idx, const std::string& ptx) {
@@ -539,14 +522,7 @@ void Graph::SavePTXCode(const std::vector<int>& group_idx, const std::string& pt
     return;
   }
 
-  std::vector<int> no_custom_call_idx;
-  for (auto idx : group_idx) {
-    if (!IsCustomCallGroup(this->fusion_groups[idx])) {
-      no_custom_call_idx.emplace_back(idx);
-    }
-  }
-
-  WriteToFile(ptx_path + "/group_" + cinn::utils::Join(no_custom_call_idx, "_") + ".ptx", ptx);
+  WriteToFile(ptx_path + "/group_" + cinn::utils::Join(group_idx, "_") + ".ptx", ptx);
 }
 
 }  // namespace framework

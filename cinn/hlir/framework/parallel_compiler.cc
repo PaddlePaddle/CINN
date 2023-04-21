@@ -36,6 +36,22 @@ namespace hlir {
 namespace framework {
 static constexpr int DebugLogMaxLen = 30000;
 
+static bool IsCustomCallGroup(const std::shared_ptr<Graph::Group>& group) {
+  if (group->op_pattern_kind != framework::kNonFusible) {
+    return false;
+  }
+
+  const auto& nodes = group->CollectNodes();
+
+  if (nodes.size() != 1) {
+    return false;
+  }
+
+  const auto* op_node = nodes.front()->op();
+  CHECK(op_node) << "The operator of node " << nodes.front()->id() << " in group must not be NULL";
+  return op_node->name == "custom_call";
+}
+
 std::vector<std::unique_ptr<Instruction>> ParallelCompiler::operator()() {
   if (graph_->fusion_groups.size() == 0) {
     hlir::framework::ApplyPasses(graph_.get(), {"BuildNonFusedGroupsPass"});
@@ -61,7 +77,7 @@ void ParallelCompiler::SplitTask() {
   int task_num = 1;
   if (FLAGS_cinn_parallel_compile_size > 0) {
     // each task compile flag number group
-    task_num = (graph_->fusion_groups.size() + FLAGS_cinn_parallel_compile_size - 1) / FLAGS_cinn_parallel_compile_size;
+    task_num = graph_->fusion_groups.size() / FLAGS_cinn_parallel_compile_size + 1;
   }
   // limit max thread number 16 to avoid thread switch cost
   task_num = std::min(task_num, 16);
@@ -106,8 +122,8 @@ void ParallelCompiler::Task::Run() {
   gidx.clear();
   instructions.clear();
 
-  std::vector<std::shared_ptr<Graph::Group>> groups;
-  std::vector<int> cur_gidx;
+  std::vector<std::shared_ptr<Graph::Group>> fusion_groups, custom_call_groups;
+  std::vector<int> fusion_idx, custom_call_idx;
 
   // if flag set, each task compile setting number group in a loop
   int group_num_of_task = 1;
@@ -117,28 +133,36 @@ void ParallelCompiler::Task::Run() {
 
   while (true) {
     int idx = compiler->GetGroupIdx();
-    if (idx < 0) {
-      if (groups.empty()) {
-        break;
-      }
-      // if not empty, compile existing group
-    } else {
-      gidx.emplace_back(idx);
-
-      // save group for future compile
-      cur_gidx.emplace_back(idx);
-      groups.emplace_back(graph->fusion_groups[idx]);
-
-      if (groups.size() < group_num_of_task) {
-        // each task compile FLAGS_cinn_parallel_compile_size group
+    if (idx >= 0) {
+      const auto& group = graph->fusion_groups[idx];
+      if (IsCustomCallGroup(group)) {
+        custom_call_groups.emplace_back(group);
+        custom_call_idx.emplace_back(idx);
+        // custom_call group do not need FLAGS_cinn_parallel_compile_size,
+        // it compile faster for it can skip get CUDA function step
         continue;
+      } else {
+        fusion_groups.emplace_back(group);
+        fusion_idx.emplace_back(idx);
+
+        if (fusion_groups.size() < group_num_of_task) {
+          // each task compile FLAGS_cinn_parallel_compile_size fusion group
+          continue;
+        }
       }
     }
 
+    auto* cur_groups = fusion_groups.empty() ? &custom_call_groups : &fusion_groups;
+    auto* cur_gidx   = fusion_idx.empty() ? &custom_call_idx : &fusion_idx;
+
+    if (cur_groups->empty()) {
+      break;
+    }
+
     std::vector<ir::LoweredFunc> funcs;
-    for (int i = 0; i < cur_gidx.size(); ++i) {
-      auto group_idx = cur_gidx[i];
-      auto& group    = groups[i];
+    for (int i = 0; i < cur_gidx->size(); ++i) {
+      auto group_idx = cur_gidx->at(i);
+      auto& group    = cur_groups->at(i);
 
       VLOG(1) << "Start Lowering Group " << group_idx << " :\n"
               << "Group " << group_idx << " {\n"
@@ -150,22 +174,23 @@ void ParallelCompiler::Task::Run() {
     // to avoid useless construct and deconstruct.
     // Q: Why cannot share ExecutionEngine and CUDAModule for multiple group?
     // A: Because there will report repeat symbol or missing symbol while register.
-    VLOG(2) << "Start Codegen and JIT with Group " << cinn::utils::Join(cur_gidx, ", ");
-    auto engine = CodegenAndJit(funcs, cur_gidx);
+    VLOG(2) << "Start Codegen and JIT with Group " << cinn::utils::Join(*cur_gidx, ", ");
+    auto engine = CodegenAndJit(funcs, *cur_gidx);
 
-    for (int i = 0; i < cur_gidx.size(); ++i) {
-      auto group_idx    = cur_gidx[i];
-      const auto& group = groups[i];
+    for (int i = 0; i < cur_gidx->size(); ++i) {
+      auto group_idx = cur_gidx->at(i);
+      auto& group    = cur_groups->at(i);
 
       VLOG(2) << "Start BuildInstruction of Group " << group_idx;
+      gidx.emplace_back(group_idx);
       instructions.emplace_back(BuildInstruction(group, engine.get()));
     }
 
     engines.emplace_back(std::move(engine));
 
-    // clear task status after a loop
-    groups.clear();
-    cur_gidx.clear();
+    // clear status
+    cur_groups->clear();
+    cur_gidx->clear();
   }
 }
 
