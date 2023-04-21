@@ -60,8 +60,7 @@ void ParallelCompiler::SplitTask() {
   // split task
   int task_num = 1;
   if (FLAGS_cinn_parallel_compile_size > 0) {
-    int num_per_task = FLAGS_cinn_parallel_compile_size > 0 ? FLAGS_cinn_parallel_compile_size : 8;
-    task_num         = (graph_->fusion_groups.size() + num_per_task - 1) / num_per_task;
+    task_num = (graph_->fusion_groups.size() + FLAGS_cinn_parallel_compile_size - 1) / FLAGS_cinn_parallel_compile_size;
   }
 
   for (int idx = 0; idx < task_num; ++idx) {
