@@ -191,7 +191,13 @@ void Graph::ClearUnlinkedNodes(absl::flat_hash_map<std::string, std::vector<int>
 const char *GraphNode::__type_info__ = "GraphNode";
 
 bool GraphEdgeCompare::operator()(const Shared<GraphEdge> &a, const Shared<GraphEdge> &b) const {
+  CHECK_NE(a.get(), nullptr);
+  CHECK_NE(b.get(), nullptr);
+  CHECK_NE(a->source(), nullptr);
+  CHECK_NE(b->source(), nullptr);
   if (a->source()->id() == b->source()->id()) {
+    CHECK_NE(a->sink(), nullptr);
+    CHECK_NE(b->sink(), nullptr);
     if (a->sink()->id() == b->sink()->id()) {
       return a->index() < b->index();
     }
