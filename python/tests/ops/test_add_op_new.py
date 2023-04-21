@@ -130,9 +130,7 @@ class TestAddAll(TestCaseHelper):
                 "dout_dtype": "float32"
             },
         ]
-        self.attrs = {
-            # "axis": [-1, 0],
-        }
+        self.attrs = []
 
 
 if __name__ == "__main__":

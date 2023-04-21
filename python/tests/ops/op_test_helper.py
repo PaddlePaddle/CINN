@@ -50,10 +50,13 @@ class TestCaseHelper():
         """
         Generate all test cases
         """
+        assert type(self.inputs) is list
+        assert type(self.dtypes) is list
+        assert type(self.attrs) is list
         self.all_cases = []
-        attrs_cases = (dict(zip(self.attrs.keys(), values))
-                       for values in itertools.product(*self.attrs.values()))
-        for case in itertools.product(self.inputs, self.dtypes, attrs_cases):
+        all_lists = [self.inputs, self.dtypes, self.attrs]
+        filtered_lists = filter(lambda x: len(x) > 0, all_lists)
+        for case in itertools.product(*filtered_lists):
             self.all_cases.append(self._flatten_tuple(case))
 
     def _make_all_classes(self):

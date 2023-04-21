@@ -70,6 +70,9 @@ class TestRelu6All(TestCaseHelper):
             "x_shape": [1, 32, 32, 3],
         }]
         self.dtypes = [
+            # {
+            #     "x_dtype": "bfloat16",
+            # },
             {
                 "x_dtype": "float16",
             },
@@ -80,7 +83,7 @@ class TestRelu6All(TestCaseHelper):
                 "x_dtype": "float64",
             },
         ]
-        self.attrs = {}
+        self.attrs = []
 
 
 if __name__ == "__main__":

@@ -96,7 +96,7 @@ class TestRightShiftAll(TestCaseHelper):
             #     "y_dtype": "int64",
             # },
         ]
-        self.attrs = {}
+        self.attrs = []
 
 
 if __name__ == "__main__":
