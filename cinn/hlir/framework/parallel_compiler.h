@@ -62,7 +62,7 @@ class ParallelCompiler {
     std::vector<ir::LoweredFunc> Lowering(std::shared_ptr<Graph::Group>& group, int idx);
     std::unique_ptr<backends::ExecutionEngine> CodegenAndJit(const std::vector<ir::LoweredFunc>& func, int idx);
     std::unique_ptr<Instruction> BuildInstruction(std::shared_ptr<Graph::Group>& group,
-                                                  std::unique_ptr<backends::ExecutionEngine>&& engine);
+                                                  backends::ExecutionEngine* engine);
 
    public:
     const Target& target;
@@ -73,6 +73,14 @@ class ParallelCompiler {
 
     std::vector<int> gidx;
     std::vector<std::unique_ptr<Instruction>> instructions;
+
+   public:
+    // restruct ExecutionEngine to avoid useless construct and deconstruct
+    std::vector<std::unique_ptr<backends::ExecutionEngine>> engines;
+#ifdef CINN_WITH_CUDA
+    // restruct CUDAModule to avoid useless construct and deconstruct
+    std::vector<std::unique_ptr<runtime::cuda::CUDAModule>> cumodules;
+#endif
   };
   std::vector<std::unique_ptr<Task>> tasks_;
   int GetGroupIdx();

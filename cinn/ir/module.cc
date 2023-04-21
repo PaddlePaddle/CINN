@@ -50,7 +50,7 @@ void Module::Builder::Clear() {
 
 Module Module::Builder::Build() {
   if (module_->functions.empty()) {
-    LOG(ERROR) << "Module has no functions";
+    VLOG(1) << "Module " << module_->name << " has no functions";
   }
 
   auto res = ir::Module(module_.get());

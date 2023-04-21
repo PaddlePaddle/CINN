@@ -64,7 +64,7 @@ class CUDAModule {
   //! Kind of the input.
   Kind kind_;
   //! To make parallel, we prepare one module for each card.
-  std::vector<CUmodule> module_per_card_{kCUDAMaxCards, nullptr};
+  std::vector<CUmodule> module_per_card_;
   std::string cuda_source_;
   std::mutex mutex_;
 

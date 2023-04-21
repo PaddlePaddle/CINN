@@ -52,7 +52,7 @@ void CUDAModule::LaunchKernel(int device_id,
                               void** args,
                               size_t share_memory_size,
                               CUstream stream) {
-  VLOG(3) << "cuLaunchKernel with func_name : " << func_name << ", gridDim.x:" << gridDim.x
+  VLOG(1) << "cuLaunchKernel with func_name : " << func_name << ", gridDim.x:" << gridDim.x
           << ", gridDim.y:" << gridDim.y << ", gridDim.z:" << gridDim.z << ", blockDim.x:" << blockDim.x
           << ", blockDim.y:" << blockDim.y << ", blockDim.z:" << blockDim.z
           << ", share_memory_size:" << share_memory_size;
@@ -72,7 +72,11 @@ void CUDAModule::LaunchKernel(int device_id,
 }
 
 CUfunction CUDAModule::GetFunction(int device_id, const std::string& func_name) {
-  VLOG(5) << "GetFuncion : " << func_name << " with device_id : " << device_id;
+  VLOG(4) << "GetFuncion : " << func_name << " with device_id : " << device_id;
+  if (device_id >= module_per_card_.size()) {
+    module_per_card_.resize(device_id + 1, nullptr);
+  }
+
   if (!module_per_card_[device_id]) {
     std::lock_guard<std::mutex> lock(mutex_);
     // Compilation with parameters
@@ -122,6 +126,10 @@ CUfunction CUDAModule::GetFunction(int device_id, const std::string& func_name) 
 }
 
 CUdeviceptr CUDAModule::GetGlobal(int device_id, const std::string& name, size_t nbytes) {
+  if (device_id >= module_per_card_.size()) {
+    module_per_card_.resize(device_id + 1, nullptr);
+  }
+
   if (!module_per_card_[device_id]) {
     std::lock_guard<std::mutex> lock(mutex_);
     CUDA_DRIVER_CALL(cuModuleLoadData(&module_per_card_[device_id], data_.c_str()));

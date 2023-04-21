@@ -121,10 +121,11 @@ void ParallelCompiler::Task::Run() {
     auto engine = CodegenAndJit(func, idx);
 
     VLOG(2) << "Start BuildInstruction of Group " << idx;
-    auto instr = BuildInstruction(group, std::move(engine));
+    auto instr = BuildInstruction(group, engine.get());
 
     gidx.emplace_back(idx);
     instructions.emplace_back(std::move(instr));
+    engines.emplace_back(std::move(engine));
   }
 }
 
@@ -177,21 +178,22 @@ std::unique_ptr<backends::ExecutionEngine> ParallelCompiler::Task::CodegenAndJit
       cinn::backends::SourceCodePrint::GetInstance()->write(cuda_c);
       graph->SaveSourceCode(idx, cuda_c);
 
-      using runtime::cuda::CUDAModule;
       backends::nvrtc::Compiler nvrtc;
       auto ptx = nvrtc(cuda_c);
       CHECK(!ptx.empty()) << "Compile PTX failed from source code:\n" << cuda_c;
       graph->SavePTXCode(idx, ptx);
 
       // load cumodule
-      runtime::cuda::CUDAModule cumodule(ptx,
-                                         nvrtc.compile_to_cubin() ? CUDAModule::Kind::CUBIN : CUDAModule::Kind::PTX);
+      using cinn::runtime::cuda::CUDAModule;
+      auto cumodule =
+          std::make_unique<CUDAModule>(ptx, nvrtc.compile_to_cubin() ? CUDAModule::Kind::CUBIN : CUDAModule::Kind::PTX);
       // register kernel
       for (auto& fn : device_funcs) {
-        auto cufunc = cumodule.GetFunction(0, fn->name);
+        auto cufunc = cumodule->GetFunction(0, fn->name);
         CHECK(cufunc);
         symbols.RegisterVar(fn->name + "_ptr_", reinterpret_cast<void*>(cufunc));
       }
+      cumodules.emplace_back(std::move(cumodule));
     }
     engine = backends::ExecutionEngine::Create(backends::ExecutionOptions(), std::move(symbols));
     engine->Link<backends::CodeGenCUDA_Host>(hmodule);
@@ -203,8 +205,8 @@ std::unique_ptr<backends::ExecutionEngine> ParallelCompiler::Task::CodegenAndJit
   return engine;
 }
 
-std::unique_ptr<Instruction> ParallelCompiler::Task::BuildInstruction(
-    std::shared_ptr<Graph::Group>& group, std::unique_ptr<backends::ExecutionEngine>&& engine) {
+std::unique_ptr<Instruction> ParallelCompiler::Task::BuildInstruction(std::shared_ptr<Graph::Group>& group,
+                                                                      backends::ExecutionEngine* engine) {
   // create instruction.
   CHECK(group->input_names.size() > 0 || group->output_names.size() > 0);
   auto instr =

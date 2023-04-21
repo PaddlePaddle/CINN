@@ -27,8 +27,6 @@ namespace cinn {
 namespace runtime {
 namespace cuda {
 
-const int kCUDAMaxCards{8};
-
 void cinn_gpu_cublas_mul(const std::vector<int>& attrs,
                          cinn_buffer_t* input1,
                          cinn_buffer_t* input2,
