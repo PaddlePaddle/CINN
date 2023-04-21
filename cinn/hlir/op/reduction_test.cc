@@ -465,6 +465,30 @@ TEST(Operator, Operator_Reduction_Case_11) {
   GenReduceCode(shape, dim, "Operator_Reduction_Case_11");
 }
 
+TEST(Operator, Operator_Reduction_Case_Warp_Reduce) {
+  int sm_count              = common::DefaultNVGPUTarget().get_multi_processor_count();
+  int max_threads_per_sm    = common::DefaultNVGPUTarget().get_max_threads_per_sm();
+  int warp_reduce_threshold = sm_count * max_threads_per_sm / 32;
+
+  std::vector<int> shape = {warp_reduce_threshold + 10, 256};
+  std::vector<int> dim   = {1};
+
+  auto res = GenReduceCode(shape, dim, "Operator_Reduction_Case_Warp_Reduce");
+  CHECK(res.second.find("threadIdx.x < 32") != std::string::npos);
+}
+
+TEST(Operator, Operator_Reduction_Case_Block_Reduce) {
+  int sm_count              = common::DefaultNVGPUTarget().get_multi_processor_count();
+  int max_threads_per_sm    = common::DefaultNVGPUTarget().get_max_threads_per_sm();
+  int warp_reduce_threshold = sm_count * max_threads_per_sm / 32;
+
+  std::vector<int> shape = {warp_reduce_threshold - 10, 33};
+  std::vector<int> dim   = {1};
+
+  auto res = GenReduceCode(shape, dim, "Operator_Reduction_Case_Block_Reduce");
+  CHECK(res.second.find("threadIdx.x < 32") == std::string::npos);
+}
+
 }  // namespace framework
 }  // namespace hlir
 }  // namespace cinn

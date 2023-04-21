@@ -461,7 +461,7 @@ void LoopAssignReduceWithoutLast(ir::IRSchedule& ir_sch,
 void LoopAssignReduceWithLast(ir::IRSchedule& ir_sch,
                               const std::string& block_name,
                               const std::vector<int>& inshape,
-                              std::vector<int>& axes,
+                              const std::vector<int>& axes,
                               const common::Target& target) {
   // If the number of current device SM is smaller than the number of SM
   // required by Warp Reduce, the performance of Warp Reduce is better.
@@ -475,7 +475,7 @@ void LoopAssignReduceWithLast(ir::IRSchedule& ir_sch,
   }
   int warp_reduce_need_sm_count = ceil((need_reduce_last_count * 32) / float(target.get_max_threads_per_sm()));
   // Set Num_max_threads to 32 is Warp Reduce
-  if (target.get_multi_processor_count() < warp_reduce_need_sm_count / 2) {
+  if (target.get_multi_processor_count() < warp_reduce_need_sm_count) {
     max_num_threads = 32;
   }
   // find first reduce and second reduce axis.
