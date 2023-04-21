@@ -60,7 +60,8 @@ class ParallelCompiler {
         : compiler(p), scope(s), graph(g), options(cp), target(t) {}
     void Run();
     ir::LoweredFunc Lowering(std::shared_ptr<Graph::Group>& group, int idx);
-    std::unique_ptr<backends::ExecutionEngine> CodegenAndJit(const std::vector<ir::LoweredFunc>& func, int idx);
+    std::unique_ptr<backends::ExecutionEngine> CodegenAndJit(const std::vector<ir::LoweredFunc>& func,
+                                                             const std::vector<int>& idx);
     std::unique_ptr<Instruction> BuildInstruction(const std::shared_ptr<Graph::Group>& group,
                                                   backends::ExecutionEngine* engine);
 

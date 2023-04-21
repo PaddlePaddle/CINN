@@ -106,7 +106,7 @@ void ParallelCompiler::Task::Run() {
   gidx.clear();
   instructions.clear();
 
-  std::vector<GroupPtr> groups;
+  std::vector<std::shared_ptr<Graph::Group>> groups;
   std::vector<int> cur_gidx;
 
   // if flag set, each task compile setting number group in a loop
@@ -151,7 +151,7 @@ void ParallelCompiler::Task::Run() {
     // Q: Why cannot share ExecutionEngine and CUDAModule for multiple group?
     // A: Because there will report repeat symbol or missing symbol while register.
     VLOG(2) << "Start Codegen and JIT with Group " << cinn::utils::Join(cur_gidx, ", ");
-    auto engine = CodegenAndJit(funcs, cur_gidx.front());
+    auto engine = CodegenAndJit(funcs, cur_gidx);
 
     for (int i = 0; i < cur_gidx.size(); ++i) {
       auto group_idx    = cur_gidx[i];
@@ -186,7 +186,7 @@ ir::LoweredFunc ParallelCompiler::Task::Lowering(std::shared_ptr<Graph::Group>& 
 }
 
 std::unique_ptr<backends::ExecutionEngine> ParallelCompiler::Task::CodegenAndJit(
-    const std::vector<ir::LoweredFunc>& funcs, int idx) {
+    const std::vector<ir::LoweredFunc>& funcs, const std::vector<int>& idx) {
   // build module
   ir::Module::Builder builder(common::UniqName("module"), target);
   for (const auto& f : funcs) {
