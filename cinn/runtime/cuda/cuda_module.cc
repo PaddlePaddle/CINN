@@ -33,8 +33,10 @@ namespace cuda {
 CUDAModule::CUDAModule(const std::string& data, Kind kind) : data_(data), kind_(kind) {
   CHECK(!data.empty());
 
+  int num_devices_ = 0;
   cudaGetDeviceCount(&num_devices_);
   CHECK_GT(num_devices_, 0) << "No available devices";
+  module_per_card_.resize(num_devices_, nullptr);
 
   // TODO(Superjomn) Determine whether to initialize all the devices.
   int current_device_id;
@@ -52,7 +54,7 @@ void CUDAModule::LaunchKernel(int device_id,
                               void** args,
                               size_t share_memory_size,
                               CUstream stream) {
-  VLOG(1) << "cuLaunchKernel with func_name : " << func_name << ", gridDim.x:" << gridDim.x
+  VLOG(3) << "cuLaunchKernel with func_name : " << func_name << ", gridDim.x:" << gridDim.x
           << ", gridDim.y:" << gridDim.y << ", gridDim.z:" << gridDim.z << ", blockDim.x:" << blockDim.x
           << ", blockDim.y:" << blockDim.y << ", blockDim.z:" << blockDim.z
           << ", share_memory_size:" << share_memory_size;
@@ -72,13 +74,10 @@ void CUDAModule::LaunchKernel(int device_id,
 }
 
 CUfunction CUDAModule::GetFunction(int device_id, const std::string& func_name) {
-  VLOG(4) << "GetFuncion : " << func_name << " with device_id : " << device_id;
-  if (device_id >= module_per_card_.size()) {
-    module_per_card_.resize(device_id + 1, nullptr);
-  }
+  VLOG(4) << "Try GetFuncion : " << func_name << " with device_id : " << device_id;
 
+  CHECK_LT(device_id, module_per_card_.size()) << "Device id out of bound";
   if (!module_per_card_[device_id]) {
-    std::lock_guard<std::mutex> lock(mutex_);
     // Compilation with parameters
     const size_t jit_num_options = 5;
     std::vector<CUjit_option> jit_options(jit_num_options);
@@ -126,12 +125,8 @@ CUfunction CUDAModule::GetFunction(int device_id, const std::string& func_name) 
 }
 
 CUdeviceptr CUDAModule::GetGlobal(int device_id, const std::string& name, size_t nbytes) {
-  if (device_id >= module_per_card_.size()) {
-    module_per_card_.resize(device_id + 1, nullptr);
-  }
-
+  CHECK_LT(device_id, module_per_card_.size()) << "Device id out of bound";
   if (!module_per_card_[device_id]) {
-    std::lock_guard<std::mutex> lock(mutex_);
     CUDA_DRIVER_CALL(cuModuleLoadData(&module_per_card_[device_id], data_.c_str()));
   }
 

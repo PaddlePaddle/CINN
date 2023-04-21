@@ -60,8 +60,11 @@ void ParallelCompiler::SplitTask() {
   // split task
   int task_num = 1;
   if (FLAGS_cinn_parallel_compile_size > 0) {
+    // each task compile flag number group
     task_num = (graph_->fusion_groups.size() + FLAGS_cinn_parallel_compile_size - 1) / FLAGS_cinn_parallel_compile_size;
   }
+  // limit max thread number 16 to avoid thread switch cost
+  task_num = std::min(task_num, 16);
 
   for (int idx = 0; idx < task_num; ++idx) {
     tasks_.emplace_back(std::make_unique<Task>(this, scope_, graph_, option_, target_));
@@ -103,52 +106,90 @@ void ParallelCompiler::Task::Run() {
   gidx.clear();
   instructions.clear();
 
+  std::vector<GroupPtr> groups;
+  std::vector<int> cur_gidx;
+
+  // if flag set, each task compile setting number group in a loop
+  int group_num_of_task = 1;
+  if (FLAGS_cinn_parallel_compile_size > 0) {
+    group_num_of_task = FLAGS_cinn_parallel_compile_size;
+  }
+
   while (true) {
     int idx = compiler->GetGroupIdx();
     if (idx < 0) {
-      break;
+      if (groups.empty()) {
+        break;
+      }
+      // if not empty, compile existing group
+    } else {
+      gidx.emplace_back(idx);
+
+      // save group for future compile
+      cur_gidx.emplace_back(idx);
+      groups.emplace_back(graph->fusion_groups[idx]);
+
+      if (groups.size() < group_num_of_task) {
+        // each task compile FLAGS_cinn_parallel_compile_size group
+        continue;
+      }
     }
 
-    auto& group = graph->fusion_groups[idx];
+    std::vector<ir::LoweredFunc> funcs;
+    for (int i = 0; i < cur_gidx.size(); ++i) {
+      auto group_idx = cur_gidx[i];
+      auto& group    = groups[i];
 
-    VLOG(1) << "Start Lowering Group " << idx << " :\n"
-            << "Group " << idx << " {\n"
-            << graph->DebugGroupedGraph(group->CollectNodes()) << "}\n";
-    const auto& func = Lowering(group, idx);
+      VLOG(1) << "Start Lowering Group " << group_idx << " :\n"
+              << "Group " << group_idx << " {\n"
+              << graph->DebugGroupedGraph(group->CollectNodes()) << "}\n";
+      funcs.emplace_back(Lowering(group, group_idx));
+    }
 
-    VLOG(2) << "Start Codegen and JIT of Group " << idx;
-    auto engine = CodegenAndJit(func, idx);
+    // TODO(thisjiang): cogen and jit for each group, need restruct ExecutionEngine and CUDAModule
+    // to avoid useless construct and deconstruct.
+    // Q: Why cannot share ExecutionEngine and CUDAModule for multiple group?
+    // A: Because there will report repeat symbol or missing symbol while register.
+    VLOG(2) << "Start Codegen and JIT with Group " << cinn::utils::Join(cur_gidx, ", ");
+    auto engine = CodegenAndJit(funcs, cur_gidx.front());
 
-    VLOG(2) << "Start BuildInstruction of Group " << idx;
-    auto instr = BuildInstruction(group, engine.get());
+    for (int i = 0; i < cur_gidx.size(); ++i) {
+      auto group_idx    = cur_gidx[i];
+      const auto& group = groups[i];
 
-    gidx.emplace_back(idx);
-    instructions.emplace_back(std::move(instr));
+      VLOG(2) << "Start BuildInstruction of Group " << group_idx;
+      instructions.emplace_back(BuildInstruction(group, engine.get()));
+    }
+
     engines.emplace_back(std::move(engine));
+
+    // clear task status after a loop
+    groups.clear();
+    cur_gidx.clear();
   }
 }
 
-std::vector<ir::LoweredFunc> ParallelCompiler::Task::Lowering(std::shared_ptr<Graph::Group>& group, int idx) {
+ir::LoweredFunc ParallelCompiler::Task::Lowering(std::shared_ptr<Graph::Group>& group, int idx) {
   std::vector<ir::LoweredFunc> func;
   if (options.lowered_funcs.size() > idx) {
     func = options.lowered_funcs[idx];
   } else {
-    auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-    auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
+    const auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
+    const auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
 
     OpLowerer op_lowerer(dtype_dict, shape_dict, target);
 
     func = op_lowerer.Lower(group);
   }
   CHECK_EQ(func.size(), 1) << "Lowerd Function Is Not Equal 1!";
-  return func;
+  return func.front();
 }
 
 std::unique_ptr<backends::ExecutionEngine> ParallelCompiler::Task::CodegenAndJit(
-    const std::vector<ir::LoweredFunc>& func, int idx) {
+    const std::vector<ir::LoweredFunc>& funcs, int idx) {
   // build module
   ir::Module::Builder builder(common::UniqName("module"), target);
-  for (const auto& f : func) {
+  for (const auto& f : funcs) {
     builder.AddFunction(f);
   }
   auto ir_module = builder.Build();
@@ -204,7 +245,7 @@ std::unique_ptr<backends::ExecutionEngine> ParallelCompiler::Task::CodegenAndJit
   return engine;
 }
 
-std::unique_ptr<Instruction> ParallelCompiler::Task::BuildInstruction(std::shared_ptr<Graph::Group>& group,
+std::unique_ptr<Instruction> ParallelCompiler::Task::BuildInstruction(const std::shared_ptr<Graph::Group>& group,
                                                                       backends::ExecutionEngine* engine) {
   // create instruction.
   CHECK(group->input_names.size() > 0 || group->output_names.size() > 0);

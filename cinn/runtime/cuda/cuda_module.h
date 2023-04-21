@@ -65,12 +65,9 @@ class CUDAModule {
   Kind kind_;
   //! To make parallel, we prepare one module for each card.
   std::vector<CUmodule> module_per_card_;
-  std::string cuda_source_;
-  std::mutex mutex_;
 
   CUdevice device_;
   CUcontext context_;
-  int num_devices_{0};
 };
 
 }  // namespace cuda

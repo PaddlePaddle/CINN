@@ -59,9 +59,9 @@ class ParallelCompiler {
          const Target& t)
         : compiler(p), scope(s), graph(g), options(cp), target(t) {}
     void Run();
-    std::vector<ir::LoweredFunc> Lowering(std::shared_ptr<Graph::Group>& group, int idx);
+    ir::LoweredFunc Lowering(std::shared_ptr<Graph::Group>& group, int idx);
     std::unique_ptr<backends::ExecutionEngine> CodegenAndJit(const std::vector<ir::LoweredFunc>& func, int idx);
-    std::unique_ptr<Instruction> BuildInstruction(std::shared_ptr<Graph::Group>& group,
+    std::unique_ptr<Instruction> BuildInstruction(const std::shared_ptr<Graph::Group>& group,
                                                   backends::ExecutionEngine* engine);
 
    public:
