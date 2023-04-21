@@ -21,6 +21,8 @@
 #include "cinn/frontend/optimize.h"
 #include "cinn/hlir/framework/graph_compiler.h"
 
+DECLARE_int32(cinn_parallel_compile_size);
+
 namespace cinn {
 namespace hlir {
 namespace framework {
@@ -76,6 +78,114 @@ TEST(ParallelCompilerTest, Matmul_Test_0) {
   ParallelCompiler::CompileOptions option;
   ParallelCompiler pc(scope, graph, option, target);
   auto runtime_program = pc();
+}
+
+TEST(ParallelCompilerTest, parallel_compile_8) {
+  int old_value                    = FLAGS_cinn_parallel_compile_size;
+  FLAGS_cinn_parallel_compile_size = 8;
+
+  NetBuilder net_builder("Reduce_Fuse_Broadcast_With_Output");
+  auto layer_norm_51__tmp_1 = net_builder.CreateInput(Float(32), {256}, "layer_norm_51__tmp_1");
+  auto var_3216             = net_builder.CreateInput(Float(32), {60, 60}, "var_3216");
+  auto var_3202             = net_builder.CreateInput(Float(32), {1, 60}, "var_3202");
+  auto var_3212             = net_builder.CreateInput(Float(32), {256, 60}, "var_3212");
+
+  auto var_3206         = net_builder.Reshape(layer_norm_51__tmp_1, {256, 1});
+  auto composite_tmp_8  = net_builder.FillConstant<float>({256, 1}, 1e-5, "composite_tmp_8");
+  auto var_3214         = net_builder.Add(var_3206, composite_tmp_8);
+  auto composite_tmp_10 = net_builder.FillConstant<float>({256, 1}, 1.0, "composite_tmp_10");
+  auto var_3220         = net_builder.Divide(composite_tmp_10, var_3214);
+  auto var_3226         = net_builder.Sqrt(var_3220);
+  auto var_3224         = net_builder.Scale(var_3220, -1.0, 0.0, true);
+  auto var_3366         = net_builder.BroadcastTo(var_3224, {256, 60});
+  auto var_3228         = net_builder.Matmul(var_3366, var_3216);
+  auto var_3368         = net_builder.BroadcastTo(var_3202, {256, 60});
+  auto var_3236         = net_builder.Multiply(var_3228, var_3212);
+  auto var_3244         = net_builder.Multiply(var_3236, var_3368);
+  auto var_3252         = net_builder.ReduceSum(var_3244, {1}, true);
+  auto var_3232         = net_builder.Scale(var_3226, 0.0166667, 0.0, true);
+
+  auto target  = common::DefaultNVGPUTarget();
+  auto program = net_builder.Build();
+  auto graph   = Optimize(&program, {var_3252->id, var_3232->id}, target);
+  auto scope   = BuildScope(target, graph);
+
+  ParallelCompiler::CompileOptions option;
+  ParallelCompiler pc(scope, graph, option, target);
+  auto runtime_program             = pc();
+  FLAGS_cinn_parallel_compile_size = old_value;
+}
+
+TEST(ParallelCompilerTest, parallel_compile_1) {
+  int old_value                    = FLAGS_cinn_parallel_compile_size;
+  FLAGS_cinn_parallel_compile_size = 1;
+
+  NetBuilder net_builder("Reduce_Fuse_Broadcast_With_Output");
+  auto layer_norm_51__tmp_1 = net_builder.CreateInput(Float(32), {256}, "layer_norm_51__tmp_1");
+  auto var_3216             = net_builder.CreateInput(Float(32), {60, 60}, "var_3216");
+  auto var_3202             = net_builder.CreateInput(Float(32), {1, 60}, "var_3202");
+  auto var_3212             = net_builder.CreateInput(Float(32), {256, 60}, "var_3212");
+
+  auto var_3206         = net_builder.Reshape(layer_norm_51__tmp_1, {256, 1});
+  auto composite_tmp_8  = net_builder.FillConstant<float>({256, 1}, 1e-5, "composite_tmp_8");
+  auto var_3214         = net_builder.Add(var_3206, composite_tmp_8);
+  auto composite_tmp_10 = net_builder.FillConstant<float>({256, 1}, 1.0, "composite_tmp_10");
+  auto var_3220         = net_builder.Divide(composite_tmp_10, var_3214);
+  auto var_3226         = net_builder.Sqrt(var_3220);
+  auto var_3224         = net_builder.Scale(var_3220, -1.0, 0.0, true);
+  auto var_3366         = net_builder.BroadcastTo(var_3224, {256, 60});
+  auto var_3228         = net_builder.Matmul(var_3366, var_3216);
+  auto var_3368         = net_builder.BroadcastTo(var_3202, {256, 60});
+  auto var_3236         = net_builder.Multiply(var_3228, var_3212);
+  auto var_3244         = net_builder.Multiply(var_3236, var_3368);
+  auto var_3252         = net_builder.ReduceSum(var_3244, {1}, true);
+  auto var_3232         = net_builder.Scale(var_3226, 0.0166667, 0.0, true);
+
+  auto target  = common::DefaultNVGPUTarget();
+  auto program = net_builder.Build();
+  auto graph   = Optimize(&program, {var_3252->id, var_3232->id}, target);
+  auto scope   = BuildScope(target, graph);
+
+  ParallelCompiler::CompileOptions option;
+  ParallelCompiler pc(scope, graph, option, target);
+  auto runtime_program             = pc();
+  FLAGS_cinn_parallel_compile_size = old_value;
+}
+
+TEST(ParallelCompilerTest, parallel_compile_0) {
+  int old_value                    = FLAGS_cinn_parallel_compile_size;
+  FLAGS_cinn_parallel_compile_size = 0;
+
+  NetBuilder net_builder("Reduce_Fuse_Broadcast_With_Output");
+  auto layer_norm_51__tmp_1 = net_builder.CreateInput(Float(32), {256}, "layer_norm_51__tmp_1");
+  auto var_3216             = net_builder.CreateInput(Float(32), {60, 60}, "var_3216");
+  auto var_3202             = net_builder.CreateInput(Float(32), {1, 60}, "var_3202");
+  auto var_3212             = net_builder.CreateInput(Float(32), {256, 60}, "var_3212");
+
+  auto var_3206         = net_builder.Reshape(layer_norm_51__tmp_1, {256, 1});
+  auto composite_tmp_8  = net_builder.FillConstant<float>({256, 1}, 1e-5, "composite_tmp_8");
+  auto var_3214         = net_builder.Add(var_3206, composite_tmp_8);
+  auto composite_tmp_10 = net_builder.FillConstant<float>({256, 1}, 1.0, "composite_tmp_10");
+  auto var_3220         = net_builder.Divide(composite_tmp_10, var_3214);
+  auto var_3226         = net_builder.Sqrt(var_3220);
+  auto var_3224         = net_builder.Scale(var_3220, -1.0, 0.0, true);
+  auto var_3366         = net_builder.BroadcastTo(var_3224, {256, 60});
+  auto var_3228         = net_builder.Matmul(var_3366, var_3216);
+  auto var_3368         = net_builder.BroadcastTo(var_3202, {256, 60});
+  auto var_3236         = net_builder.Multiply(var_3228, var_3212);
+  auto var_3244         = net_builder.Multiply(var_3236, var_3368);
+  auto var_3252         = net_builder.ReduceSum(var_3244, {1}, true);
+  auto var_3232         = net_builder.Scale(var_3226, 0.0166667, 0.0, true);
+
+  auto target  = common::DefaultNVGPUTarget();
+  auto program = net_builder.Build();
+  auto graph   = Optimize(&program, {var_3252->id, var_3232->id}, target);
+  auto scope   = BuildScope(target, graph);
+
+  ParallelCompiler::CompileOptions option;
+  ParallelCompiler pc(scope, graph, option, target);
+  auto runtime_program             = pc();
+  FLAGS_cinn_parallel_compile_size = old_value;
 }
 
 }  // namespace framework
