@@ -231,7 +231,7 @@ __host__ __device__ inline bfloat16 operator*(const bfloat16& a, const bfloat16&
 #if defined(CINN_CUDA_BF16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1100
   return bfloat16(__hmul(a.to_nv_bfloat16(), b.to_nv_bfloat16()));
 #else
-  return bfloat16(static_cast<float>(a) * static_cast<float>(b)); 
+  return bfloat16(static_cast<float>(a) * static_cast<float>(b));
 #endif
 }
 
@@ -285,7 +285,7 @@ __host__ __device__ inline bool operator==(const bfloat16& a, const bfloat16& b)
   return __heq(a.to_nv_bfloat16(), b.to_nv_bfloat16());
 #else
   return static_cast<float>(a) == static_cast<float>(b);
-#endif  
+#endif
 }
 
 __host__ __device__ inline bool operator!=(const bfloat16& a, const bfloat16& b) {
@@ -331,9 +331,8 @@ __host__ __device__ inline bool operator>=(const bfloat16& a, const bfloat16& b)
 // #if defined(CINN_CUDA_BF16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1100
 //   return bfloat16( (a.to_nv_bfloat16(), b.to_nv_bfloat16()));
 // #else
-  
-// #endif
 
+// #endif
 
 __host__ __device__ inline bool(isnan)(const bfloat16& a) {
 #if defined(CINN_CUDA_BF16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1100
@@ -357,7 +356,7 @@ __host__ __device__ inline bfloat16(abs)(const bfloat16& a) {
 #if defined(CINN_CUDA_BF16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1100
   return __habs(a.to_nv_bfloat16());
 #else
-  return bfloat16(std::abs(static_cast<float>(a))); 
+  return bfloat16(std::abs(static_cast<float>(a)));
 #endif
 }
 
