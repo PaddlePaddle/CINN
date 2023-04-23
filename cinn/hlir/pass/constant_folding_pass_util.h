@@ -136,14 +136,6 @@ inline void fold_expand_dims_fill_constant(const FusionHelperBase* helper, Graph
   auto shape = absl::get<std::vector<int>>(constant_op->attrs.attr_store.at("shape"));
   CHECK(node->attrs.attr_store.count("axes"));
   auto axes = absl::get<std::vector<int>>(node->attrs.attr_store.at("axes"));
-  VLOG(3) << "shape before pass:";
-  for (int i: shape) {
-    VLOG(3) << i;
-  }
-  VLOG(3) << "axes:";
-  for (int i: axes) {
-    VLOG(3) << i;
-  }
 
   // create constant op.
   Node* node_tmp = new Node(Operator::Get("fill_constant"), "fill_constant", common::UniqName("fill_constant"));
@@ -163,10 +155,6 @@ inline void fold_expand_dims_fill_constant(const FusionHelperBase* helper, Graph
     if (std::find(axes.begin(), axes.end(), idx) == axes.end()) {
       n_shape[idx] = shape[index++];
     }
-  }
-  VLOG(3) << "n_shape after pass:";
-  for (int i: n_shape) {
-    VLOG(3) << i;
   }
 
   // set node attr
