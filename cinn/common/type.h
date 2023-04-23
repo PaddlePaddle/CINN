@@ -18,8 +18,9 @@
 #include <memory>
 #include <string>
 
+#include "cinn/common/bfloat16.h"
 #include "cinn/common/float16.h"
-#include "cinn/common/float16_utils.h"
+#include "cinn/common/float16_bfloat16_utils.h"
 #include "cinn/common/macros.h"
 #include "cinn/runtime/cinn_runtime.h"
 

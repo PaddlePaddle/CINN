@@ -23,8 +23,6 @@
 
 #include <cmath>
 #include <cstring>
-#include <iostream>
-#include <limits>
 
 #ifdef CINN_WITH_CUDA
 #include <cuda.h>
@@ -214,19 +212,35 @@ struct CINN_ALIGN(2) bfloat16 {
 };
 
 __host__ __device__ inline bfloat16 operator+(const bfloat16& a, const bfloat16& b) {
+#if defined(CINN_CUDA_BF16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1100
+  return bfloat16(__hadd(a.to_nv_bfloat16(), b.to_nv_bfloat16()));
+#else
   return bfloat16(static_cast<float>(a) + static_cast<float>(b));
+#endif
 }
 
 __host__ __device__ inline bfloat16 operator-(const bfloat16& a, const bfloat16& b) {
+#if defined(CINN_CUDA_BF16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1100
+  return bfloat16(__hsub(a.to_nv_bfloat16(), b.to_nv_bfloat16()));
+#else
   return bfloat16(static_cast<float>(a) - static_cast<float>(b));
+#endif
 }
 
 __host__ __device__ inline bfloat16 operator*(const bfloat16& a, const bfloat16& b) {
+#if defined(CINN_CUDA_BF16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1100
+  return bfloat16(__hmul(a.to_nv_bfloat16(), b.to_nv_bfloat16()));
+#else
   return bfloat16(static_cast<float>(a) * static_cast<float>(b));
+#endif
 }
 
 __host__ __device__ inline bfloat16 operator/(const bfloat16& a, const bfloat16& b) {
+#if defined(CINN_CUDA_BF16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1100
+  return bfloat16(__hdiv(a.to_nv_bfloat16(), b.to_nv_bfloat16()));
+#else
   return bfloat16(static_cast<float>(a) / static_cast<float>(b));
+#endif
 }
 
 __host__ __device__ inline bfloat16 operator-(const bfloat16& a) {
@@ -237,25 +251,25 @@ __host__ __device__ inline bfloat16 operator-(const bfloat16& a) {
 
 __host__ __device__ inline bfloat16& operator+=(bfloat16& a,  // NOLINT
                                                 const bfloat16& b) {
-  a = bfloat16(static_cast<float>(a) + static_cast<float>(b));
+  a = a + b;
   return a;
 }
 
 __host__ __device__ inline bfloat16& operator-=(bfloat16& a,  // NOLINT
                                                 const bfloat16& b) {
-  a = bfloat16(static_cast<float>(a) - static_cast<float>(b));
+  a = a - b;
   return a;
 }
 
 __host__ __device__ inline bfloat16& operator*=(bfloat16& a,  // NOLINT
                                                 const bfloat16& b) {
-  a = bfloat16(static_cast<float>(a) * static_cast<float>(b));
+  a = a * b;
   return a;
 }
 
 __host__ __device__ inline bfloat16& operator/=(bfloat16& a,  // NOLINT
                                                 const bfloat16& b) {
-  a = bfloat16(static_cast<float>(a) / static_cast<float>(b));
+  a = a / b;
   return a;
 }
 
@@ -267,116 +281,88 @@ __host__ __device__ inline bfloat16 raw_uint16_to_bfloat16(uint16_t a) {
 
 // Comparison operators
 __host__ __device__ inline bool operator==(const bfloat16& a, const bfloat16& b) {
+#if defined(CINN_CUDA_BF16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1100
+  return __heq(a.to_nv_bfloat16(), b.to_nv_bfloat16());
+#else
   return static_cast<float>(a) == static_cast<float>(b);
+#endif
 }
 
 __host__ __device__ inline bool operator!=(const bfloat16& a, const bfloat16& b) {
+#if defined(CINN_CUDA_BF16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1100
+  return __hne(a.to_nv_bfloat16(), b.to_nv_bfloat16());
+#else
   return static_cast<float>(a) != static_cast<float>(b);
+#endif
 }
 
 __host__ __device__ inline bool operator<(const bfloat16& a, const bfloat16& b) {
+#if defined(CINN_CUDA_BF16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1100
+  return __hlt(a.to_nv_bfloat16(), b.to_nv_bfloat16());
+#else
   return static_cast<float>(a) < static_cast<float>(b);
+#endif
 }
 
 __host__ __device__ inline bool operator<=(const bfloat16& a, const bfloat16& b) {
+#if defined(CINN_CUDA_BF16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1100
+  return __hle(a.to_nv_bfloat16(), b.to_nv_bfloat16());
+#else
   return static_cast<float>(a) <= static_cast<float>(b);
+#endif
 }
 
 __host__ __device__ inline bool operator>(const bfloat16& a, const bfloat16& b) {
+#if defined(CINN_CUDA_BF16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1100
+  return __hgt(a.to_nv_bfloat16(), b.to_nv_bfloat16());
+#else
   return static_cast<float>(a) > static_cast<float>(b);
+#endif
 }
 
 __host__ __device__ inline bool operator>=(const bfloat16& a, const bfloat16& b) {
+#if defined(CINN_CUDA_BF16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1100
+  return __hge(a.to_nv_bfloat16(), b.to_nv_bfloat16());
+#else
   return static_cast<float>(a) >= static_cast<float>(b);
+#endif
 }
 
-__host__ __device__ inline bool(isnan)(const bfloat16& a) { return (a.x & 0x7FFF) > 0x7F80; }
+// #if defined(CINN_CUDA_BF16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1100
+//   return bfloat16( (a.to_nv_bfloat16(), b.to_nv_bfloat16()));
+// #else
 
-__host__ __device__ inline bool(isinf)(const bfloat16& a) { return (a.x & 0x7F80) == 0x7F80; }
+// #endif
+
+__host__ __device__ inline bool(isnan)(const bfloat16& a) {
+#if defined(CINN_CUDA_BF16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1100
+  return __hisnan(a.to_nv_bfloat16());
+#else
+  return (a.x & 0x7FFF) > 0x7F80;
+#endif
+}
+
+__host__ __device__ inline bool(isinf)(const bfloat16& a) {
+#if defined(CINN_CUDA_BF16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1100
+  return __hisinf(a.to_nv_bfloat16());
+#else
+  return (a.x & 0x7F80) == 0x7F80;
+#endif
+}
 
 __host__ __device__ inline bool(isfinite)(const bfloat16& a) { return !((isnan)(a)) && !((isinf)(a)); }
 
-__host__ __device__ inline bfloat16(abs)(const bfloat16& a) { return bfloat16(std::abs(static_cast<float>(a))); }
-
-inline std::ostream& operator<<(std::ostream& os, const bfloat16& a) {
-  os << static_cast<float>(a);
-  return os;
+__host__ __device__ inline bfloat16(abs)(const bfloat16& a) {
+#if defined(CINN_CUDA_BF16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1100
+  return __habs(a.to_nv_bfloat16());
+#else
+  return bfloat16(std::abs(static_cast<float>(a)));
+#endif
 }
 
 #ifdef __cplusplus
 }  // namespace common
 }  // namespace cinn
 #endif  // __cplusplus
-
-namespace std {
-
-// Override some std func (e.g. std::is_pod::value) for bfloat16
-template <>
-struct is_pod<cinn::common::bfloat16> {
-  static const bool value =
-      is_trivial<cinn::common::bfloat16>::value && is_standard_layout<cinn::common::bfloat16>::value;
-};
-
-template <>
-struct is_floating_point<cinn::common::bfloat16>
-    : std::integral_constant<
-          bool,
-          std::is_same<cinn::common::bfloat16, typename std::remove_cv<cinn::common::bfloat16>::type>::value> {};
-template <>
-struct is_signed<cinn::common::bfloat16> {
-  static const bool value = true;
-};
-
-template <>
-struct is_unsigned<cinn::common::bfloat16> {
-  static const bool value = false;
-};
-
-inline bool isnan(const cinn::common::bfloat16& a) { return cinn::common::isnan(a); }
-
-inline bool isinf(const cinn::common::bfloat16& a) { return cinn::common::isinf(a); }
-
-template <>
-struct numeric_limits<cinn::common::bfloat16> {
-  static const bool is_specialized                = true;
-  static const bool is_signed                     = true;
-  static const bool is_integer                    = false;
-  static const bool is_exact                      = false;
-  static const bool has_infinity                  = true;
-  static const bool has_quiet_NaN                 = true;
-  static const bool has_signaling_NaN             = true;
-  static const float_denorm_style has_denorm      = denorm_present;
-  static const bool has_denorm_loss               = false;
-  static const std::float_round_style round_style = std::round_to_nearest;
-  static const bool is_iec559                     = false;
-  static const bool is_bounded                    = false;
-  static const bool is_modulo                     = false;
-  static const int digits                         = 8;
-  static const int digits10                       = 2;
-  static const int max_digits10                   = 9;
-  static const int radix                          = 2;
-  static const int min_exponent                   = -125;
-  static const int min_exponent10                 = -37;
-  static const int max_exponent                   = 128;
-  static const int max_exponent10                 = 38;
-  static const bool traps                         = true;
-  static const bool tinyness_before               = false;
-
-  __host__ __device__ static cinn::common::bfloat16(min)() { return cinn::common::raw_uint16_to_bfloat16(0x007f); }
-  __host__ __device__ static cinn::common::bfloat16 lowest() { return cinn::common::raw_uint16_to_bfloat16(0xff7f); }
-  __host__ __device__ static cinn::common::bfloat16(max)() { return cinn::common::raw_uint16_to_bfloat16(0x7f7f); }
-  __host__ __device__ static cinn::common::bfloat16 epsilon() { return cinn::common::raw_uint16_to_bfloat16(0x3400); }
-  __host__ __device__ static cinn::common::bfloat16 round_error() { return cinn::common::bfloat16(0.5); }
-  __host__ __device__ static cinn::common::bfloat16 infinity() { return cinn::common::raw_uint16_to_bfloat16(0x7f80); }
-  __host__ __device__ static cinn::common::bfloat16 quiet_NaN() { return cinn::common::raw_uint16_to_bfloat16(0xffc1); }
-  __host__ __device__ static cinn::common::bfloat16 signaling_NaN() {
-    return cinn::common::raw_uint16_to_bfloat16(0xff81);
-  }
-  __host__ __device__ static cinn::common::bfloat16 denorm_min() {
-    return cinn::common::raw_uint16_to_bfloat16(0x0001);
-  }
-};
-
-}  // namespace std
 
 #endif  // CINN_COMMON_BFLOAT16_H
