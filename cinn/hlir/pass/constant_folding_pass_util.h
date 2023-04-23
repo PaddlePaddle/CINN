@@ -140,9 +140,9 @@ inline void fold_expand_dims_fill_constant(const FusionHelperBase* helper, Graph
   // create constant op.
   Node* node_tmp = new Node(Operator::Get("fill_constant"), "fill_constant", common::UniqName("fill_constant"));
   int shape_size = shape.size();
-  int axes_size = axes.size();
+  int axes_size  = axes.size();
   int total_size = shape_size + axes_size;
-  // check axes in reasonable range [-total_size, total_size-1] and convert all to [0, total_size-1].
+  // check axes whether in range [-total_size, total_size-1] and convert all to [0, total_size-1].
   axes = utils::GetPositiveAxes(axes, total_size);
   // check axes can't repeat.
   std::sort(axes.begin(), axes.end(), std::less<int>());
