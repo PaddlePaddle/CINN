@@ -16,6 +16,7 @@
 #include <queue>
 
 #include "cinn/hlir/pass/fusion_helper_base.h"
+#include "cinn/utils/functional.h"
 
 namespace cinn {
 namespace hlir {
@@ -135,21 +136,37 @@ inline void fold_expand_dims_fill_constant(const FusionHelperBase* helper, Graph
   auto shape = absl::get<std::vector<int>>(constant_op->attrs.attr_store.at("shape"));
   CHECK(node->attrs.attr_store.count("axes"));
   auto axes = absl::get<std::vector<int>>(node->attrs.attr_store.at("axes"));
+  VLOG(3) << "shape before pass:";
+  for (int i: shape) {
+    VLOG(3) << i;
+  }
+  VLOG(3) << "axes:";
+  for (int i: axes) {
+    VLOG(3) << i;
+  }
 
   // create constant op.
   Node* node_tmp = new Node(Operator::Get("fill_constant"), "fill_constant", common::UniqName("fill_constant"));
+  int shape_size = shape.size();
+  int axes_size = axes.size();
+  int total_size = shape_size + axes_size;
+  // check axes in reasonable range [-total_size, total_size-1] and convert all to [0, total_size-1].
+  axes = utils::GetPositiveAxes(axes, total_size);
   // check axes can't repeat.
   std::sort(axes.begin(), axes.end(), std::less<int>());
-  int axes_size = axes.size();
-  for (int idx = 0; idx < axes_size - 2; ++idx) {
+  for (int idx = 0; idx < axes_size - 1; ++idx) {
     CHECK_NE(axes[idx], axes[idx + 1]);
   }
   // insert 1 to new shape.
-  std::vector<int> n_shape(axes.size() + shape.size(), 1);
+  std::vector<int> n_shape(total_size, 1);
   for (int idx = 0, index = 0; idx < n_shape.size(); ++idx) {
     if (std::find(axes.begin(), axes.end(), idx) == axes.end()) {
       n_shape[idx] = shape[index++];
     }
+  }
+  VLOG(3) << "n_shape after pass:";
+  for (int i: n_shape) {
+    VLOG(3) << i;
   }
 
   // set node attr

@@ -306,5 +306,28 @@ TEST(Constant_Folding, fold_expand_dims_to_fill_constant_2) {
   }
 }
 
+TEST(Constant_Folding, fold_expand_dims_to_fill_constant_3) {
+  NetBuilder net_builder("fold_expand_dims_to_fill_constant_3");
+  // create model
+  int h = 32, w = 32;
+  auto A = net_builder.FillConstant<float>({h, w}, 1.0f, "A");
+  auto B = net_builder.ExpandDims(A, {1, -1});
+  auto C = net_builder.CreateInput(Float(32), {h, 1, w, 1}, "C");
+  auto D = net_builder.CreateInput(Float(32), {h, w}, "D");
+  auto E = net_builder.Add(B, C);
+  auto F = net_builder.Add(A, D);
+
+  auto fetch_ids  = {E->id, F->id};
+  auto input_data = GetInputRandom({C, D});
+  auto program    = net_builder.Build();
+  auto output0    = RunModelTest(program, {"OpFusionPass", "FusionMergePass"}, input_data, fetch_ids);
+  auto output1 = RunModelTest(program, {"ConstantFolding", "OpFusionPass", "FusionMergePass"}, input_data, fetch_ids);
+
+  for (auto& output : output0) {
+    CHECK(output1.count(output.first));
+    CheckOutput<float>(output.second, output1[output.first], 1e-8, 1e-4);
+  }
+}
+
 }  // namespace frontend
 }  // namespace cinn
