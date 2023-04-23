@@ -17,10 +17,11 @@
 #include <iostream>
 #include <limits>
 
+#include "cinn/common/bfloat16.h"
 #include "cinn/common/float16.h"
 
 namespace std {
-// Override the std::is_pod::value for float16
+// Override the std::is_pod::value for float16 and bfloat16
 // The reason is that different compilers implemented std::is_pod based on
 // different C++ standards. float16 class is a plain old data in C++11 given
 // that it is both trivial and standard_layout.
@@ -28,6 +29,8 @@ namespace std {
 // more restricted in that you cannot provide any customized
 // constructor in float16. Hence, we override is_pod here following C++11
 // so that .cu files can be successfully compiled by nvcc.
+
+// for float16
 template <>
 struct is_pod<cinn::common::float16> {
   static const bool value =
@@ -96,11 +99,83 @@ struct numeric_limits<cinn::common::float16> {
   __host__ __device__ static cinn::common::float16 denorm_min() { return cinn::common::raw_uint16_to_float16(0x1); }
 };
 
+// for bfloat16
+template <>
+struct is_pod<cinn::common::bfloat16> {
+  static const bool value =
+      is_trivial<cinn::common::bfloat16>::value && is_standard_layout<cinn::common::bfloat16>::value;
+};
+
+template <>
+struct is_floating_point<cinn::common::bfloat16>
+    : std::integral_constant<
+          bool,
+          std::is_same<cinn::common::bfloat16, typename std::remove_cv<cinn::common::bfloat16>::type>::value> {};
+template <>
+struct is_signed<cinn::common::bfloat16> {
+  static const bool value = true;
+};
+
+template <>
+struct is_unsigned<cinn::common::bfloat16> {
+  static const bool value = false;
+};
+
+inline bool isnan(const cinn::common::bfloat16& a) { return cinn::common::isnan(a); }
+
+inline bool isinf(const cinn::common::bfloat16& a) { return cinn::common::isinf(a); }
+
+template <>
+struct numeric_limits<cinn::common::bfloat16> {
+  static const bool is_specialized                = true;
+  static const bool is_signed                     = true;
+  static const bool is_integer                    = false;
+  static const bool is_exact                      = false;
+  static const bool has_infinity                  = true;
+  static const bool has_quiet_NaN                 = true;
+  static const bool has_signaling_NaN             = true;
+  static const float_denorm_style has_denorm      = denorm_present;
+  static const bool has_denorm_loss               = false;
+  static const std::float_round_style round_style = std::round_to_nearest;
+  static const bool is_iec559                     = false;
+  static const bool is_bounded                    = false;
+  static const bool is_modulo                     = false;
+  static const int digits                         = 8;
+  static const int digits10                       = 2;
+  static const int max_digits10                   = 9;
+  static const int radix                          = 2;
+  static const int min_exponent                   = -125;
+  static const int min_exponent10                 = -37;
+  static const int max_exponent                   = 128;
+  static const int max_exponent10                 = 38;
+  static const bool traps                         = true;
+  static const bool tinyness_before               = false;
+
+  __host__ __device__ static cinn::common::bfloat16(min)() { return cinn::common::raw_uint16_to_bfloat16(0x007f); }
+  __host__ __device__ static cinn::common::bfloat16 lowest() { return cinn::common::raw_uint16_to_bfloat16(0xff7f); }
+  __host__ __device__ static cinn::common::bfloat16(max)() { return cinn::common::raw_uint16_to_bfloat16(0x7f7f); }
+  __host__ __device__ static cinn::common::bfloat16 epsilon() { return cinn::common::raw_uint16_to_bfloat16(0x3400); }
+  __host__ __device__ static cinn::common::bfloat16 round_error() { return cinn::common::bfloat16(0.5); }
+  __host__ __device__ static cinn::common::bfloat16 infinity() { return cinn::common::raw_uint16_to_bfloat16(0x7f80); }
+  __host__ __device__ static cinn::common::bfloat16 quiet_NaN() { return cinn::common::raw_uint16_to_bfloat16(0xffc1); }
+  __host__ __device__ static cinn::common::bfloat16 signaling_NaN() {
+    return cinn::common::raw_uint16_to_bfloat16(0xff81);
+  }
+  __host__ __device__ static cinn::common::bfloat16 denorm_min() {
+    return cinn::common::raw_uint16_to_bfloat16(0x0001);
+  }
+};
+
 }  // namespace std
 
 namespace cinn {
 namespace common {
 inline std::ostream& operator<<(std::ostream& os, const float16& a) {
+  os << std::showpoint << static_cast<float>(a);
+  return os;
+}
+
+inline std::ostream& operator<<(std::ostream& os, const bfloat16& a) {
   os << std::showpoint << static_cast<float>(a);
   return os;
 }
