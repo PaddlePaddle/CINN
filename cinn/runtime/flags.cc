@@ -116,6 +116,10 @@ DEFINE_bool(enhance_vertical_fusion_with_recompute,
             BoolFromEnv("FLAGS_enhance_vertical_fusion_with_recompute", false),
             "Whether to enhance check logic on vertical fusion with recompute");
 
+DEFINE_bool(verbose_function_register,
+            BoolFromEnv("FLAGS_verbose_function_register", false),
+            "Whether to verbose function regist log. This will only work if CINN build with flag -DWITH_DEBUG=ON.");
+
 namespace cinn {
 namespace runtime {
 
