@@ -70,17 +70,63 @@ class TestLeftShiftAll(TestCaseHelper):
         self.class_name = "TestLeftShiftOpCase"
         self.cls = TestLeftShiftOp
         self.inputs = [{
-            "x_shape": [10],
+            "x_shape": [1],
             "y_shape": [1],
         }, {
-            "x_shape": [32, 64],
-            "y_shape": [32, 64],
+            "x_shape": [1024],
+            "y_shape": [1024],
         }, {
-            "x_shape": [3, 32, 64],
-            "y_shape": [3, 1, 64],
+            "x_shape": [512, 256],
+            "y_shape": [512, 256],
         }, {
-            "x_shape": [1, 32, 32, 3],
-            "y_shape": [1, 32, 32, 1],
+            "x_shape": [128, 64, 32],
+            "y_shape": [128, 64, 32],
+        }, {
+            "x_shape": [16, 8, 4, 2],
+            "y_shape": [16, 8, 4, 2],
+        }, {
+            "x_shape": [16, 8, 4, 2, 1],
+            "y_shape": [16, 8, 4, 2, 1],
+        }]
+        self.dtypes = [
+            # {
+            #     "x_dtype": "uint8",
+            #     "y_dtype": "uint8",
+            # },
+            {
+                "x_dtype": "int32",
+                "y_dtype": "int32",
+            },
+            # {
+            #     "x_dtype": "int64",
+            #     "y_dtype": "int64",
+            # },
+        ]
+        self.attrs = []
+
+
+class TestLeftShiftAllWithBroadcast(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestLeftShiftOpCase"
+        self.cls = TestLeftShiftOp
+        self.inputs = [{
+            "x_shape": [1],
+            "y_shape": [1],
+        }, {
+            "x_shape": [1024],
+            "y_shape": [1],
+        }, {
+            "x_shape": [512, 256],
+            "y_shape": [1, 1],
+        }, {
+            "x_shape": [128, 64, 32],
+            "y_shape": [1, 1, 1],
+        }, {
+            "x_shape": [16, 8, 4, 2],
+            "y_shape": [1, 1, 1, 1],
+        }, {
+            "x_shape": [16, 8, 4, 2, 1],
+            "y_shape": [1, 1, 1, 1, 1],
         }]
         self.dtypes = [
             # {
@@ -101,3 +147,4 @@ class TestLeftShiftAll(TestCaseHelper):
 
 if __name__ == "__main__":
     TestLeftShiftAll().run()
+    TestLeftShiftAllWithBroadcast().run()

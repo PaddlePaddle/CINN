@@ -62,13 +62,17 @@ class TestScaleAll(TestCaseHelper):
         self.class_name = "TestScaleOpCase"
         self.cls = TestScaleOp
         self.inputs = [{
+            "x_shape": [1],
+        }, {
             "x_shape": [1024],
         }, {
-            "x_shape": [32, 64],
+            "x_shape": [512, 256],
         }, {
-            "x_shape": [3, 32, 64],
+            "x_shape": [128, 64, 32],
         }, {
-            "x_shape": [1, 32, 32, 3],
+            "x_shape": [16, 8, 4, 2],
+        }, {
+            "x_shape": [16, 8, 4, 2, 1],
         }]
         self.dtypes = [
             # {
@@ -101,32 +105,42 @@ class TestScaleAll(TestCaseHelper):
         self.attrs = [
             {
                 "scale": 0,
-                "bias": 10,
+                "bias": 0,
                 "bias_after_scale": True
             },
             {
-                "scale": 0.5,
-                "bias": -10,
+                "scale": 0,
+                "bias": 0,
                 "bias_after_scale": False
             },
             {
                 "scale": 0.1,
-                "bias": 1,
+                "bias": 10,
                 "bias_after_scale": True
             },
             {
                 "scale": -0.1,
-                "bias": 100,
+                "bias": 10,
                 "bias_after_scale": False
             },
             {
-                "scale": -10,
-                "bias": -100,
+                "scale": 1,
+                "bias": 0,
                 "bias_after_scale": True
             },
             {
-                "scale": 10,
-                "bias": 100,
+                "scale": -1,
+                "bias": 0,
+                "bias_after_scale": False
+            },
+            {
+                "scale": 0,
+                "bias": 10,
+                "bias_after_scale": True
+            },
+            {
+                "scale": 0,
+                "bias": 10,
                 "bias_after_scale": False
             },
         ]

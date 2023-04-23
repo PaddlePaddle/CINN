@@ -61,13 +61,17 @@ class TestRelu6All(TestCaseHelper):
         self.class_name = "TestRelu6OpCase"
         self.cls = TestRelu6Op
         self.inputs = [{
+            "x_shape": [1],
+        }, {
             "x_shape": [1024],
         }, {
-            "x_shape": [32, 64],
+            "x_shape": [512, 256],
         }, {
-            "x_shape": [3, 32, 64],
+            "x_shape": [128, 64, 32],
         }, {
-            "x_shape": [1, 32, 32, 3],
+            "x_shape": [16, 8, 4, 2],
+        }, {
+            "x_shape": [16, 8, 4, 2, 1],
         }]
         self.dtypes = [
             # {
