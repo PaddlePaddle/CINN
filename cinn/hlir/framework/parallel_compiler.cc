@@ -229,7 +229,6 @@ std::unique_ptr<backends::ExecutionEngine> ParallelCompiler::Task::CodegenAndJit
     auto dmodule        = std::get<1>(splited_module);
 
     VLOG(3) << "Host Code:\n" << hmodule;
-
     backends::RuntimeSymbols symbols;
 
     const auto& device_funcs = dmodule.functions();

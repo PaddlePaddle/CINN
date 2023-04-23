@@ -315,6 +315,7 @@ void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& origin_
   WriteToFile(viz_path_ + "grouped_graph.dot", VisualizeGraph(groups, fetch_var_ids));
 
   {
+    // save each group's graphviz dot file
     std::string group_path = viz_path_ + "/groups/";
     if (!MakeDirectory(group_path, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)) {
       LOG_IF(WARNING, viz_id == 0) << "Failed to make directory: \"" << group_path

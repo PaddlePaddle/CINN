@@ -183,11 +183,11 @@ void ExecutionEngine::Link(const ir::Module &module) {
 
   CHECK(AddModule(std::move(m), std::move(ctx)));
 
-  decltype(auto) es = jit_->getExecutionSession();
   if (VLOG_IS_ON(5)) {
     VLOG(5) << "======= dump jit execution session ======";
     std::string buffer;
     llvm::raw_string_ostream os(buffer);
+    decltype(auto) es = jit_->getExecutionSession();
     es.dump(os);
     os.flush();
     VLOG(5) << buffer;
