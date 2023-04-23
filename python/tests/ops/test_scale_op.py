@@ -102,48 +102,39 @@ class TestScaleAll(TestCaseHelper):
                 "x_dtype": "float64",
             },
         ]
-        self.attrs = [
-            {
-                "scale": 0,
-                "bias": 0,
-                "bias_after_scale": True
-            },
-            {
-                "scale": 0,
-                "bias": 0,
-                "bias_after_scale": False
-            },
-            {
-                "scale": 0.1,
-                "bias": 10,
-                "bias_after_scale": True
-            },
-            {
-                "scale": -0.1,
-                "bias": 10,
-                "bias_after_scale": False
-            },
-            {
-                "scale": 1,
-                "bias": 0,
-                "bias_after_scale": True
-            },
-            {
-                "scale": -1,
-                "bias": 0,
-                "bias_after_scale": False
-            },
-            {
-                "scale": 0,
-                "bias": 10,
-                "bias_after_scale": True
-            },
-            {
-                "scale": 0,
-                "bias": 10,
-                "bias_after_scale": False
-            },
-        ]
+        self.attrs = [{
+            "scale": 0,
+            "bias": 0,
+            "bias_after_scale": True
+        }, {
+            "scale": 0,
+            "bias": 0,
+            "bias_after_scale": False
+        }, {
+            "scale": 0.1,
+            "bias": 10,
+            "bias_after_scale": True
+        }, {
+            "scale": -0.1,
+            "bias": 10,
+            "bias_after_scale": False
+        }, {
+            "scale": 1,
+            "bias": 0,
+            "bias_after_scale": True
+        }, {
+            "scale": -1,
+            "bias": 0,
+            "bias_after_scale": False
+        }, {
+            "scale": 0,
+            "bias": 10,
+            "bias_after_scale": True
+        }, {
+            "scale": 0,
+            "bias": 10,
+            "bias_after_scale": False
+        }]
 
 
 if __name__ == "__main__":

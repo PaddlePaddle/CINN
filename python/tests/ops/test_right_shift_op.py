@@ -140,7 +140,7 @@ class TestRightShiftAllWithBroadcast(TestCaseHelper):
             # {
             #     "x_dtype": "int64",
             #     "y_dtype": "int64",
-            # },
+            # }
         ]
         self.attrs = []
 

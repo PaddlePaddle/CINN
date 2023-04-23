@@ -96,33 +96,25 @@ class TestDropoutInferAll(TestCaseHelper):
             "x_shape": [16, 8, 4, 2, 1],
         }]
         # Initialize dtype for test cases
-        self.dtypes = [
-            {
-                "x_dtype": "float32",
-            },
-            {
-                "x_dtype": "float64",
-            },
-        ]
+        self.dtypes = [{
+            "x_dtype": "float32",
+        }, {
+            "x_dtype": "float64",
+        }]
         # Initialize attributes for test cases
-        self.attrs = [
-            {
-                "p": 0.1,
-                "mode": "upscale_in_train"
-            },
-            {
-                "p": 0.5,
-                "mode": "downscale_in_infer"
-            },
-            {
-                "p": 0.7,
-                "mode": "upscale_in_train"
-            },
-            {
-                "p": 0.9,
-                "mode": "downscale_in_infer"
-            },
-        ]
+        self.attrs = [{
+            "p": 0.1,
+            "mode": "upscale_in_train"
+        }, {
+            "p": 0.5,
+            "mode": "downscale_in_infer"
+        }, {
+            "p": 0.7,
+            "mode": "upscale_in_train"
+        }, {
+            "p": 0.9,
+            "mode": "downscale_in_infer"
+        }]
 
 
 if __name__ == "__main__":

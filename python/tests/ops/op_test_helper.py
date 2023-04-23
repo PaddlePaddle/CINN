@@ -15,13 +15,14 @@
 import argparse
 import itertools
 import unittest
+import re
 
 parser = argparse.ArgumentParser(description="Argparse for op test helper")
 parser.add_argument(
     "--case",
-    type=int,
+    type=str,
     help="Which case you want to test, default -1 for all cases.",
-    default=-1)
+    default=None)
 args = parser.parse_args()
 
 
@@ -66,20 +67,27 @@ class TestCaseHelper():
         self.init_attrs()
         self._init_cases()
         self.all_classes = []
-        if args.case >= 0:
+        if args.case is not None:
+            no = int(re.search(r'\d+$', self.specify_test[1]).group(0))
+            assert 0 <= no and no < len(self.all_cases)
             self.all_classes.append(
-                type(f'{self.class_name}{args.case}', (self.cls, ),
-                     {"case": self.all_cases[args.case]}))
+                type(f'{self.__class__.__name__}.{self.class_name}{no}',
+                     (self.cls, ), {"case": self.all_cases[no]}))
         else:
             for i, case in enumerate(self.all_cases):
                 self.all_classes.append(
-                    type(f'{self.class_name}{i}', (self.cls, ),
-                         {"case": case}))
+                    type(f'{self.__class__.__name__}.{self.class_name}{i}',
+                         (self.cls, ), {"case": case}))
 
     def run(self):
         """
         Run all test classes
         """
+        if args.case is not None:
+            self.specify_test = args.case.split('.')
+            assert len(self.specify_test) is 2
+            if self.__class__.__name__ != self.specify_test[0]:
+                return
         self._make_all_classes()
         test_suite = unittest.TestSuite()
         test_loader = unittest.TestLoader()
