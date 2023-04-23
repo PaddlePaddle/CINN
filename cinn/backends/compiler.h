@@ -18,6 +18,7 @@
 
 #include <fstream>
 #include <memory>
+#include <mutex>
 #include <string>
 
 #include "cinn/backends/llvm/codegen_llvm.h"
@@ -45,6 +46,7 @@ class SourceCodePrint {
   ~SourceCodePrint();
 
   std::ofstream of;
+  std::mutex mtx_;
 };
 
 class Compiler final {
