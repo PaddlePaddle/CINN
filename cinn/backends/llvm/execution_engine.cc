@@ -183,28 +183,28 @@ void ExecutionEngine::Link(const ir::Module &module) {
 
   CHECK(AddModule(std::move(m), std::move(ctx)));
 
-  decltype(auto) es = jit_->getExecutionSession();
-  if (false) {
-    VLOG(3) << "======= dump jit execution session ======";
+  if (VLOG_IS_ON(5)) {
+    VLOG(5) << "======= dump jit execution session ======";
     std::string buffer;
     llvm::raw_string_ostream os(buffer);
+    decltype(auto) es = jit_->getExecutionSession();
     es.dump(os);
     os.flush();
-    VLOG(3) << buffer;
+    VLOG(5) << buffer;
   }
 }
 
 bool ExecutionEngine::AddModule(std::unique_ptr<llvm::Module> module, std::unique_ptr<llvm::LLVMContext> context) {
   utils::RecordEvent("ExecutionEngine AddModule", utils::EventType::kOrdinary);
   module->setDataLayout(jit_->getDataLayout());
-  if (false) {
-    VLOG(3) << "======= dump jit lib ==========";
+  if (VLOG_IS_ON(5)) {
+    VLOG(5) << "======= dump jit lib ==========";
     std::string buffer;
     llvm::raw_string_ostream os(buffer);
     module->print(os, {});
     // main_jd_->dump(os);
     os.flush();
-    VLOG(3) << buffer;
+    VLOG(5) << buffer;
   }
   llvm::orc::ThreadSafeContext tsc(std::move(context));
   llvm::orc::ThreadSafeModule tsm(std::move(module), std::move(tsc));
