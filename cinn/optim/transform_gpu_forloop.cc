@@ -232,6 +232,7 @@ class CollectTensorLoopVisitor : public ir::IRMutator<> {
   void Visit(const ir::Store *op, Expr *expr) override {
     store_buffer_loop_map_[op->tensor.as_tensor_ref()->name] = loops_;
     stores_.push_back(*expr);
+    IRMutator::Visit(op, expr);
   }
 
   void Visit(const ir::Load *op, Expr *expr) override {
@@ -245,7 +246,12 @@ class CollectTensorLoopVisitor : public ir::IRMutator<> {
     } else {
       load_buffer_loop_map_[tensor->name] = {loops_};
     }
-    loads_.push_back(*expr);
+    if (load_map_.count(tensor->name)) {
+      load_map_[tensor->name].push_back(*expr);
+    } else {
+      load_map_[tensor->name] = {*expr};
+    }
+    IRMutator::Visit(op, expr);
   }
 
   void Visit(const ir::For *op, Expr *expr) override {
@@ -257,20 +263,21 @@ class CollectTensorLoopVisitor : public ir::IRMutator<> {
   void Visit(const ir::PolyFor *op, Expr *expr) override { LOG(FATAL) << "Unkown PolyFor!"; }
 
  public:
-  std::vector<ir::Expr> stores_;
-  std::vector<ir::Expr> loads_;
   std::vector<ir::Expr> loops_;
 
+  std::vector<ir::Expr> stores_;
   std::unordered_map<std::string, LOOPS> store_buffer_loop_map_;
+
+  std::unordered_map<std::string, std::vector<ir::Expr>> load_map_;
   std::unordered_map<std::string, std::vector<LOOPS>> load_buffer_loop_map_;
 };
 
-void UpdateBufferSizePass(ir::Expr *expr) {
+void UpdateBufferAxisPass(ir::Expr *expr) {
   CollectTensorLoopVisitor collect_tensor_loop_visitor;
   collect_tensor_loop_visitor(expr);
 
   auto &stores          = collect_tensor_loop_visitor.stores_;
-  auto &loads           = collect_tensor_loop_visitor.loads_;
+  auto &load_map        = collect_tensor_loop_visitor.load_map_;
   auto &store_loops_map = collect_tensor_loop_visitor.store_buffer_loop_map_;
   auto &load_loops_map  = collect_tensor_loop_visitor.load_buffer_loop_map_;
 
@@ -286,8 +293,10 @@ void UpdateBufferSizePass(ir::Expr *expr) {
       continue;
     }
 
+    auto loads        = load_map[store_tensor->name];
     auto store_loops  = store_loops_map[store_tensor->name];
     auto load_loops_v = load_loops_map[store_tensor->name];
+    CHECK_EQ(loads.size(), load_loops_v.size());
 
     int count = 0;
     for (auto load_loops : load_loops_v) {
@@ -298,18 +307,77 @@ void UpdateBufferSizePass(ir::Expr *expr) {
         }
       }
     }
+
+    auto get_thread_bind_var = [](const std::vector<ir::Expr> &loops) {
+      // threadidx loop_var,extent.
+      using ThreadLoopVarExtentMap = std::unordered_map<std::string, std::pair<std::string, int>>;
+      ThreadLoopVarExtentMap thread_loop_var_exent_map;
+      for (auto loop : loops) {
+        auto loop_ir = loop.As<ir::For>();
+        CHECK(loop_ir);
+        if (loop_ir->is_gpu_thread_binded()) {
+          std::string axis = "";
+          if (loop_ir->bind_info().offset == 0) {
+            axis = "threadIdx.x";
+          } else if (loop_ir->bind_info().offset == 1) {
+            axis = "threadIdx.y";
+          } else {
+            axis = "threadIdx.z";
+          }
+          // insert gpu thread loop var.
+          if (thread_loop_var_exent_map.count(axis)) {
+            auto &loop_var_extent = thread_loop_var_exent_map[axis];
+            if (loop_var_extent.second >= loop_ir->extent.as_int32()) {
+              thread_loop_var_exent_map[axis] = std::make_pair(loop_ir->loop_var->name, loop_ir->extent.as_int32());
+            }
+          } else {
+            thread_loop_var_exent_map[axis] = std::make_pair(loop_ir->loop_var->name, loop_ir->extent.as_int32());
+          }
+        }
+      }
+
+      std::unordered_set<std::string> loop_var_map;
+      for (auto &tmp : thread_loop_var_exent_map) {
+        loop_var_map.insert(tmp.second.first);
+      }
+
+      return loop_var_map;
+    };
+    // find store and load keep loop for shared
+    std::unordered_set<std::string> store_keep_loop_var;
+    std::vector<std::unordered_set<std::string>> load_keep_loop_vars;
+    if (store_tensor->buffer->memory_type == ir::MemoryType::GPUShared) {
+      store_keep_loop_var = get_thread_bind_var(store_loops);
+      for (auto &load_loops : load_loops_v) {
+        load_keep_loop_vars.push_back(get_thread_bind_var(load_loops));
+      }
+    }
+
+    // find threadIdx bind for loop.
     for (int idx = 0; idx < count; ++idx) {
       auto loop_expr = store_loops[idx];
       auto loop_ir   = loop_expr.As<ir::For>();
       auto loop_var  = loop_ir->loop_var;
-
-      optim::ReplaceVarWithExpr(&expr, loop_var, ir::Expr(0));
-      for (auto tmp : loads) {
-        auto load = tmp.As<ir::Load>();
-        if (load->tensor.as_tensor_ref()->name != store_tensor->name) {
-          continue;
+      // if var is bind to gpu thread.
+      if (!store_keep_loop_var.count(loop_var->name)) {
+        VLOG(3) << store_tensor->name << " store to replace " << loop_var->name << " to [0].";
+        for (auto &indice : store->indices) {
+          optim::ReplaceVarWithExpr(&indice, loop_var, ir::Expr(0));
+          indice = common::AutoSimplify(indice);
         }
-        optim::ReplaceVarWithExpr(&tmp, loop_var, ir::Expr(0));
+      }
+
+      for (int idx = 0; idx < loads.size(); ++idx) {
+        auto load = loads[idx].As<ir::Load>();
+        CHECK_EQ(load->tensor.as_tensor_ref()->name, store_tensor->name);
+        // if var is bind to gpu thread.
+        if (load_keep_loop_vars.size() && !load_keep_loop_vars[idx].count(loop_var->name)) {
+          VLOG(3) << store_tensor->name << " load to replace " << loop_var->name << " to [0].";
+          for (auto &indice : load->indices) {
+            optim::ReplaceVarWithExpr(&indice, loop_var, ir::Expr(0));
+            indice = common::AutoSimplify(indice);
+          }
+        }
       }
     }
   }
@@ -327,10 +395,12 @@ class SharedBufferVisitor : public ir::IRMutator<> {
     }
 
     if (store->tensor.as_tensor_ref()->buffer->memory_type == ir::MemoryType::GPUShared) {
-      for (auto axis : gpu_axis) {
-        optim::ReplaceVarWithExpr(expr, ir::Var(axis), ir::Expr(0));
+      for (auto &indice : store->indices) {
+        for (auto axis : gpu_axis) {
+          optim::ReplaceVarWithExpr(&indice, ir::Var(axis), ir::Expr(0));
+        }
+        indice = common::AutoSimplify(indice);
       }
-      *expr = common::AutoSimplify(*expr);
     }
   }
 
@@ -344,10 +414,12 @@ class SharedBufferVisitor : public ir::IRMutator<> {
     }
 
     if (load->tensor.as_tensor_ref()->buffer->memory_type == ir::MemoryType::GPUShared) {
-      for (auto axis : gpu_axis) {
-        optim::ReplaceVarWithExpr(expr, ir::Var(axis), ir::Expr(0));
+      for (auto &indice : load->indices) {
+        for (auto axis : gpu_axis) {
+          optim::ReplaceVarWithExpr(&indice, ir::Var(axis), ir::Expr(0));
+        }
+        indice = common::AutoSimplify(indice);
       }
-      *expr = common::AutoSimplify(*expr);
     }
   }
 
@@ -441,16 +513,16 @@ class ResizeBufferSizeVisitor : public ir::IRMutator<> {
 
 void OptimizeExprGPU(Expr *expr) {
   VLOG(3) << "Before Optimize Expr:\n" << *expr;
-  // replace var name with block/thread
-  ReplaceLoopVarToGpu replace_loop_var_to_gpu;
-  replace_loop_var_to_gpu(expr);
-
   // replace var to bind expr
   ReplaceIndexToBindExpr replace_index_to_bind_expr;
   replace_index_to_bind_expr(expr);
 
-  // resize buffer size
-  UpdateBufferSizePass(expr);
+  // resize buffer axis
+  UpdateBufferAxisPass(expr);
+
+  // replace var name with block/thread
+  ReplaceLoopVarToGpu replace_loop_var_to_gpu;
+  replace_loop_var_to_gpu(expr);
 
   // resize shared buffer size
   SharedBufferVisitor shared_buffer_visitor;
