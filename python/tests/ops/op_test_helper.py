@@ -67,7 +67,7 @@ class TestCaseHelper():
         self.init_attrs()
         self._init_cases()
         self.all_classes = []
-        if len(self.specify_test) is not 0:
+        if args.case is not None:
             for test_name in self.specify_test:
                 no = int(re.search(r'\d+$', test_name).group(0))
                 assert 0 <= no and no < len(self.all_cases)
