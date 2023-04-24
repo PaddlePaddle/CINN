@@ -18,6 +18,7 @@
 #include <sstream>
 
 #include "cinn/hlir/framework/visualize_helper.h"
+#include "cinn/runtime/flags.h"
 #include "cinn/utils/string.h"
 
 DECLARE_string(cinn_fusion_groups_graphviz_dir);
@@ -275,34 +276,58 @@ void Graph::VisualizeGroupedGraph(const std::unordered_set<std::string>& fetch_v
 
 void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& origin_groups,
                                   const std::unordered_set<std::string>& fetch_var_ids) {
-  if (FLAGS_cinn_fusion_groups_graphviz_dir.empty()) {
+  if (cinn::runtime::CheckStringFlagFalse(FLAGS_cinn_fusion_groups_graphviz_dir)) {
     return;
+  }
+
+  int viz_id = viz_count_.fetch_add(1);
+  {
+    // create base Directory
+    viz_path_ = utils::StringFormat("%s/fusion_groups_%d/", FLAGS_cinn_fusion_groups_graphviz_dir.c_str(), viz_id);
+    if (!MakeDirectory(viz_path_, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)) {
+      LOG_IF(WARNING, viz_id == 0) << "Failed to make directory: \"" << viz_path_
+                                   << "\", the CINN subgraph's fusion group information will not print.";
+      viz_path_.clear();
+      return;
+    }
+    LOG_IF(INFO, viz_id == 0) << "The CINN subgraph's fusion group information will writing into path: \""
+                              << FLAGS_cinn_fusion_groups_graphviz_dir << "\"";
   }
 
   const auto& groups = RemoveAccCheckGroups(origin_groups);
-
-  int viz_id = viz_count_.fetch_add(1);
-  viz_path_  = utils::StringFormat("%s/fusion_groups_%d/", FLAGS_cinn_fusion_groups_graphviz_dir.c_str(), viz_id);
-  if (!MakeDirectory(viz_path_, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)) {
-    LOG_IF(WARNING, viz_id == 0) << "Failed to make directory: \"" << viz_path_
-                                 << "\", the CINN subgraph's fusion group information will not print.";
-    return;
-  }
-  LOG_IF(INFO, viz_id == 0) << "The CINN subgraph's fusion group information will writing into path: \""
-                            << FLAGS_cinn_fusion_groups_graphviz_dir << "\"";
-
-  for (int i = 0; i < groups.size(); i++) {
-    WriteToFile(viz_path_ + "test_group_" + std::to_string(i) + ".py",
-                GenerateGroupPythonCode(groups[i], fetch_var_ids));
+  {
+    // save python test file
+    std::string py_test_path = viz_path_ + "/tests/";
+    if (!MakeDirectory(py_test_path, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)) {
+      LOG_IF(WARNING, viz_id == 0) << "Failed to make directory: \"" << py_test_path
+                                   << "\", the CINN subgraph's python test file will not generate.";
+      py_test_path.clear();
+    }
+    if (!py_test_path.empty()) {
+      for (int i = 0; i < groups.size(); i++) {
+        WriteToFile(py_test_path + "test_group_" + std::to_string(i) + ".py",
+                    GenerateGroupPythonCode(groups[i], fetch_var_ids));
+      }
+    }
   }
 
   Summary(groups, viz_path_);
-
   WriteToFile(viz_path_ + "grouped_graph.dot", VisualizeGraph(groups, fetch_var_ids));
 
-  const auto& group_dots = VisualizeGroups(groups, fetch_var_ids);
-  for (int i = 0; i < group_dots.size(); ++i) {
-    WriteToFile(GetFilePathForGroup(groups, i, viz_path_), group_dots[i]);
+  {
+    // save each group's graphviz dot file
+    std::string group_path = viz_path_ + "/groups/";
+    if (!MakeDirectory(group_path, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)) {
+      LOG_IF(WARNING, viz_id == 0) << "Failed to make directory: \"" << group_path
+                                   << "\", the CINN subgraph's group graphviz file will not save.";
+      group_path.clear();
+    }
+    if (!group_path.empty()) {
+      const auto& group_dots = VisualizeGroups(groups, fetch_var_ids);
+      for (int i = 0; i < group_dots.size(); ++i) {
+        WriteToFile(GetFilePathForGroup(groups, i, group_path), group_dots[i]);
+      }
+    }
   }
 }
 
@@ -467,6 +492,21 @@ std::unordered_set<NodeData*> Graph::Group::GetOutputNodeDatas() {
   }
 
   return group_outputs;
+}
+
+void Graph::SaveSourceCode(const std::string& code) {
+  if (cinn::runtime::CheckStringFlagFalse(FLAGS_cinn_fusion_groups_graphviz_dir) || viz_path_.empty()) {
+    return;
+  }
+  WriteToFile(viz_path_ + "source_code.cu", code);
+}
+
+void Graph::SavePTXCode(const std::string& ptx) {
+  if (cinn::runtime::CheckStringFlagFalse(FLAGS_cinn_fusion_groups_graphviz_dir) || viz_path_.empty()) {
+    return;
+  }
+
+  WriteToFile(viz_path_ + "source_code.ptx", ptx);
 }
 
 }  // namespace framework

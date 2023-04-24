@@ -35,10 +35,8 @@ void UniformRandomOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperCon
   auto diag_step = utils::GetAttrOrDefault<int>(op_desc, "diag_step", 0);
   auto diag_val  = utils::GetAttrOrDefault<float>(op_desc, "diag_val", 1.0f);
 
-  auto dtype_id = utils::GetAttrOrDefault<int>(op_desc, "dtype", static_cast<int>(paddle::cpp::VarDescAPI::Type::FP32));
-  auto dtype_pd = static_cast<paddle::cpp::VarDescAPI::Type>(dtype_id);
-  auto dtype_cinn = utils::CppVarType2CommonType(dtype_pd);
-  auto dtype      = common::Type2Str(dtype_cinn);
+  auto dtype = utils::GetPaddleDtype(op_desc, "dtype", paddle::cpp::VarDescAPI::Type::FP32);
+  CHECK(!dtype.empty()) << "The op \"uniform_random\"'s attribute \"dtype\" should not be unknown type! Please check.";
 
   VLOG(4) << out_name << "[" << cinn::utils::Join(shape, ", ") << "] = uniform_random(min=" << min << ", max=" << max
           << ", seed=" << seed << ", dtype=" << dtype << ", shape=[" << cinn::utils::Join(shape, ", ") << "])";

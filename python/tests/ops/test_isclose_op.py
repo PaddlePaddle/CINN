@@ -32,7 +32,7 @@ class TestIsCloseOp(OpTest):
         self.init_case()
 
     def init_case(self):
-        self.inputs = {"x": np.random.random((16, 16)).astype("float32")}
+        self.inputs = {"x": self.random([16, 16], "float32")}
         self.inputs['y'] = self.inputs["x"]
         self.rtol = 1e-05
         self.atol = 1e-08
@@ -41,6 +41,11 @@ class TestIsCloseOp(OpTest):
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.inputs["x"], stop_gradient=False)
         y = paddle.to_tensor(self.inputs["y"], stop_gradient=False)
+
+        shape = paddle.broadcast_shape(x.shape, y.shape)
+        x = paddle.broadcast_to(x, shape)
+        y = paddle.broadcast_to(y, shape)
+
         out = paddle.isclose(x, y, self.rtol, self.atol, self.equal_nan)
         self.paddle_outputs = [out]
 
@@ -63,8 +68,8 @@ class TestIsCloseOp(OpTest):
 class TestIsCloseOpCase1(TestIsCloseOp):
     def init_case(self):
         self.inputs = {
-            "x": np.random.random((16, 16)).astype("float32"),
-            "y": np.random.random((16, 16)).astype("float32")
+            "x": self.random([16, 16], "float32"),
+            "y": self.random([16, 16], "float32")
         }
         self.rtol = 1e-05
         self.atol = 1e-08
@@ -75,7 +80,7 @@ class TestIsCloseOpCase2(TestIsCloseOp):
     def init_case(self):
         self.inputs = {
             "x": np.array([np.nan] * 32).astype("float32"),
-            "y": np.random.random((32)).astype("float32")
+            "y": self.random([32], "float32")
         }
         self.rtol = 1e-05
         self.atol = 1e-08
@@ -91,6 +96,17 @@ class TestIsCloseOpCase3(TestIsCloseOp):
         self.rtol = 1e-05
         self.atol = 1e-08
         self.equal_nan = True
+
+
+class TestIsCloseOpCase4(TestIsCloseOp):
+    def init_case(self):
+        self.inputs = {
+            "x": self.random([16, 16], "float32"),
+            "y": self.random([1], "float32")
+        }
+        self.rtol = 1e-05
+        self.atol = 1e-08
+        self.equal_nan = False
 
 
 if __name__ == "__main__":

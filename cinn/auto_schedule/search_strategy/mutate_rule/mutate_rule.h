@@ -22,7 +22,7 @@ namespace auto_schedule {
 
 /**
  * Base class for rules of mutate,
- * is used to mutate the trace(ScheduleDesc) to explore the search space.
+ * is used for mutating the trace(ScheduleDesc) to explore the search space.
  */
 class MutateRule {
  public:

@@ -266,10 +266,8 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
 #endif
   utils::ProfilerRangePop();
 
-  if (!FLAGS_cinn_self_check_accuracy.empty()) {
-    if (!cinn::runtime::CheckStringFlagFalse(FLAGS_cinn_self_check_accuracy)) {
-      CheckResults(name2podargs, stream);
-    }
+  if (!cinn::runtime::CheckStringFlagFalse(FLAGS_cinn_self_check_accuracy)) {
+    CheckResults(name2podargs, stream);
   }
   // TODO(thisjiang): revert while flags correct
   //   if (FLAGS_cinn_sync_run) {
