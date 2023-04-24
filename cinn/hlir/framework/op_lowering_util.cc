@@ -272,6 +272,7 @@ std::unordered_map<Node*, Node*> BuildVirtualConsumer(const GroupPtr& group,
         auto reducer = FindReducerInRoute(producer, nodes_set, GetConsumersInSet);
         if (reducer) {
           virtual_consumers[t_node] = reducer;
+          found                     = true;
           break;
         }
         candidates.push(producer);
