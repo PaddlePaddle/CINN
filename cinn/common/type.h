@@ -46,6 +46,19 @@ struct Type {
     Customized,  // Customized type
   };
 
+  // CINN use type_t and bits to distinguish data types, like is_float(64) for double,
+  // is_float(32) for float, but for Float16 and BFloat16, the bits are both 16, so we need
+  // some other info to distinguish them.
+  enum class specific_type_t {
+    // None for some cases we only care about the bits, e.g. vectorize for hardwares
+    None = -1,
+    FP16,
+    BF16,
+    // for FP8 in future
+    // E5M2,
+    // E4M3,
+  };
+
   //! type decorators in C++, the different code can used together.
   enum class cpp_type_t : uint8_t {
     None         = 0,       // None information.
@@ -55,7 +68,7 @@ struct Type {
   };
 
   Type();
-  Type(type_t t, int b, int w);
+  Type(type_t t, int b, int w, specific_type_t st = specific_type_t::None);
   Type(const Type& other);
   explicit Type(Type&& other);
   Type& operator=(const Type& other);
@@ -71,7 +84,7 @@ struct Type {
   CINN_NODISCARD bool is_bool() const;
   CINN_NODISCARD bool is_vector() const;
   CINN_NODISCARD bool is_scalar() const;
-  CINN_NODISCARD bool is_float(int bits = -1) const;
+  CINN_NODISCARD bool is_float(int bits = -1, specific_type_t st = specific_type_t::None) const;
   CINN_NODISCARD bool is_int(int bits = -1) const;
   CINN_NODISCARD bool is_integer(int bits = -1) const;
   CINN_NODISCARD bool is_uint(int bits = -1) const;
@@ -104,6 +117,7 @@ struct Type {
   //! Getters
   // @{
   type_t type() const;
+  specific_type_t specific_type() const;
   int bits() const;
   int lanes() const;
   cpp_type_t cpp_type() const;
@@ -146,12 +160,19 @@ struct Type {
 inline Type Void() { return Type(Type::type_t ::Void, 1, 0); }
 inline Type Int(int bits, int lanes = 1) { return Type(Type::type_t ::Int, bits, lanes); }
 inline Type UInt(int bits, int lanes = 1) { return Type(Type::type_t ::UInt, bits, lanes); }
-inline Type Float(int bits, int lanes = 1) { return Type(Type::type_t ::Float, bits, lanes); }
+inline Type Float(int bits, int lanes = 1, Type::specific_type_t st = Type::specific_type_t::None) {
+  if (bits == 16) {
+    CHECK(st == Type::specific_type_t::FP16 || st == Type::specific_type_t::BF16)
+        << "When creating a 16 bits Float, the specific_type_t must be FP16 or BF16.";
+  }
+  return Type(Type::type_t ::Float, bits, lanes, st);
+}
 inline Type Bool(int lanes = 1) { return Type(Type::type_t ::UInt, 1, lanes); }
 inline Type String() { return Type(Type::type_t::String, 1, 1); }
 
 //! Builtin native types as global singletons.
 // @{
+const Type& BF16();
 const Type& F16();
 const Type& F32();
 const Type& F64();
@@ -173,6 +194,7 @@ Type type_of();
 // clang-format off
 template <> inline Type type_of<void>() { return Void(); }
 
+template <> inline Type type_of<bfloat16>() { return BF16(); }
 template <> inline Type type_of<float16>() { return F16(); }
 template <> inline Type type_of<float>() { return F32(); }
 template <> inline Type type_of<double>() { return F64(); }
@@ -216,6 +238,12 @@ template <>
 inline Type type_of<void**>() {
   Type x = type_of<void>();
   x.set_cpp_handle2();
+  return x;
+}
+template <>
+inline Type type_of<bfloat16*>() {
+  Type x = type_of<float16>();
+  x.set_cpp_handle();
   return x;
 }
 template <>
