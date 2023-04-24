@@ -679,7 +679,7 @@ class FusionMergePassHelper : public FusionHelperBase {
           continue;
         }
 
-        if (consumer->op_pattern_kind == framework::kReduction &&
+        if (producer->op_pattern_kind != framework::kInjective && consumer->op_pattern_kind == framework::kReduction &&
             producer_output_numel == consumer_master_input_numel) {
           candidates.push_back(consumer);
         }
