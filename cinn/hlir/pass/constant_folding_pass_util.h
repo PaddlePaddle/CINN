@@ -16,6 +16,7 @@
 #include <queue>
 
 #include "cinn/hlir/pass/fusion_helper_base.h"
+#include "cinn/utils/functional.h"
 
 namespace cinn {
 namespace hlir {
@@ -138,14 +139,18 @@ inline void fold_expand_dims_fill_constant(const FusionHelperBase* helper, Graph
 
   // create constant op.
   Node* node_tmp = new Node(Operator::Get("fill_constant"), "fill_constant", common::UniqName("fill_constant"));
+  int shape_size = shape.size();
+  int axes_size  = axes.size();
+  int total_size = shape_size + axes_size;
+  // check axes whether in range [-total_size, total_size-1] and convert all to [0, total_size-1].
+  axes = utils::GetPositiveAxes(axes, total_size);
   // check axes can't repeat.
   std::sort(axes.begin(), axes.end(), std::less<int>());
-  int axes_size = axes.size();
-  for (int idx = 0; idx < axes_size - 2; ++idx) {
+  for (int idx = 0; idx < axes_size - 1; ++idx) {
     CHECK_NE(axes[idx], axes[idx + 1]);
   }
   // insert 1 to new shape.
-  std::vector<int> n_shape(axes.size() + shape.size(), 1);
+  std::vector<int> n_shape(total_size, 1);
   for (int idx = 0, index = 0; idx < n_shape.size(); ++idx) {
     if (std::find(axes.begin(), axes.end(), idx) == axes.end()) {
       n_shape[idx] = shape[index++];
