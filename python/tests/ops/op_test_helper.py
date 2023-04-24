@@ -67,12 +67,13 @@ class TestCaseHelper():
         self.init_attrs()
         self._init_cases()
         self.all_classes = []
-        if args.case is not None:
-            no = int(re.search(r'\d+$', self.specify_test[1]).group(0))
-            assert 0 <= no and no < len(self.all_cases)
-            self.all_classes.append(
-                type(f'{self.__class__.__name__}.{self.class_name}{no}',
-                     (self.cls, ), {"case": self.all_cases[no]}))
+        if len(self.specify_test) is not 0:
+            for test_name in self.specify_test:
+                no = int(re.search(r'\d+$', test_name).group(0))
+                assert 0 <= no and no < len(self.all_cases)
+                self.all_classes.append(
+                    type(f'{self.__class__.__name__}.{self.class_name}{no}',
+                         (self.cls, ), {"case": self.all_cases[no]}))
         else:
             for i, case in enumerate(self.all_cases):
                 self.all_classes.append(
@@ -84,9 +85,14 @@ class TestCaseHelper():
         Run all test classes
         """
         if args.case is not None:
-            self.specify_test = args.case.split('.')
-            assert len(self.specify_test) is 2
-            if self.__class__.__name__ != self.specify_test[0]:
+            self.specify_test = []
+            all_tests = args.case.split(',')
+            for test in all_tests:
+                test_info = test.split('.')
+                assert len(test_info) is 2
+                if self.__class__.__name__ == test_info[0]:
+                    self.specify_test.append(test_info[1])
+            if len(self.specify_test) is 0:
                 return
         self._make_all_classes()
         test_suite = unittest.TestSuite()
