@@ -293,11 +293,11 @@ std::shared_ptr<OpStrategy> StrategyForFillConstant(const framework::NodeAttr &a
     CHECK(attrs.attr_store.count("force_cpu"));
     force_cpu = absl::get<bool>(attrs.attr_store.at("force_cpu"));
 
-#ifdef CINN_WITH_CUDA
     if (force_cpu && target != common::DefaultHostTarget()) {
-      LOG(WARNING) << "[force_cpu] not supported in CINN! The output will placed on device.";
+      LOG(WARNING) << "The attribute \"force_cpu\" of \"fill_constant\" not supported in CINN! The \"fill_constant\"'s "
+                      "output tensot will placed on "
+                   << target;
     }
-#endif
 
     CINNValuePack arg_pack  = args[0];
     std::string tensor_name = UniqName("fill_constant_Out");

@@ -303,7 +303,8 @@ struct Expr : public IrNodeRef {
   explicit Expr(uint32_t x) : IrNodeRef(new UIntImm(UInt(32), x)) {}
   explicit Expr(uint64_t x) : IrNodeRef(new UIntImm(UInt(64), x)) {}
 
-  explicit Expr(cinn::common::float16 x) : IrNodeRef(new FloatImm(Float(16), x)) {}
+  explicit Expr(cinn::common::float16 x)
+      : IrNodeRef(new FloatImm(Float(16, 1, common::Type::specific_type_t::FP16), x)) {}
   explicit Expr(float x) : IrNodeRef(new FloatImm(Float(32), x)) {}
   explicit Expr(double x) : IrNodeRef(new FloatImm(Float(64), x)) {}
 

@@ -50,6 +50,7 @@ SourceCodePrint::~SourceCodePrint() {
 }
 
 void SourceCodePrint::write(const std::string& source_code) {
+  std::lock_guard<std::mutex> guard(mtx_);
   if (of.is_open()) {
     of << source_code << std::endl;
   } else if (!FLAGS_cinn_source_code_save_path.empty()) {

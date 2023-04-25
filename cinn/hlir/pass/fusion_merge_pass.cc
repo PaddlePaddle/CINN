@@ -630,13 +630,6 @@ class FusionMergePassHelper : public FusionHelperBase {
 
   void RecomputeWithCostModel(const GroupPtr& producer,
                               std::unordered_set<GroupPtr, Hasher, Comparator>& fusionable_consumers) {
-    if (FLAGS_enhance_vertical_fusion_with_recompute && producer->op_pattern_kind == framework::kInjective) {
-      // TODO(CtfGo):if producer is Injective, we disable vertical fusion with all following consumers currently,
-      // and it should be designed more carefully to filter some valid fusionable consumers.
-      fusionable_consumers.clear();
-      return;
-    }
-
     // if is const op
     if (is_const_group(this, producer)) {
       std::unordered_set<GroupPtr, Hasher, Comparator> candidates;
@@ -695,7 +688,7 @@ class FusionMergePassHelper : public FusionHelperBase {
           continue;
         }
 
-        if (consumer->op_pattern_kind == framework::kReduction &&
+        if (producer->op_pattern_kind != framework::kInjective && consumer->op_pattern_kind == framework::kReduction &&
             producer_output_numel == consumer_master_input_numel) {
           candidates.push_back(consumer);
         }

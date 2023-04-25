@@ -45,7 +45,7 @@ namespace cinn {
 namespace ir {
 
 /**
- * A struct helps to implment Schedule primitives.
+ * A struct helps to implement Schedule primitives.
  */
 class ScheduleImpl {
  public:
@@ -79,9 +79,9 @@ class ScheduleImpl {
   Expr Fuse(const std::vector<Expr>& loops);
   Expr Fuse(const std::string& block_name, const std::vector<int>& loops_index);
   Expr Fuse(const Expr& block, const std::vector<int>& loops_index);
-  void ComputeAt(const Expr& block, const Expr& loop);
+  void ComputeAt(const Expr& block, const Expr& loop, bool keep_unit_loops);
   void SimpleComputeAt(const Expr& block, const Expr& loop);
-  void ReverseComputeAt(const Expr& block, const Expr& loop);
+  void ReverseComputeAt(const Expr& block, const Expr& loop, bool keep_unit_loops);
   Expr GetRootBlock(const Expr& expr) const;
   Expr CacheRead(const Expr& block, int read_buffer_index, const std::string& memory_type);
   Expr CacheWrite(const Expr& block, int write_buffer_index, const std::string& memory_type);
@@ -96,6 +96,7 @@ class ScheduleImpl {
   void Vectorize(const Expr& loop, int factor);
   void Unroll(const Expr& loop);
   void ComputeInline(const Expr& schedule_block);
+  void ReverseComputeInline(const Expr& schedule_block);
   void Bind(const Expr& loop, const std::string& thread_axis);
   Expr Rfactor(const Expr& rf_loop, int rf_axis);
   Expr AddUnitLoop(const Expr& block) const;
@@ -972,7 +973,7 @@ struct LoopReconstructor : public ir::IRMutator<> {
    *        - `index = -1` means inserted into the tail
    *        - otherwise, it should be a index between [0, stmts size)
    */
-  std::string MakeNewLoop(const std::vector<IterRange>& iter_ranges, int inserted_pos = -1) {
+  std::string MakeNewLoop(const std::vector<IterRange>& iter_ranges, bool keep_unit_loops, int inserted_pos = -1) {
     int n_iters = iter_ranges.size();
     std::vector<Var> loop_vars;
     std::vector<Expr> loop_extents;
@@ -983,7 +984,7 @@ struct LoopReconstructor : public ir::IRMutator<> {
     std::vector<std::string> new_var_names;
     for (int i = 0; i < n_iters; ++i) {
       const auto& range = iter_ranges[i];
-      if (range.extent != Expr(1)) {
+      if (keep_unit_loops || range.extent != Expr(1)) {
         std::string var_name = common::UniqName("ax" + std::to_string(loop_vars.size()));
         new_var_names.push_back(var_name);
         Var var(var_name, Int(32));
@@ -1137,7 +1138,7 @@ void ScheduleImpl::MergeExprs() {
   this->SetExprs(exprs);
 }
 
-void ScheduleImpl::ComputeAt(const Expr& block, const Expr& loop) {
+void ScheduleImpl::ComputeAt(const Expr& block, const Expr& loop, bool keep_unit_loops) {
   CHECK(block.As<ir::ScheduleBlockRealize>());
   CHECK(loop.As<ir::For>());
   Expr root      = this->GetRootBlock(block);
@@ -1148,7 +1149,7 @@ void ScheduleImpl::ComputeAt(const Expr& block, const Expr& loop) {
   LeafBlockRemovalPlan remove_plan(block, &reconstructor.source_expr, &reconstructor.target_expr);
   remove_plan(&root);
   auto iter_ranges          = CalculateRequiredRegions(block, loop, root, consumers);
-  std::string new_var_names = reconstructor.MakeNewLoop(iter_ranges, 0);
+  std::string new_var_names = reconstructor.MakeNewLoop(iter_ranges, keep_unit_loops, 0);
   auto sch_block_expr       = block.As<ir::ScheduleBlockRealize>()->schedule_block;
   sch_block_expr.As<ir::ScheduleBlock>()->attrs.emplace(ir::attr::compute_at_extra_var, new_var_names);
   this->Replace(reconstructor.source_expr, reconstructor.target_expr);
@@ -1241,7 +1242,7 @@ void ScheduleImpl::SimpleComputeAt(const Expr& block, const Expr& loop) {
   return;
 }
 
-void ScheduleImpl::ReverseComputeAt(const Expr& block, const Expr& loop) {
+void ScheduleImpl::ReverseComputeAt(const Expr& block, const Expr& loop, bool keep_unit_loops) {
   CHECK(block.As<ir::ScheduleBlockRealize>());
   CHECK(loop.As<ir::For>());
   Expr root      = this->GetRootBlock(block);
@@ -1252,7 +1253,7 @@ void ScheduleImpl::ReverseComputeAt(const Expr& block, const Expr& loop) {
   LeafBlockRemovalPlan remove_plan(block, &reconstructor.source_expr, &reconstructor.target_expr);
   remove_plan(&root);
   auto iter_ranges          = CalculateRequiredRegions(block, loop, root, producers, false);
-  std::string new_var_names = reconstructor.MakeNewLoop(iter_ranges);
+  std::string new_var_names = reconstructor.MakeNewLoop(iter_ranges, keep_unit_loops, -1);
   auto sch_block_expr       = block.As<ir::ScheduleBlockRealize>()->schedule_block;
   sch_block_expr.As<ir::ScheduleBlock>()->attrs.emplace(ir::attr::reverse_compute_at_extra_var, new_var_names);
   this->Replace(reconstructor.source_expr, reconstructor.target_expr);
@@ -1369,6 +1370,85 @@ void ComputeInlineChecker::BuildDataDependency() {
   ir_schedule_.SetBuffer(block_, "shared", true);
   auto loops = ir_schedule_.GetLoops(block_);
   ir_schedule_.SyncThreads(loops.back(), true);
+}
+
+bool ReverseComputeInliner::BodyPatternAllowInline() {
+  if (!inlined_store_.defined()) {
+    return false;
+  }
+  if (!inlined_load_.defined()) {
+    return false;
+  }
+  if (!target_store_.defined()) {
+    return false;
+  }
+  CHECK(inlined_store_.As<Store>());
+  CHECK(inlined_load_.As<Load>());
+  CHECK(target_store_.As<Store>());
+  auto find_vars = ir::CollectIRNodesWithoutTensor(inlined_store_, [&](const Expr* x) { return x->as_var(); });
+  std::set<Var, CompVar> vars_set;
+  for (auto& i : find_vars) vars_set.insert(i.as_var_ref());
+  int n_vars = vars_set.size();
+  if (!UpdateAndCheckIndexVars(inlined_store_.As<Store>()->indices, n_vars)) {
+    return false;
+  }
+  return true;
+}
+
+void ReverseComputeInliner::Visit(const ir::Load* expr, Expr* op) {
+  if ((expr->tensor).as_tensor_ref()->name == inlined_tensor_->name) {
+    *op = inlined_store_.As<Store>()->value;
+    return;
+  }
+  IRMutator::Visit(expr, op);
+}
+
+void ReverseComputeInliner::Visit(const ir::Store* expr, Expr* op) {
+  if ((expr->tensor).as_tensor_ref()->name == inlined_tensor_->name) {
+    *op = ReplaceTargetTensor(op);
+    return;
+  }
+  IRMutator::Visit(expr, op);
+}
+
+//! Replace the 'Load' node on the tensor to 'Load' node of its producers.
+Expr ReverseComputeInliner::ReplaceInlinedTensor(Expr* load) {
+  CHECK(load->As<ir::Load>());
+  SetIndexSubstitution(load->As<ir::Load>()->indices);
+  Expr value_copy = optim::IRCopy(inlined_store_.As<Store>()->value);
+  return value_copy;
+}
+
+Expr ReverseComputeInliner::ReplaceTargetTensor(Expr* store) {
+  auto indices = inlined_load_.As<ir::Load>()->indices;
+  CHECK_EQ(indices.size(), idx_vars_.size());
+  size_t n = idx_vars_.size();
+  idx_sub_var_.reserve(n);
+  idx_sub_expr_.reserve(n);
+  for (int i = 0; i < n; ++i) {
+    idx_sub_var_.emplace_back(indices[i].as_var_ref());
+    idx_sub_expr_.emplace_back(idx_vars_[i]);
+  }
+
+  Expr value_copy = optim::IRCopy(target_store_);
+  ReplaceExpr(&value_copy, idx_sub_var_, idx_sub_expr_);
+  return value_copy;
+}
+
+void ScheduleImpl::ReverseComputeInline(const Expr& schedule_block) {
+  Expr root          = this->GetRootBlock(schedule_block);
+  auto exprs         = CheckReverseComputeInlineValidationAndGetExprs(schedule_block, root);
+  Expr inlined_load  = std::get<0>(exprs);
+  Expr inlined_store = std::get<1>(exprs);
+  Expr target_store  = std::get<2>(exprs);
+  ReverseComputeInliner inliner(
+      inlined_store.As<ir::Store>()->tensor.as_tensor_ref(), inlined_store, inlined_load, target_store);
+  CHECK(inliner.BodyPatternAllowInline());
+  // Create a plan that removes the block to be inlined
+  LeafBlockRemovalPlan remove_plan(schedule_block, &inliner.src_stmt, &inliner.tgt_stmt);
+  remove_plan(&root);
+  inliner(&root);
+  inliner(&root);
 }
 
 struct FindBlockParent : public ir::IRMutator<> {
@@ -2010,10 +2090,12 @@ Expr IRSchedule::Fuse(const Expr& block, const std::vector<int>& loops_index) {
   return result;
 }
 
-void IRSchedule::ComputeAt(const Expr& block, const Expr& loop) {
-  impl_->ComputeAt(block, loop);
-  trace_.Append(ScheduleDesc::Step(
-      "ComputeAt", {{"block", std::vector<Expr>({block})}, {"loop", std::vector<Expr>({loop})}}, {}, {}));
+void IRSchedule::ComputeAt(const Expr& block, const Expr& loop, bool keep_unit_loops) {
+  impl_->ComputeAt(block, loop, keep_unit_loops);
+  trace_.Append(ScheduleDesc::Step("ComputeAt",
+                                   {{"block", std::vector<Expr>({block})}, {"loop", std::vector<Expr>({loop})}},
+                                   {{"keep_unit_loops", keep_unit_loops}},
+                                   {}));
 }
 
 void IRSchedule::SimpleComputeAt(const Expr& block, const Expr& loop) {
@@ -2022,10 +2104,12 @@ void IRSchedule::SimpleComputeAt(const Expr& block, const Expr& loop) {
       "SimpleComputeAt", {{"block", std::vector<Expr>({block})}, {"loop", std::vector<Expr>({loop})}}, {}, {}));
 }
 
-void IRSchedule::ReverseComputeAt(const Expr& block, const Expr& loop) {
-  impl_->ReverseComputeAt(block, loop);
-  trace_.Append(ScheduleDesc::Step(
-      "ReverseComputeAt", {{"block", std::vector<Expr>({block})}, {"loop", std::vector<Expr>({loop})}}, {}, {}));
+void IRSchedule::ReverseComputeAt(const Expr& block, const Expr& loop, bool keep_unit_loops) {
+  impl_->ReverseComputeAt(block, loop, keep_unit_loops);
+  trace_.Append(ScheduleDesc::Step("ReverseComputeAt",
+                                   {{"block", std::vector<Expr>({block})}, {"loop", std::vector<Expr>({loop})}},
+                                   {{"keep_unit_loops", keep_unit_loops}},
+                                   {}));
 }
 
 Expr IRSchedule::GetRootBlock(const Expr& expr) const {
@@ -2104,6 +2188,12 @@ void IRSchedule::ComputeInline(const Expr& schedule_block) {
   trace_.Append(ScheduleDesc::Step("ComputeInline", {{"schedule_block", std::vector<Expr>({schedule_block})}}, {}, {}));
 }
 
+void IRSchedule::ReverseComputeInline(const Expr& schedule_block) {
+  impl_->ReverseComputeInline(schedule_block);
+  trace_.Append(
+      ScheduleDesc::Step("ReverseComputeInline", {{"schedule_block", std::vector<Expr>({schedule_block})}}, {}, {}));
+}
+
 void IRSchedule::Bind(const Expr& loop, const std::string& thread_axis) {
   impl_->Bind(loop, thread_axis);
   trace_.Append(ScheduleDesc::Step("Bind", {{"loop", std::vector<Expr>({loop})}}, {{"thread_axis", thread_axis}}, {}));
@@ -2178,6 +2268,8 @@ std::vector<Expr> IRSchedule::SamplePerfectTile(const Expr& loop,
                          factors));
   return factors;
 }
+
+void IRSchedule::TagPostSchedule() { trace_.Append(ScheduleDesc::Step("TagPostSchedule", {}, {}, {})); }
 
 Expr IRSchedule::SampleCategorical(const std::vector<int>& candidates,
                                    const std::vector<float>& probs,

@@ -226,23 +226,26 @@ std::unordered_map<Node*, Node*> BuildVirtualConsumer(const GroupPtr& group,
     return virtual_consumers;
   }
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
-  Node* g_node          = nullptr;
-  for (auto t_node : group->output_nodes) {
-    if (op_pattern_dict[t_node->op()] == framework::kReduction) {
-      continue;
-    }
-    // producer exits reduce-sum and not consumers.
-    if (FindReducerInRoute(t_node, nodes_set, GetProducersInSet) && GetConsumersInSet(t_node, nodes_set).size() == 0) {
-      g_node = t_node;
-      break;
+
+  Node* e_node = nullptr;
+  Node* r_node = nullptr;
+  for (auto t_node : group->master_nodes) {
+    if (op_pattern_dict[t_node->op()] != framework::kReduction) {
+      // producer exits reduce-sum and not consumers.
+      if (!e_node && FindReducerInRoute(t_node, nodes_set, GetProducersInSet) &&
+          GetConsumersInSet(t_node, nodes_set).size() == 0) {
+        e_node = t_node;
+      }
+    } else if (!r_node) {
+      r_node = t_node;
     }
   }
 
   // try to find reducer with different shape.
   for (auto t_node : group->output_nodes) {
     if (op_pattern_dict[t_node->op()] == framework::kReduction) {
-      if (g_node) {
-        virtual_consumers[t_node] = g_node;
+      if (e_node) {
+        virtual_consumers[t_node] = e_node;
       }
       continue;
     }
@@ -250,13 +253,14 @@ std::unordered_map<Node*, Node*> BuildVirtualConsumer(const GroupPtr& group,
       continue;
     }
 
+    bool found = false;
     std::unordered_set<Node*> visited;
     std::queue<Node*> candidates;
 
     candidates.push(t_node);
     visited.insert(t_node);
     // from producers find reducer consumer.
-    while (!candidates.empty()) {
+    while (!found && !candidates.empty()) {
       auto candidate = candidates.front();
       candidates.pop();
 
@@ -268,23 +272,30 @@ std::unordered_map<Node*, Node*> BuildVirtualConsumer(const GroupPtr& group,
         auto reducer = FindReducerInRoute(producer, nodes_set, GetConsumersInSet);
         if (reducer) {
           virtual_consumers[t_node] = reducer;
+          found                     = true;
           break;
         }
         candidates.push(producer);
         visited.insert(producer);
       }
-      // if find horizontal reducer.
-      if (virtual_consumers.count(t_node)) {
-        break;
+    }
+
+    auto output_shape = GetOutputShape(t_node, shape_dict);
+    if (!found && t_node != e_node && e_node) {
+      auto enode_output_shape = GetOutputShape(e_node, shape_dict);
+      if (std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>()) ==
+          std::accumulate(enode_output_shape.begin(), enode_output_shape.end(), 1, std::multiplies<int>())) {
+        virtual_consumers[t_node] = e_node;
+        found                     = true;
       }
     }
-
-    if (virtual_consumers.count(t_node)) {
-      continue;
-    }
-
-    if (t_node != g_node && g_node) {
-      virtual_consumers[t_node] = g_node;
+    if (!found && r_node) {
+      auto rnode_input_shape = GetInputShape(r_node, shape_dict);
+      if (std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>()) ==
+          std::accumulate(rnode_input_shape.begin(), rnode_input_shape.end(), 1, std::multiplies<int>())) {
+        virtual_consumers[t_node] = r_node;
+        found                     = true;
+      }
     }
   }
   return virtual_consumers;
@@ -463,10 +474,25 @@ void LoopAssignReduceWithLast(ir::IRSchedule& ir_sch,
                               const std::vector<int>& inshape,
                               const std::vector<int>& axes,
                               const common::Target& target) {
+  // If the number of current device SM is smaller than the number of SM
+  // required by Warp Reduce, the performance of Warp Reduce is better.
+  // Otherwise, use Block Reduce.
+  auto max_num_threads       = common::DefaultNVGPUTarget().max_num_threads();
+  int need_reduce_last_count = 1;
+  for (int i = 0; i < inshape.size(); i++) {
+    if (find(axes.begin(), axes.end(), i) == axes.end()) {
+      need_reduce_last_count *= inshape[i];
+    }
+  }
+  int warp_reduce_need_sm_count = ceil((need_reduce_last_count * 32) / float(target.get_max_threads_per_sm()));
+  // Set Num_max_threads to 32 is Warp Reduce
+  if (target.get_multi_processor_count() < warp_reduce_need_sm_count) {
+    max_num_threads = 32;
+  }
   // find first reduce and second reduce axis.
-  int lane             = 1;
-  int index            = static_cast<int>(axes.size()) - 1;
-  auto max_num_threads = target.max_num_threads();
+  int lane  = 1;
+  int index = static_cast<int>(axes.size()) - 1;
+
   for (; index >= 0; --index) {
     if (index + 1 < axes.size() && axes[index] != axes[index + 1] - 1) {
       break;

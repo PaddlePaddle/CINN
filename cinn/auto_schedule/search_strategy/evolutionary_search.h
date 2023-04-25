@@ -19,6 +19,7 @@
 
 #include "cinn/auto_schedule/cost_model/expr_cost_model.h"
 #include "cinn/auto_schedule/database/database.h"
+#include "cinn/auto_schedule/post_schedule_rule/post_schedule_rule.h"
 #include "cinn/auto_schedule/search_space/search_space.h"
 #include "cinn/auto_schedule/search_space/search_state.h"
 #include "cinn/auto_schedule/search_strategy/mutate_rule/mutate_rule.h"
@@ -136,6 +137,8 @@ class EvolutionarySearch {
   std::vector<std::tuple<std::string, double>> mutators_;
   // mutate rules, the key is the accumulate weight of each mutate rule
   std::map<double, std::unique_ptr<MutateRule>> weighted_mutators_;
+  // schedule rules used after mutation
+  std::vector<std::unique_ptr<PostScheduleRule>> post_schedule_rules_;
   utils::LinearRandomEngine::StateType rand_seed_;
 };
 

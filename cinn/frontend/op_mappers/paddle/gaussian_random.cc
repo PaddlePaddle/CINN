@@ -31,10 +31,8 @@ void GaussianRandomOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperCo
   auto std  = utils::GetAttrOrDefault<float>(op_desc, "std", 1.0f);
   auto seed = utils::GetAttrOrDefault<int>(op_desc, "seed", 0);
 
-  auto dtype_id = utils::GetAttrOrDefault<int>(op_desc, "dtype", static_cast<int>(paddle::cpp::VarDescAPI::Type::FP32));
-  auto dtype_pd = static_cast<paddle::cpp::VarDescAPI::Type>(dtype_id);
-  auto dtype_cinn = utils::CppVarType2CommonType(dtype_pd);
-  auto dtype      = common::Type2Str(dtype_cinn);
+  auto dtype = utils::GetPaddleDtype(op_desc, "dtype", paddle::cpp::VarDescAPI::Type::FP32);
+  CHECK(!dtype.empty()) << "The op \"gaussian_random\"'s attribute \"dtype\" should not be unknown type! Please check.";
 
   VLOG(4) << out_name << "[" << cinn::utils::Join(shape, ", ") << "] = uniform_random(mean=" << mean << ", std=" << std
           << ", seed=" << seed << ", dtype=" << dtype << ", shape=[" << cinn::utils::Join(shape, ", ") << "])";
