@@ -111,7 +111,7 @@ TEST_F(TestCooperativeProcess, Matmul) {
                   {
                     i0, i1 = axis.bind(((16 * i_0) + ((2 * i_1) + i_2)), ((16 * j_0) + ((8 * j_1) + j_2)))
                     {
-                      temp_matmul_out__reduce_init[i0, i1] = 0.00000000f
+                      temp_matmul_out__reduce_init[((16 * i_0) + ((2 * i_1) + i_2)), ((16 * j_0) + ((8 * j_1) + j_2))] = 0.00000000f
                     }
                   }
                 }
@@ -163,7 +163,7 @@ TEST_F(TestCooperativeProcess, Matmul) {
                   {
                     i0, i1, i2 = axis.bind(((2 * (i_1_j_1_fused / 2)) + ((16 * (i_0_j_0_fused / 2)) + i_2)), ((16 * (i_0_j_0_fused % 2)) + ((8 * (i_1_j_1_fused % 2)) + j_2)), ((4 * reduce_k_0) + reduce_k_1))
                     {
-                      temp_matmul_out[i0, i1] = (temp_matmul_out[i0, i1] + (X_reshape_shared_temp_buffer[i0, i2] * Y_reshape_shared_temp_buffer[i2, i1]))
+                      temp_matmul_out[((2 * (i_1_j_1_fused / 2)) + ((16 * (i_0_j_0_fused / 2)) + i_2)), ((16 * (i_0_j_0_fused % 2)) + ((8 * (i_1_j_1_fused % 2)) + j_2))] = (temp_matmul_out[((2 * (i_1_j_1_fused / 2)) + ((16 * (i_0_j_0_fused / 2)) + i_2)), ((16 * (i_0_j_0_fused % 2)) + ((8 * (i_1_j_1_fused % 2)) + j_2))] + (X_reshape_shared_temp_buffer[((2 * (i_1_j_1_fused / 2)) + ((16 * (i_0_j_0_fused / 2)) + i_2)), ((4 * reduce_k_0) + reduce_k_1)] * Y_reshape_shared_temp_buffer[((4 * reduce_k_0) + reduce_k_1), ((16 * (i_0_j_0_fused % 2)) + ((8 * (i_1_j_1_fused % 2)) + j_2))]))
                     }
                   }
                 }
