@@ -59,15 +59,22 @@ function cudnn_off {
   cudnn_config=OFF
 }
 
+set +x
 OLD_HTTP_PROXY=$http_proxy &> /dev/null
 OLD_HTTPS_PROXY=$https_proxy &> /dev/null
+set -x
+
 function proxy_off {
+  set +x
   unset http_proxy &> /dev/null
   unset https_proxy &> /dev/null
+  set -x
 }
 function proxy_on {
+  set +x
   export http_proxy=$OLD_HTTP_PROXY &> /dev/null
   export https_proxy=$OLD_HTTPS_PROXY &> /dev/null
+  set -x
 }
 
 function prepare_ci {
@@ -87,8 +94,10 @@ function prepare_ci {
 
   # NVIDIA update GPG key on 04/29/2022. Fetch the public key for CI machine
   # Reference: https://developer.nvidia.com/blog/updating-the-cuda-linux-gpg-repository-key/
+  set +x
   apt-key adv --keyserver-options http-proxy=$http_proxy --fetch-keys http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/3bf863cc.pub
-
+  set -x
+  
   apt update
   echo "the current user EUID=$EUID: $(whoami)"
   if ! command -v doxygen &> /dev/null; then

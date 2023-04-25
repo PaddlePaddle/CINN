@@ -26,6 +26,7 @@ namespace py = pybind11;
 
 namespace cinn::pybind {
 
+using common::bfloat16;
 using common::CINNValue;
 using common::float16;
 using common::Object;
@@ -96,7 +97,7 @@ void BindTarget(py::module *m) {
 
 void BindType(py::module *m) {
   py::class_<Type> type(*m, "Type");
-  type.def(py::init<>()).def(py::init<Type::type_t, int, int>());
+  type.def(py::init<>()).def(py::init<Type::type_t, int, int, Type::specific_type_t>());
 #define DEFINE_TYPE_METHOD(__name) (type = type.def(#__name, &Type::__name))
   DEFINE_TYPE_METHOD(is_primitive);
   DEFINE_TYPE_METHOD(is_unk);
@@ -137,6 +138,12 @@ void BindType(py::module *m) {
       .value("customized", Type::type_t::Customized)
       .export_values();
 
+  py::enum_<Type::specific_type_t> specific_type_t(type, "specific_type_t");
+  specific_type_t.value("None", Type::specific_type_t::None)
+      .value("FP16", Type::specific_type_t::FP16)
+      .value("BF16", Type::specific_type_t::BF16)
+      .export_values();
+
   py::enum_<Type::cpp_type_t> cpp_type_t(type, "cpp_type_t");
   cpp_type_t.value("None", Type::cpp_type_t::None)
       .value("Const", Type::cpp_type_t::Const)
@@ -147,7 +154,7 @@ void BindType(py::module *m) {
   m->def("Void", &common::Void)
       .def("Int", &common::Int, py::arg("bits"), py::arg("lanes") = 1)
       .def("UInt", &common::UInt, py::arg("bits"), py::arg("lanes") = 1)
-      .def("Float", &common::Float, py::arg("bits"), py::arg("lanes") = 1)
+      .def("Float", &common::Float, py::arg("bits"), py::arg("lanes") = 1, py::arg("st") = Type::specific_type_t::None)
       .def("Bool", &common::Bool, py::arg("lanes") = 1)
       .def("String", &common::String);
 
