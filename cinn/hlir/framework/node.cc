@@ -77,11 +77,6 @@ std::ostream& operator<<(std::ostream& os, const NodeAttr& node_attr) {
 
 //! Using index to sort the input/output tensors
 bool edge_index_compare(const common::Shared<common::GraphEdge>& a, const common::Shared<common::GraphEdge>& b) {
-  if (a.get() == nullptr) {
-    return true;
-  } else if (b.get() == nullptr) {
-    return false;
-  }
   return a->index() < b->index();
 }
 

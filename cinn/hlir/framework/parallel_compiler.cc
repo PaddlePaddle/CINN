@@ -164,7 +164,7 @@ void ParallelCompiler::Task::Run() {
       auto group_idx = cur_gidx->at(i);
       auto& group    = cur_groups->at(i);
 
-      VLOG(1) << "Start Lowering Group " << group_idx << " :\n"
+      VLOG(1) << "Start Lowering Group " << group_idx << " at " << std::this_thread::get_id() << " :\n"
               << "Group " << group_idx << " {\n"
               << graph->DebugGroupedGraph(group->CollectNodes()) << "}\n";
       funcs.emplace_back(Lowering(group, group_idx));
