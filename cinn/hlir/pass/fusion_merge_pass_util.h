@@ -278,6 +278,10 @@ CONDITION_FUNC(injective_horizontal_with_reduce) {
 }
 
 CONDITION_FUNC(reduce_fuse_broadcast) {
+  if (helper->target_ == common::DefaultHostTarget()) {
+    return true;
+  }
+  // if same shape with horizontal relation
   if (is_same_size(helper, first, second)) {
     return true;
   }
