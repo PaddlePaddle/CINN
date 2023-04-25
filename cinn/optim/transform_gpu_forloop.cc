@@ -539,10 +539,8 @@ void OptimizeExprGPU(Expr *expr) {
   ReplaceIndexToBindExpr replace_index_to_bind_expr;
   replace_index_to_bind_expr(expr);
 
-  LOG(INFO) << *expr;
   // resize buffer axis
   UpdateBufferAxisPass(expr);
-  LOG(INFO) << *expr;
 
   // replace var name with block/thread
   ReplaceLoopVarToGpu replace_loop_var_to_gpu;
