@@ -36,7 +36,7 @@ void ConstPropagatePass(Graph* graph) {
     auto node = n->safe_as<Node>();
     if (node) {
       bool is_all_const = true;
-      for (auto& in_edge : node->inlinks_in_order(true)) {
+      for (auto& in_edge : node->inlinks_in_order()) {
         auto* source_node = in_edge->source()->safe_as<NodeData>();
         CHECK(source_node);
         if (!source_node->is_const()) {
@@ -47,7 +47,7 @@ void ConstPropagatePass(Graph* graph) {
       if (is_all_const) {
         node->attrs.attr_store["pre_run"] = true;
         VLOG(4) << node->id() << " do pre_run";
-        for (auto& out_edge : node->outlinks_in_order(true)) {
+        for (auto& out_edge : node->outlinks_in_order()) {
           // mark all out nodedatas as const
           auto* sink_node = out_edge->sink()->safe_as<NodeData>();
           CHECK(sink_node);

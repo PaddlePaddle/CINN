@@ -67,8 +67,8 @@ std::unordered_map<std::string, int> special_attrs = {
 
 bool IsSameSubexpression(Node* op1, Node* op2, shape_dict_t& shape_dict) {
   // Get the input edges for op1 and op2 in order.
-  auto op1_in_edges = op1->inlinks_in_order(true);
-  auto op2_in_edges = op2->inlinks_in_order(true);
+  auto op1_in_edges = op1->inlinks_in_order();
+  auto op2_in_edges = op2->inlinks_in_order();
   // Get the number of input edges for op1 and op2
   auto op1_inputs_size = op1_in_edges.size();
   auto op2_inputs_size = op2_in_edges.size();
@@ -202,7 +202,7 @@ void RemoveNodes(framework::Graph* graph, std::vector<NodeData*>& nodes_data) {
 
 void ReplaceNode(NodeData* src_new, NodeData* src_old, Node* trt) {
   std::vector<NodeData*> in_nodes;
-  for (auto& in_edge : trt->inlinks_in_order(true)) {
+  for (auto& in_edge : trt->inlinks_in_order()) {
     auto* in_node = in_edge->source()->safe_as<NodeData>();
     in_node->UnLinkSingleTo(trt);
     if (in_node->id() == src_old->id()) {
@@ -234,8 +234,8 @@ void CommonSubexpressionElimination(Graph* graph, std::vector<GraphNode*> store_
         // If node is different from candidate_node, continue the next.
         if (!IsSameSubexpression(node, candidate_node, shape_dict)) continue;
         found = true;
-        for (int k = 0; k < node->outlinks_in_order(true).size(); ++k) {
-          CHECK(node->outlinks_in_order(true).size() == candidate_node->outlinks_in_order(true).size());
+        for (int k = 0; k < node->outlinks_in_order().size(); ++k) {
+          CHECK(node->outlinks_in_order().size() == candidate_node->outlinks_in_order().size());
           auto* sink_node           = node->outlinks_in_order()[k]->sink()->safe_as<NodeData>();
           auto* candidate_sink_node = candidate_node->outlinks_in_order()[k]->sink()->safe_as<NodeData>();
           CHECK(sink_node);
@@ -282,7 +282,7 @@ void CommonSubexpressionEliminationPass(Graph* graph) {
   for (auto& graph_node : store_nodes) {
     auto node = graph_node->safe_as<Node>();
     if (node) {
-      for (auto& in_edge : node->inlinks_in_order(true)) {
+      for (auto& in_edge : node->inlinks_in_order()) {
         auto* source_node = in_edge->source()->safe_as<NodeData>();
         in2node[source_node->id()].insert(node);
       }

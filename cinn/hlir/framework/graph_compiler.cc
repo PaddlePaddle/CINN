@@ -298,7 +298,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFuncWithIRSchedule(
   VLOG(3) << "GetOpFunc of op " << node->id();
 
   // 1.Collect inputs info and outputs info
-  for (auto& i : node->inlinks_in_order(true)) {
+  for (auto& i : node->inlinks_in_order()) {
     std::string id = i->source()->as<NodeData>()->id();
     auto shape     = shape_dict_.at(id);
     Type dtype     = type_dict_.at(id);
@@ -364,7 +364,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
   std::vector<common::CINNValue> cinn_inputs;
   std::vector<std::vector<int>> output_shapes;
   VLOG(3) << "GetOpFunc of op " << node->id();
-  for (auto& i : node->inlinks_in_order(true)) {
+  for (auto& i : node->inlinks_in_order()) {
     std::string input_id = i->source()->as<NodeData>()->id();
     auto in_shape        = shape_dict.at(input_id);
     Type dtype           = dtype_dict.at(input_id);
@@ -400,7 +400,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
     cinn_inputs.push_back(common::CINNValue(temp));
   }
   std::vector<Type> out_types;
-  for (auto& out : node->outlinks_in_order(true)) {
+  for (auto& out : node->outlinks_in_order()) {
     std::string out_id = out->sink()->safe_as<NodeData>()->id();
     auto out_shape     = shape_dict.at(out_id);
     Type dtype         = dtype_dict.at(out_id);
@@ -474,7 +474,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
     std::vector<common::CINNValue> cinn_inputs;
     std::vector<std::vector<int>> output_shapes;
     fuse_name += node->id() + "_";
-    for (auto& link : node->inlinks_in_order(true)) {
+    for (auto& link : node->inlinks_in_order()) {
       auto source = link->source();
       CHECK(source);
       auto source_data = source->as<NodeData>();
@@ -525,7 +525,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
     }
     std::vector<Type> out_types;
     std::vector<NodeData*> temp_outvars;
-    for (auto& out : node->outlinks_in_order(true)) {
+    for (auto& out : node->outlinks_in_order()) {
       auto out_var = out->sink()->safe_as<NodeData>();
       CHECK(out_var);
       out_vars.insert(out_var);
@@ -1009,8 +1009,8 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions(
       auto instr_name = node->op()->name;
       if (node->op()->name == "reshape" && compile_options_.with_instantiate_variables) {
         // not run instruction and shares buffer only when instantiate_variables
-        auto& inlinks  = node->inlinks_in_order();
-        auto& outlinks = node->outlinks_in_order();
+        const auto& inlinks  = node->inlinks_in_order();
+        const auto& outlinks = node->outlinks_in_order();
         CHECK_EQ(inlinks.size(), 1U);
         CHECK_EQ(outlinks.size(), 1U);
         std::string in_id       = inlinks[0]->source()->safe_as<NodeData>()->id();

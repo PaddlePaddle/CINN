@@ -30,7 +30,7 @@ struct NodeCompare {
 
 std::vector<NodeData*> GetInputNodeData(const Node* node) {
   std::vector<NodeData*> producers;
-  for (auto& link : node->inlinks_in_order(true)) {
+  for (auto& link : node->inlinks_in_order()) {
     auto node_data = link->source()->safe_as<NodeData>();
     producers.push_back(node_data);
   }
@@ -98,7 +98,7 @@ NodeData* GetNodeData(const Node* node) {
 
 std::vector<NodeData*> GetAllNodeData(const Node* node) {
   std::vector<NodeData*> node_datas;
-  for (auto& link : node->outlinks_in_order(true)) {
+  for (auto& link : node->outlinks_in_order()) {
     auto node_data = link->sink()->safe_as<NodeData>();
     CHECK(node_data);
     node_datas.push_back(node_data);
@@ -133,7 +133,7 @@ std::vector<Node*> GetConsumersInSet(const Node* node, const std::unordered_set<
 
 std::vector<Node*> GetProducers(const Node* node) {
   std::vector<Node*> producers;
-  for (auto& link : node->inlinks_in_order(true)) {
+  for (auto& link : node->inlinks_in_order()) {
     auto data = link->source()->safe_as<NodeData>();
     CHECK(data);
     if (data->source_node.get()) {
@@ -145,7 +145,7 @@ std::vector<Node*> GetProducers(const Node* node) {
 
 std::vector<Node*> GetProducersInSet(const Node* node, const std::unordered_set<Node*>& node_set) {
   std::vector<Node*> producers;
-  for (auto& link : node->inlinks_in_order(true)) {
+  for (auto& link : node->inlinks_in_order()) {
     auto data = link->source()->safe_as<NodeData>();
     CHECK(data);
     if (data->source_node.get() && node_set.count(data->source_node.get())) {

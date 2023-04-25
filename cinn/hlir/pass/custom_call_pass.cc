@@ -58,7 +58,7 @@ class GraphAlterHelper {
       // codegen-registered is not consistent with cudnn
       if ((node->op()->name == "conv2d" || node->op()->name == "depthwise_conv2d") &&
           target == common::DefaultNVGPUTarget()) {
-        auto out_links = node->outlinks_in_order(true);
+        auto out_links = node->outlinks_in_order();
         for (int idx = 1; idx < out_links.size(); ++idx) {
           auto link = out_links[idx];
           CHECK(link->sink()->safe_as<NodeData>());

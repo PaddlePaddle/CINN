@@ -89,7 +89,7 @@ class DenseMergePassHelper : public FusionHelperBase {
     // split dense op by it's attr
     std::unordered_map<std::string, std::vector<Node*>> dense_op_map;
     for (auto dense_op : dense_ops) {
-      auto sign = GenOpSign(dense_op->inlinks_in_order(true)[pos]->source()->safe_as<NodeData>(), dense_op->attrs);
+      auto sign = GenOpSign(dense_op->inlinks_in_order()[pos]->source()->safe_as<NodeData>(), dense_op->attrs);
       if (dense_op_map.count(sign)) {
         dense_op_map[sign].push_back(dense_op);
       } else {
