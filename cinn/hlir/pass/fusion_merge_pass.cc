@@ -43,7 +43,7 @@ using ConditionFunction = std::function<bool(const FusionHelperBase*, const Grou
 // code generation.
 class FusionMergePassHelper : public FusionHelperBase {
  public:
-  FusionMergePassHelper(const Graph* graph) : FusionHelperBase(graph) {
+  FusionMergePassHelper(const Graph* graph) : FusionHelperBase(graph), graph_output_node_data_(graph->outputs) {
     fusion_groups_ = graph->fusion_groups;
     // init fusion relation.
     InitFusionRelation();
@@ -56,6 +56,7 @@ class FusionMergePassHelper : public FusionHelperBase {
   GroupList operator()() {
     // run fusion merge untill no update.
     DoFusionMerge();
+    AddGlobalOutputNodesToGroups();
     for (auto& group : fusion_groups_) {
       VLOG(3) << "Fusion Group -> " << group->group_id;
       for (auto& sub_group : group->fused_sub_groups) {
@@ -72,6 +73,18 @@ class FusionMergePassHelper : public FusionHelperBase {
   }
 
  private:
+  void AddGlobalOutputNodesToGroups() {
+    for (auto group : fusion_groups_) {
+      for (const auto& output_node_data : graph_output_node_data_) {
+        Node* node                         = output_node_data->source_node.get();
+        std::unordered_set<Node*> node_set = group->NodeSet();
+        if (node_set.find(node) != node_set.end()) {
+          group->output_nodes.insert(node);
+        }
+      }
+    }
+  }
+
   void DoFusionMerge() {
     VLOG(3) << "DoFusionMerge...!";
     while (DoHorizontalFusion()) {
@@ -617,10 +630,6 @@ class FusionMergePassHelper : public FusionHelperBase {
 
   void RecomputeWithCostModel(const GroupPtr& producer,
                               std::unordered_set<GroupPtr, Hasher, Comparator>& fusionable_consumers) {
-    if (producer->op_pattern_kind == framework::kReduction) {
-      CHECK_EQ(fusionable_consumers.size(), 1) << "Find more than one consumer can fuse to " << producer->group_id;
-    }
-
     // if is const op
     if (is_const_group(this, producer)) {
       std::unordered_set<GroupPtr, Hasher, Comparator> candidates;
@@ -976,7 +985,7 @@ class FusionMergePassHelper : public FusionHelperBase {
       relation.vertical_relation = {// reduce and elementwise can be horizontal/vertical relation.
                                     {OpPatternKind::kElementWise, reduce_fuse_elementwise},
                                     // reduce and broadcast op must be horizontal relation.
-                                    {OpPatternKind::kBroadcast, is_same_size},
+                                    {OpPatternKind::kBroadcast, reduce_fuse_broadcast},
                                     // reduce and injective op must be horizontal relation.
                                     {OpPatternKind::kInjective, horizontal_with_injective},
                                     // reduce and reduce must be horizontal relation.
@@ -985,6 +994,7 @@ class FusionMergePassHelper : public FusionHelperBase {
   }
 
   GroupList fusion_groups_;
+  const std::vector<NodeData*>& graph_output_node_data_;
   std::unordered_map<GroupPtr, int, Hasher, Comparator> fusion_groups_index_;
   std::unordered_map<NodeData*, std::unordered_set<GroupPtr, Hasher, Comparator>> input_to_consumers_;
 
