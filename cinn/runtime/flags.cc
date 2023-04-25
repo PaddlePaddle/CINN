@@ -35,7 +35,7 @@ using ::GFLAGS_NAMESPACE::StringFromEnv;
 DEFINE_string(cinn_x86_builtin_code_root, StringFromEnv("FLAGS_cinn_x86_builtin_code_root", ""), "");
 
 DEFINE_int32(cinn_parallel_compile_size,
-             Int32FromEnv("FLAGS_cinn_parallel_compile_size", 8),
+             Int32FromEnv("FLAGS_cinn_parallel_compile_size", 4),
              "When use parallel compile, set the number of group compiled by each thread.");
 
 DEFINE_bool(cinn_use_op_fusion, BoolFromEnv("FLAGS_cinn_use_op_fusion", true), "Whether to use op fusion pass.");

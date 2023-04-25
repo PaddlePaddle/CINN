@@ -139,7 +139,9 @@ void ParallelCompiler::Task::Run() {
         custom_call_groups.emplace_back(group);
         custom_call_idx.emplace_back(idx);
         // custom_call group do not need FLAGS_cinn_parallel_compile_size,
-        // it compile faster for it can skip get CUDA function step
+        // all custom_call of thread will compiling at last loop.
+        // The compiling cost of custom_call is faster because it can skip
+        // the codegen step
         continue;
       } else {
         fusion_groups.emplace_back(group);
@@ -147,6 +149,7 @@ void ParallelCompiler::Task::Run() {
 
         if (fusion_groups.size() < group_num_of_task) {
           // each task compile FLAGS_cinn_parallel_compile_size fusion group
+          // TODO(thisjiang): check by total group size instead of group number
           continue;
         }
       }
