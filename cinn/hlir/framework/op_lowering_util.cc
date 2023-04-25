@@ -593,10 +593,13 @@ bool CanbeInline(Node* node,
     return false;
   } else {
     auto node_shape = GetOutputShape(node, shape_dict);
-    auto last_shape = GetOutputShape(laster, shape_dict);
-    if (std::accumulate(node_shape.begin(), node_shape.end(), 1, std::multiplies<int>()) !=
-        std::accumulate(last_shape.begin(), last_shape.end(), 1, std::multiplies<int>())) {
-      return true;
+    auto node_size  = std::accumulate(node_shape.begin(), node_shape.end(), 1, std::multiplies<int>());
+    for (auto consumer : consumers) {
+      auto consumer_shape = GetOutputShape(consumer, shape_dict);
+      auto consumer_size  = std::accumulate(consumer_shape.begin(), consumer_shape.end(), 1, std::multiplies<int>());
+      if (node_size != consumer_size) {
+        return true;
+      }
     }
 
     return false;
@@ -1228,7 +1231,7 @@ void LoopComputeAt(ir::IRSchedule& ir_sch,
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
   if (!group->output_nodes.count(node)) {
     auto block = ir_sch.GetBlock(GetNodeData(node)->id());
-    ir_sch.SetBuffer(block, "local", true);
+    ir_sch.SetBuffer(block, "local");
   }
 
   if (op_pattern_dict[node->op()] == framework::kReduction) {
@@ -1285,11 +1288,14 @@ std::unordered_map<std::string, NodeData*> GetNodeDataSet(const std::unordered_s
   return node_data_set;
 }
 
-Node* GetMaster(Node* node, const std::unordered_set<Node*>& nodes_inline, const std::unordered_set<Node*>& nodes_set) {
+std::unordered_set<Node*> GetMasters(Node* node,
+                                     const std::unordered_set<Node*>& nodes_inline,
+                                     const std::unordered_set<Node*>& nodes_set) {
   // find consumer
   std::unordered_set<Node*> visited;
   std::queue<Node*> candidates;
   candidates.push(node);
+  std::unordered_set<Node*> masters;
 
   while (!candidates.empty()) {
     auto candidate = candidates.front();
@@ -1304,19 +1310,20 @@ Node* GetMaster(Node* node, const std::unordered_set<Node*>& nodes_inline, const
         candidates.push(consumer);
         visited.insert(consumer);
       } else {
-        return consumer;
+        masters.insert(consumer);
       }
     }
   }
 
-  return nullptr;
+  return masters;
 }
 
 void SyncThreadWithShared(ir::IRSchedule& ir_sch,
                           const std::unordered_set<Node*>& nodes_inline,
                           const std::unordered_set<Node*>& nodes_set,
                           const absl::flat_hash_map<std::string, shape_t>& shape_dict,
-                          const std::unordered_map<std::string, ir::Tensor>& tensor_map) {
+                          const std::unordered_map<std::string, ir::Tensor>& tensor_map,
+                          const GroupPtr& group) {
   auto exprs_inorder    = ir_sch.GetAllBlocks();
   auto node_data_set    = GetNodeDataSet(nodes_set);
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
@@ -1353,33 +1360,34 @@ void SyncThreadWithShared(ir::IRSchedule& ir_sch,
     auto node       = node_data->source_node.get();
     auto node_shape = shape_dict.at(node_data->id());
 
-    auto master = GetMaster(node, nodes_inline, nodes_set);
-    if (!master) {
+    auto masters = GetMasters(node, nodes_inline, nodes_set);
+    if (masters.empty()) {
       continue;
     }
 
-    auto master_data  = GetNodeData(master);
-    auto master_shape = shape_dict.at(master_data->id());
-    if (op_pattern_dict[master->op()] == framework::kReduction) {
-      master_shape = shape_dict.at(master->inlinks_in_order()[0]->source()->id());
+    bool do_set_buffer_to_shared = false;
+    for (auto master : masters) {
+      auto master_data  = GetNodeData(master);
+      auto master_shape = shape_dict.at(master_data->id());
+      if (op_pattern_dict[master->op()] == framework::kReduction) {
+        master_shape = shape_dict.at(master->inlinks_in_order()[0]->source()->id());
+      }
+
+      auto node_size   = std::accumulate(node_shape.begin(), node_shape.end(), 1, std::multiplies<int>());
+      auto master_size = std::accumulate(master_shape.begin(), master_shape.end(), 1, std::multiplies<int>());
+
+      if (node_size != master_size) {
+        if (check_sync_mark(idx, master_data->id())) {
+          auto loops = ir_sch.GetLoops(master_data->id());
+          ir_sch.SyncThreads(loops.back(), false);
+          sync_mark.insert(master_data->id());
+        }
+        do_set_buffer_to_shared = true;
+      }
     }
-
-    auto node_size   = std::accumulate(node_shape.begin(), node_shape.end(), 1, std::multiplies<int>());
-    auto master_size = std::accumulate(master_shape.begin(), master_shape.end(), 1, std::multiplies<int>());
-
-    if (node_size == master_size) {
-      continue;
-    }
-
-    {
+    if (do_set_buffer_to_shared && group->output_nodes.find(node) == group->output_nodes.end()) {
       auto block = ir_sch.GetBlock(node_data->id());
       ir_sch.SetBuffer(block, "shared", true);
-    }
-
-    if (check_sync_mark(idx, master_data->id())) {
-      auto loops = ir_sch.GetLoops(master_data->id());
-      ir_sch.SyncThreads(loops.back(), false);
-      sync_mark.insert(master_data->id());
     }
   }
 }
