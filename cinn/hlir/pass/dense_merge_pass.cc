@@ -56,7 +56,9 @@ class DenseMergePassHelper : public FusionHelperBase {
 
     std::vector<Node*> lhs_ops, rhs_ops;
     for (auto op : dense_ops) {
-      if (op->inlinks_in_order()[0]->source() == node) {
+      const auto& in_links = op->inlinks_in_order();
+      CHECK(!in_links.empty());
+      if (in_links[0]->source() == node) {
         lhs_ops.push_back(op);
       } else {
         rhs_ops.push_back(op);
@@ -89,7 +91,9 @@ class DenseMergePassHelper : public FusionHelperBase {
     // split dense op by it's attr
     std::unordered_map<std::string, std::vector<Node*>> dense_op_map;
     for (auto dense_op : dense_ops) {
-      auto sign = GenOpSign(dense_op->inlinks_in_order()[pos]->source()->safe_as<NodeData>(), dense_op->attrs);
+      const auto& in_links = dense_op->inlinks_in_order();
+      CHECK_GT(in_links.size(), pos);
+      auto sign = GenOpSign(in_links[pos]->source()->safe_as<NodeData>(), dense_op->attrs);
       if (dense_op_map.count(sign)) {
         dense_op_map[sign].push_back(dense_op);
       } else {
@@ -112,11 +116,13 @@ class DenseMergePassHelper : public FusionHelperBase {
       // update inlink.
       node->LinkTo(node_tmp);
       for (auto op : dense_op.second) {
+        const auto& in_links = op->inlinks_in_order();
         node->UnLinkSingleTo(op);
         // link to new node
-        op->inlinks_in_order()[pos]->source()->LinkTo(node_tmp);
+        CHECK_GT(in_links.size(), pos);
+        in_links[pos]->source()->LinkTo(node_tmp);
         // unlink old dense node
-        op->inlinks_in_order()[pos]->source()->UnLinkSingleTo(op);
+        in_links[pos]->source()->UnLinkSingleTo(op);
         // dense_node_data link to node_tmp
         auto op_node_data = GetNodeData(op);
         op->UnLinkSingleTo(op_node_data);

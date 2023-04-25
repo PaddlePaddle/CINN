@@ -235,9 +235,11 @@ void CommonSubexpressionElimination(Graph* graph, std::vector<GraphNode*> store_
         if (!IsSameSubexpression(node, candidate_node, shape_dict)) continue;
         found = true;
         for (int k = 0; k < node->outlinks_in_order().size(); ++k) {
-          CHECK(node->outlinks_in_order().size() == candidate_node->outlinks_in_order().size());
-          auto* sink_node           = node->outlinks_in_order()[k]->sink()->safe_as<NodeData>();
-          auto* candidate_sink_node = candidate_node->outlinks_in_order()[k]->sink()->safe_as<NodeData>();
+          const auto& out_links           = node->outlinks_in_order();
+          const auto& candidate_out_links = candidate_node->outlinks_in_order();
+          CHECK(out_links.size() == candidate_out_links.size());
+          auto* sink_node           = out_links[k]->sink()->safe_as<NodeData>();
+          auto* candidate_sink_node = candidate_out_links[k]->sink()->safe_as<NodeData>();
           CHECK(sink_node);
           CHECK(candidate_sink_node);
           remove_nodes_data.push_back(sink_node);
