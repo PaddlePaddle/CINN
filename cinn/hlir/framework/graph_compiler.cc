@@ -1041,8 +1041,9 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions(
             instr->attrs.push_back(1);
           }
           // output shape
-          CHECK(!node->outlinks_in_order().empty());
-          auto& out_node     = node->outlinks_in_order().front();
+          const auto& out_links = node->outlinks_in_order();
+          CHECK(!out_links.empty());
+          auto& out_node     = out_links.front();
           std::string out_id = out_node->sink()->safe_as<NodeData>()->id();
           auto out_shape     = shape_dict.at(out_id);
           instr->attrs.insert(instr->attrs.end(), out_shape.begin(), out_shape.end());
@@ -1072,8 +1073,9 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions(
             instr->attrs.push_back(instr->attrs[1]);
           }
           // output shape
-          CHECK(!node->outlinks_in_order().empty());
-          auto& out_node     = node->outlinks_in_order().front();
+          const auto& out_links = node->outlinks_in_order();
+          CHECK(!out_links.empty());
+          auto& out_node     = out_links.front();
           std::string out_id = out_node->sink()->safe_as<NodeData>()->id();
           auto out_shape     = shape_dict.at(out_id);
           instr->attrs.insert(instr->attrs.end(), out_shape.begin(), out_shape.end());
