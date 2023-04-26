@@ -296,7 +296,7 @@ void Summary(const std::vector<std::vector<Node*>>& groups, const std::string& v
 
 std::string DebugString(const Node* node) {
   std::vector<std::string> out_names;
-  for (auto& outlink : node->outlinks_in_order(true)) {
+  for (auto& outlink : node->outlinks_in_order()) {
     auto* outnode = outlink->sink()->safe_as<NodeData>();
     if (outnode) {
       out_names.emplace_back(outnode->id());
@@ -304,7 +304,7 @@ std::string DebugString(const Node* node) {
   }
 
   std::vector<std::string> in_names;
-  for (auto& inlink : node->inlinks_in_order(true)) {
+  for (auto& inlink : node->inlinks_in_order()) {
     auto* innode = inlink->source()->safe_as<NodeData>();
     if (innode) {
       in_names.emplace_back(innode->id());

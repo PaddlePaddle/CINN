@@ -1134,7 +1134,7 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerNonFusibleOp(GroupPtr& group, boo
     CHECK_EQ(pack.size(), 1UL);
     // reset input names as extern api input args can't be remove duplicate.
     group->input_names.clear();
-    for (auto& inode : node->inlinks_in_order(true)) {
+    for (auto& inode : node->inlinks_in_order()) {
       group->input_names.push_back(inode->source()->as<NodeData>()->id());
     }
     return {pack[0].operator ir::Expr().as_lowered_func_ref()};

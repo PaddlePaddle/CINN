@@ -124,8 +124,8 @@ class DomTree {
     DomNode* parent = nullptr;
     int count       = 0;
     if (graph_node->safe_as<Node>()) {
-      auto* node      = graph_node->safe_as<Node>();
-      auto& out_links = node->outlinks_in_order(true);
+      auto* node            = graph_node->safe_as<Node>();
+      const auto& out_links = node->outlinks_in_order();
       for (int i = 0; i < out_links.size(); i++) {
         auto sink         = out_links[i]->sink();
         bool has_no_links = sink->outlinks().empty();
@@ -319,7 +319,7 @@ class GraphPartition {
     if (source == sink) return true;
     auto op_node = source->safe_as<Node>();
     if (op_node) {
-      auto& out_links = op_node->outlinks_in_order(true);
+      const auto& out_links = op_node->outlinks_in_order();
       for (int i = 0; i < out_links.size(); i++) {
         auto new_source = out_links[i]->sink();
         // judge only the first out var of the op node can fuse
@@ -357,7 +357,7 @@ class GraphPartition {
       }
     }
     if (op_node) {
-      auto& outlinks = op_node->outlinks_in_order(true);
+      const auto& outlinks = op_node->outlinks_in_order();
       for (int i = 0; i < outlinks.size(); i++) {
         auto* new_source = outlinks[i]->sink();
         if (!i) {
@@ -405,7 +405,7 @@ class GraphPartition {
     MergeNodes(group_node, target);
     auto op_node = source->safe_as<Node>();
     if (op_node) {
-      auto& outlinks = op_node->outlinks_in_order(true);
+      const auto& outlinks = op_node->outlinks_in_order();
       for (int i = 0; i < outlinks.size(); i++) {
         auto* new_source = outlinks[i]->sink();
         if (!i) {

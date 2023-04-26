@@ -1258,7 +1258,9 @@ Tensor DropoutInfer(const ir::Tensor &tensor,
   if (dropout_implementation == "downgrade_in_infer") {
     return Compute(
         tensor->shape,
-        [=](const std::vector<Expr> &indice) { return tensor(indice) * (1 - dropout_prob); },
+        [=](const std::vector<Expr> &indice) {
+          return tensor(indice) * common::make_const(tensor->type(), 1 - dropout_prob);
+        },
         output_name);
   } else if (dropout_implementation == "upscale_in_train") {
     // The name here must be consistent, otherwise it cannot participate in the fusion schedule.

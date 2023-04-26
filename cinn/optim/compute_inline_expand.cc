@@ -51,8 +51,6 @@ struct TensorInlineExpandMutator : public ir::IRMutator<> {
     ir::IRMutator<>::Visit(expr, expr);
     for (int i = 0; i < tensor_names.size(); i++) {
       for (auto &var : replace_var[i]) {
-        optim::CUDAReplaceIndexOfCachePass(
-            expr, var, ir::Expr(0), all_tensor_map_, resized_buffer_cache, false, var->upper_bound, tensor_names[i]);
       }
     }
   }
