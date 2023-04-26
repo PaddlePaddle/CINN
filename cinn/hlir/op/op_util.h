@@ -88,6 +88,10 @@ std::vector<T> ToPodVector(const std::vector<Expr> &args) {
     for (auto &e : args) {
       shape_v.push_back(static_cast<T>(e.as_uint64()));
     }
+  } else if (type.is_bfloat16()) {
+    for (auto &e : args) {
+      shape_v.push_back(static_cast<T>(e.as_bfloat16()));
+    }
   } else if (type.is_float(16)) {
     for (auto &e : args) {
       shape_v.push_back(static_cast<T>(e.as_float16()));

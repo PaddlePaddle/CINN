@@ -82,7 +82,7 @@ void LayerNormOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
   auto* builder = ctx.Builder();
 
   const auto& x_type = x->type;
-  if (x_type.is_float(16)) {
+  if (x_type.is_float16() || x_type.is_bfloat16()) {
     x = builder->Cast(x, "float32");
   }
 
@@ -121,7 +121,7 @@ void LayerNormOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
 
   // add bias
   if (bias) {
-    if (bias.value()->type.is_float(16)) {
+    if (bias.value()->type.is_float16() || bias.value()->type.is_bfloat16()) {
       bias = ctx.Builder()->Cast(bias.value(), "float32");
     }
     auto bias_broadcast = builder->BroadcastTo(*bias, shape, {1});
@@ -131,8 +131,10 @@ void LayerNormOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
   // reshape to the original shape
   y_out = builder->Reshape(y_out, x_shape);
 
-  if (x_type.is_float(16)) {
+  if (x_type.is_float16()) {
     y_out = builder->Cast(y_out, "float16");
+  } else if (x_type.is_bfloat16()) {
+    y_out = builder->Cast(y_out, "bfloat16");
   }
 
   // get output names

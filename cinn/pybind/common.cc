@@ -106,6 +106,8 @@ void BindType(py::module *m) {
   DEFINE_TYPE_METHOD(is_vector);
   DEFINE_TYPE_METHOD(is_scalar);
   DEFINE_TYPE_METHOD(is_float);
+  DEFINE_TYPE_METHOD(is_float16);
+  DEFINE_TYPE_METHOD(is_bfloat16);
   DEFINE_TYPE_METHOD(is_int);
   DEFINE_TYPE_METHOD(is_uint);
   DEFINE_TYPE_METHOD(is_string);
@@ -155,6 +157,8 @@ void BindType(py::module *m) {
       .def("Int", &common::Int, py::arg("bits"), py::arg("lanes") = 1)
       .def("UInt", &common::UInt, py::arg("bits"), py::arg("lanes") = 1)
       .def("Float", &common::Float, py::arg("bits"), py::arg("lanes") = 1, py::arg("st") = Type::specific_type_t::None)
+      .def("Float16", &common::Float)
+      .def("BFloat16", &common::Float)
       .def("Bool", &common::Bool, py::arg("lanes") = 1)
       .def("String", &common::String);
 

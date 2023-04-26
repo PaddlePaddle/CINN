@@ -152,13 +152,16 @@ void cinn_call_cublas(void *v_args,
   void *rhs = trans_o ? B : A;
 
   cudaDataType_t cuda_dtype;
-  auto type_code = args[0].operator cinn_buffer_t *()->type.code;
-  bool is_float  = type_code == cinn_type_float;
-  int bytes      = args[0].operator cinn_buffer_t *()->type.bits / CHAR_BIT;
+  auto type_code   = args[0].operator cinn_buffer_t *()->type.code;
+  bool is_float    = type_code == cinn_type_float;
+  bool is_bfloat16 = type_code == cinn_type_bfloat;
+  int bytes        = args[0].operator cinn_buffer_t *()->type.bits / CHAR_BIT;
   if (is_float && bytes == sizeof(common::float16)) {
     cuda_dtype = CUDA_R_16F;
   } else if (is_float && bytes == sizeof(float)) {
     cuda_dtype = CUDA_R_32F;
+  } else if (is_bfloat16) {
+    cuda_dtype = CUDA_R_16BF;
   } else {
     LOG(FATAL) << "unsupported cublas data type: " << static_cast<int>(type_code) << ", bytes = " << bytes;
   }
@@ -300,13 +303,16 @@ void cinn_call_batched_cublas(void *v_args,
   CUBLAS_CALL(cublasSetStream(cuhandle, custream));
 
   cudaDataType_t cuda_dtype;
-  auto type_code = args[0].operator cinn_buffer_t *()->type.code;
-  bool is_float  = type_code == cinn_type_float;
-  int bytes      = args[0].operator cinn_buffer_t *()->type.bits / CHAR_BIT;
+  auto type_code   = args[0].operator cinn_buffer_t *()->type.code;
+  bool is_float    = type_code == cinn_type_float;
+  bool is_bfloat16 = type_code == cinn_type_bfloat;
+  int bytes        = args[0].operator cinn_buffer_t *()->type.bits / CHAR_BIT;
   if (is_float && bytes == sizeof(common::float16)) {
     cuda_dtype = CUDA_R_16F;
   } else if (is_float && bytes == sizeof(float)) {
     cuda_dtype = CUDA_R_32F;
+  } else if (is_bfloat16) {
+    cuda_dtype = CUDA_R_16BF;
   } else {
     LOG(FATAL) << "unsupported cublas data type: " << static_cast<int>(type_code) << ", bytes = " << bytes;
   }
@@ -462,11 +468,14 @@ cudnnDataType_t convert_to_cudnn_dtype(void *v_args, int num_args) {
     }
   }
   cudnnDataType_t data_type;
-  bool is_float = type_code == cinn_type_float;
+  bool is_float    = type_code == cinn_type_float;
+  bool is_bfloat16 = type_code == cinn_type_bfloat;
   if (is_float && bits == 16) {
     data_type = CUDNN_DATA_HALF;
   } else if (is_float && bits == 32) {
     data_type = CUDNN_DATA_FLOAT;
+  } else if (is_bfloat16) {
+    data_type = CUDNN_DATA_BFLOAT16;
   } else {
     LOG(FATAL) << "unsupported cudnn data type: " << static_cast<int>(type_code) << ", bits = " << bits;
   }
@@ -477,9 +486,10 @@ cudnnDataType_t get_cudnn_compute_dtype(cudnnDataType_t data_type) {
   switch (data_type) {
     case CUDNN_DATA_FLOAT:
     case CUDNN_DATA_HALF:
+    case CUDNN_DATA_BFLOAT16:
       return CUDNN_DATA_FLOAT;
     default:
-      LOG(FATAL) << "unsupported cudnn data type, only support float16 and float32 now!";
+      LOG(FATAL) << "unsupported cudnn data type, only support float16/bfloat16 and float32 now!";
   }
   return CUDNN_DATA_FLOAT;
 }
@@ -502,8 +512,10 @@ std::string debug_cudnn_tensor_dtype(cudnnDataType_t tensor_dtype) {
       return "float32";
     case CUDNN_DATA_HALF:
       return "float16";
+    case CUDNN_DATA_BFLOAT16:
+      return "bfloat16";
     default:
-      LOG(FATAL) << "Only support float16 and float32 now!";
+      LOG(FATAL) << "Only support float16/bfloat16 and float32 now!";
   };
   return "";
 }
@@ -1608,10 +1620,13 @@ cudnnDataType_t convert_to_cudnn_dtype(cinn_buffer_t *input) {
   int bits       = input->type.bits;
   cudnnDataType_t data_type;
   bool is_float = type_code == cinn_type_float;
+  bool is_bfloat16 = type_code == cinn_type_bfloat;
   if (is_float && bits == 16) {
     data_type = CUDNN_DATA_HALF;
   } else if (is_float && bits == 32) {
     data_type = CUDNN_DATA_FLOAT;
+  } else if (is_bfloat16) {
+    data_type = CUDNN_DATA_BFLOAT16;
   } else {
     LOG(FATAL) << "unsupported cudnn data type: " << static_cast<int>(type_code) << ", bits = " << bits;
   }

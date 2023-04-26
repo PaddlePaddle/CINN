@@ -45,6 +45,7 @@ llvm::Type *CinnTypeToLLVMType(common::Type type, llvm::Module *m, bool is_vec) 
   llvm::Type *u32 = llvm::Type::getInt32Ty(m->getContext());
   llvm::Type *u64 = llvm::Type::getInt64Ty(m->getContext());
 
+  llvm::Type *bf16 = llvm::Type::getBFloatTy(m->getContext());
   llvm::Type *f16 = llvm::Type::getHalfTy(m->getContext());
   llvm::Type *f32 = llvm::Type::getFloatTy(m->getContext());
   llvm::Type *f64 = llvm::Type::getDoubleTy(m->getContext());
@@ -78,7 +79,9 @@ llvm::Type *CinnTypeToLLVMType(common::Type type, llvm::Module *m, bool is_vec) 
     ir_type = f32;
   } else if (type.is_float(64)) {
     ir_type = f64;
-  } else if (type.is_float(16)) {
+  } else if (type.is_bfloat16()) {
+    ir_type = bf16;
+  } else if (type.is_float16()) {
     ir_type = f16;
   } else if (type.is_void()) {
     ir_type = v;

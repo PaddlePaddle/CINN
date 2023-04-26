@@ -311,7 +311,9 @@ Expr cast(Expr e, Type type) {
       return Expr(static_cast<float>(e.get_constant()));
     } else if (type.is_float(64)) {
       return Expr(static_cast<double>(e.get_constant()));
-    } else if (type.is_float(16)) {
+    } else if (type.is_bfloat16()) {
+      return Expr(static_cast<cinn::common::bfloat16>(e.get_constant()));
+    } else if (type.is_float16()) {
       return Expr(static_cast<cinn::common::float16>(e.get_constant()));
     } else {
       CINN_NOT_IMPLEMENTED

@@ -82,7 +82,7 @@ void NormOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
   NormHelper helper(ctx.Builder(), axis);
 
   auto in_type = x->type;
-  if (in_type.is_float(16)) {
+  if (in_type.is_float16() || in_type.is_bfloat16()) {
     x = ctx.Builder()->Cast(x, "float32");
   }
   auto square_sum     = helper.SquareSum(x);

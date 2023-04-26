@@ -49,7 +49,9 @@ std::string Type2StrForNN(common::Type type) {
     return "fp64";
   } else if (type.is_float(32)) {
     return "fp32";
-  } else if (type.is_float(16)) {
+  } else if (type.is_bfloat16()) {
+    return "bf16";
+  } else if (type.is_float16()) {
     return "fp16";
   }
   LOG(FATAL) << "NN Not Support " << type;

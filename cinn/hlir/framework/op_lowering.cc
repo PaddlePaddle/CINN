@@ -1308,7 +1308,7 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
       // get dtype of vectorized var
       auto dtype = this->type_dict_.at(tensor_name);
       VLOG(4) << tensor_name << " dtype " << dtype;
-      if (psize % 8 == 0 && dtype.is_float(16)) {
+      if (psize % 8 == 0 && (dtype.is_float16() || dtype.is_bfloat16())) {
         vector_width = 8;
       } else if (psize % 4 == 0) {
         vector_width = 4;
