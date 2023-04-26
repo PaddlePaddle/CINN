@@ -481,7 +481,7 @@ std::unordered_set<NodeData*> Graph::Group::GetOutputNodeDatas() {
   std::unordered_set<NodeData*> group_outputs;
 
   for (auto node : this->output_nodes) {
-    for (auto& link : node->outlinks_in_order(true)) {
+    for (auto& link : node->outlinks_in_order()) {
       auto node_data = link->sink()->safe_as<NodeData>();
       if (!node_data) {
         continue;
