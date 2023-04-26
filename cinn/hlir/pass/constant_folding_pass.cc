@@ -57,6 +57,16 @@ class ConstantFoldingPassHelper : public FusionHelperBase {
             can_fold = false;
             break;
           }
+          // if producer's output in graph_->outputs, then will not fold
+          for (auto& edge : producer->outlinks()) {
+            auto graph_node = edge->sink();
+            auto data       = graph_node->safe_as<NodeData>();
+            CHECK(data);
+            if (std::find(graph_->outputs.begin(), graph_->outputs.end(), data) != graph_->outputs.end()) {
+              can_fold = false;
+              break;
+            }
+          }
         }
 
         if (!can_fold) continue;
