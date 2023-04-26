@@ -135,7 +135,7 @@ std::pair<ir::Module, std::string> GenReduceCode(const std::vector<int>& shape,
   } else {
     source_code = codegen.Compile(device_module);
   }
-  LOG(INFO) << "compiled code:\n" << device_module;
+  // LOG(INFO) << "compiled code:\n" << device_module;
 
   return std::pair<ir::Module, std::string>(host_module, source_code);
 }

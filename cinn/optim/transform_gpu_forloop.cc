@@ -381,6 +381,7 @@ class SharedAxisVisitor : public ir::IRMutator<> {
         indice = common::AutoSimplify(indice);
       }
     }
+    ir::IRMutator<>::Visit(op, expr);
   }
 
   void Visit(const ir::Load *op, Expr *expr) override {
@@ -400,6 +401,7 @@ class SharedAxisVisitor : public ir::IRMutator<> {
         indice = common::AutoSimplify(indice);
       }
     }
+    ir::IRMutator<>::Visit(op, expr);
   }
 
   const std::vector<std::string> gpu_axis = {"blockIdx.x", "blockIdx.y", "blockIdx.z"};
@@ -424,6 +426,7 @@ class LocalAxisVisitor : public ir::IRMutator<> {
         indice = common::AutoSimplify(indice);
       }
     }
+    ir::IRMutator<>::Visit(op, expr);
   }
 
   void Visit(const ir::Load *op, Expr *expr) override {
@@ -443,6 +446,7 @@ class LocalAxisVisitor : public ir::IRMutator<> {
         indice = common::AutoSimplify(indice);
       }
     }
+    ir::IRMutator<>::Visit(op, expr);
   }
 
   const std::vector<std::string> gpu_axis = {
@@ -475,6 +479,7 @@ class ResizeBufferSizeVisitor : public ir::IRMutator<> {
       shape.push_back(ir::Expr(BufferSize(indices[idx])));
       buffer.push_back(shape.back());
     }
+    ir::IRMutator<>::Visit(op, expr);
   }
 
   void Visit(const ir::Load *op, Expr *expr) override {
@@ -488,6 +493,7 @@ class ResizeBufferSizeVisitor : public ir::IRMutator<> {
     }
 
     load->tensor.as_tensor_ref()->shape = load->tensor.as_tensor_ref()->buffer->shape;
+    ir::IRMutator<>::Visit(op, expr);
   }
 
   void Visit(const ir::For *op, Expr *expr) override {
