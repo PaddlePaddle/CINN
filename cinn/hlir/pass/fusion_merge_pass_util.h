@@ -278,9 +278,6 @@ CONDITION_FUNC(injective_horizontal_with_reduce) {
 }
 
 CONDITION_FUNC(reduce_fuse_broadcast) {
-  if (helper->target_ == common::DefaultHostTarget()) {
-    return true;
-  }
   // if same shape with horizontal relation
   if (is_same_size(helper, first, second)) {
     return true;
@@ -316,7 +313,7 @@ CONDITION_FUNC(reduce_fuse_broadcast) {
       reduce_size *= reducer_input_shape[idx - 1];
     }
     // Check if the reduce size exceeds the hardware limit
-    if (reduce_size > helper->target_.max_num_threads()) {
+    if (helper->target_ == common::DefaultNVGPUTarget() && reduce_size > helper->target_.max_num_threads()) {
       return false;
     }
 
