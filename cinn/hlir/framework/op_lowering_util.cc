@@ -165,11 +165,10 @@ bool IsConstOp(const framework::Node* node) {
 }
 
 std::vector<int> GetInputShape(const Node* node, const absl::flat_hash_map<std::string, shape_t>& shape_dict) {
-  auto producers = GetProducers(node);
-  CHECK(producers.size());
+  auto input_data = GetInputNodeData(node);
+  CHECK(input_data.size());
 
-  auto producer_data = GetNodeData(producers.front());
-  return shape_dict.at(producer_data->id());
+  return shape_dict.at(input_data.front()->id());
 }
 
 std::vector<int> GetOutputShape(const Node* node, const absl::flat_hash_map<std::string, shape_t>& shape_dict) {
