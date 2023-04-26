@@ -90,10 +90,10 @@ class Node : public common::GraphNode {
   NodeAttr attrs;
 
   //! Get the input tensors in order to match tensors correctly. If do refresh, we will update the links.
-  const std::vector<common::Shared<common::GraphEdge>> &inlinks_in_order(bool refresh = false) const;
+  std::vector<common::Shared<common::GraphEdge>> inlinks_in_order() const;
 
   //! Get the output tensors in order to match tensors correctly. If do refresh, we will update the links.
-  const std::vector<common::Shared<common::GraphEdge>> &outlinks_in_order(bool refresh = false) const;
+  std::vector<common::Shared<common::GraphEdge>> outlinks_in_order() const;
 
   inline const Operator *op() const { return this->attrs.op; }
 
@@ -126,8 +126,6 @@ class Node : public common::GraphNode {
    * \brief The unique id of the node.
    */
   std::string id_;
-  mutable std::vector<common::Shared<common::GraphEdge>> outlinks_in_order_{};
-  mutable std::vector<common::Shared<common::GraphEdge>> inlinks_in_order_{};
 };
 
 /**

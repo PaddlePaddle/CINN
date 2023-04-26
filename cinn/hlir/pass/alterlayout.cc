@@ -105,7 +105,7 @@ std::vector<framework::shape_t> UpdateInferInfos(Node* node,
   CHECK(!infershapes.empty()) << node->op()->name << " finds no infershape";
   CHECK(!infertypes.empty()) << node->op()->name << " finds no infertype";
   CHECK(!inferlayouts.empty()) << node->op()->name << " finds no inferlayout";
-  auto outlinks = node->outlinks_in_order(true);
+  auto outlinks = node->outlinks_in_order();
   CHECK_EQ(infershapes.size(), infertypes.size());
   CHECK_EQ(inferlayouts.size(), 2U);
   CHECK_EQ(infertypes.size(), inferlayouts[0].size());
@@ -156,7 +156,7 @@ void AlterLayoutPass(Graph* graph) {
         if (node->attrs.attr_store.find("dilation") != node->attrs.attr_store.end()) {
           dilation = absl::get<std::vector<int>>(node->attrs.attr_store.at("dilation"));
         }
-        auto& conv_inlinks = node->inlinks_in_order(true);
+        const auto& conv_inlinks = node->inlinks_in_order();
         CHECK_EQ(conv_inlinks.size(), 2U) << "conv2d should have 2 inputs";
         std::vector<std::vector<int>> inputs_shape;
         for (auto& link : conv_inlinks) {
@@ -190,7 +190,7 @@ void AlterLayoutPass(Graph* graph) {
           std::string new_data_format               = "NCHWc";
           new_node->attrs.attr_store["data_format"] = new_data_format;
 
-          auto& conv_inlinks = node->inlinks_in_order(true);
+          const auto& conv_inlinks = node->inlinks_in_order();
           std::vector<common::GraphNode*> input_nodes;
           for (auto& link : conv_inlinks) {
             auto* source = link->source();
@@ -336,9 +336,9 @@ void AlterLayoutPass(Graph* graph) {
             conv2d_NCHWc_inputlayouts.push_back(layout_dict[weight_node->id()]);
           }
           // replace conv2d to conv2d_NCHWc
-          auto infershapes   = op_infershape[new_node->op()](conv2d_NCHWc_inputshapes, new_node->attrs.attr_store);
-          auto& old_inlinks  = node->inlinks_in_order(true);
-          auto& old_outlinks = node->outlinks_in_order(true);
+          auto infershapes        = op_infershape[new_node->op()](conv2d_NCHWc_inputshapes, new_node->attrs.attr_store);
+          const auto& old_inlinks = node->inlinks_in_order();
+          const auto& old_outlinks = node->outlinks_in_order();
           for (auto& link : old_inlinks) {
             auto source = link->source();
             source->UnLinkSingleTo(node);
@@ -383,7 +383,7 @@ void AlterLayoutPass(Graph* graph) {
           std::vector<framework::shape_t> input_shapes;
           std::vector<Type> input_types;
           std::vector<std::string> input_layouts;
-          for (auto& link : node->inlinks_in_order(true)) {
+          for (auto& link : node->inlinks_in_order()) {
             auto* source = link->source();
             CHECK(shape_dict.count(source->id())) << source->id() << " finds no infershape";
             CHECK(type_dict.count(source->id())) << source->id() << " finds no infertype";
@@ -400,7 +400,7 @@ void AlterLayoutPass(Graph* graph) {
           // if input inferred layouts is different from original's, expand dims or do transformation.
           CHECK_EQ(inferlayouts.size(), 2U);
           auto new_input_layouts = inferlayouts[1];
-          auto inlinks           = node->inlinks_in_order(true);
+          auto inlinks           = node->inlinks_in_order();
           CHECK_EQ(input_layouts.size(), inlinks.size());
           CHECK_EQ(input_layouts.size(), new_input_layouts.size());
           CHECK_EQ(input_layouts.size(), input_shapes.size());
@@ -548,7 +548,7 @@ void AlterLayoutPass(Graph* graph) {
           input_shapes.clear();
           input_types.clear();
           input_layouts.clear();
-          for (auto& link : node->inlinks_in_order(true)) {
+          for (auto& link : node->inlinks_in_order()) {
             auto* source = link->source();
             CHECK(shape_dict.count(source->id())) << source->id() << " finds no infershape";
             CHECK(type_dict.count(source->id())) << source->id() << " finds no infertype";
@@ -585,7 +585,7 @@ void AlterLayoutPass(Graph* graph) {
           CHECK(!out_layouts.empty());
           if (out_layouts[0].size() > 4) {
             // recover the layout finally, NCHWxc->NCHW, only first output
-            auto outlinks = node->outlinks_in_order(true);
+            auto outlinks = node->outlinks_in_order();
             CHECK(!outlinks.empty());
             auto* out_node         = outlinks[0]->sink();
             std::string dst_layout = "NCHW";
