@@ -110,7 +110,8 @@ static std::unordered_set<std::string> ParamsNeedInitWithZero(const MeasureInput
     if (kInitWithZeroParams.count(node->op()->name) != 0) {
       std::vector<int> param_idxs = kInitWithZeroParams.at(node->op()->name);
       for (int param_idx : param_idxs) {
-        auto& edge             = node->inlinks_in_order().at(param_idx);
+        const auto& inlinks    = node->inlinks_in_order();
+        auto& edge             = inlinks.at(param_idx);
         std::string param_name = edge->source()->as<hlir::framework::NodeData>()->id();
         VLOG(6) << "param needs to be init with 0: " << param_name;
         res.insert(param_name);
