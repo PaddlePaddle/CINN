@@ -151,8 +151,9 @@ class TensorVectorizeTeller : public ir::IRMutator<const Expr *> {
               << ", gap:" << gap;
     }
 
-    auto dtype          = expr->type().ElementOf();
-    bool type_supported = dtype.is_float(32) || dtype.is_int(32) || dtype.is_uint(32) || dtype.is_float16() || dtype.is_bfloat16();
+    auto dtype = expr->type().ElementOf();
+    bool type_supported =
+        dtype.is_float(32) || dtype.is_int(32) || dtype.is_uint(32) || dtype.is_float16() || dtype.is_bfloat16();
     if (!type_supported) {
       VLOG(5) << "Only support vectorizing int,uint,float,float16,bloat16, but got " << dtype;
       return false;

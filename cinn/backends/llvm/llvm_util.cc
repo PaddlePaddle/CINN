@@ -46,10 +46,10 @@ llvm::Type *CinnTypeToLLVMType(common::Type type, llvm::Module *m, bool is_vec) 
   llvm::Type *u64 = llvm::Type::getInt64Ty(m->getContext());
 
   llvm::Type *bf16 = llvm::Type::getBFloatTy(m->getContext());
-  llvm::Type *f16 = llvm::Type::getHalfTy(m->getContext());
-  llvm::Type *f32 = llvm::Type::getFloatTy(m->getContext());
-  llvm::Type *f64 = llvm::Type::getDoubleTy(m->getContext());
-  llvm::Type *arr = llvm::Type::getPrimitiveType(m->getContext(), llvm::Type::ArrayTyID);
+  llvm::Type *f16  = llvm::Type::getHalfTy(m->getContext());
+  llvm::Type *f32  = llvm::Type::getFloatTy(m->getContext());
+  llvm::Type *f64  = llvm::Type::getDoubleTy(m->getContext());
+  llvm::Type *arr  = llvm::Type::getPrimitiveType(m->getContext(), llvm::Type::ArrayTyID);
   if (type.is_void() && type.is_cpp_handle()) {
     return llvm::PointerType::getUnqual(i8);
   }

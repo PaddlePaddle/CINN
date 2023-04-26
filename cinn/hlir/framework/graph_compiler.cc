@@ -37,8 +37,8 @@ namespace cinn {
 namespace hlir {
 namespace framework {
 
-using cinn::common::float16;
 using cinn::common::bfloat16;
+using cinn::common::float16;
 
 // Store params from node to instruction
 void AddAttrs(const absl::flat_hash_map<std::string, AttrType>& attrs_store,

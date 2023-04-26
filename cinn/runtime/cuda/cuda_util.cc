@@ -1619,7 +1619,7 @@ cudnnDataType_t convert_to_cudnn_dtype(cinn_buffer_t *input) {
   auto type_code = input->type.code;
   int bits       = input->type.bits;
   cudnnDataType_t data_type;
-  bool is_float = type_code == cinn_type_float;
+  bool is_float    = type_code == cinn_type_float;
   bool is_bfloat16 = type_code == cinn_type_bfloat;
   if (is_float && bits == 16) {
     data_type = CUDNN_DATA_HALF;

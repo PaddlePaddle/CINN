@@ -19,8 +19,8 @@
 
 #include <cmath>
 
-using cinn::common::float16;
 using cinn::common::bfloat16;
+using cinn::common::float16;
 
 extern "C" {
 

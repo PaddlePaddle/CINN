@@ -29,8 +29,8 @@
 namespace cinn {
 namespace ir {
 
-using common::float16;
 using common::bfloat16;
+using common::float16;
 
 void IrPrinter::Print(Expr e) { IRVisitor::Visit(&e); }
 void IrPrinter::Print(const std::vector<Expr> &exprs, const std::string &splitter) {

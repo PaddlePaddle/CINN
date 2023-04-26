@@ -20,8 +20,8 @@
 namespace cinn {
 namespace runtime {
 
-using cinn::common::float16;
 using cinn::common::bfloat16;
+using cinn::common::float16;
 
 cinn_type_t ToRuntimeType(Type type) {
 #define SET_TYPE_CASE_ITEM(compiled_type, runtime_type) \
