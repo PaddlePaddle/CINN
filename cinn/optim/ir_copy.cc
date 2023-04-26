@@ -273,6 +273,7 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
   Expr Visit(const Let* op) override {
     auto value = Visit(&op->symbol);
     auto body  = Visit(&op->body);
+
     return Let::Make(value, body);
   }
 

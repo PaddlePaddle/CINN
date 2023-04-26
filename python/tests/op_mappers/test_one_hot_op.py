@@ -16,7 +16,6 @@ import unittest
 import numpy as np
 from op_mapper_test import OpMapperTest, logger
 import paddle
-from paddle.fluid.framework import convert_np_dtype_to_dtype_
 
 
 class TestOneHotOp(OpMapperTest):
@@ -39,7 +38,7 @@ class TestOneHotOp(OpMapperTest):
     def set_op_attrs(self):
         return {
             "depth": self.depth,
-            "dtype": convert_np_dtype_to_dtype_(self.dtype),
+            "dtype": self.nptype2paddledtype(self.dtype),
             "allow_out_of_range": self.allow_out_of_range
         }
 
@@ -86,7 +85,7 @@ class TestOneHotV2Op(OpMapperTest):
     def set_op_attrs(self):
         return {
             "depth": self.depth,
-            "dtype": convert_np_dtype_to_dtype_(self.dtype),
+            "dtype": self.nptype2paddledtype(self.dtype),
             "allow_out_of_range": self.allow_out_of_range
         }
 

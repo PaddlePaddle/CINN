@@ -47,7 +47,6 @@ class TransposeFoldingBase : public ProgramPass {
   void ApplyImpl(Program* program,
                  const std::unordered_set<std::string>& fetch_ids,
                  const common::Target& target) override {
-    VLOG(4) << "-- Before folding: " << *program;
     set_target_instrs();
     set_fold_instrs();
     set_skip_instrs();
@@ -84,7 +83,6 @@ class TransposeFoldingBase : public ProgramPass {
       }
     }
     *program = builder.Build();
-    VLOG(4) << "-- After folding: " << *program;
   }
 
   // get can fold instruction in order, more front, more near from dot op

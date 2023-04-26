@@ -168,8 +168,9 @@ class IRSchedule {
    * \brief Move a producer block's location under a specific loop.
    * @param block The block we want to move its computation location.
    * @param loop The loop we will move the block to.
+   * @param keep_unit_loops Whether to keep the unit loop.
    */
-  void ComputeAt(const Expr& block, const Expr& loop);
+  void ComputeAt(const Expr& block, const Expr& loop, bool keep_unit_loops = false);
 
   /**
    * \brief Move a block's location under a loop without considering their dependency.
@@ -182,8 +183,9 @@ class IRSchedule {
    * \brief Move a consumer block's location under a specific loop.
    * @param block The block we want to move its computation location.
    * @param loop The loop we will move the block to.
+   * @param keep_unit_loops Whether to keep the unit loop.
    */
-  void ReverseComputeAt(const Expr& block, const Expr& loop);
+  void ReverseComputeAt(const Expr& block, const Expr& loop, bool keep_unit_loops = false);
 
   /**
    * \brief Find an expr's root ScheduleBlockRealize node
@@ -297,6 +299,12 @@ class IRSchedule {
   void ComputeInline(const Expr& schedule_block);
 
   /**
+   * \brief  Inline a consumer block into its only producer.
+   * @param schedule_block the schedule block to be inlined.
+   */
+  void ReverseComputeInline(const Expr& schedule_block);
+
+  /**
    * \brief Bind the loop to the given thread axis.
    * @param loop the loop to Bind.
    * @param thread_axis the name of the thread axis to be bound to the loop.
@@ -388,6 +396,12 @@ class IRSchedule {
                                       int max_innermost_factor,
                                       const std::vector<int>& decision = {});
 
+  /*!
+   * \brief Insert a tag in schedule_desc to mark the beginning of post processing,
+   * the schedue primitive itself does not make any changes to the IR.
+   */
+  void TagPostSchedule();
+
   /**
    * \brief Randomly sample an integer according to the given distribution.
    * @param candidates Candidate set of integers.
@@ -474,6 +488,36 @@ class ComputeInliner : public BaseInliner {
   Expr ReplaceInlinedTensor(Expr* load);
 };
 
+/*!
+ * \brief Helper to inline a block into the its producer
+ * The derived class implements the following functionalities:
+ * 1) Substitute `Load` on the tensor to be inlined
+ * to its value calculation in the producer block
+ * 2) Analyze the producer block to determine the remapping of index variables
+ */
+class ReverseComputeInliner : public BaseInliner {
+ public:
+  explicit ReverseComputeInliner(const Tensor& inlined_tensor,
+                                 const Expr& inlined_store,
+                                 const Expr& inlined_load,
+                                 const Expr& target_store)
+      : BaseInliner(inlined_tensor, inlined_store), inlined_load_(inlined_load), target_store_(target_store) {}
+
+  bool BodyPatternAllowInline();
+
+ protected:
+  Expr inlined_load_{nullptr};
+  Expr target_store_{nullptr};
+
+ private:
+  void Visit(const ir::Load* expr, Expr* op) override;
+  void Visit(const ir::Store* expr, Expr* op) override;
+
+  //! Replace the 'Load' node on the tensor to 'Store' node of its consumers.
+  Expr ReplaceInlinedTensor(Expr* load);
+  Expr ReplaceTargetTensor(Expr* store);
+};
+
 // The struct used to remove the original block in ComputeAt.
 class LeafBlockRemovalPlan : public ir::IRMutator<> {
  public:
@@ -538,6 +582,32 @@ class LeafBlockRemovalPlan : public ir::IRMutator<> {
   const Expr& block_;
   Expr* source_expr_;
   Expr* target_expr_;
+};
+
+class ComputeInlineChecker : public ir::IRMutator<> {
+ public:
+  ComputeInlineChecker(IRSchedule& schedule, Expr& block) : ir_schedule_(schedule), block_(block) {}
+
+  bool Check();
+
+  void BuildDataDependency();
+
+ private:
+  void Visit(const ir::Load* expr, Expr* op) {
+    // Check there is Load Expr corresponds to Store Expr
+    if ((store_.As<ir::Store>()->tensor).as_tensor_ref()->name == expr->tensor.as_tensor_ref()->name) {
+      should_skip_ = false;
+      return;
+    }
+    IRMutator::Visit(expr, op);
+  }
+
+ private:
+  IRSchedule& ir_schedule_;
+  Expr& block_;
+
+  Expr store_;
+  bool should_skip_{true};
 };
 
 }  // namespace ir

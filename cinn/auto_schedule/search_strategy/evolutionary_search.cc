@@ -24,6 +24,7 @@
 #include <utility>
 
 #include "cinn/auto_schedule/database/database.h"
+#include "cinn/auto_schedule/post_schedule_rule/cooperative_process.h"
 #include "cinn/auto_schedule/search_space/search_space.h"
 #include "cinn/auto_schedule/search_space/search_state.h"
 #include "cinn/auto_schedule/search_strategy/mutate_rule/mutate_tile_size.h"
@@ -61,6 +62,8 @@ EvolutionarySearch::EvolutionarySearch(const TuneTask& tune_task,
       weighted_mutators_.insert(std::make_pair(accum_weight, MutateRule::Make(std::get<0>(mutator))));
     }
   }
+
+  post_schedule_rules_.emplace_back(new CooperativeProcess);
 }
 
 EvolutionarySearch::~EvolutionarySearch() {}
@@ -116,9 +119,23 @@ std::vector<SearchState> EvolutionarySearch::GetTopKCandidatesFromDatabase(int t
   return results;
 }
 
+void ApplyPostScheduleRules(ir::IRSchedule* schedule,
+                            const std::vector<std::unique_ptr<PostScheduleRule>>& post_schedule_rules) {
+  schedule->TagPostSchedule();
+  for (const auto& post_rule : post_schedule_rules) {
+    post_rule->Apply(schedule);
+  }
+}
+
 std::vector<SearchState> EvolutionarySearch::InitSketch(int num, const std::string& strategy) {
   VLOG(4) << "InitSketch with num:" << num << ", strategy: " << strategy;
-  return search_space_->GenerateSketches(num, strategy);
+  std::vector<SearchState> states = search_space_->GenerateSketches(num, strategy);
+  auto post_schedule_fn           = [this, &states](int index) {
+    ApplyPostScheduleRules(&states[index]->ir_schedule, post_schedule_rules_);
+  };
+  utils::parallel_run(post_schedule_fn, utils::SequenceDispatcher(0, states.size()), states.size());
+
+  return states;
 }
 
 SearchState EvolutionarySearch::CrossOver(const SearchState& state1, const SearchState& state2) {
@@ -162,7 +179,8 @@ SearchState EvolutionarySearch::Mutate(const SearchState& state, utils::LinearRa
   InitialTaskRegistry* task_registry = InitialTaskRegistry::Global();
   ir::IRSchedule new_ir_sch(optim::IRCopy(task_registry->Get(task_key)->module_expr),
                             utils::ForkRandomState(rand_seed));
-  new_trace.Replay(&new_ir_sch);
+  new_trace.Replay(&new_ir_sch, true);
+  ApplyPostScheduleRules(&new_ir_sch, post_schedule_rules_);
   auto res = SearchState(std::move(new_ir_sch));
 
   VLOG(5) << JoinStatesDebugString("EvolutionarySearch::Mutate", {state, res}, /*verbose=*/VLOG_IS_ON(6));

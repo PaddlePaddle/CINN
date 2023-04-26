@@ -14,8 +14,13 @@
 
 #pragma once
 
+#include <string>
+
 namespace cinn {
 namespace runtime {
+
+bool CheckStringFlagTrue(const std::string &flag);
+bool CheckStringFlagFalse(const std::string &flag);
 
 void SetCinnCudnnDeterministic(bool state);
 bool GetCinnCudnnDeterministic();

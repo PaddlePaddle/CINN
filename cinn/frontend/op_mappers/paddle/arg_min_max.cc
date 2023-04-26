@@ -53,16 +53,8 @@ void ArgOpMapperHelper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
   auto flatten = utils::GetAttrOrDefault<bool>(op_desc, "flatten", false);
   CHECK(op_desc.HasAttr("flatten")) << "Argmax/Argmin op should has attribute \"flatten\"! Please check.";
 
-  auto dtype_id =
-      utils::GetAttrOrDefault<int>(op_desc, "dtype", static_cast<int>(paddle::cpp::VarDescAPI::Type::INT64));
-  if (dtype_id < 0) dtype_id = static_cast<int>(paddle::cpp::VarDescAPI::Type::INT64);
-  auto dtype_pd   = static_cast<paddle::cpp::VarDescAPI::Type>(dtype_id);
-  auto dtype_cinn = utils::CppVarType2CommonType(dtype_pd);
-  auto dtype      = common::Type2Str(dtype_cinn);
-
-  CHECK(dtype_id == static_cast<int>(paddle::cpp::VarDescAPI::Type::INT64) ||
-        dtype_id == static_cast<int>(paddle::cpp::VarDescAPI::Type::INT32))
-      << "the indices dtype must be int32 or int64, but got dtype = " << dtype;
+  auto dtype = utils::GetPaddleDtype(op_desc, "dtype", paddle::cpp::VarDescAPI::Type::INT64);
+  CHECK(dtype == "int32" || dtype == "int64") << "the indices dtype must be int32 or int64, but got dtype = " << dtype;
 
   int ndim = x->shape.size();
   // If flatten = true, flatten x and do opration on axis 0.

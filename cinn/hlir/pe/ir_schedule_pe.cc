@@ -47,7 +47,7 @@ void IRElementwiseSchedule(ir::IRSchedule &ir_sch, const std::vector<int> &outpu
     if (size <= target.max_num_threads()) {
       ir_sch.Bind(loops[0], "threadIdx.x");
     } else {
-      auto splited = ir_sch.Split(loops[0], {-1, target.max_num_threads() / 4});
+      auto splited = ir_sch.Split(loops[0], {-1, target.max_num_threads()});
       ir_sch.Bind(splited[0], "blockIdx.x");
       ir_sch.Bind(splited[1], "threadIdx.x");
     }
@@ -70,7 +70,7 @@ void IRInjectiveSchedule(ir::IRSchedule &ir_sch, const std::vector<int> &output_
     if (size <= target.max_num_threads()) {
       ir_sch.Bind(loops[0], "threadIdx.x");
     } else {
-      auto splited = ir_sch.Split(loops[0], {-1, target.max_num_threads() / 4});
+      auto splited = ir_sch.Split(loops[0], {-1, target.max_num_threads()});
       ir_sch.Bind(splited[0], "blockIdx.x");
       ir_sch.Bind(splited[1], "threadIdx.x");
     }

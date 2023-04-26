@@ -19,6 +19,11 @@
 
 #include <iostream>
 
+#include "cinn/runtime/flags.h"
+#include "gflags/gflags_declare.h"
+
+DECLARE_bool(verbose_function_register);
+
 namespace cinn {
 namespace backends {
 
@@ -39,7 +44,9 @@ void *RuntimeSymbols::Lookup(absl::string_view name) const {
 
 void RuntimeSymbols::Register(const std::string &name, void *address) {
 #ifdef CINN_WITH_DEBUG
-  RAW_LOG_INFO("JIT Register function [%s]: %p", name.c_str(), address);
+  if (FLAGS_verbose_function_register) {
+    RAW_LOG_INFO("JIT Register function [%s]: %p", name.c_str(), address);
+  }
 #endif  // CINN_WITH_DEBUG
   std::lock_guard<std::mutex> lock(mu_);
   auto it = symbols_.find(name);

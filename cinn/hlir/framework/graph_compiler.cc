@@ -740,7 +740,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
                                                       void* stream) {
   if (FLAGS_cinn_parallel_compile_size) {
     // write group's information into FLAGS_cinn_fusion_groups_graphviz_dir
-    graph_->VisualizeGroupedGraph(fetch_var_ids_);
+    graph_->VisualizeGroupedGraph(fetch_var_ids.empty() ? fetch_var_ids_ : fetch_var_ids);
 
     if (options.with_instantiate_variables) {
       VLOG(3) << "Initantiate all variables on compile-time";
@@ -855,7 +855,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
     }
   }
   // write group's information into FLAGS_cinn_fusion_groups_graphviz_dir
-  graph_->VisualizeGroupedGraph(groups, fetch_var_ids_);
+  graph_->VisualizeGroupedGraph(groups, fetch_var_ids.empty() ? fetch_var_ids_ : fetch_var_ids);
 
   // use the input lowered_funcs in options firstly if exists
   const auto& lowered_funcs = options.lowered_funcs.empty() ? local_lowered_funcs : options.lowered_funcs;

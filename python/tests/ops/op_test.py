@@ -213,7 +213,7 @@ class OpTest(unittest.TestCase):
     @staticmethod
     def nptype2cinntype(dtype):
         switch_map = {
-            "float16": Float(16),
+            "float16": Float(16, 1, Type.specific_type_t.FP16),
             "float32": Float(32),
             "float64": Float(64),
             "int8": Int(8),
@@ -241,7 +241,10 @@ class OpTest(unittest.TestCase):
             return np.random.uniform(low, high, shape).astype(dtype)
         elif dtype == "bool":
             return np.random.choice(a=[False, True], size=shape).astype(dtype)
-        elif dtype in ["int8", "uint8", "int32", "int64"]:
+        elif dtype in [
+                "uint8", "uint16", "uint32", "uint64", "int8", "int16",
+                "int32", "int64"
+        ]:
             return np.random.randint(low, high, shape).astype(dtype)
         else:
             raise Exception("Not supported yet.")
