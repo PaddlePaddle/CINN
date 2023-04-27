@@ -63,37 +63,8 @@ void cinn_call_triangular_solve_nvgpu(void* v_args,
                                       bool unit_diagonal,
                                       void* stream = nullptr);
 
-#ifdef CINN_WITH_CUDNN
-void cinn_gpu_cudnn_conv2d(const absl::flat_hash_map<std::string, int>& attr,
-                           cinn_buffer_t* x,
-                           cinn_buffer_t* w,
-                           cinn_buffer_t* y,
-                           cudaStream_t stream   = nullptr,
-                           common::Layout target = common::Layout::kNCHW);
-
-void cinn_gpu_cudnn_conv2d_backward_data(const absl::flat_hash_map<std::string, int>& attr,
-                                         cinn_buffer_t* w,
-                                         cinn_buffer_t* dy,
-                                         cinn_buffer_t* dx,
-                                         cudaStream_t stream = nullptr);
-
-void cinn_gpu_cudnn_conv2d_backward_filter(const absl::flat_hash_map<std::string, int>& attr,
-                                           cinn_buffer_t* x,
-                                           cinn_buffer_t* dy,
-                                           cinn_buffer_t* dw,
-                                           cudaStream_t stream = nullptr);
-
-void cinn_gpu_cudnn_pool2d(const std::vector<int>& attrs,
-                           const std::vector<std::string>& str_attrs,
-                           cinn_buffer_t* input,
-                           cinn_buffer_t* output,
-                           cudaStream_t stream = nullptr);
-
-void cinn_gpu_cudnn_softmax(const std::vector<int>& attrs,
-                            cinn_buffer_t* input,
-                            cinn_buffer_t* output,
-                            cudaStream_t stream = nullptr);
-#endif
+void cinn_call_cuda_memset(void* v_args, int num_args, int value, size_t count, void* stream = nullptr);
+void cinn_call_cuda_memcpy(void* v_args, int num_args, size_t count, void* stream = nullptr);
 
 /**
  * Call a CUDA compiled kernel.
@@ -148,6 +119,35 @@ void cinn_call_batched_cublas(void* v_args,
                               void* stream);
 
 #ifdef CINN_WITH_CUDNN
+void cinn_gpu_cudnn_conv2d(const absl::flat_hash_map<std::string, int>& attr,
+                           cinn_buffer_t* x,
+                           cinn_buffer_t* w,
+                           cinn_buffer_t* y,
+                           cudaStream_t stream   = nullptr,
+                           common::Layout target = common::Layout::kNCHW);
+
+void cinn_gpu_cudnn_conv2d_backward_data(const absl::flat_hash_map<std::string, int>& attr,
+                                         cinn_buffer_t* w,
+                                         cinn_buffer_t* dy,
+                                         cinn_buffer_t* dx,
+                                         cudaStream_t stream = nullptr);
+
+void cinn_gpu_cudnn_conv2d_backward_filter(const absl::flat_hash_map<std::string, int>& attr,
+                                           cinn_buffer_t* x,
+                                           cinn_buffer_t* dy,
+                                           cinn_buffer_t* dw,
+                                           cudaStream_t stream = nullptr);
+
+void cinn_gpu_cudnn_pool2d(const std::vector<int>& attrs,
+                           const std::vector<std::string>& str_attrs,
+                           cinn_buffer_t* input,
+                           cinn_buffer_t* output,
+                           cudaStream_t stream = nullptr);
+
+void cinn_gpu_cudnn_softmax(const std::vector<int>& attrs,
+                            cinn_buffer_t* input,
+                            cinn_buffer_t* output,
+                            cudaStream_t stream = nullptr);
 
 void cinn_call_cudnn_conv2d_forward(void* v_args,
                                     int num_args,
@@ -303,7 +303,7 @@ void cinn_call_cudnn_softmax_backward(void* v_args,
                                       int output_w,
                                       void* stream);
 
-#endif
+#endif  // CINN_WITH_CUDNN
 }  // namespace cuda
 }  // namespace runtime
 }  // namespace cinn

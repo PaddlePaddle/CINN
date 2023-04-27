@@ -17,6 +17,7 @@
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
+#include "cinn/hlir/op/op_util.h"
 #include "cinn/hlir/pe/elementwise.h"
 #include "cinn/hlir/pe/ir_schedule_pe.h"
 #include "cinn/hlir/pe/nn.h"
@@ -774,6 +775,77 @@ std::vector<ir::Expr> CustomCallArgsForTriangularSolve(const framework::NodeAttr
   return args;
 }
 
+std::vector<ir::Expr> CustomCallArgsForMemset(const framework::NodeAttr &attrs,
+                                              const std::vector<ir::Tensor> &inputs,
+                                              const std::vector<std::vector<int>> &output_shapes) {
+  const auto &attr_store = attrs.attr_store;
+  CHECK(attr_store.count("value")) << "The memset custom_call must has attribute \"value\"";
+  CHECK(inputs.empty()) << "The memset custom_call should not has any input";
+  CHECK_EQ(output_shapes.size(), 1) << "The memset custom_call should only has one output";
+
+  struct Visitor {
+    int *scalar_;
+    explicit Visitor(int *scalar) : scalar_(scalar) {}
+    void operator()(float v) { *scalar_ = *reinterpret_cast<int *>(&v); }
+    void operator()(double v) {
+      auto tmp = static_cast<float>(v);
+      *scalar_ = *reinterpret_cast<int *>(&tmp);
+    }
+    void operator()(int32_t v) { *scalar_ = v; }
+    void operator()(int64_t v) { *scalar_ = static_cast<int>(v); }
+    void operator()(bool v) { *scalar_ = v ? 0xFFFFFFFF : 0; }
+
+#define EXPAND_MEMSET_TYPE_UNSUPPORT(TYPE) \
+  void operator()(const TYPE &) { LOG(FATAL) << "The type of \"value\" of memset custom_call not support: " << #TYPE; }
+
+    EXPAND_MEMSET_TYPE_UNSUPPORT(std::string)
+    EXPAND_MEMSET_TYPE_UNSUPPORT(std::vector<int>)
+    EXPAND_MEMSET_TYPE_UNSUPPORT(std::vector<int64_t>)
+    EXPAND_MEMSET_TYPE_UNSUPPORT(std::vector<float>)
+    EXPAND_MEMSET_TYPE_UNSUPPORT(std::vector<double>)
+    EXPAND_MEMSET_TYPE_UNSUPPORT(std::vector<bool>)
+    EXPAND_MEMSET_TYPE_UNSUPPORT(std::vector<std::string>)
+#undef EXPAND_MEMSET_TYPE_UNSUPPORT
+  };
+
+  int value              = 0;
+  const auto &value_attr = attr_store.at("value");
+  absl::visit(Visitor(&value), value_attr);
+  // can support memset non-0 ?
+  CHECK_EQ(value, 0) << "Now memset only support value is 0!";
+
+  size_t count = 1;
+  for (auto dim : output_shapes[0]) {
+    count *= dim;
+  }
+
+  const auto &dtype = common::Str2Type(absl::get<std::string>(attr_store.at("dtype")));
+  count *= dtype.bytes();
+  VLOG(4) << "call memset custom_call with value=" << utils::Attribute2String(value_attr) << " (" << value
+          << "), count=" << count;
+
+  return {Expr(value), Expr(count)};
+}
+
+std::vector<ir::Expr> CustomCallArgsForMemcpy(const framework::NodeAttr &attrs,
+                                              const std::vector<ir::Tensor> &inputs,
+                                              const std::vector<std::vector<int>> &output_shapes) {
+  CHECK_EQ(inputs.size(), 1) << "The memcpy custom_call should only has one input";
+  CHECK_EQ(output_shapes.size(), 1) << "The memcpy custom_call should only has one output";
+
+  const auto &input_shape = ToPodVector<int>(inputs[0]->shape);
+
+  size_t count = 1;
+  for (auto dim : input_shape) {
+    count *= dim;
+  }
+
+  const auto &dtype = inputs[0]->type();
+  count *= dtype.bytes();
+
+  return {Expr(count)};
+}
+
 bool RegisteryCustomCallArgsFunc() {
 #ifdef CINN_WITH_CUDA
   CustomCallArgsFuncRegistry::Global().Register(
@@ -792,6 +864,10 @@ bool RegisteryCustomCallArgsFunc() {
       "cinn_call_triangular_solve_nvgpu", common::DefaultNVGPUTarget(), CustomCallArgsForTriangularSolve);
   CustomCallArgsFuncRegistry::Global().Register(
       "cinn_assert_true_nvgpu", common::DefaultNVGPUTarget(), CustomCallArgsForAssertTrue);
+  CustomCallArgsFuncRegistry::Global().Register(
+      "cinn_call_cuda_memset", common::DefaultNVGPUTarget(), CustomCallArgsForMemset);
+  CustomCallArgsFuncRegistry::Global().Register(
+      "cinn_call_cuda_memcpy", common::DefaultNVGPUTarget(), CustomCallArgsForMemcpy);
 #endif
 
 #ifdef CINN_WITH_CUDNN

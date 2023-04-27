@@ -20,6 +20,7 @@
 
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/pe/broadcast.h"
+#include "cinn/runtime/flags.h"
 #include "cinn/utils/functional.h"
 #include "cinn/utils/profiler.h"
 
@@ -267,8 +268,7 @@ Variable NetBuilder::FillConstant(const std::vector<int>& shape,
   } else if (type.is_int() || type.is_uint()) {
     value = static_cast<int64_t>(std::stoll(str_value));
   } else if (type.is_bool()) {
-    static std::unordered_set<std::string> true_string = {"1", "t", "T", "true", "True", "TRUE"};
-    value                                              = static_cast<bool>(true_string.count(str_value));
+    value = !cinn::runtime::CheckStringFlagFalse(str_value);
   } else {
     LOG(FATAL) << "FillConstant only support int/float/bool, but here " << dtype;
   }
