@@ -503,7 +503,7 @@ class ResizeBufferSizeVisitor : public ir::IRMutator<> {
     auto extent_i = for_ir->extent;
 
     if (extent_i.is_constant()) loop_2_extent_[var_name] = extent_i.as_int32();
-    IRMutator::Visit(op, expr);
+    ir::IRMutator<>::Visit(op, expr);
   }
 
   int BufferSize(ir::Expr indice) {
