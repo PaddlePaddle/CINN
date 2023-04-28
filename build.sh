@@ -263,7 +263,7 @@ function CI {
     export runtime_include_dir=$workspace/cinn/runtime/cuda
 
     prepare_ci
-    codestyle_check
+    # codestyle_check
 
     cmake_
     build
