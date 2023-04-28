@@ -466,6 +466,7 @@ class ResizeBufferSizeVisitor : public ir::IRMutator<> {
       return;
     }
     if (store_tensor->buffer->memory_type == ir::MemoryType::Heap) {
+      ir::IRMutator<>::Visit(op, expr);
       return;
     }
 
@@ -489,6 +490,7 @@ class ResizeBufferSizeVisitor : public ir::IRMutator<> {
     }
 
     if (load->tensor.as_tensor_ref()->buffer->memory_type == ir::MemoryType::Heap) {
+      ir::IRMutator<>::Visit(op, expr);
       return;
     }
 
