@@ -22,7 +22,6 @@ import paddle
 import cinn
 from cinn.frontend import *
 from cinn.common import *
-import sys
 
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
@@ -144,6 +143,11 @@ class TestBroadcastToNoAxesOp(OpTest):
         self.out = self.random(
             shape=self.case["out_shape"],
             dtype=self.case["out_dtype"],
+            low=-10,
+            high=10)
+        self.broadcast_axes = self.random(
+            shape=self.case["axes_shape"],
+            dtype=self.case["axes_dtype"],
             low=-10,
             high=10)
 
