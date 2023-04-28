@@ -25,7 +25,6 @@ from cinn.common import *
 import sys
 
 
-
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
                     "x86 test will be skipped due to timeout.")
 class TestBroadcastToOp(OpTest):
@@ -38,20 +37,17 @@ class TestBroadcastToOp(OpTest):
             shape=self.case["x_shape"],
             dtype=self.case["x_dtype"],
             low=-10,
-            high=10
-        )
+            high=10)
         self.out = self.random(
             shape=self.case["out_shape"],
             dtype=self.case["out_dtype"],
             low=-10,
-            high=10
-        )
+            high=10)
         self.broadcast_axes = self.random(
             shape=self.case["axes_shape"],
             dtype=self.case["axes_dtype"],
             low=-10,
-            high=10
-        )
+            high=10)
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.x, stop_gradient=True)
@@ -63,14 +59,14 @@ class TestBroadcastToOp(OpTest):
     # the forward result will be incorrect.
     def build_cinn_program(self, target):
         builder = NetBuilder("BroadcastTo")
-        x = builder.create_input(self.nptype2cinntype(self.case["x_dtype"]), self.case["x_shape"],
+        x = builder.create_input(
+            self.nptype2cinntype(self.case["x_dtype"]), self.case["x_shape"],
             "x")
         out = builder.broadcast_to(
             x, out_shape=self.out, broadcast_axes=self.broadcast_axes)
 
         prog = builder.build()
-        res = self.get_cinn_output(prog, target, [x], [self.x],
-                                   [out])
+        res = self.get_cinn_output(prog, target, [x], [self.x], [out])
 
         self.cinn_outputs = [res[0]]
 
@@ -144,14 +140,12 @@ class TestBroadcastToNoAxesOp(OpTest):
             shape=self.case["x_shape"],
             dtype=self.case["x_dtype"],
             low=-10,
-            high=10
-        )
+            high=10)
         self.out = self.random(
             shape=self.case["out_shape"],
             dtype=self.case["out_dtype"],
             low=-10,
-            high=10
-        )
+            high=10)
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.x, stop_gradient=True)
@@ -163,14 +157,14 @@ class TestBroadcastToNoAxesOp(OpTest):
     # the forward result will be incorrect.
     def build_cinn_program(self, target):
         builder = NetBuilder("BroadcastTo")
-        x = builder.create_input(self.nptype2cinntype(self.case["x_dtype"]), self.case["x_shape"],
+        x = builder.create_input(
+            self.nptype2cinntype(self.case["x_dtype"]), self.case["x_shape"],
             "x")
         out = builder.broadcast_to(
             x, out_shape=self.out, broadcast_axes=self.broadcast_axes)
 
         prog = builder.build()
-        res = self.get_cinn_output(prog, target, [x], [self.x],
-                                   [out])
+        res = self.get_cinn_output(prog, target, [x], [self.x], [out])
 
         self.cinn_outputs = [res[0]]
 
