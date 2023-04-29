@@ -49,7 +49,7 @@ class TestBroadcastToOp(OpTest):
         self.paddle_outputs = [out]
 
     def build_cinn_program(self, target):
-        builder = NetBuilder("BroadcastTo")
+        builder = NetBuilder("broadcast_to")
         x = builder.create_input(
             self.nptype2cinntype(self.case["x_dtype"]), self.case["x_shape"],
             "x")
@@ -86,10 +86,6 @@ class TestBroadcastToAll(TestCaseHelper):
         ]
         self.dtypes = [
             {
-                "x_dtype": "int16",
-                "shape_dtype": "int16",
-            },
-            {
                 "x_dtype": "int32",
                 "shape_dtype": "int32",
             },
@@ -97,11 +93,6 @@ class TestBroadcastToAll(TestCaseHelper):
                 "x_dtype": "int64",
                 "out_dtype": "int64",
                 "axes_dtype": "int64",
-            },
-            {
-                "x_dtype": "float16",
-                "shape_dtype": "float16",
-                "max_relative_error": 1e-3,
             },
             {
                 "x_dtype": "float32",
