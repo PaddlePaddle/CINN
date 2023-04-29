@@ -27,8 +27,6 @@ import sys
 enable_gpu = sys.argv.pop()
 
 
-@OpTestTool.skip_if(not is_compiled_with_cuda(),
-                    "x86 test will be skipped due to timeout.")
 class TestBroadcastToOp(OpTest):
     def setUp(self):
         if enable_gpu == "ON":
@@ -40,13 +38,13 @@ class TestBroadcastToOp(OpTest):
     def prepare_inputs(self):
         self.x_np = self.random(
             shape=self.case["x_shape"], dtype=self.case["x_dtype"])
-        self.shape = self.random(
+        self.shape_np = self.random(
             shape=self.case["shape_shape"], dtype=self.case["shape_dtype"])
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.x_np, stop_gradient=True)
-        shape = paddle.to_tensor(self.shape, stop_gradient=True)
-        out = paddle.broadcast_to(x, shape)
+        d_shape = paddle.to_tensor(self.shape_np, stop_gradient=True)
+        out = paddle.broadcast_to(x, d_shape)
 
         self.paddle_outputs = [out]
 
@@ -55,14 +53,14 @@ class TestBroadcastToOp(OpTest):
         x = builder.create_input(
             self.nptype2cinntype(self.case["x_dtype"]), self.case["x_shape"],
             "x")
-        shape = builder.create_input(
+        d_shape = builder.create_input(
             self.nptype2cinntype(self.case["shape_dtype"]),
-            self.case["shape_shape"], "shape")
-        out = builder.broadcast_to(x, shape)
+            self.case["shape_shape"], "d_shape")
+        out = builder.broadcast_to(x, d_shape)
 
         prog = builder.build()
-        res = self.get_cinn_output(prog, target, [x, shape],
-                                   [self.x_np, self.shape], [out])
+        res = self.get_cinn_output(prog, target, [x, d_shape],
+                                   [self.x_np, self.shape_np], [out])
 
         self.cinn_outputs = [res[0]]
 
