@@ -23,12 +23,17 @@ import cinn
 from cinn.frontend import *
 from cinn.common import *
 
+enable_gpu = sys.argv.pop()
+
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
                     "x86 test will be skipped due to timeout.")
 class TestBroadcastToOp(OpTest):
     def setUp(self):
-        print(f"\nRunning {self.__class__.__name__}: {self.case}")
+        if enable_gpu == "ON":
+            self.target = DefaultNVGPUTarget()
+        else:
+            self.target = DefaultHostTarget()
         self.prepare_inputs()
 
     def prepare_inputs(self):
