@@ -125,4 +125,4 @@ class TestCastAll(TestCaseHelper):
 
 
 if __name__ == "__main__":
-    TestCastAll.run()
+    TestCastAll().run()
