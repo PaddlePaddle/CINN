@@ -22,6 +22,7 @@ import paddle
 import cinn
 from cinn.frontend import *
 from cinn.common import *
+import sys
 
 enable_gpu = sys.argv.pop()
 
