@@ -91,8 +91,7 @@ class TestBroadcastToAll(TestCaseHelper):
             },
             {
                 "x_dtype": "int64",
-                "out_dtype": "int64",
-                "axes_dtype": "int64",
+                "shape_dtype": "int64",
             },
             {
                 "x_dtype": "float32",
