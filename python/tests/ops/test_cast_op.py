@@ -72,9 +72,19 @@ class TestCastAll(TestCaseHelper):
         }, {
             "x_shape": [512, 256],
         }, {
+            "x_shape": [128, 64, 32],
+        },  {
             "x_shape": [32, 64],
-        }]
+        },  {
+            "x_shape": [16, 8, 4, 2],
+        },  {
+            "x_shape": [16, 8, 4, 2, 1],
+        },
+        ]
         self.dtypes = [
+            {
+                "x_dtype": "bool",
+            },
             {
                 "x_dtype": "int8",
             },
@@ -99,6 +109,9 @@ class TestCastAll(TestCaseHelper):
             },
         ]
         self.attrs = [
+            {
+                "d_dtype": "bool",
+            },
             {
                 "d_dtype": "int8",
             },
