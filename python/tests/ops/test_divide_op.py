@@ -17,6 +17,7 @@
 import unittest
 import numpy as np
 from op_test import OpTest, OpTestTool
+from op_test_helper import TestCaseHelper
 import paddle
 import paddle.nn.functional as F
 import cinn
@@ -28,17 +29,18 @@ from cinn.common import *
                     "x86 test will be skipped due to timeout.")
 class TestDivOp(OpTest):
     def setUp(self):
+        print(f"\nRunning {self.__class__.__name__}: {self.case}")
         self.init_case()
 
     def init_case(self):
-        self.inputs = {
-            "x": np.random.random([32]).astype("float32"),
-            "y": np.random.random([32]).astype("float32")
-        }
+        self.x_np = self.random(
+            shape=self.case["x_shape"], dtype=self.case["x_dtype"])
+        self.y_np = self.random(
+            shape=self.case["y_shape"], dtype=self.case["y_dtype"])
 
     def build_paddle_program(self, target):
-        x = paddle.to_tensor(self.inputs["x"], stop_gradient=True)
-        y = paddle.to_tensor(self.inputs["y"], stop_gradient=True)
+        x = paddle.to_tensor(self.x_np, stop_gradient=True)
+        y = paddle.to_tensor(self.y_np, stop_gradient=True)
 
         out = paddle.divide(x, y)
 
@@ -46,43 +48,64 @@ class TestDivOp(OpTest):
 
     def build_cinn_program(self, target):
         builder = NetBuilder("div")
-        x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
-        y = builder.create_input(Float(32), self.inputs["y"].shape, "y")
+        x = builder.create_input(
+            self.nptype2cinntype(self.case["x_dtype"]), self.case["x_shape"],
+            "x")
+        y = builder.create_input(
+            self.nptype2cinntype(self.case["y_dtype"]), self.case["y_shape"],
+            "y")
         out = builder.divide(x, y)
 
         prog = builder.build()
         res = self.get_cinn_output(prog, target, [x, y],
-                                   [self.inputs["x"], self.inputs["y"]], [out])
+                                   [self.x_np, self.y_np], [out])
 
         self.cinn_outputs = [res[0]]
 
     def test_check_results(self):
-        self.check_outputs_and_grads()
+        max_relative_error = self.case[
+            "max_relative_error"] if "max_relative_error" in self.case else 1e-5
+        self.check_outputs_and_grads(max_relative_error=max_relative_error)
 
 
-class TestDivCase1(TestDivOp):
-    def init_case(self):
-        self.inputs = {
-            "x": np.random.random([32, 64]).astype("float32"),
-            "y": np.random.random([32, 64]).astype("float32")
-        }
-
-
-class TestDivCase2(TestDivOp):
-    def init_case(self):
-        self.inputs = {
-            "x": np.random.random([2, 2, 32]).astype("float32"),
-            "y": np.random.random([32]).astype("float32")
-        }
-
-
-class TestDivCase3(TestDivOp):
-    def init_case(self):
-        self.inputs = {
-            "x": np.random.random([2, 32]).astype("float32"),
-            "y": np.random.random([1]).astype("float32")
-        }
+class TestDivAll(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestDivOpCase"
+        self.cls = TestDivOp
+        self.inputs = [
+            {
+                "x_shape": [32, 64],
+                "y_shape": [32, 64],
+            },
+            {
+                "x_shape": [2, 2, 32],
+                "y_shape": [32],
+            },
+            {
+                "x_shape": [2, 32],
+                "y_shape": [1],
+            },
+        ]
+        self.dtypes = [
+            {
+                "x_dtype": "int32",
+                "y_dtype": "int32",
+            },
+            {
+                "x_dtype": "int64",
+                "y_dtype": "int64",
+            },
+            {
+                "x_dtype": "float32",
+                "y_dtype": "float32",
+            },
+            {
+                "x_dtype": "float64",
+                "y_dtype": "float64",
+            },
+        ]
+        self.attrs = []
 
 
 if __name__ == "__main__":
-    unittest.main()
+    TestDivAll().run()
