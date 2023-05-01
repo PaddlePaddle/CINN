@@ -46,11 +46,14 @@ class TestBroadcastToOp(OpTest):
         self.paddle_outputs = [out]
 
     def build_cinn_program(self, target):
-        builder = NetBuilder("broadcast_to")
+        builder = NetBuilder("BroadcastTo")
         x = builder.create_input(
             self.nptype2cinntype(self.case["x_dtype"]), self.case["x_shape"],
             "x")
-        out = builder.broadcast_to(x, self.case["d_shape"])
+        out = builder.broadcast_to(
+            x,
+            out_shape=self.case["d_shape"],
+            broadcast_axes=self.case["broadcast_axes"])
 
         prog = builder.build()
         res = self.get_cinn_output(prog, target, [x], [self.x_np], [out])
@@ -69,16 +72,16 @@ class TestBroadcastToAll(TestCaseHelper):
         self.cls = TestBroadcastToOp
         self.inputs = [
             {
-                "x_shape": [1, 2, 3],
-            },
-            {
-                "x_shape": [2, 3],
-            },
-            {
                 "x_shape": [1, 1, 3],
             },
             {
                 "x_shape": [5, 3],
+            },
+            {
+                "x_shape": [4, 3],
+            },
+            {
+                "x_shape": [5],
             },
         ]
         self.dtypes = [
@@ -100,10 +103,20 @@ class TestBroadcastToAll(TestCaseHelper):
         ]
         self.attrs = [
             {
-                "d_shape": [2, 3],
+                "d_shape": [4, 5, 3],
+                "broadcast_axes": [0, 1, 2],
             },
             {
                 "d_shape": [4, 5, 3],
+                "broadcast_axes": [1, 2],
+            },
+            {
+                "d_shape": [4, 5, 3],
+                "broadcast_axes": [0, 2],
+            },
+            {
+                "d_shape": [4, 5, 3],
+                "broadcast_axes": [1],
             },
         ]
 
