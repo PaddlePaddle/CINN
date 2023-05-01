@@ -21,27 +21,30 @@ import paddle
 import cinn
 from cinn.frontend import *
 from cinn.common import *
+from python.tests.ops.op_test_helper import TestCaseHelper
 
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
                     "x86 test will be skipped due to timeout.")
 class TestBinaryOp(OpTest):
     def setUp(self):
-        self.init_case()
+        print(f"\nRunning {self.__class__.__name__}: {self.case}")
+        self.prepare_inputs()
 
-    def get_x_data(self):
-        return self.random([32, 64], 'float32', -10.0, 10.0)
-
-    def get_y_data(self):
-        return self.random([32, 64], 'float32', -10.0, 10.0)
-
-    def get_axis_value(self):
-        return -1
-
-    def init_case(self):
-        self.inputs = {"x": self.get_x_data(), "y": self.get_y_data()}
-        self.axis = self.get_axis_value()
-
+    def prepare_inputs(self):
+        self.x_np = self.random(
+            shape=self.case["x_shape"],
+            dtype=self.case["x_dtype"],
+            low=-10,
+            high=10)
+        self.y_np = self.random(
+            shape=self.case["y_shape"],
+            dtype=self.case["y_dtype"],
+            low=-10,
+            high=10)
+        self.dout_np = self.random(
+            self.case["dout_shape"], dtype=self.case["dout_dtype"])
+    
     def paddle_func(self, x, y):
         return paddle.add(x, y)
 
@@ -98,6 +101,157 @@ class TestAddOp(TestBinaryOp):
     def cinn_func(self, builder, x, y, axis):
         return builder.add(x, y, axis)
 
+class TestAddCase(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestAddOp"
+        self.cls = TestAddOp
+        self.inputs = [
+            {
+                "x_shape": [1],
+                "y_shape": [1],
+                "dout_shape": [1],
+                "axis": 0,
+            },
+            {
+                "x_shape": [1024],
+                "y_shape": [1024],
+                "dout_shape": [1024],
+                "axis": -1,
+            },
+            {
+                "x_shape": [512, 256],
+                "y_shape": [512, 256],
+                "dout_shape": [512, 256],
+                "axis": 0,
+            },
+            {
+                "x_shape": [128, 64, 32],
+                "y_shape": [128, 64, 32],
+                "dout_shape": [128, 64, 32],
+                "axis": -1,
+            },
+            {
+                "x_shape": [16, 8, 4, 2],
+                "y_shape": [16, 8, 4, 2],
+                "dout_shape": [16, 8, 4, 2],
+                "axis": 0,
+            },
+            {
+                "x_shape": [16, 8, 4, 2, 1],
+                "y_shape": [16, 8, 4, 2, 1],
+                "dout_shape": [16, 8, 4, 2, 1],
+                "axis": -1,
+            },
+        ]
+        self.dtypes = [
+            {
+                "x_dtype": "int16",
+                "y_dtype": "int16",
+                "dout_dtype": "int16",
+            },
+            {
+                "x_dtype": "int32",
+                "y_dtype": "int32",
+                "dout_dtype": "int32",
+            },
+            {
+                "x_dtype": "int64",
+                "y_dtype": "int64",
+                "dout_dtype": "int64",
+            },
+            {
+                "x_dtype": "float16",
+                "y_dtype": "float16",
+                "dout_dtype": "float16",
+            },
+            {
+                "x_dtype": "float32",
+                "y_dtype": "float32",
+                "dout_dtype": "float32",
+            },
+            {
+                "x_dtype": "float64",
+                "y_dtype": "float64",
+                "dout_dtype": "float64",
+            },
+        ]
+        self.attrs = []
+
+class TestAddCaseWithBroadcast(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestAddOp"
+        self.cls = TestAddOp
+        self.inputs = [
+            {
+                "x_shape": [1],
+                "y_shape": [1],
+                "dout_shape": [1],
+                "axis": 0,
+            },
+            {
+                "x_shape": [1024],
+                "y_shape": [1],
+                "dout_shape": [1024],
+                "axis": -1,
+            },
+            {
+                "x_shape": [512, 256],
+                "y_shape": [1, 1],
+                "dout_shape": [512, 256],
+                "axis": 0,
+            },
+            {
+                "x_shape": [128, 64, 32],
+                "y_shape": [1, 1, 1],
+                "dout_shape": [128, 64, 32],
+                "axis": -1,
+            },
+            {
+                "x_shape": [16, 8, 4, 2],
+                "y_shape": [1, 1, 1, 1],
+                "dout_shape": [16, 8, 4, 2],
+                "axis": 0,
+            },
+            {
+                "x_shape": [16, 8, 4, 2, 1],
+                "y_shape": [1, 1, 1, 1, 1],
+                "dout_shape": [16, 8, 4, 2, 1],
+                "axis": -1,
+            },
+        ]
+        self.dtypes = [
+            {
+                "x_dtype": "int16",
+                "y_dtype": "int16",
+                "dout_dtype": "int16",
+            },
+            {
+                "x_dtype": "int32",
+                "y_dtype": "int32",
+                "dout_dtype": "int32",
+            },
+            {
+                "x_dtype": "int64",
+                "y_dtype": "int64",
+                "dout_dtype": "int64",
+            },
+            {
+                "x_dtype": "float16",
+                "y_dtype": "float16",
+                "dout_dtype": "float16",
+            },
+            {
+                "x_dtype": "float32",
+                "y_dtype": "float32",
+                "dout_dtype": "float32",
+            },
+            {
+                "x_dtype": "float64",
+                "y_dtype": "float64",
+                "dout_dtype": "float64",
+            },
+        ]
+        self.attrs = []
 
 class TestAddOpFP64(TestAddOp):
     def get_x_data(self):
@@ -367,4 +521,5 @@ class TestAtan2Op(TestBinaryOp):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    TestAddCase().run()
+    TestAddCaseWithBroadcast().run()
