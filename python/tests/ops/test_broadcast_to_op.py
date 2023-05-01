@@ -33,6 +33,7 @@ class TestBroadcastToOp(OpTest):
             self.target = DefaultNVGPUTarget()
         else:
             self.target = DefaultHostTarget()
+        print(f"\nRunning {self.__class__.__name__}: {self.case}")
         self.prepare_inputs()
 
     def prepare_inputs(self):
@@ -82,8 +83,7 @@ class TestBroadcastToAll(TestCaseHelper):
             },
             {
                 "x_shape": [5],
-            },
-        ]
+            },]
         self.dtypes = [
             {
                 "x_dtype": "bool",
