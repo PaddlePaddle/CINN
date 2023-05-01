@@ -38,13 +38,10 @@ class TestBroadcastToOp(OpTest):
     def prepare_inputs(self):
         self.x_np = self.random(
             shape=self.case["x_shape"], dtype=self.case["x_dtype"])
-        self.shape_np = self.random(
-            shape=self.case["shape_shape"], dtype=self.case["shape_dtype"])
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.x_np, stop_gradient=True)
-        d_shape = paddle.to_tensor(self.shape_np, stop_gradient=True)
-        out = paddle.broadcast_to(x, d_shape)
+        out = paddle.broadcast_to(x, shape=self.case["d_shape"])
 
         self.paddle_outputs = [out]
 
@@ -53,14 +50,10 @@ class TestBroadcastToOp(OpTest):
         x = builder.create_input(
             self.nptype2cinntype(self.case["x_dtype"]), self.case["x_shape"],
             "x")
-        d_shape = builder.create_input(
-            self.nptype2cinntype(self.case["shape_dtype"]),
-            self.case["shape_shape"], "d_shape")
-        out = builder.broadcast_to(x, d_shape)
+        out = builder.broadcast_to(x, self.case["d_shape"])
 
         prog = builder.build()
-        res = self.get_cinn_output(prog, target, [x, d_shape],
-                                   [self.x_np, self.shape_np], [out])
+        res = self.get_cinn_output(prog, target, [x], [self.x_np], [out])
 
         self.cinn_outputs = [res[0]]
 
@@ -76,33 +69,43 @@ class TestBroadcastToAll(TestCaseHelper):
         self.cls = TestBroadcastToOp
         self.inputs = [
             {
+                "x_shape": [1, 2, 3],
+            },
+            {
+                "x_shape": [2, 3],
+            },
+            {
                 "x_shape": [1, 1, 3],
-                "shape_shape": [4, 5, 3],
             },
             {
                 "x_shape": [5, 3],
-                "shape_shape": [4, 5, 3],
             },
         ]
         self.dtypes = [
             {
+                "x_dtype": "bool",
+            },
+            {
                 "x_dtype": "int32",
-                "shape_dtype": "int32",
             },
             {
                 "x_dtype": "int64",
-                "shape_dtype": "int64",
             },
             {
                 "x_dtype": "float32",
-                "shape_dtype": "float32",
             },
             {
                 "x_dtype": "float64",
-                "shape_dtype": "float64",
             },
         ]
-        self.attrs = []
+        self.attrs = [
+            {
+                "d_shape": [2, 3],
+            },
+            {
+                "d_shape": [4, 5, 3],
+            },
+        ]
 
 
 if __name__ == "__main__":
