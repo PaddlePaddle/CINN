@@ -17,6 +17,7 @@
 import unittest
 import numpy as np
 from op_test import OpTest, OpTestTool
+from op_test_helper import TestCaseHelper
 import paddle
 import cinn
 from cinn.frontend import *
@@ -27,20 +28,16 @@ from cinn.common import *
                     "x86 test will be skipped due to timeout.")
 class TestExpandDimsOp(OpTest):
     def setUp(self):
+        print(f"\nRunning {self.__class__.__name__}: {self.case}")
         self.init_case()
 
     def init_case(self):
-        self.inputs = {
-            "x": np.random.random([
-                32,
-                64,
-            ]).astype("float32")
-        }
-        self.axes = [0]
+        self.x_np = self.random(
+            shape=self.case["x_shape"], dtype=self.case["x_dtype"])
 
     def build_paddle_program(self, target):
-        x = paddle.to_tensor(self.inputs["x"], stop_gradient=True)
-        out = paddle.unsqueeze(x, self.axes)
+        x = paddle.to_tensor(self.x_np, stop_gradient=True)
+        out = paddle.unsqueeze(x, self.case["axes"])
 
         self.paddle_outputs = [out]
 
@@ -49,43 +46,63 @@ class TestExpandDimsOp(OpTest):
     def build_cinn_program(self, target):
         builder = NetBuilder("expand_dims")
         x = builder.create_input(
-            self.nptype2cinntype(self.inputs["x"].dtype),
-            self.inputs["x"].shape, "x")
-        out = builder.expand_dims(x, self.axes)
+            self.nptype2cinntype(self.case["x_dtype"]), self.case["x_shape"],
+            "x")
+        out = builder.expand_dims(x, self.case["axes"])
 
         prog = builder.build()
-        res = self.get_cinn_output(prog, target, [x], [self.inputs["x"]],
-                                   [out])
+        res = self.get_cinn_output(prog, target, [x], [self.x_np], [out])
 
-        self.cinn_outputs = res
+        self.cinn_outputs = [res[0]]
 
     def test_check_results(self):
-        self.check_outputs_and_grads()
+        max_relative_error = self.case[
+            "max_relative_error"] if "max_relative_error" in self.case else 1e-5
+        self.check_outputs_and_grads(max_relative_error=max_relative_error)
 
 
-class TestExpandDimsCase1(TestExpandDimsOp):
-    def init_case(self):
-        self.inputs = {"x": np.random.random([2, 3, 4]).astype("float32")}
-        self.axes = [0, 2, 4]
-
-
-class TestExpandDimsCase2(TestExpandDimsOp):
-    def init_case(self):
-        self.inputs = {"x": np.random.random([2, 3, 4]).astype("float32")}
-        self.axes = [3, 4, 5]
-
-
-class TestExpandDimsCase3(TestExpandDimsOp):
-    def init_case(self):
-        self.inputs = {"x": np.random.random([2, 3, 4]).astype("float16")}
-        self.axes = [3, 4, 5]
-
-
-class TestExpandDimsCase4(TestExpandDimsOp):
-    def init_case(self):
-        self.inputs = {"x": np.random.random([2, 3, 4]).astype("int64")}
-        self.axes = [3, 4, 5]
+class TestExpandDimsAll(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestExpandDimsOpCase"
+        self.cls = TestExpandDimsOp
+        self.inputs = [
+            {
+                "x_shape": [2, 3, 4],
+            },
+        ]
+        self.dtypes = [
+            {
+                "x_dtype": "int8",
+            },
+            {
+                "x_dtype": "int16"
+            },
+            {
+                "x_dtype": "int32",
+            },
+            {
+                "x_dtype": "int64"
+            },
+            {
+                "x_dtype": "float16",
+                "max_relative_error": 1e-3
+            },
+            {
+                "x_dtype": "float32",
+            },
+            {
+                "x_dtype": "float64",
+            },
+        ]
+        self.attrs = [
+            {
+                "axes": [0, 2, 4],
+            },
+            {
+                "axes": [3, 4, 5],
+            },
+        ]
 
 
 if __name__ == "__main__":
-    unittest.main()
+    TestExpandDimsAll().run()
