@@ -74,6 +74,10 @@ class TestDivAll(TestCaseHelper):
         self.cls = TestDivOp
         self.inputs = [
             {
+                "x_shape": [2, 3, 4],
+                "y_shape": [1, 5, 2],
+            },
+            {
                 "x_shape": [32, 64],
                 "y_shape": [32, 64],
             },
@@ -82,8 +86,8 @@ class TestDivAll(TestCaseHelper):
                 "y_shape": [32],
             },
             {
-                "x_shape": [2, 32],
-                "y_shape": [1],
+                "x_shape": [32],
+                "y_shape": [32],
             },
         ]
         self.dtypes = [
