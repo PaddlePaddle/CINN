@@ -83,7 +83,8 @@ class TestBroadcastToAll(TestCaseHelper):
             },
             {
                 "x_shape": [5],
-            },]
+            },
+        ]
         self.dtypes = [
             {
                 "x_dtype": "bool",
