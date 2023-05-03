@@ -43,6 +43,13 @@ void ScatterOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& 
   if (indices->type == common::Int(64)) {
     indices = ctx.Builder()->Cast(indices, common::Type2Str(common::Int(32)));
   }
+  CHECK_LE(indices->shape.size(), 2) << "Ids should be 0, 1 or 2 in scatter_op";
+  if (indices->shape.size() == 0) {
+    indices = ctx.Builder()->Reshape(indices, {1});
+  }
+  if (indices->shape.size() == 2) {
+    indices = ctx.Builder()->Reshape(indices, {indices->shape[0] * indices->shape[1]});
+  }
 
   Variable out;
   if (overwrite) {
