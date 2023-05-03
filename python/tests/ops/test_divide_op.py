@@ -34,9 +34,15 @@ class TestDivOp(OpTest):
 
     def init_case(self):
         self.x_np = self.random(
-            shape=self.case["x_shape"], dtype=self.case["x_dtype"])
+            shape=self.case["x_shape"],
+            dtype=self.case["x_dtype"],
+            low=-10,
+            high=10)
         self.y_np = self.random(
-            shape=self.case["y_shape"], dtype=self.case["y_dtype"])
+            shape=self.case["y_shape"],
+            dtype=self.case["y_dtype"],
+            low=-10,
+            high=10)
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.x_np, stop_gradient=True)
@@ -91,14 +97,14 @@ class TestDivAll(TestCaseHelper):
             },
         ]
         self.dtypes = [
-            #{
-            #    "x_dtype": "int32",
-            #    "y_dtype": "int32",
-            #},
-            #{
-            #    "x_dtype": "int64",
-            #    "y_dtype": "int64",
-            #},
+            {
+                "x_dtype": "int32",
+                "y_dtype": "int32",
+            },
+            {
+                "x_dtype": "int64",
+                "y_dtype": "int64",
+            },
             {
                 "x_dtype": "float32",
                 "y_dtype": "float32",
