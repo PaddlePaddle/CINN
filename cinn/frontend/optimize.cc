@@ -98,6 +98,10 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
     options.graph_passes.emplace_back("BuildNonFusedGroupsPass");
   }
 
+#ifdef CINN_WITH_CUDA
+  options.graph_passes.emplace_back("SingleGroupOptimizePass");
+#endif
+
   // WARNING: the pass must be the last pass !!!
   if (!cinn::runtime::CheckStringFlagFalse(FLAGS_cinn_check_fusion_accuracy_pass)) {
     // Check the correct of fusion kernels, if the results not satisfied 'allclose(rtol=1e-05f, atol=1e-08f)', report

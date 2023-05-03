@@ -35,9 +35,12 @@ using ::GFLAGS_NAMESPACE::StringFromEnv;
 DEFINE_string(cinn_x86_builtin_code_root, StringFromEnv("FLAGS_cinn_x86_builtin_code_root", ""), "");
 
 DEFINE_int32(cinn_parallel_compile_size,
-             // Revert changes in PR #990 to pass the model unittests
-             Int32FromEnv("FLAGS_cinn_parallel_compile_size", 8),
+             Int32FromEnv("FLAGS_cinn_parallel_compile_size", 16),
              "When use parallel compile, set the number of group compiled by each thread.");
+
+DEFINE_int32(cinn_parallel_compile_thread,
+             Int32FromEnv("FLAGS_cinn_parallel_compile_thread", -1),
+             "How much thread the parallel compile used.");
 
 DEFINE_bool(cinn_use_op_fusion, BoolFromEnv("FLAGS_cinn_use_op_fusion", true), "Whether to use op fusion pass.");
 
@@ -113,8 +116,12 @@ DEFINE_bool(auto_schedule_use_cost_model,
             "cost model is stable.");
 
 DEFINE_bool(enhance_vertical_fusion_with_recompute,
-            BoolFromEnv("FLAGS_enhance_vertical_fusion_with_recompute", false),
+            BoolFromEnv("FLAGS_enhance_vertical_fusion_with_recompute", true),
             "Whether to enhance check logic on vertical fusion with recompute");
+
+DEFINE_bool(verbose_function_register,
+            BoolFromEnv("FLAGS_verbose_function_register", false),
+            "Whether to verbose function regist log. This will only work if CINN build with flag -DWITH_DEBUG=ON.");
 
 namespace cinn {
 namespace runtime {

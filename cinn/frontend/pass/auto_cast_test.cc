@@ -33,7 +33,7 @@ namespace cinn::frontend {
 
 TEST(AutoCast, Exp) {
   NetBuilder builder("net_builder");
-  auto x       = builder.CreateInput(Float(16), {4, 5, 3}, "X");
+  auto x       = builder.CreateInput(Float(16, 1, common::Type::specific_type_t::FP16), {4, 5, 3}, "X");
   auto out     = builder.Exp(x);
   auto program = builder.Build();
 
@@ -44,7 +44,7 @@ TEST(AutoCast, Exp) {
 
 TEST(AutoCast, BatchNorm) {
   NetBuilder builder("net_builder");
-  auto x        = builder.CreateInput(Float(16), {128, 64, 112, 112}, "X");
+  auto x        = builder.CreateInput(Float(16, 1, common::Type::specific_type_t::FP16), {128, 64, 112, 112}, "X");
   auto scale    = builder.FillConstant({64}, 1.0f, "scale", "float32");
   auto bias     = builder.FillConstant({64}, 0.0f, "bias", "float32");
   auto mean     = builder.FillConstant({64}, 0.0f, "mean", "float32");

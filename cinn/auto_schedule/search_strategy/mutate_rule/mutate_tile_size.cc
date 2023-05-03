@@ -40,6 +40,9 @@ std::vector<SampledTile> FindSampledTiles(const ScheduleDesc& trace) {
   std::vector<SampledTile> tiles;
   int step_idx = 0;
   for (auto&& step : trace.Steps()) {
+    if (step.type == "TagPostSchedule") {
+      break;
+    }
     if (step.type == "SamplePerfectTile") {
       std::vector<int> tile_factors = absl::get<std::vector<int>>(step.attrs.at("decision"));
       CHECK(tile_factors.size() >= 2) << "factors size must be greater equal than 2, which is " << tile_factors.size();
@@ -114,10 +117,8 @@ ScheduleDesc DoMutateTileSize(const ScheduleDesc& trace,
             << "factors[" << loop_x << "] = " << tile_factors[loop_x] << ", factors[" << loop_y
             << "] = " << tile_factors[loop_y];
     // Step 4. Create a new step with new tile values and return the new trace
-    int step_idx                              = std::get<2>(tile);
-    std::vector<ScheduleDesc::Step> new_steps = trace.Steps();
-    new_steps[step_idx].attrs["decision"]     = tile_factors;
-    return ScheduleDesc(std::move(new_steps));
+    int step_idx = std::get<2>(tile);
+    return trace.ForkAndUpdate(step_idx, tile_factors, true);
   }
 }
 
@@ -129,7 +130,7 @@ ScheduleDesc MutateTileSize::Apply(const ScheduleDesc& trace, LinearRandomEngine
   auto sampled_tiles = FindSampledTiles(trace);
   if (sampled_tiles.size() == 0) {
     VLOG(6) << "MutateTileSize failed, try other mutate rules.";
-    return ScheduleDesc();
+    return trace;
   }
   int sample_step_idx = utils::SampleUniformInt(0, sampled_tiles.size(), rand_seed);
   auto new_trace      = DoMutateTileSize(trace, sampled_tiles.at(sample_step_idx), rand_seed);

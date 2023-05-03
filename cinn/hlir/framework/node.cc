@@ -77,37 +77,31 @@ std::ostream& operator<<(std::ostream& os, const NodeAttr& node_attr) {
 
 //! Using index to sort the input/output tensors
 bool edge_index_compare(const common::Shared<common::GraphEdge>& a, const common::Shared<common::GraphEdge>& b) {
+  CHECK_NOTNULL(a.get());
+  CHECK_NOTNULL(b.get());
   return a->index() < b->index();
 }
 
-const std::vector<common::Shared<common::GraphEdge>>& Node::inlinks_in_order(bool refresh) const {
-  if (inlinks_in_order_.empty() || refresh) {
-    if (refresh) {
-      inlinks_in_order_.clear();
-    }
-    for (auto& in_edge : this->inlinks()) {
-      inlinks_in_order_.push_back(in_edge);
-      CHECK_GE(in_edge->index(), 0) << "The index of a node's inlinks should be >= 0! Now index is: "
-                                    << in_edge->index() << ". Please check.";
-    }
-    std::sort(inlinks_in_order_.begin(), inlinks_in_order_.end(), edge_index_compare);
+std::vector<common::Shared<common::GraphEdge>> Node::inlinks_in_order() const {
+  std::vector<common::Shared<common::GraphEdge>> ordered_links;
+  for (auto& in_edge : this->inlinks()) {
+    ordered_links.push_back(in_edge);
+    CHECK_GE(in_edge->index(), 0) << "The index of a node's inlinks should be >= 0! Now index is: " << in_edge->index()
+                                  << ". Please check.";
   }
-  return inlinks_in_order_;
+  std::sort(ordered_links.begin(), ordered_links.end(), edge_index_compare);
+  return ordered_links;
 }
 
-const std::vector<common::Shared<common::GraphEdge>>& Node::outlinks_in_order(bool refresh) const {
-  if (outlinks_in_order_.empty() || refresh) {
-    if (refresh) {
-      outlinks_in_order_.clear();
-    }
-    for (auto& out_edge : this->outlinks()) {
-      outlinks_in_order_.push_back(out_edge);
-      CHECK_GE(out_edge->index(), 0) << "The index of a node's outlinks should be >= 0! Now index is: "
-                                     << out_edge->index() << ". Please check.";
-    }
-    std::sort(outlinks_in_order_.begin(), outlinks_in_order_.end(), edge_index_compare);
+std::vector<common::Shared<common::GraphEdge>> Node::outlinks_in_order() const {
+  std::vector<common::Shared<common::GraphEdge>> ordered_links;
+  for (auto& out_edge : this->outlinks()) {
+    ordered_links.push_back(out_edge);
+    CHECK_GE(out_edge->index(), 0) << "The index of a node's outlinks should be >= 0! Now index is: "
+                                   << out_edge->index() << ". Please check.";
   }
-  return outlinks_in_order_;
+  std::sort(ordered_links.begin(), ordered_links.end(), edge_index_compare);
+  return ordered_links;
 }
 
 NodeData* InsertGraphOpNodeAfter(
@@ -120,7 +114,7 @@ NodeData* InsertGraphOpNodeAfter(
   auto* out_nodedata = new NodeData(node_ptr, 0, 0, common::UniqName(insert_node->id() + "_out"));
   insert_node->Controls(out_nodedata);
   std::vector<common::GraphNode*> old_sources;
-  auto input_links = out_node->inlinks_in_order(true);
+  auto input_links = out_node->inlinks_in_order();
 
   if (out_node) {
     for (auto& link : input_links) {
@@ -153,7 +147,7 @@ NodeData* InsertGraphOpNodeBefore(
   auto node_ptr        = dst_data->source_node;
   auto* input_node_out = new NodeData(node_ptr, 0, 0, common::UniqName(input_node->id() + "_out"));
   std::vector<common::GraphNode*> old_sinks;
-  auto& old_outlinks = input_node->outlinks_in_order(true);
+  const auto& old_outlinks = input_node->outlinks_in_order();
   for (auto& link : old_outlinks) {
     auto sink = link->sink();
     // unlink and relink afterwards to make sure the right outputs order

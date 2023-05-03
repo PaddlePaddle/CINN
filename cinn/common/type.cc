@@ -19,14 +19,18 @@
 #include <unordered_map>
 #include <utility>
 
+#include "type.h"
+
 namespace cinn {
 namespace common {
 
 struct Type::Storage {
   Storage() = default;
-  Storage(type_t t, int b, int w) : type_(t), bits_(b), lanes_(w) {}
+  Storage(type_t t, int b, int w, specific_type_t st) : type_(t), bits_(b), lanes_(w), specific_type_(st) {}
 
   type_t type_{type_t::Unk};
+  // distinguish FP16/BF16, or E5M2/E4M3 (when FP8 is supported)
+  specific_type_t specific_type_{specific_type_t::None};
   cpp_type_t cpp_type_{cpp_type_t::None};
 
   //! How many bits per element.
@@ -109,7 +113,7 @@ Type &Type::set_cpp_handle2(bool x) {
 
 Type Type::VectorOf(int w) const {
   CheckTypeValid();
-  return Type(type(), bits(), w);
+  return Type(type(), bits(), w, specific_type());
 }
 
 Type::Type(const Type &other) {
@@ -123,7 +127,13 @@ Type Type::ElementOf() const {
   return type;
 }
 
-void Type::CheckTypeValid() const { CHECK_NE(GetStorage().type_, type_t::Unk); }
+void Type::CheckTypeValid() const {
+  CHECK_NE(GetStorage().type_, type_t::Unk);
+  if (GetStorage().type_ == type_t::Float && GetStorage().bits_ == 16) {
+    CHECK(GetStorage().specific_type_ == specific_type_t::FP16 || GetStorage().specific_type_ == specific_type_t::BF16)
+        << "When creating a 16 bits Float, the specific_type_t must be FP16 or BF16.";
+  }
+}
 
 Type Type::PointerOf() const {
   CheckTypeValid();
@@ -204,13 +214,23 @@ bool Type::valid() const {
   if (is_customized()) {
     return !GetStorage().customized_type_.empty();
   }
+  if (is_float(16)) {
+    return (GetStorage().specific_type_ == specific_type_t::FP16 ||
+            GetStorage().specific_type_ == specific_type_t::BF16);
+  }
   if (is_primitive()) {
     return bits() != 0;
   }
+
   return true;
 }
 
-Type::Type(Type::type_t t, int b, int w) : storage_(new Storage(t, b, w)) {}
+Type::Type(Type::type_t t, int b, int w, specific_type_t st) : storage_(new Storage(t, b, w, st)) {
+  if (t == Type::type_t::Float && b == 16) {
+    CHECK(st == specific_type_t::FP16 || st == specific_type_t::BF16)
+        << "When creating a 16 bits Float, the specific_type_t must be FP16 or BF16.";
+  }
+}
 bool Type::is_primitive() const { return !is_unk() && type() != type_t::Customized; }
 bool Type::is_customized() const { return !is_unk() && type() == type_t::Customized; }
 bool Type::is_unk() const { return type() == type_t::Unk; }
@@ -218,7 +238,17 @@ bool Type::is_bool() const { return type() == type_t::UInt && bits() == 1; }
 bool Type::is_void() const { return type() == type_t::Void; }
 bool Type::is_vector() const { return lanes() > 1; }
 bool Type::is_scalar() const { return lanes() == 1; }
-bool Type::is_float(int bits) const { return type() == type_t::Float && (bits < 0 || bits == this->bits()); }
+// Note: when calling is_float(16), both FP16 and BF16 will return true, if you wanna distinguish them, pls pass
+// specific_type_t::FP16 or specific_type_t::BF16 to 'st'
+bool Type::is_float(int bits, specific_type_t st) const {
+  if (st == specific_type_t::None) {
+    return type() == type_t::Float && (bits < 0 || bits == this->bits());
+  } else {
+    CHECK(type() == type_t::Float && bits == 16)
+        << "when specific_type_t != None, the data type must be FP16/BF16, but received " << type() << " here.";
+    return st == this->specific_type();
+  }
+}
 bool Type::is_uint(int bits) const { return type() == type_t::UInt && (bits < 0 || bits == this->bits()); }
 bool Type::is_int(int bits) const { return type() == type_t::Int && (bits < 0 || bits == this->bits()); }
 bool Type::is_integer(int bits) const {
@@ -237,18 +267,23 @@ bool Type::is_cpp_const() const {
 const std::string &Type::customized_type() const { return GetStorage().customized_type_; }
 bool Type::is_customized_type() const { return !GetStorage().customized_type_.empty(); }
 Type::type_t Type::type() const { return GetStorage().type_; }
+Type::specific_type_t Type::specific_type() const { return GetStorage().specific_type_; }
 int Type::bits() const { return GetStorage().bits_; }
 int Type::lanes() const { return GetStorage().lanes_; }
 Type::cpp_type_t Type::cpp_type() const { return GetStorage().cpp_type_; }
 bool Type::operator==(const Type &other) const {
-  return type() == other.type() && bits() == other.bits() && lanes() == other.lanes() &&
-         GetStorage().cpp_type_ == other.GetStorage().cpp_type_ && customized_type() == other.customized_type();
+  return type() == other.type() && specific_type() == other.specific_type() && bits() == other.bits() &&
+         lanes() == other.lanes() && GetStorage().cpp_type_ == other.GetStorage().cpp_type_ &&
+         customized_type() == other.customized_type();
 }
 bool Type::is_string() const { return type() == type_t::String; }
 
 Type &Type::operator=(const Type &other) {
   if (other.storage_) {
-    storage_.reset(new Storage(other.GetStorage().type_, other.GetStorage().bits_, other.GetStorage().lanes_));
+    storage_.reset(new Storage(other.GetStorage().type_,
+                               other.GetStorage().bits_,
+                               other.GetStorage().lanes_,
+                               other.GetStorage().specific_type_));
     storage_->cpp_type_        = other.GetStorage().cpp_type_;
     storage_->customized_type_ = other.GetStorage().customized_type_;
   }
@@ -267,8 +302,12 @@ const Type::Storage &Type::GetStorage() const {
 Type::Type() : storage_(new Storage) {}
 Type::Type(Type &&other) : storage_(std::move(other.storage_)) {}
 
+const Type &BF16() {
+  static auto t = Float(16, 1, Type::specific_type_t::BF16);
+  return t;
+}
 const Type &F16() {
-  static auto t = Float(16);
+  static auto t = Float(16, 1, Type::specific_type_t::FP16);
   return t;
 }
 const Type &F32() {
@@ -324,6 +363,7 @@ struct TypeHash {
   size_t operator()(const Type &type) const {
     std::string hash_str;
     hash_str += std::to_string(static_cast<int>(type.type()));
+    hash_str += std::to_string(static_cast<int>(type.specific_type()));
     hash_str += std::to_string(type.bits());
     hash_str += std::to_string(type.lanes());
     hash_str += std::to_string(static_cast<int>(type.cpp_type()));
@@ -346,6 +386,7 @@ int Type::bytes() const {
 #define GET_TYPE_SIZE_PAIR(TYPE) \
   { type_of<TYPE>(), sizeof(TYPE) }
   static std::unordered_map<Type, int, TypeHash> type_bytes = {
+      GET_TYPE_SIZE_PAIR(bfloat16),
       GET_TYPE_SIZE_PAIR(float16),
       GET_TYPE_SIZE_PAIR(float),
       GET_TYPE_SIZE_PAIR(double),
@@ -424,6 +465,7 @@ Type Str2Type(const std::string &type) {
       {"uint64", UI64()},
       {"uint64_t", UI64()},
 
+      {"bfloat16", BF16()},
       {"float16", F16()},
       {"half", F16()},
 
@@ -446,8 +488,10 @@ Type Str2Type(const std::string &type) {
       {"uint8_p", type_of<uint8_t *>()},
       {"uint8_t*", type_of<uint8_t *>()},
 
+      {"bfloat16*", type_of<bfloat16 *>()},
       {"float16*", type_of<float16 *>()},
       {"half*", type_of<float16 *>()},
+      {"bfloat16_p", type_of<bfloat16 *>()},
       {"float16_p", type_of<float16 *>()},
       {"half_p", type_of<float16 *>()},
 
@@ -490,7 +534,16 @@ std::string Type2Str(const Type &type) {
       }
 
     case Type::type_t::Float:
-      return "float" + std::to_string(type.bits());
+      switch (type.specific_type()) {
+        case Type::specific_type_t::None:
+          return "float" + std::to_string(type.bits());
+        case Type::specific_type_t::BF16:
+          return "bfloat16";
+        case Type::specific_type_t::FP16:
+          return "float16";
+        default:
+          break;
+      }
 
     case Type::type_t::Void:
       return "void";

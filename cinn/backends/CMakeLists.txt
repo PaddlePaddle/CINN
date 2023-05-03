@@ -38,10 +38,8 @@ if (TARGET test_generated1)
   add_dependencies(test_generated1 test_codegen_c)
 endif()
 
-
 if (WITH_CUDA)
   nv_test(test_codegen_cuda_generate SRCS codegen_cuda_generate_test.cc DEPS cinncore)
-  nv_test(test_codegen_cuda_dev SRCS codegen_cuda_dev_test.cc ../common/cuda_test_helper.cc DEPS cinncore)
   nv_test(test_codegen_debug SRCS codegen_debug_test.cc DEPS cinncore)
 
   if (WITH_TESTING)

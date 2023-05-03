@@ -366,6 +366,25 @@ CINN_REGISTER_HELPER(cinn_cuda_host_api) {
       .AddInputType<void *>()  // stream
       .End();
 
+  using cinn::runtime::cuda::cinn_call_cuda_memset;
+  REGISTER_EXTERN_FUNC_HELPER(cinn_call_cuda_memset, cinn::common::DefaultHostTarget())
+      .SetRetType<void>()
+      .AddInputType<void *>()  // v_args
+      .AddInputType<int>()     // num_args
+      .AddInputType<int>()     // value
+      .AddInputType<size_t>()  // count
+      .AddInputType<void *>()  // stream
+      .End();
+
+  using cinn::runtime::cuda::cinn_call_cuda_memcpy;
+  REGISTER_EXTERN_FUNC_HELPER(cinn_call_cuda_memcpy, cinn::common::DefaultHostTarget())
+      .SetRetType<void>()
+      .AddInputType<void *>()  // v_args
+      .AddInputType<int>()     // num_args
+      .AddInputType<size_t>()  // count
+      .AddInputType<void *>()  // stream
+      .End();
+
   using cinn::runtime::cuda::cinn_call_gaussian_random;
   REGISTER_EXTERN_FUNC_HELPER(cinn_call_gaussian_random, cinn::common::DefaultHostTarget())
       .SetRetType<void>()
@@ -616,10 +635,6 @@ CINN_REGISTER_HELPER(cinn_cuda_host_api) {
       .AddInputType<int>()     // ow
       .AddInputType<void *>()  // stream
       .End();
-#endif
-
-#ifdef CINN_WITH_MKL_CBLAS
-
 #endif
 
   return true;

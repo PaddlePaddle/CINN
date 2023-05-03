@@ -15,13 +15,14 @@
 import argparse
 import itertools
 import unittest
+import re
 
 parser = argparse.ArgumentParser(description="Argparse for op test helper")
 parser.add_argument(
     "--case",
-    type=int,
+    type=str,
     help="Which case you want to test, default -1 for all cases.",
-    default=-1)
+    default=None)
 args = parser.parse_args()
 
 
@@ -50,10 +51,13 @@ class TestCaseHelper():
         """
         Generate all test cases
         """
+        assert type(self.inputs) is list
+        assert type(self.dtypes) is list
+        assert type(self.attrs) is list
         self.all_cases = []
-        attrs_cases = (dict(zip(self.attrs.keys(), values))
-                       for values in itertools.product(*self.attrs.values()))
-        for case in itertools.product(self.inputs, self.dtypes, attrs_cases):
+        all_lists = [self.inputs, self.dtypes, self.attrs]
+        filtered_lists = filter(lambda x: len(x) > 0, all_lists)
+        for case in itertools.product(*filtered_lists):
             self.all_cases.append(self._flatten_tuple(case))
 
     def _make_all_classes(self):
@@ -63,20 +67,33 @@ class TestCaseHelper():
         self.init_attrs()
         self._init_cases()
         self.all_classes = []
-        if args.case >= 0:
-            self.all_classes.append(
-                type(f'{self.class_name}{args.case}', (self.cls, ),
-                     {"case": self.all_cases[args.case]}))
+        if args.case is not None:
+            for test_name in self.specify_test:
+                no = int(re.search(r'\d+$', test_name).group(0))
+                assert 0 <= no and no < len(self.all_cases)
+                self.all_classes.append(
+                    type(f'{self.__class__.__name__}.{self.class_name}{no}',
+                         (self.cls, ), {"case": self.all_cases[no]}))
         else:
             for i, case in enumerate(self.all_cases):
                 self.all_classes.append(
-                    type(f'{self.class_name}{i}', (self.cls, ),
-                         {"case": case}))
+                    type(f'{self.__class__.__name__}.{self.class_name}{i}',
+                         (self.cls, ), {"case": case}))
 
     def run(self):
         """
         Run all test classes
         """
+        if args.case is not None:
+            self.specify_test = []
+            all_tests = args.case.split(',')
+            for test in all_tests:
+                test_info = test.split('.')
+                assert len(test_info) is 2
+                if self.__class__.__name__ == test_info[0]:
+                    self.specify_test.append(test_info[1])
+            if len(self.specify_test) is 0:
+                return
         self._make_all_classes()
         test_suite = unittest.TestSuite()
         test_loader = unittest.TestLoader()

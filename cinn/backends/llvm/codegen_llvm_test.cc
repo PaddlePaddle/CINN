@@ -150,7 +150,7 @@ TEST(CodeGenLLVM, Imm) {
   ASSERT_EQ(value->getType(), f32);
   ASSERT_EQ(value, llvm::ConstantFP::get(f32, float32_imm.value));
 
-  ir::FloatImm float16_imm(common::Float(16), 2.5);
+  ir::FloatImm float16_imm(common::Float(16, 1, common::Type::specific_type_t::FP16), 2.5);
   value = emitter->Visit(&float16_imm);
   ASSERT_EQ(value->getType(), f16);
   ASSERT_EQ(value, llvm::ConstantFP::get(f16, float16_imm.value));
@@ -207,7 +207,8 @@ TEST(CodeGenLLVM, Expr) {
   do {
     float16 x{2.5};
     float16 y{3.5};
-    auto op = CreateBinaryOp<ir::Sub, ir::FloatImm, float16>(common::Float(16), x, y);
+    auto op =
+        CreateBinaryOp<ir::Sub, ir::FloatImm, float16>(common::Float(16, 1, common::Type::specific_type_t::FP16), x, y);
 
     expect_value = llvm::ConstantFP::get(f16, x - y);
     value        = emitter->Visit(op.get());
@@ -241,7 +242,8 @@ TEST(CodeGenLLVM, Expr) {
   do {
     float16 x{6};
     float16 y{4};
-    auto op      = CreateBinaryOp<ir::Div, ir::FloatImm, float16>(common::Float(16), x, y);
+    auto op =
+        CreateBinaryOp<ir::Div, ir::FloatImm, float16>(common::Float(16, 1, common::Type::specific_type_t::FP16), x, y);
     expect_value = llvm::ConstantFP::get(f16, x / y);
     value        = emitter->Visit(op.get());
     ASSERT_EQ(value->getType(), f16);
@@ -387,7 +389,7 @@ TEST(CodeGenLLVM, Expr) {
     int v4       = 4;
     auto x4      = std::make_unique<ir::IntImm>(common::Int(32), v4);
     auto ex4     = ir::Expr(x4.release());
-    auto op4     = ir::Cast::Make(common::Float(16), std::move(ex4));
+    auto op4     = ir::Cast::Make(Float(16, 1, common::Type::specific_type_t::FP16), std::move(ex4));
     value        = emitter->Visit(&op4);
     expect_value = llvm::ConstantFP::get(f16, v4);
     ASSERT_EQ(value->getType(), f16);
@@ -396,7 +398,7 @@ TEST(CodeGenLLVM, Expr) {
     // f16 -> f32
     LOG(INFO) << "test f16 -> f32";
     float16 v5{5};
-    auto x5      = std::make_unique<ir::FloatImm>(common::Float(16), v5);
+    auto x5      = std::make_unique<ir::FloatImm>(common::Float(16, 1, common::Type::specific_type_t::FP16), v5);
     auto ex5     = ir::Expr(x5.release());
     auto op5     = ir::Cast::Make(common::Float(32), std::move(ex5));
     value        = emitter->Visit(&op5);

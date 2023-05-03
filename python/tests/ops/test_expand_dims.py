@@ -48,7 +48,9 @@ class TestExpandDimsOp(OpTest):
     # the forward result will be incorrect.
     def build_cinn_program(self, target):
         builder = NetBuilder("expand_dims")
-        x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
+        x = builder.create_input(
+            self.nptype2cinntype(self.inputs["x"].dtype),
+            self.inputs["x"].shape, "x")
         out = builder.expand_dims(x, self.axes)
 
         prog = builder.build()
@@ -70,6 +72,18 @@ class TestExpandDimsCase1(TestExpandDimsOp):
 class TestExpandDimsCase2(TestExpandDimsOp):
     def init_case(self):
         self.inputs = {"x": np.random.random([2, 3, 4]).astype("float32")}
+        self.axes = [3, 4, 5]
+
+
+class TestExpandDimsCase3(TestExpandDimsOp):
+    def init_case(self):
+        self.inputs = {"x": np.random.random([2, 3, 4]).astype("float16")}
+        self.axes = [3, 4, 5]
+
+
+class TestExpandDimsCase4(TestExpandDimsOp):
+    def init_case(self):
+        self.inputs = {"x": np.random.random([2, 3, 4]).astype("int64")}
         self.axes = [3, 4, 5]
 
 

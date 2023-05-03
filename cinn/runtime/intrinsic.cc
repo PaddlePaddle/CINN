@@ -46,7 +46,7 @@ cinn_type_t ToRuntimeType(Type type) {
 
   SET_TYPE_CASE_ITEM(Float(32).PointerOf, cinn_type_of<float*>);
   SET_TYPE_CASE_ITEM(Float(64).PointerOf, cinn_type_of<double*>);
-  SET_TYPE_CASE_ITEM(Float(16).PointerOf, cinn_type_of<float16*>);
+  SET_TYPE_CASE_ITEM(Float(16, 1, common::Type::specific_type_t::FP16).PointerOf, cinn_type_of<float16*>);
 
   LOG(FATAL) << "Not supported type " << type;
   return cinn_unk_t();

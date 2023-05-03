@@ -24,7 +24,10 @@
 #include "cinn/backends/extern_func_emitter_builtin.h"
 #include "cinn/backends/llvm/runtime_symbol_registry.h"
 #include "cinn/runtime/cpu/host_intrinsics.h"
+#include "cinn/runtime/flags.h"
 #include "cinn/utils/string.h"
+
+DECLARE_bool(verbose_function_register);
 
 namespace cinn {
 namespace backends {
@@ -36,7 +39,9 @@ ExternFunctionEmitterRegistry& ExternFunctionEmitterRegistry::Global() {
 
 void ExternFunctionEmitterRegistry::Register(const ExternFuncID& name, const std::string& x) {
 #ifdef CINN_WITH_DEBUG
-  RAW_LOG_INFO("Register extern function emitter [%s]", utils::GetStreamCnt(name).c_str());
+  if (FLAGS_verbose_function_register) {
+    RAW_LOG_INFO("Register extern function emitter [%s]", utils::GetStreamCnt(name).c_str());
+  }
 #endif  // CINN_WITH_DEBUG
   CHECK(!x.empty()) << "Extern Function name is empty.";
   data_[name] = x;
