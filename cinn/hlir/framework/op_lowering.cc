@@ -1207,7 +1207,7 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
   // topological order.
   auto nodes_set      = group->NodeSet();
   auto v_consumers    = BuildVirtualConsumer(group, this->shape_dict_);
-  auto nodes_in_order = TopologicalOrder(group, v_consumers);
+  auto nodes_in_order = BFSTopologicalOrderWithPriority(group, v_consumers, this->shape_dict_);
   // find reducer.
   std::unordered_set<Node*> nodes_inline;
   auto greducer         = FindGlobalReducer(nodes_in_order);
