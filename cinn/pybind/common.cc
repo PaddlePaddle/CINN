@@ -157,8 +157,8 @@ void BindType(py::module *m) {
       .def("Int", &common::Int, py::arg("bits"), py::arg("lanes") = 1)
       .def("UInt", &common::UInt, py::arg("bits"), py::arg("lanes") = 1)
       .def("Float", &common::Float, py::arg("bits"), py::arg("lanes") = 1, py::arg("st") = Type::specific_type_t::None)
-      .def("Float16", &common::Float)
-      .def("BFloat16", &common::Float)
+      .def("Float16", &common::Float16, py::arg("lanes") = 1)
+      .def("BFloat16", &common::BFloat16, py::arg("lanes") = 1)
       .def("Bool", &common::Bool, py::arg("lanes") = 1)
       .def("String", &common::String);
 

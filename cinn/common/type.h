@@ -171,8 +171,6 @@ inline Type Float(int bits, int lanes = 1, Type::specific_type_t st = Type::spec
   }
   return Type(Type::type_t ::Float, bits, lanes, st);
 }
-// inline Type BFloat16(int lanes = 1) { return Float(16, lanes, Type::specific_type_t::BF16); }
-// inline Type Float16(int lanes = 1) { return Float(16, lanes, Type::specific_type_t::FP16); }
 inline Type Bool(int lanes = 1) { return Type(Type::type_t ::UInt, 1, lanes); }
 inline Type String() { return Type(Type::type_t::String, 1, 1); }
 
