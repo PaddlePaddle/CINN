@@ -66,16 +66,19 @@ class TestBroadcastToAll(TestCaseHelper):
         self.cls = TestBroadcastToOp
         self.inputs = [
             {
-                "x_shape": [1, 1, 3],
+                "x_shape": [1],
             },
             {
-                "x_shape": [5, 3],
+                "x_shape": [1024],
             },
             {
-                "x_shape": [4, 3],
+                "x_shape": [32, 64],
             },
             {
-                "x_shape": [5],
+                "x_shape": [16, 8, 4, 2],
+            },
+            {
+                "x_shape": [16, 8, 4, 2, 1],
             },
         ]
         self.dtypes = [
@@ -97,23 +100,118 @@ class TestBroadcastToAll(TestCaseHelper):
         ]
         self.attrs = [
             {
-                "d_shape": [4, 5, 3],
-                "broadcast_axes": [0, 1, 2],
+                "d_shape": [2],
+                "broadcast_axes": [1],
             },
             {
-                "d_shape": [4, 5, 3],
+                "d_shape": [4, 5],
                 "broadcast_axes": [1, 2],
             },
             {
-                "d_shape": [4, 5, 3],
-                "broadcast_axes": [0, 2],
+                "d_shape": [4, 3, 2],
+                "broadcast_axes": [1, 2],
             },
             {
-                "d_shape": [4, 5, 3],
-                "broadcast_axes": [1],
+                "d_shape": [2, 3, 4],
+                "broadcast_axes": [0, 1, 4],
+            },
+            {
+                "d_shape": [4, 2, 3, 5],
+                "broadcast_axes": [0, 2, 3, 5],
+            },
+        ]
+
+
+class TestBroadcastToOpNoAxes(OpTest):
+    def setUp(self):
+        print(f"\nRunning {self.__class__.__name__}: {self.case}")
+        self.prepare_inputs()
+
+    def prepare_inputs(self):
+        self.x_np = self.random(
+            shape=self.case["x_shape"], dtype=self.case["x_dtype"])
+
+    def build_paddle_program(self, target):
+        x = paddle.to_tensor(self.x_np, stop_gradient=True)
+        out = paddle.broadcast_to(x, shape=self.case["d_shape"])
+
+        self.paddle_outputs = [out]
+
+    def build_cinn_program(self, target):
+        builder = NetBuilder("BroadcastTo")
+        x = builder.create_input(
+            self.nptype2cinntype(self.case["x_dtype"]), self.case["x_shape"],
+            "x")
+        out = builder.broadcast_to(x, out_shape=self.case["d_shape"])
+
+        prog = builder.build()
+        res = self.get_cinn_output(prog, target, [x], [self.x_np], [out])
+
+        self.cinn_outputs = [res[0]]
+
+    def test_check_results(self):
+        max_relative_error = self.case[
+            "max_relative_error"] if "max_relative_error" in self.case else 1e-5
+        self.check_outputs_and_grads(max_relative_error=max_relative_error)
+
+
+class TestBroadcastToOpNoAxesAll(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestBroadcastToOpNoAxesCase"
+        self.cls = TestBroadcastToOpNoAxes
+        self.inputs = [
+            {
+                "x_shape": [1],
+            },
+            {
+                "x_shape": [1024],
+            },
+            {
+                "x_shape": [32, 64],
+            },
+            {
+                "x_shape": [16, 8, 4, 2],
+            },
+            {
+                "x_shape": [16, 8, 4, 2, 1],
+            },
+        ]
+        self.dtypes = [
+            {
+                "x_dtype": "bool",
+            },
+            {
+                "x_dtype": "int32",
+            },
+            {
+                "x_dtype": "int64",
+            },
+            {
+                "x_dtype": "float32",
+            },
+            {
+                "x_dtype": "float64",
+            },
+        ]
+        self.attrs = [
+            {
+                "d_shape": [2],
+            },
+            {
+                "d_shape": [4, 5],
+            },
+            {
+                "d_shape": [4, 3, 2],
+            },
+            {
+                "d_shape": [2, 3, 4],
+            },
+            {
+                "d_shape": [4, 2, 3, 5],
             },
         ]
 
 
 if __name__ == "__main__":
     TestBroadcastToAll().run()
+    TestBroadcastToOpNoAxesAll().run()
