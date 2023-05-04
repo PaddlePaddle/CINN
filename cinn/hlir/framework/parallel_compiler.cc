@@ -30,6 +30,7 @@
 #include "cinn/ir/module.h"
 
 DECLARE_int32(cinn_parallel_compile_size);
+DECLARE_int32(cinn_parallel_compile_thread);
 
 namespace cinn {
 namespace hlir {
@@ -37,9 +38,6 @@ namespace framework {
 static constexpr int DebugLogMaxLen = 30000;
 
 std::vector<std::unique_ptr<Instruction>> ParallelCompiler::operator()() {
-  if (!FLAGS_cinn_parallel_compile_size) {
-    return std::vector<std::unique_ptr<Instruction>>();
-  }
   if (graph_->fusion_groups.size() == 0) {
     hlir::framework::ApplyPasses(graph_.get(), {"BuildNonFusedGroupsPass"});
   }
@@ -70,9 +68,17 @@ void ParallelCompiler::SplitTask() {
   CHECK(graph_->fusion_groups.size());
   CHECK(graph_->fusion_groups.size() == option_.lowered_funcs.size() || option_.lowered_funcs.size() == 0);
   // split task
-  int num_per_task = std::max((graph_->fusion_groups.size() - 1) / FLAGS_cinn_parallel_compile_size + 1, 16UL);
+  int max_task_num =
+      FLAGS_cinn_parallel_compile_thread > 0 ? FLAGS_cinn_parallel_compile_thread : graph_->fusion_groups.size();
 
-  for (int idx = 0; idx < graph_->fusion_groups.size(); idx += num_per_task) {
+  int group_per_task = graph_->fusion_groups.size();
+  if (max_task_num > 1) {
+    group_per_task = FLAGS_cinn_parallel_compile_size > 0
+                         ? FLAGS_cinn_parallel_compile_size
+                         : ((graph_->fusion_groups.size() + max_task_num - 1) / max_task_num);
+  }
+
+  for (int idx = 0; idx < graph_->fusion_groups.size(); idx += group_per_task) {
     tasks_.emplace_back(this, scope_, graph_, option_, target_);
   }
   VLOG(2) << "Split task to " << tasks_.size() << " sub-task!";
@@ -133,15 +139,17 @@ void ParallelCompiler::Task::Lowering() {
       continue;
     }
     auto& group = graph->fusion_groups[idx];
-    VLOG(1) << "=============================================";
-    VLOG(1) << "Lowering Group:\n" << graph->DebugGroupedGraph(group->CollectNodes());
-    VLOG(1) << "=============================================";
+    VLOG(1) << "Start Lowering Group " << idx << " at " << std::this_thread::get_id() << " :\n"
+            << "Group " << idx << " {\n"
+            << graph->DebugGroupedGraph(group->CollectNodes()) << "}\n";
     lowered_funcs.emplace_back(std::move(op_lowerer.Lower(group)));
     CHECK_EQ(lowered_funcs.back().size(), 1) << "Lowerd Function Is Not Equal 1!";
   }
 }
 
 void ParallelCompiler::Task::CodegenAndJit() {
+  VLOG(2) << "Start Codegen and JIT with Group [" << cinn::utils::Join(this->gidx, ", ") << "] at "
+          << std::this_thread::get_id();
   // build module
   ir::Module::Builder builder(common::UniqName("module"), target);
   for (auto& func : lowered_funcs) {
@@ -193,6 +201,7 @@ void ParallelCompiler::Task::CodegenAndJit() {
 void ParallelCompiler::Task::BuildInstruction() {
   // create instruction.
   for (int idx : gidx) {
+    VLOG(2) << "Start BuildInstruction of Group " << idx << " at " << std::this_thread::get_id();
     auto& group = graph->fusion_groups[idx];
     CHECK(group->input_names.size() > 0 || group->output_names.size() > 0);
     auto instr = std::unique_ptr<Instruction>(
