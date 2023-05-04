@@ -22,7 +22,6 @@ import paddle
 import cinn
 from cinn.frontend import *
 from cinn.common import *
-import sys
 
 
 class TestBroadcastToOp(OpTest):
