@@ -34,10 +34,13 @@ class TestExpandDimsOp(OpTest):
     def init_case(self):
         self.x_np = self.random(
             shape=self.case["x_shape"], dtype=self.case["x_dtype"])
+        self.axes_np = self.random(
+            shape=self.case["axes_shape"], dtype=self.case["axes_dtype"])
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.x_np, stop_gradient=True)
-        out = paddle.unsqueeze(x, self.case["axes"])
+        axes = paddle.to_tensor(self.axes_np, stop_gradient=True)
+        out = paddle.unsqueeze(x, axes)
 
         self.paddle_outputs = [out]
 
@@ -48,10 +51,14 @@ class TestExpandDimsOp(OpTest):
         x = builder.create_input(
             self.nptype2cinntype(self.case["x_dtype"]), self.case["x_shape"],
             "x")
-        out = builder.expand_dims(x, self.case["axes"])
+        axes = builder.create_input(
+            self.nptype2cinntype(self.case["axes_dtype"]),
+            self.case["axes_shape"], "axes")
+        out = builder.expand_dims(x, axes)
 
         prog = builder.build()
-        res = self.get_cinn_output(prog, target, [x], [self.x_np], [out])
+        res = self.get_cinn_output(prog, target, [x, axes],
+                                   [self.x_np, self.axes_np], [out])
 
         self.cinn_outputs = [res[0]]
 
@@ -67,41 +74,62 @@ class TestExpandDimsAll(TestCaseHelper):
         self.cls = TestExpandDimsOp
         self.inputs = [
             {
-                "x_shape": [2, 3, 4],
+                "x_shape": [1024],
+                "axes_shape": [2],
+            },
+            {
+                "x_shape": [1],
+                "axes_shape": [2, 3],
+            },
+            {
+                "x_shape": [512, 256],
+                "axes_shape": [2],
+            },
+            {
+                "x_shape": [128, 64, 32],
+                "axes_shape": [2, 3],
+            },
+            {
+                "x_shape": [16, 8, 4, 2],
+                "axes_shape": [2, 3, 4],
+            },
+            {
+                "x_shape": [16, 8, 4, 2, 1],
+                "axes": [2, 3, 4, 5],
             },
         ]
         self.dtypes = [
             {
                 "x_dtype": "int8",
+                "axes_dtype": "int32",
             },
             {
-                "x_dtype": "int16"
+                "x_dtype": "int16",
+                "axes_dtype": "int32",
             },
             {
                 "x_dtype": "int32",
+                "axes_dtype": "int32",
             },
             {
-                "x_dtype": "int64"
+                "x_dtype": "int64",
+                "axes_dtype": "int32",
             },
             {
                 "x_dtype": "float16",
+                "axes_dtype": "int32",
                 "max_relative_error": 1e-3
             },
             {
                 "x_dtype": "float32",
+                "axes_dtype": "int32",
             },
             {
                 "x_dtype": "float64",
+                "axes_dtype": "int32",
             },
         ]
-        self.attrs = [
-            {
-                "axes": [0, 2, 4],
-            },
-            {
-                "axes": [3, 4, 5],
-            },
-        ]
+        self.attrs = []
 
 
 if __name__ == "__main__":
