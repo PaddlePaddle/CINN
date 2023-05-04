@@ -38,6 +38,8 @@ class TestReduceOp(OpTest):
         if self.case["op_type"] == "sum":
             out = paddle.sum(
                 x, axis=self.case["axis"], keepdim=self.case["keepdim"])
+            if self.case["dtype"] == "int32":
+                out = out.cast(self.case["dtype"])
         elif self.case["op_type"] == "prod":
             out = paddle.prod(
                 x, axis=self.case["axis"], keepdim=self.case["keepdim"])
@@ -126,18 +128,20 @@ class TestReduceAll(TestCaseHelper):
             },
         ]
         self.dtypes = [
-            {
-                "dtype": "int16",
-            },
+            # Paddle reduce not support
+            # {
+            #     "dtype": "int16",
+            # },
             {
                 "dtype": "int32",
             },
             {
                 "dtype": "int64",
             },
-            {
-                "dtype": "float16",
-            },
+            # Paddle reduce not support
+            # {
+            #     "dtype": "float16",
+            # },
             {
                 "dtype": "float32",
             },

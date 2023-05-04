@@ -22,6 +22,7 @@
 #include "cinn/hlir/pe/broadcast.h"
 #include "cinn/utils/functional.h"
 #include "cinn/utils/profiler.h"
+#include "glog/logging.h"
 
 namespace cinn {
 namespace frontend {
@@ -109,7 +110,8 @@ Variable NetBuilder::Reduce(const std::string& op_type, const Variable& x, const
     if (keep_dim) {
       return Identity(x);
     } else {
-      int new_rank = dim.empty() ? 1 : x->shape.size() - dim.size() + 1;
+      CHECK_GE(x->shape.size(), dim.size()) << "The inputs rank should be greater than or equal to axes.";
+      int new_rank = x->shape.size() == dim.size() ? 1 : x->shape.size() - dim.size();
       std::vector<int> new_shape(new_rank, 1);
       return Reshape(x, new_shape);
     }
