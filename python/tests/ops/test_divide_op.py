@@ -41,7 +41,7 @@ class TestDivOp(OpTest):
         self.y_np = self.random(
             shape=self.case["y_shape"],
             dtype=self.case["y_dtype"],
-            low=-10,
+            low=1,
             high=10)
 
     def build_paddle_program(self, target):
@@ -80,31 +80,39 @@ class TestDivAll(TestCaseHelper):
         self.cls = TestDivOp
         self.inputs = [
             {
-                "x_shape": [2, 3, 4],
-                "y_shape": [1, 5, 2],
+                "x_shape": [32],
+                "y_shape": [32],
             },
             {
                 "x_shape": [32, 64],
                 "y_shape": [32, 64],
             },
             {
+                "x_shape": [2, 3, 4],
+                "y_shape": [1, 5, 2],
+            },
+            {
                 "x_shape": [2, 2, 32],
                 "y_shape": [32],
             },
             {
-                "x_shape": [32],
-                "y_shape": [32],
+                "x_shape": [16, 8, 4, 2],
+                "y_shape": [16, 8, 4, 2],
+            },
+            {
+                "x_shape": [16, 8, 4, 2, 1],
+                "y_shape": [16, 8, 4, 2, 1],
             },
         ]
         self.dtypes = [
-            #{
-            #    "x_dtype": "int32",
-            #    "y_dtype": "int32",
-            #},
-            #{
-            #    "x_dtype": "int64",
-            #    "y_dtype": "int64",
-            #},
+            {
+                "x_dtype": "int32",
+                "y_dtype": "int32",
+            },
+            {
+                "x_dtype": "int64",
+                "y_dtype": "int64",
+            },
             {
                 "x_dtype": "float32",
                 "y_dtype": "float32",
