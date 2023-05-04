@@ -403,6 +403,31 @@ void cinn_call_batched_cublas(void *v_args,
   CUDA_CALL(cudaFreeAsync(ptr_arr, custream));
 }
 
+void cinn_call_cuda_memset(void *v_args, int num_args, int value, size_t count, void *stream) {
+  CHECK_EQ(num_args, 1) << "The cinn_call_cuda_memset only accept a output";
+  VLOG(4) << "call cinn_call_cuda_memset with value=" << value << ", count=" << count;
+
+  cinn_pod_value_t *args = static_cast<cinn_pod_value_t *>(v_args);
+  void *output           = args[0].operator cinn_buffer_t *()->memory;
+
+  cudaStream_t custream = static_cast<cudaStream_t>(stream);
+
+  CUDA_CALL(cudaMemsetAsync(output, value, count, custream));
+}
+
+void cinn_call_cuda_memcpy(void *v_args, int num_args, size_t count, void *stream) {
+  CHECK_EQ(num_args, 2) << "The cinn_call_cuda_memcpy only accept a input and a output";
+  VLOG(4) << "call cinn_call_cuda_memcpy with count=" << count;
+
+  cinn_pod_value_t *args = static_cast<cinn_pod_value_t *>(v_args);
+  void *input            = args[0].operator cinn_buffer_t *()->memory;
+  void *output           = args[1].operator cinn_buffer_t *()->memory;
+
+  cudaStream_t custream = static_cast<cudaStream_t>(stream);
+
+  CUDA_CALL(cudaMemcpyAsync(output, input, count, cudaMemcpyDeviceToDevice, custream));
+}
+
 #ifdef CINN_WITH_CUDNN
 class CudnnHandle {
  public:
@@ -1070,7 +1095,7 @@ void cinn_call_cudnn_softmax_backward(void *v_args,
   CUDNN_CALL(cudnnDestroyTensorDescriptor(y_desc));
 }
 
-#endif
+#endif  // CINN_WITH_CUDNN
 
 /********************to be removed in future***********************/
 
@@ -2082,7 +2107,7 @@ void cinn_gpu_cudnn_softmax(const std::vector<int> &attrs,
   cudnnDestroyTensorDescriptor(out_desc);
 }
 
-#endif
+#endif  // CINN_WITH_CUDNN
 
 }  // namespace cuda
 }  // namespace runtime

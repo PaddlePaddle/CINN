@@ -20,6 +20,7 @@
 
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/pe/broadcast.h"
+#include "cinn/runtime/flags.h"
 #include "cinn/utils/functional.h"
 #include "cinn/utils/profiler.h"
 
@@ -114,14 +115,7 @@ Variable NetBuilder::Reduce(const std::string& op_type, const Variable& x, const
       return Reshape(x, new_shape);
     }
   }
-  // Convert the negative dim to a positive number
-  std::vector<int> reduce_dim(dim.begin(), dim.end());
-  for (int i = 0; i < dim.size(); i++) {
-    if (reduce_dim[i] < 0) {
-      reduce_dim[i] = x->shape.size() + reduce_dim[i];
-    }
-  }
-  return CustomInstr(op_type, {x}, {{"dim", reduce_dim}, {"keep_dim", keep_dim}}).front();
+  return CustomInstr(op_type, {x}, {{"dim", dim}, {"keep_dim", keep_dim}}).front();
 }
 
 #define NETBUILDER_UNARY_OP_DEF(func_name__, op_type__) \
@@ -267,8 +261,7 @@ Variable NetBuilder::FillConstant(const std::vector<int>& shape,
   } else if (type.is_int() || type.is_uint()) {
     value = static_cast<int64_t>(std::stoll(str_value));
   } else if (type.is_bool()) {
-    static std::unordered_set<std::string> true_string = {"1", "t", "T", "true", "True", "TRUE"};
-    value                                              = static_cast<bool>(true_string.count(str_value));
+    value = !cinn::runtime::CheckStringFlagFalse(str_value);
   } else {
     LOG(FATAL) << "FillConstant only support int/float/bool, but here " << dtype;
   }
