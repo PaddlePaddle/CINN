@@ -403,6 +403,7 @@ void* cinn_pod_value_t::data_addr() const {
     case ::cinn_type_code<uint32_t>():
     case ::cinn_type_code<uint64_t>():
       return (void*)&value_.v_int64;  // NOLINT
+    case ::cinn_type_code<bfloat16>():
     case ::cinn_type_code<float16>():
     case ::cinn_type_code<float>():
     case ::cinn_type_code<double>():

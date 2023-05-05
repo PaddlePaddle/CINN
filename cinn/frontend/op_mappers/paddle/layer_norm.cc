@@ -112,7 +112,7 @@ void LayerNormOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
 
   // multiply scale
   if (scale) {
-    if (scale.value()->type.is_float(16)) {
+    if (scale.value()->type.is_float16() || scale.value()->type.is_bfloat16()) {
       scale = ctx.Builder()->Cast(scale.value(), "float32");
     }
     auto scale_broadcast = builder->BroadcastTo(*scale, shape, {1});

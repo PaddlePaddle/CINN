@@ -26,6 +26,7 @@ namespace cinn {
 namespace hlir {
 namespace framework {
 
+using common::bfloat16;
 using common::float16;
 
 using framework::Graph;

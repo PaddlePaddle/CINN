@@ -23,6 +23,7 @@
 namespace cinn {
 namespace backends {
 
+using cinn::common::bfloat16;
 using cinn::common::float16;
 
 llvm::Type *CinnTypeToLLVMType(common::Type type, llvm::Module *m, bool is_vec) {
@@ -128,6 +129,7 @@ __(uint8_t)
 __(uint16_t)
 __(uint32_t)
 __(uint64_t)
+__(bfloat16)
 __(float16)
 __(float)
 __(double)

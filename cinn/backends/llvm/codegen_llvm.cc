@@ -55,6 +55,7 @@ namespace cinn {
 namespace backends {
 
 using BinaryInstruction = llvm::Instruction::BinaryOps;
+using common::bfloat16;
 using common::float16;
 
 namespace {

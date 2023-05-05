@@ -14,6 +14,7 @@
 
 #include "cinn/hlir/framework/op_lowering_util.h"
 #ifdef CINN_WITH_CUDA
+#include "cinn/common/bfloat16.h"
 #include "cinn/common/float16.h"
 #endif
 #include <queue>
