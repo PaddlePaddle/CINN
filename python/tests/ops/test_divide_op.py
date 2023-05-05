@@ -95,6 +95,10 @@ class TestDivAll(TestCaseHelper):
                 "x_shape": [16, 8, 4, 2],
                 "y_shape": [16, 8, 4, 2],
             },
+            {
+                "x_shape": [16, 8, 4, 2, 1],
+                "y_shape": [16, 8, 4, 2, 1],
+            },
         ]
         self.dtypes = [
             {
@@ -184,6 +188,10 @@ class TestDivNegAll(TestCaseHelper):
             {
                 "x_shape": [16, 8, 4, 2],
                 "y_shape": [16, 8, 4, 2],
+            },
+            {
+                "x_shape": [16, 8, 4, 2, 1],
+                "y_shape": [16, 8, 4, 2, 1],
             },
         ]
         self.dtypes = [
