@@ -101,10 +101,10 @@ class TestBroadcastToAll(TestCaseHelper):
         self.attrs = [
             {
                 "d_shape": [2],
-                "broadcast_axes": [1],
+                "broadcast_axes": [1, 2],
             },
             {
-                "d_shape": [4, 5],
+                "d_shape": [3, 2],
                 "broadcast_axes": [1, 2],
             },
             {
@@ -198,7 +198,7 @@ class TestBroadcastToOpNoAxesAll(TestCaseHelper):
                 "d_shape": [2],
             },
             {
-                "d_shape": [4, 5],
+                "d_shape": [3, 2],
             },
             {
                 "d_shape": [4, 3, 2],
