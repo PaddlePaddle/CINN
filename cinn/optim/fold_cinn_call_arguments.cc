@@ -41,7 +41,7 @@ struct FoldCINNCallArgumentsMutator : public ir::IRMutator<> {
         if (call && call->is_cinn_call()) {
           // remove the duplicate calls.
           std::string key = utils::GetStreamCnt(Expr(call));
-          if (visited_call_.count(utils::GetStreamCnt(Expr(call)))) {
+          if (visited_call_.count(key)) {
             it = node->stmts.erase(it);
             continue;
           }
