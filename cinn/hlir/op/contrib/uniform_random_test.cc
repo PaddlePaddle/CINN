@@ -37,6 +37,7 @@ namespace cinn {
 namespace hlir {
 namespace op {
 
+#ifdef CINN_WITH_CUDA
 TEST(GenerateCode_CUDA, UniformRandomGPU) {
   common::Context::Global().ResetNameId();
 
@@ -159,6 +160,7 @@ TEST(Builder, UniformRandomFP64) {
   EXPECT_LE(ratio, 0.501f);
   EXPECT_GE(ratio, 0.499f);
 }
+#endif
 
 }  // namespace frontend
 
