@@ -56,21 +56,22 @@ using common::CINNValue;
 using common::CINNValuePack;
 
 // Only for min = 0. and max = 1.
-ir::Tensor UniformRandom(const std::vector<int> &shape, int seed, const std::string &dtype, const Target &target, const std::string& tensor_name) {
-  std::string extern_func = "cinn_";
- if (target == common::DefaultNVGPUTarget()) {
-    extern_func += "nvgpu_";
-  } else {
-    CINN_NOT_IMPLEMENTED
+ir::Tensor UniformRandom(const std::vector<int> &shape,
+                         int seed,
+                         const std::string &dtype,
+                         const Target &target,
+                         const std::string &tensor_name) {
+  std::string extern_func = "cinn_nvgpu_uniform_random_";
+  if (target != common::DefaultNVGPUTarget()) {
+    LOG(FATAL) << "Not Implemented UniformRandom for target: " << target;
   }
 
-  extern_func += "uniform_random_";
   if (dtype == "float32") {
     extern_func += "fp32";
-  }if (dtype == "float64"){
+  } else if (dtype == "float64") {
     extern_func += "fp64";
   } else {
-    CINN_NOT_IMPLEMENTED
+    LOG(FATAL) << "Not Implemented UniformRandom for dtype: " << dtype;
   }
 
   std::vector<Expr> new_shape;

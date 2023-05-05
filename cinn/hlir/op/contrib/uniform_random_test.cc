@@ -75,7 +75,7 @@ TEST(GenerateCode_CUDA, UniformRandomGPU) {
 
 namespace frontend {
 
-TEST(Builder, UniformRandom) {
+TEST(Builder, UniformRandomFP32) {
   NetBuilder builder("net_builder");
 
   std::vector<int> shape = {128, 12, 128, 128};
@@ -110,9 +110,54 @@ TEST(Builder, UniformRandom) {
   for (int i = 0; i < 128 * 12 * 128 * 128; ++i) {
     if (data[i] > 0.5) cnt++;
   }
-
+  float ratio = (float)cnt / (128 * 12 * 128 * 128);
   LOG(INFO) << "count: " << cnt;
-  LOG(INFO) << "x > 0.5f ratio:  " << (float)cnt / (128 * 12 * 128 * 128);
+  LOG(INFO) << "x > 0.5f ratio:  " << ratio;
+  EXPECT_LE(ratio, 0.501f);
+  EXPECT_GE(ratio, 0.499f);
+}
+
+TEST(Builder, UniformRandomFP64) {
+  NetBuilder builder("net_builder");
+
+  std::vector<int> shape = {128, 12, 128, 128};
+  int seed               = 2023;
+  std::string dtype      = "float64";
+  auto out               = builder.UniformRandom(shape, 0., 1., seed, dtype);
+  auto program           = builder.Build();
+
+  for (int i = 0; i < program.size(); ++i) {
+    LOG(INFO) << "instruction: " << program[i];
+  }
+
+  Target target = common::DefaultNVGPUTarget();
+  std::unordered_set<std::string> fetch_ids;
+  auto graph = Optimize(&program, fetch_ids, target);
+
+  LOG(INFO) << "graph: \n" << graph->Visualize();
+
+  auto scope = BuildScope(target, graph);
+
+  hlir::framework::GraphCompiler gc(target, scope, graph);
+  auto runtime_program = gc.Build();
+
+  auto out_ten = scope->GetTensor(std::string(out->id));
+  runtime_program->Execute();
+
+  EXPECT_EQ(out_ten->type(), Float(64));
+
+  std::vector<double> data = GetTensorData<double>(out_ten, target);
+
+  int cnt = 0;
+  for (int i = 0; i < 128 * 12 * 128 * 128; ++i) {
+    if (data[i] > 0.5) cnt++;
+  }
+
+  float ratio = (float)cnt / (128 * 12 * 128 * 128);
+  LOG(INFO) << "count: " << cnt;
+  LOG(INFO) << "x > 0.5f ratio:  " << ratio;
+  EXPECT_LE(ratio, 0.501f);
+  EXPECT_GE(ratio, 0.499f);
 }
 
 }  // namespace frontend

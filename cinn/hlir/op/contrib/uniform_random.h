@@ -26,7 +26,11 @@ namespace hlir {
 namespace op {
 
 // Only for min = 0. and max = 1.
-ir::Tensor UniformRandom(const std::vector<int>& shape, int seed, const std::string& dtype, const Target& target, const std::string& tensor_name);
+ir::Tensor UniformRandom(const std::vector<int>& shape,
+                         int seed,
+                         const std::string& dtype,
+                         const Target& target,
+                         const std::string& tensor_name);
 
 }  // namespace op
 }  // namespace hlir
