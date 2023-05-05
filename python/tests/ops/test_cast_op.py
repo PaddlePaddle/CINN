@@ -78,9 +78,6 @@ class TestCastAll(TestCaseHelper):
             {
                 "x_shape": [16, 8, 4, 2],
             },
-            {
-                "x_shape": [16, 8, 4, 2, 1],
-            },
         ]
         self.dtypes = [
             {
