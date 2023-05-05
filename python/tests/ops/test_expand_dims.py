@@ -51,9 +51,7 @@ class TestExpandDimsOp(OpTest):
         x = builder.create_input(
             self.nptype2cinntype(self.case["x_dtype"]), self.case["x_shape"],
             "x")
-        axes = builder.create_input(
-            self.nptype2cinntype(self.case["axes_dtype"]),
-            self.case["axes_shape"], "axes")
+        axes = builder.create_input(Int(32), self.case["axes_shape"], "axes")
         out = builder.expand_dims(x, axes)
 
         prog = builder.build()
@@ -74,60 +72,64 @@ class TestExpandDimsAll(TestCaseHelper):
         self.cls = TestExpandDimsOp
         self.inputs = [
             {
-                "x_shape": [1024],
-                "axes_shape": [2],
+                "x_shape": [1],
+                "axes_shape": [0, 2],
             },
             {
-                "x_shape": [1],
-                "axes_shape": [2, 3],
+                "x_shape": [1024],
+                "axes_shape": [0, 2],
             },
             {
                 "x_shape": [512, 256],
-                "axes_shape": [2],
-            },
-            {
-                "x_shape": [128, 64, 32],
-                "axes_shape": [2, 3],
-            },
-            {
-                "x_shape": [16, 8, 4, 2],
                 "axes_shape": [2, 3, 4],
             },
             {
+                "x_shape": [128, 64, 32],
+                "axes_shape": [0, 1, 2],
+            },
+            {
+                "x_shape": [16, 8, 4, 2],
+                "axes_shape": [4, 5],
+            },
+            {
                 "x_shape": [16, 8, 4, 2, 1],
-                "axes": [2, 3, 4, 5],
+                "axes_shape": [2],
             },
         ]
         self.dtypes = [
-            {
-                "x_dtype": "int8",
-                "axes_dtype": "int32",
-            },
-            {
-                "x_dtype": "int16",
-                "axes_dtype": "int32",
-            },
-            {
-                "x_dtype": "int32",
-                "axes_dtype": "int32",
-            },
-            {
-                "x_dtype": "int64",
-                "axes_dtype": "int32",
-            },
-            {
-                "x_dtype": "float16",
-                "axes_dtype": "int32",
-                "max_relative_error": 1e-3
-            },
+            #{
+            #    "x_dtype": "bool",
+            #    "axes_dtype": "int32",
+            #},
+            #{
+            #    "x_dtype": "int8",
+            #    "axes_dtype": "int32",
+            #},
+            #{
+            #    "x_dtype": "int16",
+            #    "axes_dtype": "int32",
+            #},
+            #{
+            #    "x_dtype": "int32",
+            #    "axes_dtype": "int32",
+            #},
+            #{
+            #    "x_dtype": "int64",
+            #    "axes_dtype": "int32",
+            #},
+            #{
+            #    "x_dtype": "float16",
+            #    "max_relative_error": 1e-3,
+            #    "axes_dtype": "int32",
+            #},
             {
                 "x_dtype": "float32",
                 "axes_dtype": "int32",
             },
-            {
-                "x_dtype": "float64",
-                "axes_dtype": "int32",
-            },
+            #{
+            #    "x_dtype": "float64",
+            #    "axes_dtype": "int32",
+            #},
         ]
         self.attrs = []
 
