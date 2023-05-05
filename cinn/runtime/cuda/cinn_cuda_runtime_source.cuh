@@ -501,24 +501,24 @@ CINN_CUDA_GT_NUM(int64, long long int)
 
 #undef CINN_CUDA_GT_NUM
 
-#define CINN_CUDA_INDEX_ADD(TYPE_SUFFIX, TYPE)                              \
-  __device__ inline TYPE cinn_cuda_index_add_##TYPE_SUFFIX(const TYPE x,    \
-                                            const int axis_indice,          \
-                                            const TYPE *__restrict__ y,     \
-                                            const int offset,               \
-                                            const int stride,               \
-                                            const int *__restrict__ index,  \
-                                            const int index_size) {         \
-  TYPE res = x;                                                             \
-  int idx   = -1;                                                           \
-  do {                                                                      \
-    idx = cinn_cuda_find_int_from(index, index_size, axis_indice, idx + 1); \
-    if (idx >= 0) {                                                         \
-      res += y[offset + idx * stride];                                      \
-    }                                                                       \
-  } while (idx != -1);                                                      \
-  return res;                                                               \
-}
+#define CINN_CUDA_INDEX_ADD(TYPE_SUFFIX, TYPE)                                \
+  __device__ inline TYPE cinn_cuda_index_add_##TYPE_SUFFIX(const TYPE x,      \
+                                            const int axis_indice,            \
+                                            const TYPE *__restrict__ y,       \
+                                            const int offset,                 \
+                                            const int stride,                 \
+                                            const int *__restrict__ index,    \
+                                            const int index_size) {           \
+    TYPE res = x;                                                             \
+    int idx  = -1;                                                            \
+    do {                                                                      \
+      idx = cinn_cuda_find_int_from(index, index_size, axis_indice, idx + 1); \
+      if (idx >= 0) {                                                         \
+        res += y[offset + idx * stride];                                      \
+      }                                                                       \
+    } while (idx != -1);                                                      \
+    return res;                                                               \
+  }
 
 CINN_CUDA_INDEX_ADD(fp32, float)
 CINN_CUDA_INDEX_ADD(fp64, double)
