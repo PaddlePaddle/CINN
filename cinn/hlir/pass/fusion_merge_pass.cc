@@ -825,7 +825,7 @@ class FusionMergePassHelper : public FusionHelperBase {
           } else {
             for (auto& belong_group : cur->belong_groups) {
               if (belong_group->group_id == cur->group_id) {
-                updated_consumers.insert(cur);
+                updated_consumers.insert(belong_group);
               } else {
                 fused_groups.push(belong_group);
               }
