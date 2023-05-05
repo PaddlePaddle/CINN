@@ -358,7 +358,7 @@ std::vector<Node*> BFSTopologicalOrderWithPriority(const GroupPtr& group,
   };
 
   struct Comparator {
-    bool operator()(const NodeWithPriority& lhs, const NodeWithPriority& y) { return lhs.priority < y.priority; }
+    bool operator()(const NodeWithPriority& lhs, const NodeWithPriority& rhs) { return lhs.priority > rhs.priority; }
   };
 
   std::vector<Node*> nodes_in_order;
@@ -414,7 +414,8 @@ std::vector<Node*> BFSTopologicalOrderWithPriority(const GroupPtr& group,
 
       nodes_in_order.push_back(cur);
       auto producers = FindProducers(cur, nodes_set, virtual_consumers);
-      for (Node* node : producers) {
+      std::unordered_set<Node*> producers_without_duplicate(producers.begin(), producers.end());
+      for (Node* node : producers_without_duplicate) {
         --degree_map[node];
         // Ensure that each node is accessed only once and maintain topological order.
         if (visited.count(node) != 0 || degree_map[node] != 0) {
@@ -422,7 +423,7 @@ std::vector<Node*> BFSTopologicalOrderWithPriority(const GroupPtr& group,
         }
         // Perform BFS access to the current priority producers
         int node_priority = PriorityFunc(node);
-        if (node_priority == PriorityFunc(cur_priority_node)) {
+        if (node_priority <= PriorityFunc(cur_priority_node)) {
           bfs_queue.push(node);
           visited.insert(node);
         } else {
