@@ -49,6 +49,10 @@ std::vector<Node*> GetConsumersInSet(const Node* node, const std::unordered_set<
 
 std::vector<Node*> TopologicalOrder(const GroupPtr& group, const std::unordered_map<Node*, Node*>& virtual_consumers);
 
+std::vector<Node*> BFSTopologicalOrderWithPriority(const GroupPtr& group,
+                                                   const std::unordered_map<Node*, Node*>& virtual_consumers,
+                                                   const absl::flat_hash_map<std::string, shape_t>& shape_dict);
+
 Node* FindGlobalReducer(const std::vector<Node*>& nodes_in_order);
 
 Node* FindNearestReducer(const Node* node, const std::unordered_set<Node*>& nodes_set);
