@@ -234,6 +234,10 @@ class TestScatterAssignOpDtype(TestCaseHelper):
         ]
         self.dtypes = [
             {
+                "x_dtype": "float16",
+                "y_dtype": "float16"
+            },
+            {
                 "x_dtype": "float32",
                 "y_dtype": "float32"
             },
