@@ -60,7 +60,7 @@ class TestBroadcastToOp(OpTest):
         self.check_outputs_and_grads(max_relative_error=max_relative_error)
 
 
-class TestBroadcastToAll(TestCaseHelper):
+class TestBroadcastToAllOne(TestCaseHelper):
     def init_attrs(self):
         self.class_name = "TestBroadcastToOpCase"
         self.cls = TestBroadcastToOp
@@ -83,19 +83,7 @@ class TestBroadcastToAll(TestCaseHelper):
         ]
         self.dtypes = [
             {
-                "x_dtype": "bool",
-            },
-            {
-                "x_dtype": "int32",
-            },
-            {
-                "x_dtype": "int64",
-            },
-            {
                 "x_dtype": "float32",
-            },
-            {
-                "x_dtype": "float64",
             },
         ]
         self.attrs = [
@@ -118,6 +106,56 @@ class TestBroadcastToAll(TestCaseHelper):
             {
                 "d_shape": [4, 2, 3, 5],
                 "broadcast_axes": [0, 1, 2, 3, 5],
+            },
+        ]
+
+
+class TestBroadcastToAllTwo(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestBroadcastToOpCase"
+        self.cls = TestBroadcastToOp
+        self.inputs = [
+            {
+                "x_shape": [32, 64],
+            },
+        ]
+        self.dtypes = [
+            {
+                "x_dtype": "bool",
+            },
+            {
+                "x_dtype": "int32",
+            },
+            {
+                "x_dtype": "int64",
+            },
+            {
+                "x_dtype": "float32",
+            },
+            {
+                "x_dtype": "float64",
+            },
+        ]
+        self.attrs = [
+            {
+                "d_shape": [2],
+                "broadcast_axes": [2],
+            },
+            {
+                "d_shape": [3, 2],
+                "broadcast_axes": [2],
+            },
+            {
+                "d_shape": [4, 3, 2],
+                "broadcast_axes": [1, 2],
+            },
+            {
+                "d_shape": [5, 4, 3, 2],
+                "broadcast_axes": [2],
+            },
+            {
+                "d_shape": [6, 5, 4, 3, 2],
+                "broadcast_axes": [2],
             },
         ]
 
@@ -155,7 +193,7 @@ class TestBroadcastToOpNoAxes(OpTest):
         self.check_outputs_and_grads(max_relative_error=max_relative_error)
 
 
-class TestBroadcastToOpNoAxesAll(TestCaseHelper):
+class TestBroadcastToOpNoAxesAllOne(TestCaseHelper):
     def init_attrs(self):
         self.class_name = "TestBroadcastToOpNoAxesCase"
         self.cls = TestBroadcastToOpNoAxes
@@ -174,6 +212,39 @@ class TestBroadcastToOpNoAxesAll(TestCaseHelper):
             },
             {
                 "x_shape": [16, 8, 4, 2, 1],
+            },
+        ]
+        self.dtypes = [
+            {
+                "x_dtype": "float32",
+            },
+        ]
+        self.attrs = [
+            {
+                "d_shape": [2],
+            },
+            {
+                "d_shape": [3, 2],
+            },
+            {
+                "d_shape": [4, 3, 2],
+            },
+            {
+                "d_shape": [2, 3, 4],
+            },
+            {
+                "d_shape": [4, 2, 3, 5],
+            },
+        ]
+
+
+class TestBroadcastToOpNoAxesAllTwo(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestBroadcastToOpNoAxesCase"
+        self.cls = TestBroadcastToOpNoAxes
+        self.inputs = [
+            {
+                "x_shape": [32, 64],
             },
         ]
         self.dtypes = [
@@ -204,14 +275,16 @@ class TestBroadcastToOpNoAxesAll(TestCaseHelper):
                 "d_shape": [4, 3, 2],
             },
             {
-                "d_shape": [2, 3, 4],
+                "d_shape": [5, 4, 3, 2],
             },
             {
-                "d_shape": [4, 2, 3, 5],
+                "d_shape": [6, 5, 4, 3, 2],
             },
         ]
 
 
 if __name__ == "__main__":
-    TestBroadcastToAll().run()
-    TestBroadcastToOpNoAxesAll().run()
+    TestBroadcastToAllOne().run()
+    TestBroadcastToAllTwo().run()
+    TestBroadcastToOpNoAxesAllOne().run()
+    TestBroadcastToOpNoAxesAllTwo().run()
