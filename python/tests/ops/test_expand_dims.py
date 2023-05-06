@@ -34,13 +34,10 @@ class TestExpandDimsOp(OpTest):
     def init_case(self):
         self.x_np = self.random(
             shape=self.case["x_shape"], dtype=self.case["x_dtype"])
-        self.axes_np = self.random(
-            shape=self.case["axes_shape"], dtype=self.case["axes_dtype"])
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.x_np, stop_gradient=True)
-        axes = paddle.to_tensor(self.axes_np, stop_gradient=True)
-        out = paddle.unsqueeze(x, axes)
+        out = paddle.unsqueeze(x, self.case["axes_shape"])
 
         self.paddle_outputs = [out]
 
@@ -51,12 +48,10 @@ class TestExpandDimsOp(OpTest):
         x = builder.create_input(
             self.nptype2cinntype(self.case["x_dtype"]), self.case["x_shape"],
             "x")
-        axes = builder.create_input(Int(32), self.case["axes_shape"], "axes")
-        out = builder.expand_dims(x, axes)
+        out = builder.expand_dims(x, self.case["axes_shape"])
 
         prog = builder.build()
-        res = self.get_cinn_output(prog, target, [x, axes],
-                                   [self.x_np, self.axes_np], [out])
+        res = self.get_cinn_output(prog, target, [x], [self.x_np], [out])
 
         self.cinn_outputs = [res[0]]
 
@@ -73,27 +68,30 @@ class TestExpandDimsAll(TestCaseHelper):
         self.inputs = [
             {
                 "x_shape": [1],
-                "axes_shape": [0, 2],
+            },
+            {
+                "x_shape": [256],
+            },
+            {
+                "x_shape": [512],
             },
             {
                 "x_shape": [1024],
-                "axes_shape": [0, 2],
             },
             {
                 "x_shape": [512, 256],
-                "axes_shape": [2, 3, 4],
             },
             {
                 "x_shape": [128, 64, 32],
-                "axes_shape": [0, 1, 2],
+            },
+            {
+                "x_shape": [128, 64, 32],
             },
             {
                 "x_shape": [16, 8, 4, 2],
-                "axes_shape": [4, 5],
             },
             {
                 "x_shape": [16, 8, 4, 2, 1],
-                "axes_shape": [2],
             },
         ]
         self.dtypes = [
@@ -124,14 +122,41 @@ class TestExpandDimsAll(TestCaseHelper):
             #},
             {
                 "x_dtype": "float32",
-                "axes_dtype": "int32",
             },
             #{
             #    "x_dtype": "float64",
             #    "axes_dtype": "int32",
             #},
         ]
-        self.attrs = []
+        self.attrs = [
+            {
+                "axes_shape": [0],
+            },
+            {
+                "axes_shape": [0, 2],
+            },
+            {
+                "axes_shape": [0, 1, 2],
+            },
+            {
+                "axes_shape": [1, 2, 3, 4],
+            },
+            {
+                "axes_shape": [0, 1, 2],
+            },
+            {
+                "axes_shape": [1, 2, 3],
+            },
+            {
+                "axes_shape": [4, 5],
+            },
+            {
+                "axes_shape": [2, 5],
+            },
+            {
+                "axes_shape": [2],
+            },
+        ]
 
 
 if __name__ == "__main__":
