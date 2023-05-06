@@ -686,6 +686,11 @@ bool CanbeInline(Node* node,
       }
     }
 
+    auto last_shape = GetOutputShape(laster, shape_dict);
+    if (node_size != std::accumulate(last_shape.begin(), last_shape.end(), 1, std::multiplies<int>())) {
+      return true;
+    }
+
     return false;
   }
 }
