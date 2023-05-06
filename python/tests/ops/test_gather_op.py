@@ -100,6 +100,11 @@ class TestGatherOpAll(TestGatherOp):
             {
                 "x": [16, 32],
                 "index": [32],
+                "axis": 0
+            },
+            {
+                "x": [16, 32],
+                "index": [32],
                 "axis": 1
             },
             {
@@ -123,7 +128,22 @@ class TestGatherOpAll(TestGatherOp):
                 "axis": 2
             },
             {
-                "x": [16, 8, 4, 2, 1],
+                "x": [16, 8, 4, 64],
+                "index": [4],
+                "axis": 2
+            },
+            {
+                "x": [16, 8, 4, 1024],
+                "index": [4],
+                "axis": 2
+            },
+            {
+                "x": [16, 8, 4, 1],
+                "index": [4],
+                "axis": 2
+            },
+            {
+                "x": [1, 1, 1, 1],
                 "index": [4],
                 "axis": 2
             },
