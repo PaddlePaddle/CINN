@@ -118,6 +118,14 @@ CONDITION_FUNC(elementwise_fuse_reduce) {
     }
   }
   CHECK(reducer) << "Can't find reduce op in group " << second->group_id;
+
+  // If the elementwise's output should be fetched, the output var cannot be compute inline
+  // into reduce's loop, in other words, the elementwise's cannot fused into reduce's loop
+  // Like: group1 = {cast_0}, group2={broadcast_0 -> elementwise_0 -> cast_1 -> reduce_max_0}
+  if (helper->output_nodes_set_.count(*first->master_nodes.begin())) {
+    return false;
+  }
+
   auto input_shape = helper->shape_dict_.at(reducer->inlinks_in_order()[0]->source()->id());
   auto reduce_axes = absl::get<std::vector<int>>(reducer->attrs.attr_store.at("dim"));
 
