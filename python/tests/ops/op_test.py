@@ -238,7 +238,7 @@ class OpTest(unittest.TestCase):
     def random(shape, dtype="float32", low=0.0, high=1.0):
         assert bool(shape), "Shape should not empty!"
         assert -1 not in shape, "Shape should not -1!"
-        if dtype in ["float16", "float32", "float64"]:
+        if dtype in ["float16", "bfloat16", "float32", "float64"]:
             return np.random.uniform(low, high, shape).astype(dtype)
         elif dtype == "bool":
             return np.random.choice(a=[False, True], size=shape).astype(dtype)
