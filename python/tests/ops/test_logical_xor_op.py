@@ -84,9 +84,39 @@ class TestLogicalXorOp(OpTest):
         self.check_outputs_and_grads(max_relative_error=max_relative_error)
 
 
-class TestLogicalXorCase(TestCaseHelper):
+class TestLogicalXorCase1(TestCaseHelper):
     def init_attrs(self):
-        self.class_name = "TestLogicalXorCase"
+        self.class_name = "TestLogicalXorCase1"
+        self.cls = TestLogicalXorOp
+        self.inputs = [{"x_shape": [512, 256], "y_shape": [512, 256]}]
+        self.dtypes = [{
+            "x_dtype": "bool",
+            "y_dtype": "bool"
+        }, {
+            "x_dtype": "int8",
+            "y_dtype": "int8"
+        }, {
+            "x_dtype": "int16",
+            "y_dtype": "int16"
+        }, {
+            "x_dtype": "int32",
+            "y_dtype": "int32"
+        }, {
+            "x_dtype": "int64",
+            "y_dtype": "int64"
+        }, {
+            "x_dtype": "float32",
+            "y_dtype": "float32"
+        }, {
+            "x_dtype": "float64",
+            "y_dtype": "float64"
+        }]
+        self.attrs = [{"axis": -1}]
+
+
+class TestLogicalXorCase2(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestLogicalXorCase2"
         self.cls = TestLogicalXorOp
         self.inputs = [{
             "x_shape": [1],
@@ -113,6 +143,15 @@ class TestLogicalXorCase(TestCaseHelper):
             "x_shape": [16, 8, 4, 2, 1],
             "y_shape": [16, 8, 4, 2, 1]
         }]
+        self.dtypes = [{"x_dtype": "bool", "y_dtype": "bool"}]
+        self.attrs = [{"axis": -1}]
+
+
+class TestLogicalXorCaseWithBroadcast1(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestLogicalXorCaseWithBroadcast1"
+        self.cls = TestLogicalXorOp
+        self.inputs = [{"x_shape": [56], "y_shape": [1]}]
         self.dtypes = [{
             "x_dtype": "bool",
             "y_dtype": "bool"
@@ -138,12 +177,12 @@ class TestLogicalXorCase(TestCaseHelper):
         self.attrs = [{"axis": -1}]
 
 
-class TestLogicalXorCaseWithBroadcast(TestCaseHelper):
+class TestLogicalXorCaseWithBroadcast2(TestCaseHelper):
     def init_attrs(self):
-        self.class_name = "TestLogicalXorCaseWithBroadcast"
+        self.class_name = "TestLogicalXorCaseWithBroadcast2"
         self.cls = TestLogicalXorOp
         self.inputs = [{
-            "x_shape": [1],
+            "x_shape": [56],
             "y_shape": [1]
         }, {
             "x_shape": [1024],
@@ -161,31 +200,12 @@ class TestLogicalXorCaseWithBroadcast(TestCaseHelper):
             "x_shape": [16, 1, 1, 2, 1],
             "y_shape": [16, 8, 4, 2, 1]
         }]
-        self.dtypes = [{
-            "x_dtype": "bool",
-            "y_dtype": "bool"
-        }, {
-            "x_dtype": "int8",
-            "y_dtype": "int8"
-        }, {
-            "x_dtype": "int16",
-            "y_dtype": "int16"
-        }, {
-            "x_dtype": "int32",
-            "y_dtype": "int32"
-        }, {
-            "x_dtype": "int64",
-            "y_dtype": "int64"
-        }, {
-            "x_dtype": "float32",
-            "y_dtype": "float32"
-        }, {
-            "x_dtype": "float64",
-            "y_dtype": "float64"
-        }]
+        self.dtypes = [{"x_dtype": "bool", "y_dtype": "bool"}]
         self.attrs = [{"axis": -1}]
 
 
 if __name__ == "__main__":
-    TestLogicalXorCase().run()
-    TestLogicalXorCaseWithBroadcast().run()
+    TestLogicalXorCase1().run()
+    TestLogicalXorCase2().run()
+    TestLogicalXorCaseWithBroadcast1().run()
+    TestLogicalXorCaseWithBroadcast2().run()
