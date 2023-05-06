@@ -537,27 +537,6 @@ int GetParallelSize(const ir::Tensor& A, const std::vector<int>& axes) {
 using ReduceFunc =
     std::function<ir::Tensor(const ir::Tensor&, const std::vector<int>&, const bool, const std::string&)>;
 
-#define MIN_THREAD_X 16
-#define MAX_THREAD_Y 64
-
-ir::Tensor BlockShuffleReduce(const ir::Tensor& A,
-                              std::vector<Expr>& tail,
-                              const std::string& reduce_type,
-                              const std::string& output_name) {
-  std::vector<Expr> out_shape(A->shape.begin(), A->shape.begin() + A->shape.size() - 2);
-  for (auto& t : tail) {
-    out_shape.push_back(t);
-  }
-
-  auto out = Compute(
-      out_shape,
-      [=](const std::vector<Expr>& indexs) -> Expr {
-        return lang::CallExtern(reduce_type, {A, A->shape.back(), A->shape[A->shape.size() - 2]});
-      },
-      output_name);
-  return out;
-}
-
 std::vector<ir::Tensor> ReduceInternal(const ir::Tensor& A,
                                        const std::vector<int>& axes,
                                        const bool keep_dim,
