@@ -80,20 +80,20 @@ class TestFloorDivideAll(TestCaseHelper):
         self.cls = TestFloorDivideOp
         self.inputs = [
             {
-                "x_shape": [32],
-                "y_shape": [32],
+                "x_shape": [1],
+                "y_shape": [1],
             },
             {
-                "x_shape": [32, 64],
-                "y_shape": [32, 64],
+                "x_shape": [1024],
+                "y_shape": [1024],
             },
             {
-                "x_shape": [2, 3, 4],
-                "y_shape": [2, 3, 4],
+                "x_shape": [512, 256],
+                "y_shape": [512, 256],
             },
             {
-                "x_shape": [2, 2, 32],
-                "y_shape": [2, 2, 32],
+                "x_shape": [128, 64, 32],
+                "y_shape": [128, 64, 32],
             },
             {
                 "x_shape": [16, 8, 4, 2],
@@ -102,6 +102,49 @@ class TestFloorDivideAll(TestCaseHelper):
             {
                 "x_shape": [16, 8, 4, 2, 1],
                 "y_shape": [16, 8, 4, 2, 1],
+            },
+        ]
+        self.dtypes = [
+            {
+                "x_dtype": "int32",
+                "y_dtype": "int32",
+            },
+            {
+                "x_dtype": "int64",
+                "y_dtype": "int64",
+            },
+        ]
+        self.attrs = []
+
+
+class TestFloorDivideAllWithBroadcast(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestFloorDivideOpCase"
+        self.cls = TestFloorDivideOp
+        self.inputs = [
+            {
+                "x_shape": [1],
+                "y_shape": [1],
+            },
+            {
+                "x_shape": [1024],
+                "y_shape": [1],
+            },
+            {
+                "x_shape": [512, 256],
+                "y_shape": [1, 1],
+            },
+            {
+                "x_shape": [128, 64, 32],
+                "y_shape": [1, 1, 1],
+            },
+            {
+                "x_shape": [16, 8, 4, 2],
+                "y_shape": [1, 1, 1, 1],
+            },
+            {
+                "x_shape": [16, 8, 4, 2, 1],
+                "y_shape": [1, 1, 1, 1, 1],
             },
         ]
         self.dtypes = [
@@ -170,20 +213,20 @@ class TestFloorDivideNegAll(TestCaseHelper):
         self.cls = TestFloorDivideNegOp
         self.inputs = [
             {
-                "x_shape": [32],
-                "y_shape": [32],
+                "x_shape": [1],
+                "y_shape": [1],
             },
             {
-                "x_shape": [32, 64],
-                "y_shape": [32, 64],
+                "x_shape": [1024],
+                "y_shape": [1024],
             },
             {
-                "x_shape": [2, 3, 4],
-                "y_shape": [2, 3, 4],
+                "x_shape": [512, 256],
+                "y_shape": [512, 256],
             },
             {
-                "x_shape": [2, 2, 32],
-                "y_shape": [2, 2, 32],
+                "x_shape": [128, 64, 32],
+                "y_shape": [128, 64, 32],
             },
             {
                 "x_shape": [16, 8, 4, 2],
@@ -207,6 +250,51 @@ class TestFloorDivideNegAll(TestCaseHelper):
         self.attrs = []
 
 
+class TestFloorDivideNegAllWithBroadcast(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestFloorDivideNegOpCase"
+        self.cls = TestFloorDivideNegOp
+        self.inputs = [
+            {
+                "x_shape": [1],
+                "y_shape": [1],
+            },
+            {
+                "x_shape": [1024],
+                "y_shape": [1],
+            },
+            {
+                "x_shape": [512, 256],
+                "y_shape": [1, 1],
+            },
+            {
+                "x_shape": [128, 64, 32],
+                "y_shape": [1, 1, 1],
+            },
+            {
+                "x_shape": [16, 8, 4, 2],
+                "y_shape": [1, 1, 1, 1],
+            },
+            {
+                "x_shape": [16, 8, 4, 2, 1],
+                "y_shape": [1, 1, 1, 1, 1],
+            },
+        ]
+        self.dtypes = [
+            {
+                "x_dtype": "int32",
+                "y_dtype": "int32",
+            },
+            {
+                "x_dtype": "int64",
+                "y_dtype": "int64",
+            },
+        ]
+        self.attrs = []
+
+
 if __name__ == "__main__":
     TestFloorDivideAll().run()
     TestFloorDivideNegAll().run()
+    TestFloorDivideAllWithBroadcast().run()
+    TestFloorDivideNegAllWithBroadcast().run()
