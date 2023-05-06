@@ -113,11 +113,11 @@ class TestBroadcastToAll(TestCaseHelper):
             },
             {
                 "d_shape": [2, 3, 4],
-                "broadcast_axes": [0, 1, 4],
+                "broadcast_axes": [0, 1, 2, 4],
             },
             {
                 "d_shape": [4, 2, 3, 5],
-                "broadcast_axes": [0, 2, 3, 5],
+                "broadcast_axes": [0, 1, 2, 3, 5],
             },
         ]
 
