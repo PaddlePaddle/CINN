@@ -15,9 +15,12 @@
 import unittest
 from fusion_test import FusionTest
 
+
 class TestGroup1(FusionTest):
     def init_input_data(self):
-        self.feed_data = {'eager_in_tmp_8': self.random([32, 1, 1, 128], "float32")}
+        self.feed_data = {
+            'eager_in_tmp_8': self.random([32, 1, 1, 128], "float32")
+        }
 
     def build_program(self, builder, target):
         eager_in_tmp_8 = builder.create_input(
@@ -26,7 +29,8 @@ class TestGroup1(FusionTest):
 
         var_15 = builder.cast(eager_in_tmp_8, dtype="float16")
         # cast should not fused into reduce when the output need fetch
-        var_73 = builder.broadcast_to(var_15, broadcast_axes=[0, 1, 2, 3], out_shape=[32, 12, 128, 128])
+        var_73 = builder.broadcast_to(
+            var_15, broadcast_axes=[0, 1, 2, 3], out_shape=[32, 12, 128, 128])
         var_55 = builder.cast(var_73, dtype="float32")
         var_76 = builder.reduce_max(var_55, dim=[3], keep_dim=False)
 
@@ -38,7 +42,9 @@ class TestGroup1(FusionTest):
 
 class TestGroup2(FusionTest):
     def init_input_data(self):
-        self.feed_data = {'eager_in_tmp_8': self.random([32, 1, 1, 128], "float32")}
+        self.feed_data = {
+            'eager_in_tmp_8': self.random([32, 1, 1, 128], "float32")
+        }
 
     def build_program(self, builder, target):
         eager_in_tmp_8 = builder.create_input(
@@ -47,7 +53,8 @@ class TestGroup2(FusionTest):
 
         var_15 = builder.cast(eager_in_tmp_8, dtype="float16")
         # cast should  fused into reduce when the output not fetched
-        var_73 = builder.broadcast_to(var_15, broadcast_axes=[0, 1, 2, 3], out_shape=[32, 12, 128, 128])
+        var_73 = builder.broadcast_to(
+            var_15, broadcast_axes=[0, 1, 2, 3], out_shape=[32, 12, 128, 128])
         var_55 = builder.cast(var_73, dtype="float32")
         var_76 = builder.reduce_max(var_55, dim=[3], keep_dim=False)
 
