@@ -635,7 +635,7 @@ void LoopAssignReduceWithLast(ir::IRSchedule& ir_sch,
 bool CanbeInline(Node* node,
                  const std::vector<Node*> consumers,
                  const Node* reducer,
-                 const Node* laster,
+                 const std::unordered_set<Node*> masters,
                  const GroupPtr& group,
                  const std::unordered_set<Node*>& nodes_set,
                  const absl::flat_hash_map<std::string, shape_t>& shape_dict) {
@@ -678,17 +678,13 @@ bool CanbeInline(Node* node,
   } else {
     auto node_shape = GetOutputShape(node, shape_dict);
     auto node_size  = std::accumulate(node_shape.begin(), node_shape.end(), 1, std::multiplies<int>());
-    for (auto consumer : consumers) {
-      auto consumer_shape = GetOutputShape(consumer, shape_dict);
-      auto consumer_size  = std::accumulate(consumer_shape.begin(), consumer_shape.end(), 1, std::multiplies<int>());
-      if (node_size != consumer_size) {
+
+    for (auto master : masters) {
+      auto master_shape = GetOutputShape(master, shape_dict);
+      auto master_size  = std::accumulate(master_shape.begin(), master_shape.end(), 1, std::multiplies<int>());
+      if (node_size != master_size) {
         return true;
       }
-    }
-
-    auto last_shape = GetOutputShape(laster, shape_dict);
-    if (node_size != std::accumulate(last_shape.begin(), last_shape.end(), 1, std::multiplies<int>())) {
-      return true;
     }
 
     return false;
