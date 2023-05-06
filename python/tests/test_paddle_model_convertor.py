@@ -17,17 +17,47 @@
 import os, sys
 import numpy as np
 import unittest
-import logging
-from ops.op_test import OpTestTool
-from op_mappers.op_mapper_test import OpMapperTest
+import logging, argparse
+
 import paddle
 from paddle.fluid.framework import core
+
 from cinn.frontend import PaddleModelConvertor
 from cinn.common import is_compiled_with_cuda, DefaultNVGPUTarget
 from cinn.runtime import seed as cinn_seed
+from ops.op_test import OpTestTool
+from op_mappers.op_mapper_test import OpMapperTest
 
 logging.basicConfig(level=os.environ.get('LOG_LEVEL', 'INFO').upper())
 logger = logging.getLogger(name="paddle_model_convertor")
+
+parser = argparse.ArgumentParser(
+    description='Load Paddle Model File and Running at CINN')
+parser.add_argument(
+    "--path",
+    help="The path to load the paddle model",
+    type=str,
+    required=True)
+parser.add_argument(
+    "-m",
+    "--model_filename",
+    help="The filename of model file, default \"__model__\"",
+    type=str,
+    default="__model__")
+parser.add_argument(
+    "-p",
+    "--params_filename",
+    help=
+    "The filename of model parameter file, default None, in which each parameter will saved in each file",
+    type=str,
+    default=None)
+parser.add_argument(
+    "-cuda",
+    "--enable_cuda",
+    help="Whether enable CUDA, default True",
+    type=bool,
+    default=True)
+args = parser.parse_args()
 
 np.random.seed(1234)
 paddle.seed(1234)
@@ -54,25 +84,26 @@ paddle.enable_static()
 # ```
 # Second load and run model like:
 # ```
-# python test_paddle_model.py "./stack" ON
+# python test_paddle_model_convertor.py --path build/thirds/resnet_model -m "__model__" -p "params"
 # ```
-
-# The second argument(ON/OFF): wether to use GPU
-enable_gpu = sys.argv.pop()
-# The first argument(PATH_TO_MODEL): the inference model directory path
-model_dir = sys.argv.pop()
 
 
 class TestPaddleModel(OpMapperTest):
     def setUp(self):
-        if enable_gpu == 'ON':
+        if args.enable_cuda:
             self.target = DefaultNVGPUTarget()
             self.place = paddle.CUDAPlace(0)
         else:
             self.target = DefaultHostTarget()
             self.place = paddle.CPUPlace()
 
-        self.model_dir = model_dir
+        self.model_dir = args.path
+        self.model_filename = args.model_filename
+        self.params_filename = args.params_filename
+
+        logger.info(
+            "Run Model From \"{}\", which model filename is \"{}\", and parameter filename is \"{}\""
+            .format(self.model_dir, self.model_filename, self.params_filename))
 
         self.load_paddle_program()
         self.init_case()
@@ -112,9 +143,19 @@ class TestPaddleModel(OpMapperTest):
 
         [self.inference_program, self.feed_names,
          self.fetch_targets] = paddle.fluid.io.load_inference_model(
-             dirname=self.model_dir, executor=self.exe)
+             dirname=self.model_dir,
+             executor=self.exe,
+             model_filename=self.model_filename,
+             params_filename=self.params_filename)
+
+        self.param_vars = paddle.load(
+            self.model_dir,
+            model_filename=self.model_filename,
+            params_filename=self.params_filename,
+            return_numpy=True)
 
         logger.debug(msg="Program:\n{}".format(self.inference_program))
+        logger.debug(msg="Param List: {}".format(self.param_vars.keys()))
         logger.debug(msg="Feed List: {}".format(self.feed_names))
         logger.debug(msg="Fetch List: {}".format(
             [var.name for var in self.fetch_targets]))
@@ -122,24 +163,10 @@ class TestPaddleModel(OpMapperTest):
         self.feed_shapes = []
         self.feed_dtypes = []
 
-        self.param_vars = []
-        param_names = set()
         for var in self.inference_program.list_vars():
             if var.name in self.feed_names:
                 self.feed_shapes.append(var.shape)
                 self.feed_dtypes.append(var.dtype)
-
-            if var.persistable and var.desc.type(
-            ) == core.VarDesc.VarType.LOD_TENSOR:
-                self.param_vars.append(var)
-                param_names.add(var.name)
-
-        for param in self.inference_program.all_parameters():
-            if param.name not in param_names:
-                self.param_vars.append(param)
-                param_names.add(param.name)
-
-        logger.debug(msg="Param List: {}".format(param_names))
 
         self.assertEqual(
             len(self.feed_names),
@@ -147,21 +174,12 @@ class TestPaddleModel(OpMapperTest):
             msg="Cannot found some feed var in program!")
 
     def build_paddle_program(self, target):
-        fetch_with_param = self.fetch_targets + self.param_vars
-        output_with_param = self.exe.run(
+        self.paddle_outputs = self.exe.run(
             self.inference_program,
             feed=self.feed_data,
-            fetch_list=fetch_with_param,
+            fetch_list=self.fetch_targets,
             return_numpy=True)
-
-        self.paddle_outputs = output_with_param[:len(self.fetch_targets)]
         logger.debug("Paddle Result:\n{}".format(self.paddle_outputs))
-
-        self.parameter_datas = dict()
-        for i in range(len(self.param_vars)):
-            self.parameter_datas[self.param_vars[i].name] = output_with_param[
-                len(self.fetch_targets) + i]
-        logger.debug("Paddle Parameter:\n{}".format(self.parameter_datas))
 
     def build_cinn_program(self, target):
         self.assertEqual(
@@ -179,12 +197,12 @@ class TestPaddleModel(OpMapperTest):
                 name=self.feed_names[i])
             feed_with_param.append(self.feed_names[i])
 
-        for param in self.param_vars:
+        for param_name, param_value in self.param_vars.items():
             convertor.create_input(
-                dtype=self.paddleddtype2nptype(param.dtype),
-                shape=param.shape,
-                name=param.name)
-            feed_with_param.append(param.name)
+                dtype=str(param_value.dtype),
+                shape=param_value.shape,
+                name=param_name)
+            feed_with_param.append(param_name)
 
         for op in self.inference_program.global_block().ops:
             if op.desc.type() == "feed" or op.desc.type() == "fetch":
@@ -225,10 +243,10 @@ class TestPaddleModel(OpMapperTest):
             else:
                 self.assertIn(
                     name,
-                    self.parameter_datas,
+                    self.param_vars,
                     msg=
                     "The input variable should in feed list or parameter list")
-                cinn_feed_datas.append(self.parameter_datas[name])
+                cinn_feed_datas.append(self.param_vars[name])
 
         # get cinn output list
         fetch_names = {var.name for var in self.fetch_targets}
@@ -246,4 +264,6 @@ class TestPaddleModel(OpMapperTest):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    tester = unittest.defaultTestLoader.loadTestsFromTestCase(TestPaddleModel)
+    test_runer = unittest.TextTestRunner()
+    res = test_runer.run(tester)

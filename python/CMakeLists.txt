@@ -127,11 +127,10 @@ ADD_TEST(NAME test_cinn_real_squeezenet
     COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
     python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_squeezenet.py "${CMAKE_BINARY_DIR}/thirds/SqueezeNet" "${WITH_CUDA}"
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
-endif()
 
 ADD_TEST(NAME test_paddle_model_convertor
     COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
-    python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_paddle_model_convertor.py "${CMAKE_BINARY_DIR}/thirds/resnet_model" "${WITH_CUDA}"
+    python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_paddle_model_convertor.py "--path ${CMAKE_BINARY_DIR}/thirds/resnet_model"
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 endif()
 
