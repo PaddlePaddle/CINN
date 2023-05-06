@@ -127,6 +127,7 @@ __device__ inline int FN_INT32(mod)(int a, int b) {
 // int64 unary and binary operator
 #define FN_INT64(func) cinn_nvgpu_##func##_int64
 
+__device__ inline long long int FN_INT64(bitwise_and)(long long int a, long long int b) { return a & b; }
 __device__ inline long long int FN_INT64(clz)(long long int a) { return __clzll(a); }
 __device__ inline long long int FN_INT64(popc)(long long int a) { return __popcll(a); }
 __device__ inline long long int FN_INT64(mod)(long long int a, long long int b) {
