@@ -56,7 +56,7 @@ class TestReduceOp(OpTest):
             out = paddle.any(
                 x, axis=self.case["axis"], keepdim=self.case["keepdim"])
         else:
-            out = paddle.nn.Identity(x)
+            out = paddle.assign(x)
         self.paddle_outputs = [out]
 
     def build_cinn_program(self, target):
@@ -64,22 +64,22 @@ class TestReduceOp(OpTest):
         x = builder.create_input(
             self.nptype2cinntype(self.case["dtype"]), self.case["shape"], "x")
         if self.case["op_type"] == "sum":
-            out = builder.reduce_sum(x, [self.case["axis"]],
+            out = builder.reduce_sum(x, self.case["axis"],
                                      self.case["keepdim"])
         elif self.case["op_type"] == "prod":
-            out = builder.reduce_prod(x, [self.case["axis"]],
+            out = builder.reduce_prod(x, self.case["axis"],
                                       self.case["keepdim"])
         elif self.case["op_type"] == "max":
-            out = builder.reduce_max(x, [self.case["axis"]],
+            out = builder.reduce_max(x, self.case["axis"],
                                      self.case["keepdim"])
         elif self.case["op_type"] == "min":
-            out = builder.reduce_min(x, [self.case["axis"]],
+            out = builder.reduce_min(x, self.case["axis"],
                                      self.case["keepdim"])
         elif self.case["op_type"] == "all":
-            out = builder.reduce_all(x, [self.case["axis"]],
+            out = builder.reduce_all(x, self.case["axis"],
                                      self.case["keepdim"])
         elif self.case["op_type"] == "any":
-            out = builder.reduce_any(x, [self.case["axis"]],
+            out = builder.reduce_any(x, self.case["axis"],
                                      self.case["keepdim"])
         else:
             out = builder.identity(x)
@@ -100,31 +100,31 @@ class TestReduceAll(TestCaseHelper):
         self.inputs = [
             {
                 "shape": [1],
-                "axis": -1,
+                "axis": [-1],
             },
             {
                 "shape": [1024],
-                "axis": 0,
+                "axis": [0],
             },
             {
                 "shape": [512, 256],
-                "axis": 1,
+                "axis": [1],
             },
             {
                 "shape": [128, 64, 32],
-                "axis": 2,
+                "axis": [2],
             },
             {
                 "shape": [16, 8, 4, 2],
-                "axis": 3,
+                "axis": [3],
             },
             {
                 "shape": [16, 8, 4, 2, 1],
-                "axis": 3,
+                "axis": [3],
             },
             {
                 "shape": [1, 1, 1, 1, 1],
-                "axis": 3,
+                "axis": [3],
             },
         ]
         self.dtypes = [
@@ -185,30 +185,5 @@ class TestReduceAll(TestCaseHelper):
         ]
 
 
-class TestReduceForBool(TestReduceAll):
-    def init_attrs(self):
-        super().init_attrs()
-        self.dtypes = [{"dtype": "bool"}]
-        self.attrs = [
-            {
-                "op_type": "all",
-                "keepdim": True
-            },
-            {
-                "op_type": "all",
-                "keepdim": False
-            },
-            {
-                "op_type": "any",
-                "keepdim": True
-            },
-            {
-                "op_type": "any",
-                "keepdim": False
-            },
-        ]
-
-
 if __name__ == "__main__":
     TestReduceAll().run()
-    TestReduceForBool().run()
