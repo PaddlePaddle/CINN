@@ -87,7 +87,7 @@ class TestSelectOpShape(TestCaseHelper):
                 "shape": [80, 1, 5, 7],
             },
             {
-                "shape": [80, 1, 1024, 7],
+                "shape": [80, 3, 1024, 7],
             },
             {
                 "shape": [10, 5, 1024, 2048],
