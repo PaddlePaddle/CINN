@@ -89,7 +89,7 @@ class TestBroadcastToAllOne(TestCaseHelper):
         self.attrs = [
             {
                 "d_shape": [3, 2],
-                "broadcast_axes": [1],
+                "broadcast_axes": [0],
             },
             {
                 "d_shape": [3, 2],
@@ -97,15 +97,15 @@ class TestBroadcastToAllOne(TestCaseHelper):
             },
             {
                 "d_shape": [4, 3, 2],
-                "broadcast_axes": [1],
+                "broadcast_axes": [0],
             },
             {
                 "d_shape": [2, 3, 4],
-                "broadcast_axes": [0, 1, 2, 4],
+                "broadcast_axes": [0],
             },
             {
                 "d_shape": [4, 2, 3, 5],
-                "broadcast_axes": [0, 1, 2, 3, 5],
+                "broadcast_axes": [1],
             },
         ]
 
