@@ -138,12 +138,12 @@ class TestBroadcastToAllTwo(TestCaseHelper):
         ]
         self.attrs = [
             {
-                "d_shape": [2],
-                "broadcast_axes": [2],
+                "d_shape": [4, 5, 2],
+                "broadcast_axes": [1, 2],
             },
             {
                 "d_shape": [3, 2],
-                "broadcast_axes": [2],
+                "broadcast_axes": [1, 2],
             },
             {
                 "d_shape": [4, 3, 2],
@@ -151,11 +151,11 @@ class TestBroadcastToAllTwo(TestCaseHelper):
             },
             {
                 "d_shape": [5, 4, 3, 2],
-                "broadcast_axes": [2],
+                "broadcast_axes": [1, 2],
             },
             {
                 "d_shape": [6, 5, 4, 3, 2],
-                "broadcast_axes": [2],
+                "broadcast_axes": [1, 2],
             },
         ]
 
