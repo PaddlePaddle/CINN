@@ -224,7 +224,7 @@ class TestBroadcastToOpNoAxesAllOne(TestCaseHelper):
                 "d_shape": [2],
             },
             {
-                "d_shape": [3, 2],
+                "d_shape": [3],
             },
             {
                 "d_shape": [4, 3, 2],
@@ -266,7 +266,7 @@ class TestBroadcastToOpNoAxesAllTwo(TestCaseHelper):
         ]
         self.attrs = [
             {
-                "d_shape": [2],
+                "d_shape": [3, 2],
             },
             {
                 "d_shape": [3, 2],
