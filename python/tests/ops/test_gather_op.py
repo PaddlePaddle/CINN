@@ -55,6 +55,7 @@ class TestGatherOp(OpTest):
         self.dtypes = ["float32"]
 
     def build_paddle_program(self, target):
+        paddle.disable_static()
         for inputs, dtype in product(self.inputs, self.dtypes):
             axis = inputs["axis"]
             x_shape = inputs["x"]
