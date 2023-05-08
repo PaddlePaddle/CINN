@@ -139,7 +139,7 @@ class TestExpandDimsAll(TestCaseHelper):
                 "axes_shape": [0, 1, 2],
             },
             {
-                "axes_shape": [1, 2, 3, 4],
+                "axes_shape": [0, 1, 2, 3],
             },
             {
                 "axes_shape": [0, 1, 2],
@@ -148,13 +148,13 @@ class TestExpandDimsAll(TestCaseHelper):
                 "axes_shape": [1, 2, 3],
             },
             {
-                "axes_shape": [4, 5],
+                "axes_shape": [0, 1],
             },
             {
-                "axes_shape": [2, 5],
+                "axes_shape": [1, 2],
             },
             {
-                "axes_shape": [2],
+                "axes_shape": [1],
             },
         ]
 
