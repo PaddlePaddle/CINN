@@ -225,4 +225,19 @@ foreach(pass_test_name ${CINN_PASS_TEST})
     )
 endforeach()
 
+file(GLOB CINN_FUSION_TEST RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" "tests/fusion/test_*.py")
+
+foreach(fusion_test_name ${EXCLUDE_FUSION})
+    list(REMOVE_ITEM CINN_FUSION_TEST tests/fusion/${fusion_test_name}.py)
+endforeach()
+
+foreach(fusion_test_name ${CINN_FUSION_TEST})
+    string(REGEX REPLACE ".py" "" fusion_test_name ${fusion_test_name})
+    ADD_TEST(NAME ${fusion_test_name}
+        COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
+        python3 ${CMAKE_CURRENT_SOURCE_DIR}/${fusion_test_name}.py
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    )
+endforeach()
+
 endif()

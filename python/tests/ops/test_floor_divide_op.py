@@ -17,6 +17,7 @@
 import unittest
 import numpy as np
 from op_test import OpTest, OpTestTool
+from op_test_helper import TestCaseHelper
 import paddle
 import paddle.nn.functional as F
 import cinn
@@ -28,17 +29,24 @@ from cinn.common import *
                     "x86 test will be skipped due to timeout.")
 class TestFloorDivideOp(OpTest):
     def setUp(self):
+        print(f"\nRunning {self.__class__.__name__}: {self.case}")
         self.init_case()
 
     def init_case(self):
-        self.inputs = {
-            "x": np.array([7]).astype('int32'),
-            "y": np.array([-3]).astype('int32')
-        }
+        self.x_np = self.random(
+            shape=self.case["x_shape"],
+            dtype=self.case["x_dtype"],
+            low=-10,
+            high=10)
+        self.y_np = self.random(
+            shape=self.case["y_shape"],
+            dtype=self.case["y_dtype"],
+            low=1,
+            high=10)
 
     def build_paddle_program(self, target):
-        x = paddle.to_tensor(self.inputs["x"], stop_gradient=False)
-        y = paddle.to_tensor(self.inputs["y"], stop_gradient=False)
+        x = paddle.to_tensor(self.x_np, stop_gradient=True)
+        y = paddle.to_tensor(self.y_np, stop_gradient=True)
 
         out = paddle.floor_divide(x, y)
 
@@ -47,38 +55,246 @@ class TestFloorDivideOp(OpTest):
     def build_cinn_program(self, target):
         builder = NetBuilder("pow")
         x = builder.create_input(
-            self.nptype2cinntype(self.inputs["x"].dtype),
-            self.inputs["x"].shape, "x")
+            self.nptype2cinntype(self.case["x_dtype"]), self.case["x_shape"],
+            "x")
         y = builder.create_input(
-            self.nptype2cinntype(self.inputs["y"].dtype),
-            self.inputs["y"].shape, "y")
+            self.nptype2cinntype(self.case["y_dtype"]), self.case["y_shape"],
+            "y")
         out = builder.floor_divide(x, y)
 
         prog = builder.build()
         res = self.get_cinn_output(prog, target, [x, y],
-                                   [self.inputs["x"], self.inputs["y"]], [out])
+                                   [self.x_np, self.y_np], [out])
 
         self.cinn_outputs = [res[0]]
 
     def test_check_results(self):
-        self.check_outputs_and_grads()
+        max_relative_error = self.case[
+            "max_relative_error"] if "max_relative_error" in self.case else 1e-5
+        self.check_outputs_and_grads(max_relative_error=max_relative_error)
 
 
-class TestFloorDivideCase1(TestFloorDivideOp):
+class TestFloorDivideAll(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestFloorDivideOpCase"
+        self.cls = TestFloorDivideOp
+        self.inputs = [
+            {
+                "x_shape": [1],
+                "y_shape": [1],
+            },
+            {
+                "x_shape": [1024],
+                "y_shape": [1024],
+            },
+            {
+                "x_shape": [512, 256],
+                "y_shape": [512, 256],
+            },
+            {
+                "x_shape": [128, 64, 32],
+                "y_shape": [128, 64, 32],
+            },
+            {
+                "x_shape": [16, 8, 4, 2],
+                "y_shape": [16, 8, 4, 2],
+            },
+            {
+                "x_shape": [16, 8, 4, 2, 1],
+                "y_shape": [16, 8, 4, 2, 1],
+            },
+        ]
+        self.dtypes = [
+            {
+                "x_dtype": "int32",
+                "y_dtype": "int32",
+            },
+            {
+                "x_dtype": "int64",
+                "y_dtype": "int64",
+            },
+        ]
+        self.attrs = []
+
+
+class TestFloorDivideAllWithBroadcast(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestFloorDivideOpCase"
+        self.cls = TestFloorDivideOp
+        self.inputs = [
+            {
+                "x_shape": [1],
+                "y_shape": [1],
+            },
+            {
+                "x_shape": [1024],
+                "y_shape": [1],
+            },
+            {
+                "x_shape": [512, 256],
+                "y_shape": [1, 1],
+            },
+            {
+                "x_shape": [128, 64, 32],
+                "y_shape": [1, 1, 1],
+            },
+            {
+                "x_shape": [16, 8, 4, 2],
+                "y_shape": [1, 1, 1, 1],
+            },
+            {
+                "x_shape": [16, 8, 4, 2, 1],
+                "y_shape": [1, 1, 1, 1, 1],
+            },
+        ]
+        self.dtypes = [
+            {
+                "x_dtype": "int32",
+                "y_dtype": "int32",
+            },
+            {
+                "x_dtype": "int64",
+                "y_dtype": "int64",
+            },
+        ]
+        self.attrs = []
+
+
+class TestFloorDivideNegOp(OpTest):
+    def setUp(self):
+        print(f"\nRunning {self.__class__.__name__}: {self.case}")
+        self.init_case()
+
     def init_case(self):
-        self.inputs = {
-            "x": self.random([32, 64], "int32", 20, 100),
-            "y": self.random([32, 64], "int32", 1, 20),
-        }
+        self.x_np = self.random(
+            shape=self.case["x_shape"],
+            dtype=self.case["x_dtype"],
+            low=-10,
+            high=10)
+        self.y_np = self.random(
+            shape=self.case["y_shape"],
+            dtype=self.case["y_dtype"],
+            low=-10,
+            high=-1)
+
+    def build_paddle_program(self, target):
+        x = paddle.to_tensor(self.x_np, stop_gradient=True)
+        y = paddle.to_tensor(self.y_np, stop_gradient=True)
+
+        out = paddle.floor_divide(x, y)
+
+        self.paddle_outputs = [out]
+
+    def build_cinn_program(self, target):
+        builder = NetBuilder("pow")
+        x = builder.create_input(
+            self.nptype2cinntype(self.case["x_dtype"]), self.case["x_shape"],
+            "x")
+        y = builder.create_input(
+            self.nptype2cinntype(self.case["y_dtype"]), self.case["y_shape"],
+            "y")
+        out = builder.floor_divide(x, y)
+
+        prog = builder.build()
+        res = self.get_cinn_output(prog, target, [x, y],
+                                   [self.x_np, self.y_np], [out])
+
+        self.cinn_outputs = [res[0]]
+
+    def test_check_results(self):
+        max_relative_error = self.case[
+            "max_relative_error"] if "max_relative_error" in self.case else 1e-5
+        self.check_outputs_and_grads(max_relative_error=max_relative_error)
 
 
-class TestFloorDivideCase2(TestFloorDivideOp):
-    def init_case(self):
-        self.inputs = {
-            "x": self.random([32, 64], "int32", 20, 100),
-            "y": self.random([32, 64], "int32", -20, -1),
-        }
+class TestFloorDivideNegAll(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestFloorDivideNegOpCase"
+        self.cls = TestFloorDivideNegOp
+        self.inputs = [
+            {
+                "x_shape": [1],
+                "y_shape": [1],
+            },
+            {
+                "x_shape": [1024],
+                "y_shape": [1024],
+            },
+            {
+                "x_shape": [512, 256],
+                "y_shape": [512, 256],
+            },
+            {
+                "x_shape": [128, 64, 32],
+                "y_shape": [128, 64, 32],
+            },
+            {
+                "x_shape": [16, 8, 4, 2],
+                "y_shape": [16, 8, 4, 2],
+            },
+            {
+                "x_shape": [16, 8, 4, 2, 1],
+                "y_shape": [16, 8, 4, 2, 1],
+            },
+        ]
+        self.dtypes = [
+            {
+                "x_dtype": "int32",
+                "y_dtype": "int32",
+            },
+            {
+                "x_dtype": "int64",
+                "y_dtype": "int64",
+            },
+        ]
+        self.attrs = []
+
+
+class TestFloorDivideNegAllWithBroadcast(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestFloorDivideNegOpCase"
+        self.cls = TestFloorDivideNegOp
+        self.inputs = [
+            {
+                "x_shape": [1],
+                "y_shape": [1],
+            },
+            {
+                "x_shape": [1024],
+                "y_shape": [1],
+            },
+            {
+                "x_shape": [512, 256],
+                "y_shape": [1, 1],
+            },
+            {
+                "x_shape": [128, 64, 32],
+                "y_shape": [1, 1, 1],
+            },
+            {
+                "x_shape": [16, 8, 4, 2],
+                "y_shape": [1, 1, 1, 1],
+            },
+            {
+                "x_shape": [16, 8, 4, 2, 1],
+                "y_shape": [1, 1, 1, 1, 1],
+            },
+        ]
+        self.dtypes = [
+            {
+                "x_dtype": "int32",
+                "y_dtype": "int32",
+            },
+            {
+                "x_dtype": "int64",
+                "y_dtype": "int64",
+            },
+        ]
+        self.attrs = []
 
 
 if __name__ == "__main__":
-    unittest.main()
+    TestFloorDivideAll().run()
+    TestFloorDivideNegAll().run()
+    TestFloorDivideAllWithBroadcast().run()
+    TestFloorDivideNegAllWithBroadcast().run()
