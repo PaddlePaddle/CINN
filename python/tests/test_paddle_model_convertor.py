@@ -267,3 +267,4 @@ if __name__ == "__main__":
     tester = unittest.defaultTestLoader.loadTestsFromTestCase(TestPaddleModel)
     test_runer = unittest.TextTestRunner()
     res = test_runer.run(tester)
+    sys.exit(not res.wasSuccessful())
