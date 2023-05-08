@@ -89,7 +89,7 @@ class TestDivAll(TestCaseHelper):
             },
             {
                 "x_shape": [2, 3, 4],
-                "y_shape": [1, 5, 2],
+                "y_shape": [1, 1, 1],
             },
             {
                 "x_shape": [16, 8, 4, 2],
