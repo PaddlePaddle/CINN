@@ -208,9 +208,11 @@ void BindFrontend(pybind11::module *m) {
 
             // Keep compile option same as paddle
             hlir::framework::GraphCompiler::CompileOptions options;
-            auto gc_fetch_ids   = fetch_ids;
-            const auto &result  = gc.Build(options, std::move(gc_fetch_ids));
-            const auto &program = result.runtime_program;
+            options.with_instantiate_variables = true;
+            options.remove_unused_variables    = false;
+            auto gc_fetch_ids                  = fetch_ids;
+            const auto &result                 = gc.Build(options, std::move(gc_fetch_ids));
+            const auto &program                = result.runtime_program;
 
             for (size_t i = 0; i < tensor_inputs.size(); i++) {
               auto in_tensor = scope->GetTensor(tensor_inputs[i]->id);
