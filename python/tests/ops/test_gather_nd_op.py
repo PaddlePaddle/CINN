@@ -14,20 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Copyright (c) 2022 CINN Authors. All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 import unittest
 import numpy as np
 from op_test import OpTest, OpTestTool
@@ -62,8 +48,8 @@ class TestGatherNdOp(OpTest):
             index = np.random.randint(0, min(x_shape),
                                       index_shape).astype("int32")
             self.data.append([x, index])
-            x = paddle.to_tensor(x, stop_gradient=True)
-            index = paddle.to_tensor(index, stop_gradient=True)
+            x = paddle.to_tensor(x, stop_gradient=False)
+            index = paddle.to_tensor(index, stop_gradient=False)
             out = paddle.gather_nd(x, index)
             logger.debug(" -- The output of Paddle:\n{}".format(out))
             self.paddle_outputs.append(out)
