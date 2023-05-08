@@ -85,6 +85,8 @@ struct Type {
   CINN_NODISCARD bool is_vector() const;
   CINN_NODISCARD bool is_scalar() const;
   CINN_NODISCARD bool is_float(int bits = -1, specific_type_t st = specific_type_t::None) const;
+  CINN_NODISCARD bool is_float16() const;
+  CINN_NODISCARD bool is_bfloat16() const;
   CINN_NODISCARD bool is_int(int bits = -1) const;
   CINN_NODISCARD bool is_integer(int bits = -1) const;
   CINN_NODISCARD bool is_uint(int bits = -1) const;
@@ -160,6 +162,8 @@ struct Type {
 inline Type Void() { return Type(Type::type_t ::Void, 1, 0); }
 inline Type Int(int bits, int lanes = 1) { return Type(Type::type_t ::Int, bits, lanes); }
 inline Type UInt(int bits, int lanes = 1) { return Type(Type::type_t ::UInt, bits, lanes); }
+inline Type BFloat16(int lanes = 1) { return Type(Type::type_t ::Float, 16, lanes, Type::specific_type_t::BF16); }
+inline Type Float16(int lanes = 1) { return Type(Type::type_t ::Float, 16, lanes, Type::specific_type_t::FP16); }
 inline Type Float(int bits, int lanes = 1, Type::specific_type_t st = Type::specific_type_t::None) {
   if (bits == 16) {
     CHECK(st == Type::specific_type_t::FP16 || st == Type::specific_type_t::BF16)

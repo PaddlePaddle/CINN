@@ -37,6 +37,7 @@ namespace cinn {
 namespace hlir {
 namespace framework {
 
+using cinn::common::bfloat16;
 using cinn::common::float16;
 
 // Store params from node to instruction
@@ -309,7 +310,9 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFuncWithIRSchedule(
       input = lang::Placeholder<float>(id, shape);
     } else if (dtype.is_float(64)) {
       input = lang::Placeholder<double>(id, shape);
-    } else if (dtype.is_float(16)) {
+    } else if (dtype.is_bfloat16()) {
+      input = lang::Placeholder<bfloat16>(id, shape);
+    } else if (dtype.is_float16()) {
       input = lang::Placeholder<float16>(id, shape);
     } else if (dtype.is_bool()) {
       input = lang::Placeholder<bool>(id, shape);
@@ -375,7 +378,9 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
       temp = lang::Placeholder<float>(input_id, in_shape);
     } else if (dtype.is_float(64)) {
       temp = lang::Placeholder<double>(input_id, in_shape);
-    } else if (dtype.is_float(16)) {
+    } else if (dtype.is_bfloat16()) {
+      temp = lang::Placeholder<bfloat16>(input_id, in_shape);
+    } else if (dtype.is_float16()) {
       temp = lang::Placeholder<float16>(input_id, in_shape);
     } else if (dtype.is_bool()) {
       temp = lang::Placeholder<bool>(input_id, in_shape);
@@ -495,7 +500,9 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
           temp_in = lang::Placeholder<float>(input_id, in_shape);
         } else if (dtype.is_float(64)) {
           temp_in = lang::Placeholder<double>(input_id, in_shape);
-        } else if (dtype.is_float(16)) {
+        } else if (dtype.is_bfloat16()) {
+          temp_in = lang::Placeholder<bfloat16>(input_id, in_shape);
+        } else if (dtype.is_float16()) {
           temp_in = lang::Placeholder<float16>(input_id, in_shape);
         } else if (dtype.is_bool()) {
           temp_in = lang::Placeholder<bool>(input_id, in_shape);

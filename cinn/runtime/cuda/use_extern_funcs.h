@@ -19,5 +19,6 @@
 CINN_USE_REGISTER(cinn_cuda_host_api)
 CINN_USE_REGISTER(cuda_intrinsics)
 CINN_USE_REGISTER(cuda_intrinsics_reduce)
+CINN_USE_REGISTER(cuda_intrinsics_bfloat16)
 CINN_USE_REGISTER(cuda_intrinsics_float16)
 #endif
