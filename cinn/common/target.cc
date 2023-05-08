@@ -164,7 +164,7 @@ int GetMaxThreads() {
   cudaDeviceGetAttribute(&num_sm, cudaDeviceAttr::cudaDevAttrMultiProcessorCount, 0);
   cudaDeviceGetAttribute(&max_threads, cudaDeviceAttr::cudaDevAttrMaxThreadsPerMultiProcessor, 0);
   // multiplication num_sm
-  max_threads *= num_sm;
+  max_threads *= (num_sm * 4);
 #endif
   return max_threads;
 }

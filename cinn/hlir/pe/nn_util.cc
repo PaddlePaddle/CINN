@@ -316,7 +316,7 @@ std::vector<ir::Tensor> winograd_transform_matrices(const int& tile_size, const 
 
 int GetPostParallelSize(const std::vector<int>& inshape, const std::vector<int>& axes) {
   int parallel_size = 1;
-  for (int idx = inshape.back() + 1; idx < inshape.size(); ++idx) {
+  for (int idx = axes.back() + 1; idx < inshape.size(); ++idx) {
     parallel_size *= inshape[idx];
   }
   return parallel_size;
@@ -349,6 +349,7 @@ std::vector<int> GetFirstStepReduceShape(const std::vector<int>& shape,
   int post_parallel_size = GetPostParallelSize(shape, axes);
   // the size to unfold las reduce axis
   int unfold_size = common::GetMaxThreads() / GetParallelSize(shape, axes);
+  CHECK_GT(unfold_size, 1);
 
   // fuse reduce axis.
   int insert_zero_num  = 0;
@@ -381,7 +382,6 @@ std::vector<int> GetFirstStepReduceShape(const std::vector<int>& shape,
     for (int idx = axes.back() + 1; idx < shape.size(); ++idx) {
       reduce_shape.push_back(shape[idx]);
     }
-
     return reduce_shape;
   }
 
@@ -405,7 +405,8 @@ std::vector<int> GetFirstStepReduceShape(const std::vector<int>& shape,
           continue;
         }
         tail = last_reduce_size - (last_reduce_size / loop_size) * loop_size;
-        reduce_shape.emplace_back(last_reduce_size / loop_size + 1);
+        // do ceil
+        reduce_shape.emplace_back((last_reduce_size - 1) / loop_size + 1);
         reduce_shape.emplace_back(loop_size);
         inbound = false;
         break;

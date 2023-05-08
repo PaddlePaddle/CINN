@@ -984,7 +984,6 @@ void MergeReduceToReduce(ir::IRSchedule& ir_sch,
   }
   if (WithoutLastDimInReduce(shape, axes)) {
     auto mshape = shape_dict.at(master->inlinks_in_order()[0]->source()->id());
-    // using block shuffle
     if (tensor_map.count(node_data->id() + "_1")) {
       if (shape == mshape) {
         // second step reduce
@@ -1113,6 +1112,7 @@ void MergeReduceToReduce(ir::IRSchedule& ir_sch,
 
         auto n_loops = ir_sch.GetLoops(n_tensor->name);
         auto m_loops = ir_sch.GetLoops(m_tensor->name);
+        CHECK_EQ(n_loops.size(), m_loops.size());
 
         std::vector<ir::Var> src_vars;
         std::vector<ir::Expr> dst_vars;
