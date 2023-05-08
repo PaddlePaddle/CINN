@@ -26,6 +26,38 @@ CINN_REGISTER_HELPER(cuda_intrinsics) {
   auto target = cinn::common::DefaultNVGPUTarget();
   using cinn::backends::FunctionProto;
 
+// bool
+#define REGISTER_EXTERN_FUNC_2_IN_1_OUT_BOOL(func__) \
+  REGISTER_EXTERN_SOURCE_FUNC_2_IN_1_OUT(cinn_nvgpu_##func__##_bool, target, bool, bool, bool)
+
+  REGISTER_EXTERN_FUNC_2_IN_1_OUT_BOOL(bitwise_and);
+
+#undef REGISTER_EXTERN_FUNC_2_IN_1_OUT_BOOL
+
+// uint8
+#define REGISTER_EXTERN_FUNC_2_IN_1_OUT_UINT8(func__) \
+  REGISTER_EXTERN_SOURCE_FUNC_2_IN_1_OUT(cinn_nvgpu_##func__##_uint8, target, uint8_t, uint8_t, uint8_t);
+
+  REGISTER_EXTERN_FUNC_2_IN_1_OUT_UINT8(bitwise_and);
+
+#undef REGISTER_EXTERN_FUNC_2_IN_1_OUT_UINT8
+
+// int8
+#define REGISTER_EXTERN_FUNC_2_IN_1_OUT_INT8(func__) \
+  REGISTER_EXTERN_SOURCE_FUNC_2_IN_1_OUT(cinn_nvgpu_##func__##_int8, target, int8_t, int8_t, int8_t);
+
+  REGISTER_EXTERN_FUNC_2_IN_1_OUT_INT8(bitwise_and);
+
+#undef REGISTER_EXTERN_FUNC_2_IN_1_OUT_INT8
+
+// int16
+#define REGISTER_EXTERN_FUNC_2_IN_1_OUT_INT16(func__) \
+  REGISTER_EXTERN_SOURCE_FUNC_2_IN_1_OUT(cinn_nvgpu_##func__##_int16, target, int16_t, int16_t, int16_t);
+
+  REGISTER_EXTERN_FUNC_2_IN_1_OUT_INT16(bitwise_and);
+
+#undef REGISTER_EXTERN_FUNC_2_IN_1_OUT_INT16
+
 // float
 #define REGISTER_EXTERN_FUNC_1_IN_1_OUT_FLOAT(func__) \
   REGISTER_EXTERN_SOURCE_FUNC_1_IN_1_OUT(cinn_nvgpu_##func__##_fp32, target, float, float);
