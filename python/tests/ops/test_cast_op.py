@@ -61,7 +61,7 @@ class TestCastOp(OpTest):
         self.check_outputs_and_grads(max_relative_error=max_relative_error)
 
 
-class TestCastAll(TestCaseHelper):
+class TestCastShape(TestCaseHelper):
     def init_attrs(self):
         self.class_name = "TestCastOpCase"
         self.cls = TestCastOp
@@ -79,6 +79,21 @@ class TestCastAll(TestCaseHelper):
                 "x_shape": [16, 8, 4, 2],
             },
         ]
+        self.dtypes = [{
+            "x_dtype": "float32",
+        }]
+        self.attrs = [{
+            "d_dtype": "float64",
+        }]
+
+
+class TestCastDtype(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestCastOpCase"
+        self.cls = TestCastOp
+        self.inputs = [{
+            "x_shape": [32, 64],
+        }]
         self.dtypes = [
             {
                 "x_dtype": "bool",
@@ -136,4 +151,5 @@ class TestCastAll(TestCaseHelper):
 
 
 if __name__ == "__main__":
-    TestCastAll().run()
+    TestCastShape().run()
+    TestCastDtype().run()
