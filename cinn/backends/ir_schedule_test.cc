@@ -738,9 +738,7 @@ void test_simple_compute_at(void* _args, int32_t num_args)
     for (int32_t i_j_fused_2 = 0; i_j_fused_2 < 1024; i_j_fused_2 += 1) {
       if ((((1024 * i_j_fused_1) + i_j_fused_2) < 1280)) {
       {
-        if ((((1024 * i_j_fused) + i_j_fused_0) < 1280)) {
-          B[((1024 * i_j_fused_1) + i_j_fused_2)] = A[((1024 * i_j_fused_1) + i_j_fused_2)];
-        };
+        B[((1024 * i_j_fused_1) + i_j_fused_2)] = A[((1024 * i_j_fused_1) + i_j_fused_2)];
         C[((1024 * i_j_fused_1) + i_j_fused_2)] = B[((1024 * i_j_fused_1) + i_j_fused_2)];
       }
       };
