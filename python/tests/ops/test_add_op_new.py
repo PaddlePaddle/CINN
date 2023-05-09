@@ -15,7 +15,7 @@
 import unittest
 import numpy as np
 from op_test import OpTest, OpTestTool
-from op_test_helper import TestCaseHelper
+from op_test_helper import TestCaseHelper, run_all
 import paddle
 import cinn
 from cinn.frontend import *
@@ -255,5 +255,4 @@ class TestAddAllWithBroadcast(TestCaseHelper):
 
 
 if __name__ == "__main__":
-    TestAddAll().run()
-    TestAddAllWithBroadcast().run()
+    run_all(test_classes=[TestAddAll(), TestAddAllWithBroadcast()])

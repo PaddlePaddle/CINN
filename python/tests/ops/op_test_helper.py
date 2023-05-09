@@ -27,6 +27,12 @@ parser.add_argument(
 args = parser.parse_args()
 
 
+def run_all(test_classes: list):
+    for test_class in test_classes:
+        if not test_class.run():
+            sys.exit(1)
+
+
 class TestCaseHelper():
     """
     Helper class for constructing test cases.
@@ -94,7 +100,7 @@ class TestCaseHelper():
                 if self.__class__.__name__ == test_info[0]:
                     self.specify_test.append(test_info[1])
             if len(self.specify_test) is 0:
-                return
+                return True
         self._make_all_classes()
         test_suite = unittest.TestSuite()
         test_loader = unittest.TestLoader()
@@ -102,4 +108,4 @@ class TestCaseHelper():
             test_suite.addTests(test_loader.loadTestsFromTestCase(x))
         runner = unittest.TextTestRunner()
         res = runner.run(test_suite)
-        sys.exit(not res.wasSuccessful())
+        return res.wasSuccessful()
