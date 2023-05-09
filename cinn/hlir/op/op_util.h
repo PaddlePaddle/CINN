@@ -116,7 +116,12 @@ CINNSchedule GetInjectiveScheduleFunc(const std::vector<std::vector<int>> &outpu
                                       const Target &target,
                                       bool vectorizable = true);
 
-std::string GetExternFuncName(const common::Target &target, const common::Type &type, const std::string &func_name);
+std::string GetExternFuncName(const common::Target &target,
+                              const common::Type &type,
+                              const std::string &func_name,
+                              const bool need_cinn   = true,
+                              const bool need_target = true,
+                              const bool need_type   = true);
 
 }  // namespace hlir
 }  // namespace cinn

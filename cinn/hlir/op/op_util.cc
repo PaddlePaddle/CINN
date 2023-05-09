@@ -14,6 +14,9 @@
 
 #include "cinn/hlir/op/op_util.h"
 
+#include <string>
+
+#include "cinn/common/target.h"
 #include "cinn/hlir/pe/ir_schedule_pe.h"
 #include "cinn/hlir/pe/schedule.h"
 #include "cinn/ir/ir_schedule.h"
@@ -104,31 +107,60 @@ CINNSchedule GetInjectiveScheduleFunc(const std::vector<std::vector<int>>& outpu
   });
 }
 
-std::string GetExternFuncName(const common::Target& target, const common::Type& type, const std::string& func_name) {
-  std::string target_func_name_type;
-  if (target.arch == common::Target::Arch::NVGPU) {
-    target_func_name_type.assign("cinn_cuda_");
-  } else if (target.arch == common::Target::Arch::X86) {
-    target_func_name_type.assign("cinn_host_");
-  } else {
-    LOG(FATAL) << func_name << "only supports X86 and NVGPU ! Please Check.\n";
+std::string GetExternFuncName(const common::Target& target,
+                              const common::Type& type,
+                              const std::string& func_name,
+                              const bool need_cinn,
+                              const bool need_target,
+                              const bool need_type) {
+  std::string func_proto_name;
+  if (need_cinn) {
+    func_proto_name.append("cinn_");
   }
-  target_func_name_type.append(func_name);
-  target_func_name_type.append("_");
-  if (type.is_float(16)) {
-    target_func_name_type.append("fp16");
+  if (need_target) {
+    if (target.arch == common::Target::Arch::NVGPU) {
+      func_proto_name.append("nvgpu_");
+    } else if (target.arch == common::Target::Arch::X86) {
+      func_proto_name.append("host_");
+    } else {
+      LOG(FATAL) << func_name << " only supports X86 and NVGPU! Please Check.\n";
+    }
+  }
+  func_proto_name.append(func_name);
+  if (!need_type) {
+    return func_proto_name;
+  }
+  func_proto_name.append("_");
+  if (type.is_bool()) {
+    func_proto_name.append("bool");
+  } else if (type.is_float(8)) {
+    func_proto_name.append("fp8");
+  } else if (type.is_float(16)) {
+    func_proto_name.append("fp16");
   } else if (type.is_float(32)) {
-    target_func_name_type.append("fp32");
+    func_proto_name.append("fp32");
   } else if (type.is_float(64)) {
-    target_func_name_type.append("fp64");
+    func_proto_name.append("fp64");
+  } else if (type.is_int(8)) {
+    func_proto_name.append("int8");
+  } else if (type.is_int(16)) {
+    func_proto_name.append("int16");
   } else if (type.is_int(32)) {
-    target_func_name_type.append("int32");
+    func_proto_name.append("int32");
   } else if (type.is_int(64)) {
-    target_func_name_type.append("int64");
+    func_proto_name.append("int64");
+  } else if (type.is_uint(8)) {
+    func_proto_name.append("uint8");
+  } else if (type.is_uint(16)) {
+    func_proto_name.append("uint16");
+  } else if (type.is_uint(32)) {
+    func_proto_name.append("uint32");
+  } else if (type.is_uint(64)) {
+    func_proto_name.append("uint64");
   } else {
-    LOG(FATAL) << func_name << "only supports fp16, fp32, fp64, int32 and int64 ! Please Check.\n";
+    LOG(FATAL) << "Can not find type: " << type << " for extern function. Please Check.\n";
   }
-  return target_func_name_type;
+  return func_proto_name;
 }
 
 }  // namespace hlir
