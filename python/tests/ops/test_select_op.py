@@ -29,7 +29,7 @@ class TestSelectOp(OpTest):
 
     def prepare_inputs(self):
         self.inputs = {
-            "Condition": self.random(self.case["shape"], "bool", 0, 2),
+            "Condition": self.random(self.case["shape"], "bool"),
             "X": self.random(self.case["shape"], self.case["dtype"]),
             "Y": self.random(self.case["shape"], self.case["dtype"])
         }
