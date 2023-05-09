@@ -40,5 +40,10 @@ std::shared_ptr<hlir::framework::Graph> Optimize(frontend::Program* program,
                                                  common::Target target,
                                                  const OptimizeOptions& options = DefaultTrainingOptimizeOptions());
 
+std::shared_ptr<hlir::framework::Graph> Optimize(frontend::Program* program,
+                                                 const std::unordered_set<std::string>& fetch_ids,
+                                                 common::Target target,
+                                                 const std::vector<std::string>& passes);
+
 }  // namespace frontend
 }  // namespace cinn

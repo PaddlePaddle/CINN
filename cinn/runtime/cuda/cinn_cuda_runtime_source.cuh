@@ -182,6 +182,59 @@ __device__ inline long long int FN_INT64(pow)(long long int a, long long int b) 
 }
 
 // *************************************************************** //
+// bfloat16 unary and binary operator
+#ifdef CINN_CUDA_BF16
+
+#define FN_BF16(func) cinn_nvgpu_##func##_bf16
+
+__device__ inline bfloat16 FN_BF16(ceil)(bfloat16 x) { return bfloat16(hceil(x.to_nv_bfloat16())); }
+__device__ inline bfloat16 FN_BF16(floor)(bfloat16 x) { return bfloat16(hfloor(x.to_nv_bfloat16())); }
+__device__ inline bfloat16 FN_BF16(round)(bfloat16 x) { return bfloat16(hrint(x.to_nv_bfloat16())); }
+__device__ inline bfloat16 FN_BF16(trunc)(bfloat16 x) { return bfloat16(htrunc(x.to_nv_bfloat16())); }
+
+__device__ inline bfloat16 FN_BF16(sin)(bfloat16 x) { return bfloat16(hsin(x.to_nv_bfloat16())); }
+__device__ inline bfloat16 FN_BF16(cos)(bfloat16 x) { return bfloat16(hcos(x.to_nv_bfloat16())); }
+
+__device__ inline bfloat16 FN_BF16(exp)(bfloat16 x) { return bfloat16(hexp(x.to_nv_bfloat16())); }
+__device__ inline bfloat16 FN_BF16(log)(bfloat16 x) { return bfloat16(hlog(x.to_nv_bfloat16())); }
+__device__ inline bfloat16 FN_BF16(log2)(bfloat16 x) { return bfloat16(hlog2(x.to_nv_bfloat16())); }
+__device__ inline bfloat16 FN_BF16(log10)(bfloat16 x) { return bfloat16(hlog10(x.to_nv_bfloat16())); }
+
+__device__ inline bfloat16 FN_BF16(sqrt)(bfloat16 x) { return bfloat16(hsqrt(x.to_nv_bfloat16())); }
+__device__ inline bfloat16 FN_BF16(rsqrt)(bfloat16 x) { return bfloat16(hrsqrt(x.to_nv_bfloat16())); }
+
+__device__ inline bfloat16 FN_BF16(cbrt)(bfloat16 x) { return bfloat16(FN_FP32(cbrt)(static_cast<float>(x))); }
+
+__device__ inline bfloat16 FN_BF16(abs)(bfloat16 x) { return cinn::common::abs(x); }
+
+__device__ inline bool FN_BF16(isnan)(bfloat16 x) { return cinn::common::isnan(x); }
+__device__ inline bool FN_BF16(isinf)(bfloat16 x) { return cinn::common::isinf(x); }
+__device__ inline bool FN_BF16(isfinite)(bfloat16 x) { return cinn::common::isfinite(x); }
+
+__device__ inline bfloat16 FN_BF16(erf)(bfloat16 x) { return bfloat16(FN_FP32(erf)(static_cast<float>(x))); }
+
+__device__ inline bfloat16 FN_BF16(sinh)(bfloat16 x) { return bfloat16(FN_FP32(sinh)(static_cast<float>(x))); }
+__device__ inline bfloat16 FN_BF16(cosh)(bfloat16 x) { return bfloat16(FN_FP32(cosh)(static_cast<float>(x))); }
+__device__ inline bfloat16 FN_BF16(tanh)(bfloat16 x) { return bfloat16(FN_FP32(tanh)(static_cast<float>(x))); }
+__device__ inline bfloat16 FN_BF16(asin)(bfloat16 x) { return bfloat16(FN_FP32(asin)(static_cast<float>(x))); }
+__device__ inline bfloat16 FN_BF16(acos)(bfloat16 x) { return bfloat16(FN_FP32(acos)(static_cast<float>(x))); }
+__device__ inline bfloat16 FN_BF16(atan)(bfloat16 x) { return bfloat16(FN_FP32(atan)(static_cast<float>(x))); }
+__device__ inline bfloat16 FN_BF16(asinh)(bfloat16 x) { return bfloat16(FN_FP32(asinh)(static_cast<float>(x))); }
+__device__ inline bfloat16 FN_BF16(acosh)(bfloat16 x) { return bfloat16(FN_FP32(acosh)(static_cast<float>(x))); }
+__device__ inline bfloat16 FN_BF16(atanh)(bfloat16 x) { return bfloat16(FN_FP32(atanh)(static_cast<float>(x))); }
+
+__device__ inline bfloat16 FN_BF16(sigmoid)(bfloat16 x) { return bfloat16(FN_FP32(sigmoid)(static_cast<float>(x))); }
+
+__device__ inline bfloat16 FN_BF16(mod)(bfloat16 a, bfloat16 b) {
+  return bfloat16(FN_FP32(mod)(static_cast<float>(a), static_cast<float>(b)));
+}
+__device__ inline bfloat16 FN_BF16(pow)(bfloat16 a, bfloat16 b) {
+  return bfloat16(FN_FP32(pow)(static_cast<float>(a), static_cast<float>(b)));
+}
+
+#endif
+
+// *************************************************************** //
 // float16 unary and binary operator
 #ifdef CINN_CUDA_FP16
 
@@ -234,7 +287,6 @@ __device__ inline float16 FN_FP16(pow)(float16 a, float16 b) {
 
 #endif
 
-
 // *************************************************************** //
 // reduce operator, need `--expt-relaxed-constexpr` option to call std function in device kernel
 #define EXPAND_REDUCE_INT32_MARCO(MARCO, ...)       \
@@ -254,10 +306,18 @@ __device__ inline int cinn_min_int32(const int left, const int right) { return m
   MARCO(max_int64, -9223372036854775808, long long int, ##__VA_ARGS__) \
   MARCO(min_int64, 9223372036854775807, long long int, ##__VA_ARGS__)
 
-__device__ inline long long int cinn_sum_int64(const long long int left, const long long int right) { return left + right; }
-__device__ inline long long int cinn_prod_int64(const long long int left, const long long int right) { return left * right; }
-__device__ inline long long int cinn_max_int64(const long long int left, const long long int right) { return max(left, right); }
-__device__ inline long long int cinn_min_int64(const long long int left, const long long int right) { return min(left, right); }
+__device__ inline long long int cinn_sum_int64(const long long int left, const long long int right) {
+  return left + right;
+}
+__device__ inline long long int cinn_prod_int64(const long long int left, const long long int right) {
+  return left * right;
+}
+__device__ inline long long int cinn_max_int64(const long long int left, const long long int right) {
+  return max(left, right);
+}
+__device__ inline long long int cinn_min_int64(const long long int left, const long long int right) {
+  return min(left, right);
+}
 
 #define EXPAND_REDUCE_FP32_MACRO(MACRO, ...)           \
   MACRO(sum_fp32, 0.0f, float, ##__VA_ARGS__)          \
@@ -269,6 +329,20 @@ __device__ inline float cinn_sum_fp32(const float left, const float right) { ret
 __device__ inline float cinn_prod_fp32(const float left, const float right) { return left * right; }
 __device__ inline float cinn_max_fp32(const float left, const float right) { return max(left, right); }
 __device__ inline float cinn_min_fp32(const float left, const float right) { return min(left, right); }
+
+#ifdef CINN_CUDA_BF16
+
+#define EXPAND_REDUCE_BFP16_MACRO(MACRO, ...)                                           \
+  MACRO(sum_bf16, bfloat16(0.0), bfloat16, ##__VA_ARGS__)                                \
+  MACRO(prod_bf16, bfloat16(1.0), bfloat16, ##__VA_ARGS__)                               \
+  MACRO(max_bf16, cinn::common::raw_uint16_to_bfloat16(0xfbff), bfloat16, ##__VA_ARGS__) \
+  MACRO(min_bf16, cinn::common::raw_uint16_to_bfloat16(0x7bff), bfloat16, ##__VA_ARGS__)
+
+__device__ inline bfloat16 cinn_sum_bf16(const bfloat16 left, const bfloat16 right) { return left + right; }
+__device__ inline bfloat16 cinn_prod_bf16(const bfloat16 left, const bfloat16 right) { return left * right; }
+__device__ inline bfloat16 cinn_max_bf16(const bfloat16 left, const bfloat16 right) { return max(left, right); }
+__device__ inline bfloat16 cinn_min_bf16(const bfloat16 left, const bfloat16 right) { return min(left, right); }
+#endif
 
 #ifdef CINN_CUDA_FP16
 
@@ -507,14 +581,15 @@ __device__ inline int cinn_cuda_find_float_from(const float *buf, int size, floa
 
 #undef __cinn_cuda_find_from_kernel
 
-#define CINN_CUDA_LT_NUM(TYPE_SUFFIX, TYPE) __device__ inline int cinn_cuda_lt_num_##TYPE_SUFFIX( \
-    const TYPE *buf, const int size, const TYPE num, const int offset, const int stride) {        \
-    int out = 0;                                                                                  \
-    for (int i = (size - 1) * stride + offset; i >= offset; i -= stride) {                        \
-      if (buf[i] < num) out++;                                                                    \
-    }                                                                                             \
-    return out;                                                                                   \
-}
+#define CINN_CUDA_LT_NUM(TYPE_SUFFIX, TYPE)                                                  \
+  __device__ inline int cinn_cuda_lt_num_##TYPE_SUFFIX(                                      \
+      const TYPE *buf, const int size, const TYPE num, const int offset, const int stride) { \
+    int out = 0;                                                                             \
+    for (int i = (size - 1) * stride + offset; i >= offset; i -= stride) {                   \
+      if (buf[i] < num) out++;                                                               \
+    }                                                                                        \
+    return out;                                                                              \
+  }
 
 CINN_CUDA_LT_NUM(fp32, float)
 CINN_CUDA_LT_NUM(fp64, double)
@@ -523,14 +598,15 @@ CINN_CUDA_LT_NUM(int64, long long int)
 
 #undef CINN_CUDA_LT_NUM
 
-#define CINN_CUDA_GT_NUM(TYPE_SUFFIX, TYPE) __device__ inline int cinn_cuda_gt_num_##TYPE_SUFFIX( \
-    const TYPE *buf, const int size, const TYPE num, const int offset, const int stride) {        \
-    int out = 0;                                                                                  \
-    for (int i = (size - 1) * stride + offset; i >= offset; i -= stride) {                        \
-      if (buf[i] > num) out++;                                                                    \
-    }                                                                                             \
-    return out;                                                                                   \
-}
+#define CINN_CUDA_GT_NUM(TYPE_SUFFIX, TYPE)                                                  \
+  __device__ inline int cinn_cuda_gt_num_##TYPE_SUFFIX(                                      \
+      const TYPE *buf, const int size, const TYPE num, const int offset, const int stride) { \
+    int out = 0;                                                                             \
+    for (int i = (size - 1) * stride + offset; i >= offset; i -= stride) {                   \
+      if (buf[i] > num) out++;                                                               \
+    }                                                                                        \
+    return out;                                                                              \
+  }
 
 CINN_CUDA_GT_NUM(fp32, float)
 CINN_CUDA_GT_NUM(fp64, double)
@@ -569,12 +645,12 @@ __device__ int cinn_cuda_resize_bilinear(const int *buf,
                                          const int x) {
   float scale_y = static_cast<float>(in_h) / out_h;
   float scale_x = static_cast<float>(in_w) / out_w;
-  float in_y   = (y + 0.5F) * scale_y - 0.5F;
-  float in_x   = (x + 0.5F) * scale_x - 0.5F;
-  int in_y_int = static_cast<int>(FN_FP32(floor)(in_y));
-  int in_x_int = static_cast<int>(FN_FP32(floor)(in_x));
-  float y_lerp = in_y - in_y_int;
-  float x_lerp = in_x - in_x_int;
+  float in_y    = (y + 0.5F) * scale_y - 0.5F;
+  float in_x    = (x + 0.5F) * scale_x - 0.5F;
+  int in_y_int  = static_cast<int>(FN_FP32(floor)(in_y));
+  int in_x_int  = static_cast<int>(FN_FP32(floor)(in_x));
+  float y_lerp  = in_y - in_y_int;
+  float x_lerp  = in_x - in_x_int;
   float p[2][2];
 
   for (int i = 0; i < 2; ++i) {
@@ -605,8 +681,8 @@ __device__ int cinn_cuda_resize_bicubic(const int *buf,
                                         const int x) {
   float scale_y = static_cast<float>(in_h) / out_h;
   float scale_x = static_cast<float>(in_w) / out_w;
-  float in_y   = (y + 0.5F) * scale_y - 0.5F;
-  float in_x   = (x + 0.5F) * scale_x - 0.5F;
+  float in_y    = (y + 0.5F) * scale_y - 0.5F;
+  float in_x    = (x + 0.5F) * scale_x - 0.5F;
   int in_y_int  = static_cast<int>(cinn_nvgpu_floor_fp32(in_y));
   int in_x_int  = static_cast<int>(cinn_nvgpu_floor_fp32(in_x));
   float y_fract = in_y - cinn_nvgpu_floor_fp32(in_y);

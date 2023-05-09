@@ -137,6 +137,8 @@ std::string GetExternFuncName(const common::Target& target,
     func_proto_name.append("fp8");
   } else if (type.is_float(16)) {
     func_proto_name.append("fp16");
+  } else if (type.is_bfloat16()) {
+    func_proto_name.append("bf16");
   } else if (type.is_float(32)) {
     func_proto_name.append("fp32");
   } else if (type.is_float(64)) {

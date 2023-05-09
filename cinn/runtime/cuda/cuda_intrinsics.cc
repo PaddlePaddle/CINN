@@ -16,11 +16,8 @@
 #include "cinn/backends/extern_func_jit_register.h"
 #include "cinn/backends/function_prototype.h"
 #include "cinn/common/cas.h"
-#include "cinn/common/float16.h"
 #include "cinn/runtime/cuda/cuda_util.h"
 #include "cinn/runtime/custom_function.h"
-
-using cinn::common::float16;
 
 CINN_REGISTER_HELPER(cuda_intrinsics) {
   auto target = cinn::common::DefaultNVGPUTarget();
