@@ -69,16 +69,16 @@ class TestBroadcastToAllOne(TestCaseHelper):
                 "x_shape": [1],
             },
             {
-                "x_shape": [1024],
+                "x_shape": [1024, 2],
             },
             {
-                "x_shape": [32, 64],
+                "x_shape": [256, 128, 2],
             },
             {
                 "x_shape": [16, 8, 4, 2],
             },
             {
-                "x_shape": [16, 8, 4, 2, 1],
+                "x_shape": [16, 8, 4, 1, 2],
             },
         ]
         self.dtypes = [
@@ -88,23 +88,23 @@ class TestBroadcastToAllOne(TestCaseHelper):
         ]
         self.attrs = [
             {
-                "d_shape": [3, 2],
-                "broadcast_axes": [0],
+                "d_shape": [1, 2],
+                "broadcast_axes": [1],
             },
             {
-                "d_shape": [3, 2],
+                "d_shape": [1, 2],
                 "broadcast_axes": [1],
             },
             {
                 "d_shape": [4, 3, 2],
-                "broadcast_axes": [0],
+                "broadcast_axes": [1],
             },
             {
-                "d_shape": [2, 3, 4],
-                "broadcast_axes": [0],
+                "d_shape": [5, 4, 3, 2],
+                "broadcast_axes": [1],
             },
             {
-                "d_shape": [4, 2, 3, 5],
+                "d_shape": [6, 5, 4, 3, 2],
                 "broadcast_axes": [1],
             },
         ]
@@ -116,7 +116,7 @@ class TestBroadcastToAllTwo(TestCaseHelper):
         self.cls = TestBroadcastToOp
         self.inputs = [
             {
-                "x_shape": [32, 64],
+                "x_shape": [64, 2],
             },
         ]
         self.dtypes = [
