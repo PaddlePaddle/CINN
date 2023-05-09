@@ -1327,7 +1327,7 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
   }
 
   VLOG(3) << "Before Sync IRLowerOp schedule, ir is: \n" << ir_sch.GetModule().GetExprs().at(0);
-  SyncThreadWithShared(ir_sch, nodes_inline, nodes_set, this->shape_dict_, tensor_map);
+  SyncThreadWithShared(ir_sch, group, nodes_inline, nodes_set, this->shape_dict_, tensor_map);
   VLOG(4) << "After IRSchedule,  ir is: \n" << ir_sch.GetModule().GetExprs().at(0);
 }
 

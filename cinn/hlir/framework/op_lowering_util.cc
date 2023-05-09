@@ -1473,6 +1473,7 @@ Node* GetMaster(Node* node, const std::unordered_set<Node*>& nodes_inline, const
 }
 
 void SyncThreadWithShared(ir::IRSchedule& ir_sch,
+                          const GroupPtr& group,
                           const std::unordered_set<Node*>& nodes_inline,
                           const std::unordered_set<Node*>& nodes_set,
                           const absl::flat_hash_map<std::string, shape_t>& shape_dict,
@@ -1531,7 +1532,7 @@ void SyncThreadWithShared(ir::IRSchedule& ir_sch,
       continue;
     }
 
-    {
+    if (!group->output_nodes.count(node)) {
       auto block = ir_sch.GetBlock(node_data->id());
       ir_sch.SetBuffer(block, "shared");
     }
