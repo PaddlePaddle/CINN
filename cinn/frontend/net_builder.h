@@ -685,6 +685,7 @@ class NetBuilder {
    * @param ends The ending indices of corresponding axis in axes. Default: None.
    * @param infer_flags Whether the output shape can be infered in compile time. Now only support all 1. Default: None.
    * @param strides The slice step of corresponding axis in axes. Default: None.
+   * @param decrease_axis Eliminate the specified dimension. Default: None.
    * @return A variable with the same dimension as x. The data type is same as x.
    */
   Variable Slice(const Variable& x,

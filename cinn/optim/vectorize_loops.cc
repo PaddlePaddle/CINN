@@ -151,10 +151,11 @@ class TensorVectorizeTeller : public ir::IRMutator<const Expr *> {
               << ", gap:" << gap;
     }
 
-    auto dtype          = expr->type().ElementOf();
-    bool type_supported = dtype.is_float(32) || dtype.is_int(32) || dtype.is_uint(32) || dtype.is_float(16);
+    auto dtype = expr->type().ElementOf();
+    bool type_supported =
+        dtype.is_float(32) || dtype.is_int(32) || dtype.is_uint(32) || dtype.is_float16() || dtype.is_bfloat16();
     if (!type_supported) {
-      VLOG(5) << "Only support vectorizing int,uint,float,float16, but got " << dtype;
+      VLOG(5) << "Only support vectorizing int,uint,float,float16,bloat16, but got " << dtype;
       return false;
     }
     return true;
@@ -243,7 +244,8 @@ class CudaVectorizer : public IRMutator<Expr *> {
     GET_CUDA_VECTOR_TYPE_NAME(type.is_int(32), "int");
     GET_CUDA_VECTOR_TYPE_NAME(type.is_uint(32), "uint");
     GET_CUDA_VECTOR_TYPE_NAME(type.is_float(32), "float");
-    GET_CUDA_VECTOR_TYPE_NAME(type.is_float(16), "half");
+    GET_CUDA_VECTOR_TYPE_NAME(type.is_float16(), "half");
+    GET_CUDA_VECTOR_TYPE_NAME(type.is_bfloat16(), "bfloat16");
 #undef GET_CUDA_VECTOR_TYPE_NAME
 
     // others are not implementd yet

@@ -44,7 +44,9 @@ void _Tensor_::set_type(Type type) {
     buffer_->data()->type = cinn_float32_t();
   } else if (type.is_float(64)) {
     buffer_->data()->type = cinn_float64_t();
-  } else if (type.is_float(16)) {
+  } else if (type.is_bfloat16()) {
+    buffer_->data()->type = cinn_bfloat16_t();
+  } else if (type.is_float16()) {
     buffer_->data()->type = cinn_float16_t();
   } else {
     buffer_->data()->type = cinn_unk_t();

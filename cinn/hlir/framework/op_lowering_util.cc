@@ -14,6 +14,7 @@
 
 #include "cinn/hlir/framework/op_lowering_util.h"
 #ifdef CINN_WITH_CUDA
+#include "cinn/common/bfloat16.h"
 #include "cinn/common/float16.h"
 #endif
 #include <queue>
@@ -45,7 +46,9 @@ ir::Tensor GetTensor(const NodeData* node_data,
     return lang::Placeholder<float>(node_data->id(), shape_dict.at(node_data->id()));
   } else if (dtype.is_float(64)) {
     return lang::Placeholder<double>(node_data->id(), shape_dict.at(node_data->id()));
-  } else if (dtype.is_float(16)) {
+  } else if (dtype.is_bfloat16()) {
+    return lang::Placeholder<common::bfloat16>(node_data->id(), shape_dict.at(node_data->id()));
+  } else if (dtype.is_float16()) {
     return lang::Placeholder<common::float16>(node_data->id(), shape_dict.at(node_data->id()));
   } else if (dtype.is_bool()) {
     return lang::Placeholder<bool>(node_data->id(), shape_dict.at(node_data->id()));
@@ -311,6 +314,19 @@ std::vector<Node*> FindConsumers(Node* node,
   return consumers;
 }
 
+std::vector<Node*> FindProducers(Node* node,
+                                 const std::unordered_set<Node*>& nodes_set,
+                                 const std::unordered_map<Node*, Node*>& virtual_consumers) {
+  auto producers = GetProducersInSet(node, nodes_set);
+  for (const auto& iter : virtual_consumers) {
+    if (iter.second == node) {
+      producers.push_back(iter.first);
+    }
+  }
+
+  return producers;
+}
+
 std::vector<Node*> TopologicalOrder(const GroupPtr& group, const std::unordered_map<Node*, Node*>& virtual_consumers) {
   std::vector<Node*> nodes_in_order;
   std::unordered_set<Node*> nodes_set = group->NodeSet();
@@ -330,6 +346,93 @@ std::vector<Node*> TopologicalOrder(const GroupPtr& group, const std::unordered_
       if (cant_be_erase) continue;
       nodes_in_order.push_back(node);
       nodes_set.erase(node);
+    }
+  }
+
+  return nodes_in_order;
+}
+
+std::vector<Node*> BFSTopologicalOrderWithPriority(const GroupPtr& group,
+                                                   const std::unordered_map<Node*, Node*>& virtual_consumers,
+                                                   const absl::flat_hash_map<std::string, shape_t>& shape_dict) {
+  struct NodeWithPriority {
+    Node* node;
+    int priority;
+  };
+
+  struct Comparator {
+    bool operator()(const NodeWithPriority& lhs, const NodeWithPriority& rhs) { return lhs.priority > rhs.priority; }
+  };
+
+  std::vector<Node*> nodes_in_order;
+  std::unordered_set<Node*> visited;
+  std::unordered_set<Node*> nodes_set = group->NodeSet();
+  std::unordered_map<Node*, int> degree_map;
+  std::priority_queue<NodeWithPriority, std::vector<NodeWithPriority>, Comparator> priority_candidates;
+  std::vector<int> visited_numel;
+
+  // Calculate the priority of a node.
+  // The smaller the value, the higher the priority.
+  // Prioritize the same shape before considering OpPattern
+  auto PriorityFunc = [&visited_numel, &shape_dict](const Node* node) -> int {
+    auto node_shape = GetOutputShape(node, shape_dict);
+    int numel       = std::accumulate(node_shape.begin(), node_shape.end(), 1, std::multiplies<int>());
+    int index       = -1;
+    for (int i = 0; i < visited_numel.size(); ++i) {
+      if (numel == visited_numel[i]) {
+        index = i;
+        break;
+      }
+    }
+    if (index == -1) {
+      index = visited_numel.size();
+      visited_numel.push_back(numel);
+    }
+    auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
+    return index * 10 + static_cast<int>(op_pattern_dict[node->op()]);
+  };
+
+  for (Node* node : nodes_set) {
+    auto consumers = FindConsumers(node, nodes_set, virtual_consumers);
+    // Some nodes may have multiple edges between them, resulting in duplicates in the consumer.
+    // We only need to calculate once.
+    std::unordered_set<Node*> consumers_without_duplicate(consumers.begin(), consumers.end());
+    degree_map[node] = consumers_without_duplicate.size();
+    if (degree_map.at(node) == 0) {
+      priority_candidates.push(NodeWithPriority{node, PriorityFunc(node)});
+    }
+  }
+
+  // Nested BFS, outer layer traverses priority, inner layer performs BFS on current priority.
+  while (!priority_candidates.empty()) {
+    Node* cur_priority_node = priority_candidates.top().node;
+    priority_candidates.pop();
+
+    std::queue<Node*> bfs_queue;
+    bfs_queue.push(cur_priority_node);
+    visited.insert(cur_priority_node);
+    while (!bfs_queue.empty()) {
+      Node* cur = bfs_queue.front();
+      bfs_queue.pop();
+
+      nodes_in_order.push_back(cur);
+      auto producers = FindProducers(cur, nodes_set, virtual_consumers);
+      std::unordered_set<Node*> producers_without_duplicate(producers.begin(), producers.end());
+      for (Node* node : producers_without_duplicate) {
+        --degree_map[node];
+        // Ensure that each node is accessed only once and maintain topological order.
+        if (visited.count(node) != 0 || degree_map[node] != 0) {
+          continue;
+        }
+        // Perform BFS access to the current priority producers
+        int node_priority = PriorityFunc(node);
+        if (node_priority <= PriorityFunc(cur_priority_node)) {
+          bfs_queue.push(node);
+          visited.insert(node);
+        } else {
+          priority_candidates.push(NodeWithPriority{node, node_priority});
+        }
+      }
     }
   }
 

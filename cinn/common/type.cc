@@ -154,9 +154,9 @@ Type Type::ConstOf() const {
 }
 
 bool Type::is_supported() const {
-  return this->is_float(32) || this->is_float(16) || this->is_float(64) || this->is_bool() || this->is_int(8) ||
-         this->is_int(16) || this->is_int(32) || this->is_int(64) || this->is_uint(8) || this->is_uint(16) ||
-         this->is_uint(32) || this->is_uint(64);
+  return this->is_float(32) || this->is_float16() || this->is_bfloat16() || this->is_float(64) || this->is_bool() ||
+         this->is_int(8) || this->is_int(16) || this->is_int(32) || this->is_int(64) || this->is_uint(8) ||
+         this->is_uint(16) || this->is_uint(32) || this->is_uint(64);
 }
 
 Type Type::IgnoreConst() const {
@@ -214,7 +214,7 @@ bool Type::valid() const {
   if (is_customized()) {
     return !GetStorage().customized_type_.empty();
   }
-  if (is_float(16)) {
+  if (is_float() && GetStorage().bits_ == 16) {
     return (GetStorage().specific_type_ == specific_type_t::FP16 ||
             GetStorage().specific_type_ == specific_type_t::BF16);
   }
@@ -238,17 +238,19 @@ bool Type::is_bool() const { return type() == type_t::UInt && bits() == 1; }
 bool Type::is_void() const { return type() == type_t::Void; }
 bool Type::is_vector() const { return lanes() > 1; }
 bool Type::is_scalar() const { return lanes() == 1; }
-// Note: when calling is_float(16), both FP16 and BF16 will return true, if you wanna distinguish them, pls pass
-// specific_type_t::FP16 or specific_type_t::BF16 to 'st'
+// Note: when calling is_float(16), 'st' can't be specific_type_t::None to distinguish FP16/BF16, or use
+// is_float16()/is_bfloat16() for short
 bool Type::is_float(int bits, specific_type_t st) const {
-  if (st == specific_type_t::None) {
-    return type() == type_t::Float && (bits < 0 || bits == this->bits());
-  } else {
-    CHECK(type() == type_t::Float && bits == 16)
-        << "when specific_type_t != None, the data type must be FP16/BF16, but received " << type() << " here.";
+  if (type() == type_t::Float && bits == 16) {
+    CHECK(st != specific_type_t::None) << "when calling is_float(16), 'st' can't be specific_type_t::None to "
+                                          "distinguish FP16/BF16, or use is_float16()/is_bfloat16() for short";
     return st == this->specific_type();
+  } else {
+    return type() == type_t::Float && (bits < 0 || bits == this->bits());
   }
 }
+bool Type::is_float16() const { return is_float(16, specific_type_t::FP16); }
+bool Type::is_bfloat16() const { return is_float(16, specific_type_t::BF16); }
 bool Type::is_uint(int bits) const { return type() == type_t::UInt && (bits < 0 || bits == this->bits()); }
 bool Type::is_int(int bits) const { return type() == type_t::Int && (bits < 0 || bits == this->bits()); }
 bool Type::is_integer(int bits) const {

@@ -139,11 +139,12 @@ class TestAddAll(TestCaseHelper):
             },
         ]
         self.dtypes = [
-            {
-                "x_dtype": "int16",
-                "y_dtype": "int16",
-                "dout_dtype": "int16",
-            },
+            # TODO: paddle 2.3.1 unsupport int16 now, remove after ci paddle updated
+            # {
+            #     "x_dtype": "int16",
+            #     "y_dtype": "int16",
+            #     "dout_dtype": "int16",
+            # },
             {
                 "x_dtype": "int32",
                 "y_dtype": "int32",
