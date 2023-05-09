@@ -297,6 +297,23 @@ std::unordered_map<Node*, Node*> BuildVirtualConsumer(const GroupPtr& group,
       }
     }
   }
+  // Establish virtual consumer relationships between output nodes with the same shape.
+  // This allows the calculation of output nodes without affiliation to be placed under the same loop.
+  std::unordered_map<int, Node*> numel_consumers;
+  for (auto out_node : group->output_nodes) {
+    if (virtual_consumers.find(out_node) != virtual_consumers.end() ||
+        !GetConsumersInSet(out_node, nodes_set).empty()) {
+      continue;
+    }
+    auto shape = GetOutputShape(out_node, shape_dict);
+    int numel  = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<int>());
+    if (numel_consumers.find(numel) == numel_consumers.end()) {
+      numel_consumers.insert(std::make_pair(numel, out_node));
+    } else {
+      virtual_consumers[out_node] = numel_consumers[numel];
+    }
+  }
+
   return virtual_consumers;
 }
 
