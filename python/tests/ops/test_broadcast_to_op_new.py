@@ -202,16 +202,16 @@ class TestBroadcastToOpNoAxesAllOne(TestCaseHelper):
                 "x_shape": [1],
             },
             {
-                "x_shape": [1024],
+                "x_shape": [1024, 2],
             },
             {
-                "x_shape": [32, 64],
+                "x_shape": [32, 64, 2],
             },
             {
                 "x_shape": [16, 8, 4, 2],
             },
             {
-                "x_shape": [16, 8, 4, 2, 1],
+                "x_shape": [16, 8, 4, 1, 2],
             },
         ]
         self.dtypes = [
@@ -221,19 +221,19 @@ class TestBroadcastToOpNoAxesAllOne(TestCaseHelper):
         ]
         self.attrs = [
             {
-                "d_shape": [2],
+                "d_shape": [3, 2],
             },
             {
-                "d_shape": [3],
+                "d_shape": [32, 2],
             },
             {
                 "d_shape": [4, 3, 2],
             },
             {
-                "d_shape": [2, 3, 4],
+                "d_shape": [5, 3, 4, 2],
             },
             {
-                "d_shape": [4, 2, 3, 5],
+                "d_shape": [6, 4, 5, 3, 2],
             },
         ]
 
@@ -244,7 +244,7 @@ class TestBroadcastToOpNoAxesAllTwo(TestCaseHelper):
         self.cls = TestBroadcastToOpNoAxes
         self.inputs = [
             {
-                "x_shape": [32, 64],
+                "x_shape": [32, 2],
             },
         ]
         self.dtypes = [
