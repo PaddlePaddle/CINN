@@ -60,7 +60,7 @@ Node* FindNearestReducer(const Node* node, const std::unordered_set<Node*>& node
 bool CanbeInline(Node* node,
                  const std::vector<Node*> consumers,
                  const Node* reducer,
-                 const Node* laster,
+                 const std::unordered_set<Node*> masters,
                  const GroupPtr& group,
                  const std::unordered_set<Node*>& nodes_set,
                  const absl::flat_hash_map<std::string, shape_t>& shape_dict);
@@ -71,6 +71,10 @@ Node* GetMasterToComputeAt(Node* node,
                            const std::unordered_set<Node*>& nodes_set,
                            const std::unordered_map<Node*, Node*>& virtual_consumers,
                            const absl::flat_hash_map<std::string, shape_t>& shape_dict);
+
+std::unordered_set<Node*> GetMasters(Node* node,
+                                     const std::unordered_set<Node*>& nodes_inline,
+                                     const std::unordered_set<Node*>& nodes_set);
 
 void LoopAssignReduce(ir::IRSchedule& ir_sch,
                       const Node* node,
@@ -90,7 +94,8 @@ void SyncThreadWithShared(ir::IRSchedule& ir_sch,
                           const std::unordered_set<Node*>& nodes_inline,
                           const std::unordered_set<Node*>& nodes_set,
                           const absl::flat_hash_map<std::string, shape_t>& shape_dict,
-                          const std::unordered_map<std::string, ir::Tensor>& tensor_map);
+                          const std::unordered_map<std::string, ir::Tensor>& tensor_map,
+                          const GroupPtr& group);
 
 }  // namespace framework
 }  // namespace hlir
