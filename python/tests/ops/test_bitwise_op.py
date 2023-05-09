@@ -28,10 +28,10 @@ class TestBitwiseOp(OpTest):
 
     def prepare_inputs(self):
         self.x_np = self.random(
-            shape=self.case["shape"], dtype=self.case["dtype"])
+            shape=self.case["x_shape"], dtype=self.case["dtype"])
         if self.case["op_type"] != "not":
             self.y_np = self.random(
-                shape=self.case["shape"], dtype=self.case["dtype"])
+                shape=self.case["y_shape"], dtype=self.case["dtype"])
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.x_np, stop_gradient=False)
@@ -52,10 +52,10 @@ class TestBitwiseOp(OpTest):
     def build_cinn_program(self, target):
         builder = NetBuilder("bitwise")
         x = builder.create_input(
-            self.nptype2cinntype(self.case["dtype"]), self.case["shape"], "x")
+            self.nptype2cinntype(self.case["dtype"]), self.case["x_shape"], "x")
         if self.case["op_type"] != "not":
             y = builder.create_input(
-                self.nptype2cinntype(self.case["dtype"]), self.case["shape"],
+                self.nptype2cinntype(self.case["dtype"]), self.case["y_shape"],
                 "y")
         if self.case["op_type"] == "and":
             out = builder.bitwise_and(x, y)
@@ -87,25 +87,32 @@ class TestBitwiseOpShape(TestCaseHelper):
         self.cls = TestBitwiseOp
         self.inputs = [
             {
-                "shape": [1]
+                "x_shape": [1],
+                "y_shape": [1],
             },
             {
-                "shape": [1024]
+                "x_shape": [1024],
+                "y_shape": [1024],
             },
             {
-                "shape": [512, 256]
+                "x_shape": [512, 256],
+                "y_shape": [512, 256],
             },
             {
-                "shape": [128, 64, 32]
+                "x_shape": [128, 64, 32],
+                "y_shape": [128, 64, 32],
             },
             {
-                "shape": [16, 8, 4, 2]
+                "x_shape": [16, 8, 4, 2],
+                "y_shape": [16, 8, 4, 2],
             },
             {
-                "shape": [16, 8, 4, 2, 1]
+                "x_shape": [16, 8, 4, 2, 1],
+                "y_shape": [16, 8, 4, 2, 1],
             },
             {
-                "shape": [1, 1, 1, 1, 1]
+                "x_shape": [1, 1, 1, 1, 1],
+                "y_shape": [1, 1, 1, 1, 1],
             },
         ]
         self.dtypes = [
@@ -135,7 +142,8 @@ class TestBitwiseOpDtype(TestCaseHelper):
         self.cls = TestBitwiseOp
         self.inputs = [
             {
-                "shape": [32, 64]
+                "x_shape": [32, 64],
+                "y_shape": [32, 64],
             },
         ]
         self.dtypes = [
@@ -174,6 +182,34 @@ class TestBitwiseOpDtype(TestCaseHelper):
         ]
 
 
+class TestBitwiseOpBroadcast(TestBitwiseOpShape):
+    def init_attrs(self):
+        super().init_attrs()
+        self.inputs = [
+            {
+                "x_shape": [1024],
+                "y_shape": [1],
+            },
+            {
+                "x_shape": [512, 256],
+                "y_shape": [1, 1],
+            },
+            {
+                "x_shape": [128, 64, 32],
+                "y_shape": [1, 1, 1],
+            },
+            {
+                "x_shape": [16, 8, 4, 2],
+                "y_shape": [1, 1, 1, 1],
+            },
+            {
+                "x_shape": [16, 8, 4, 2, 1],
+                "y_shape": [1, 1, 1, 1, 1],
+            },
+        ]
+
+
 if __name__ == "__main__":
     TestBitwiseOpShape().run()
     TestBitwiseOpDtype().run()
+    TestBitwiseOpBroadcast().run()
