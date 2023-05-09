@@ -12,12 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
 from cinn.frontend import NetBuilder, Variable
 from cinn.frontend import get_default_program_pass, get_default_graph_pass
 import logging
 import os
-from tests.ops.op_test import OpTest, OpTestTool
+from tests.ops.op_test import OpTest
 
 logging.basicConfig(level=os.environ.get('LOG_LEVEL', 'INFO').upper())
 logger = logging.getLogger(name="pass_test")
@@ -79,17 +78,14 @@ class PassTest(OpTest):
         logger.debug("After pass {}:\n{}".format(passes, str(pass_prog)))
         return op_num
 
-    def check_pass_outputs(self,
-                           pass_diff,
-                           test_passes,
-                           base_passes=[
-                               "AutoCast", "Decomposer",
-                               "TransToCustomCallPass", "OpFusionPass",
-                               "FusionMergePass"
-                           ],
-                           max_relative_error=1e-5,
-                           all_equal=False,
-                           equal_nan=False):
+    def check_pass_outputs(
+            self,
+            pass_diff,
+            test_passes,
+            base_passes=["AutoCast", "Decomposer", "TransToCustomCallPass"],
+            max_relative_error=1e-5,
+            all_equal=False,
+            equal_nan=False):
         base_pass_size = self.get_pass_size(base_passes)
         logger.debug(
             "Pass after base pass optimize has {} ops".format(base_pass_size))

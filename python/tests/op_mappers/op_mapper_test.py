@@ -17,9 +17,6 @@
 from ast import arg
 import os
 import logging
-from typing import Any
-import unittest
-import numpy as np
 
 import paddle
 from paddle.fluid.framework import Variable as PaddleVariable

@@ -115,8 +115,10 @@ std::string GetExternFuncName(const common::Target& target, const common::Type& 
   }
   target_func_name_type.append(func_name);
   target_func_name_type.append("_");
-  if (type.is_float(16)) {
+  if (type.is_float16()) {
     target_func_name_type.append("fp16");
+  } else if (type.is_bfloat16()) {
+    target_func_name_type.append("bf16");
   } else if (type.is_float(32)) {
     target_func_name_type.append("fp32");
   } else if (type.is_float(64)) {

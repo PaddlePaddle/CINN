@@ -168,40 +168,7 @@ void BindFrontend(pybind11::module *m) {
               fetch_ids.insert(out->id);
             }
 
-            std::vector<std::string> program_passes, graph_passes;
-
-            const auto &default_program_pass = DefaultTrainingOptimizeOptions().program_passes;
-            const auto &default_graph_pass   = DefaultTrainingOptimizeOptions().graph_passes;
-            if (!passes.empty()) {
-              for (const auto &pass : passes) {
-                auto *p_pass = ProgramPassRegistry::Global()->Find(pass);
-                auto *g_pass = Registry<hlir::framework::PassFunctionRegister>::Global()->Find(pass);
-                if (p_pass) {
-                  program_passes.emplace_back(pass);
-                } else if (g_pass) {
-                  graph_passes.emplace_back(pass);
-                } else {
-                  LOG(FATAL) << "Pass " << pass << " unsupported in CINN! Please check.\n";
-                }
-              }
-            }
-            if (program_passes.empty()) {
-              program_passes = default_program_pass;
-            }
-            if (graph_passes.empty()) {
-              graph_passes = default_graph_pass;
-            }
-
-            std::shared_ptr<hlir::framework::Graph> graph;
-            if (!passes.empty()) {
-              cinn::hlir::framework::PassPrinter::GetInstance()->Begin();
-              frontend::ProgramPass::Apply(&self, fetch_ids, target, program_passes);
-              graph = std::make_shared<hlir::framework::Graph>(self, fetch_ids, target);
-              hlir::framework::ApplyPasses(graph.get(), graph_passes);
-              cinn::hlir::framework::PassPrinter::GetInstance()->End();
-            } else {
-              graph = Optimize(&self, fetch_ids, target);
-            }
+            auto graph = Optimize(&self, fetch_ids, target, passes);
 
             scope = hlir::framework::BuildScope(target, graph, scope);
             hlir::framework::GraphCompiler gc(target, scope, graph);
@@ -209,6 +176,7 @@ void BindFrontend(pybind11::module *m) {
             // Keep compile option same as paddle
             hlir::framework::GraphCompiler::CompileOptions options;
             options.with_instantiate_variables = true;
+            options.remove_unused_variables    = false;
             auto gc_fetch_ids                  = fetch_ids;
             const auto &result                 = gc.Build(options, std::move(gc_fetch_ids));
             const auto &program                = result.runtime_program;
@@ -255,48 +223,8 @@ void BindFrontend(pybind11::module *m) {
               const std::unordered_set<std::string> &fetch_ids,
               const common::Target &target,
               const std::vector<std::string> &passes = {}) {
-             std::vector<std::string> program_passes, graph_passes;
-
-             const auto &default_program_pass = DefaultTrainingOptimizeOptions().program_passes;
-             const auto &default_graph_pass   = DefaultTrainingOptimizeOptions().graph_passes;
-             if (!passes.empty()) {
-               for (const auto &pass : passes) {
-                 auto *p_pass = ProgramPassRegistry::Global()->Find(pass);
-                 auto *g_pass = Registry<hlir::framework::PassFunctionRegister>::Global()->Find(pass);
-                 if (p_pass) {
-                   program_passes.emplace_back(pass);
-                 } else if (g_pass) {
-                   graph_passes.emplace_back(pass);
-                 } else {
-                   LOG(FATAL) << "Pass " << pass << " unsupported in CINN! Please check.\n";
-                 }
-               }
-             }
-
-             if (program_passes.empty()) {
-               program_passes = default_program_pass;
-             }
-             frontend::ProgramPass::Apply(&self, fetch_ids, target, program_passes);
-
-             if (graph_passes.empty()) {
-               // no need run graph pass, return program size
-               return self.size();
-             }
-
-             auto graph = std::make_shared<hlir::framework::Graph>(self, fetch_ids, target);
-             hlir::framework::ApplyPasses(graph.get(), graph_passes);
-
-             size_t node_num = 0;
-             for (auto *graph_node : graph->nodes()) {
-               auto node = graph_node->safe_as<hlir::framework::Node>();
-               // if node is NodeData or not op, continue.
-               if (!node || node->op() == nullptr) {
-                 continue;
-               }
-
-               node_num++;
-             }
-             return node_num;
+             auto graph = Optimize(&self, fetch_ids, target, passes);
+             return graph->fusion_groups.size();
            })
 
       /**

@@ -62,6 +62,29 @@ void cast_fp32_to_fp16_cuda_kernel(const float* input, const int num, float16* o
   LOG(INFO) << "ptx:\n" << ptx;
 }
 
+TEST(Compiler, bfloat16) {
+  Compiler compiler;
+
+  std::string source_code = R"(
+#include <cstdint>
+#define CINN_WITH_CUDA
+#include "bfloat16.h"
+using cinn::common::bfloat16;
+
+extern "C" __global__
+void cast_fp32_to_bf16_cuda_kernel(const float* input, const int num, bfloat16* out) {
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  if (idx < num) {
+    out[idx] = bfloat16(input[idx]);
+  }
+}
+)";
+
+  auto ptx = compiler(source_code);
+
+  LOG(INFO) << "ptx:\n" << ptx;
+}
+
 }  // namespace nvrtc
 }  // namespace backends
 }  // namespace cinn
