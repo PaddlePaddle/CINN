@@ -102,4 +102,5 @@ class TestCaseHelper():
             test_suite.addTests(test_loader.loadTestsFromTestCase(x))
         runner = unittest.TextTestRunner()
         res = runner.run(test_suite)
-        sys.exit(not res.wasSuccessful())
+        if not res.wasSuccessful():
+            sys.exit(not res.wasSuccessful())
