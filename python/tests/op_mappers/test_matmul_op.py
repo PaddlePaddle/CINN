@@ -23,17 +23,17 @@ import paddle
 class TestMatmulOp(OpMapperTest):
     def init_input_data(self):
         self.feed_data = {
-            "x": self.random([16, 32], "float32"),
-            "y": self.random([32, 16], "float32")
+            "X": self.random([16, 32], "float32"),
+            "Y": self.random([32, 16], "float32")
         }
 
     def set_op_type(self):
         return "matmul"
 
     def set_op_inputs(self):
-        x = paddle.static.data('X', self.feed_data["x"].shape,
-                               self.feed_data["x"].dtype)
-        x = paddle.static.data('Y', self.feed_data["y"].shape,
+        x = paddle.static.data('X', self.feed_data["X"].shape,
+                               self.feed_data["X"].dtype)
+        x = paddle.static.data('Y', self.feed_data["Y"].shape,
                                self.feed_data["Y"].dtype)
         return {'X': [x], 'Y': [y]}
 
@@ -41,7 +41,7 @@ class TestMatmulOp(OpMapperTest):
         return {"trans_x": False, "trans_y": False}
 
     def set_op_outputs(self):
-        return {'Out': [str(self.feed_data['x'].dtype)]}
+        return {'Out': [str(self.feed_data['X'].dtype)]}
 
     def test_check_results(self):
         self.check_outputs_and_grads()
