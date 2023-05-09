@@ -8,21 +8,33 @@ extern "C" {
 // bool unary and binary operator
 #define FN_BOOL(func) cinn_nvgpu_##func##_bool
 __device__ inline bool FN_BOOL(bitwise_and)(bool a, bool b) { return a & b; }
+__device__ inline bool FN_BOOL(bitwise_or)(bool a, bool b) { return a | b; }
+__device__ inline bool FN_BOOL(bitwise_xor)(bool a, bool b) { return a ^ b; }
+__device__ inline bool FN_BOOL(bitwise_not)(bool a) { return !a; }
 
 // *************************************************************** //
 // uint8 unary and binary operator
 #define FN_UINT8(func) cinn_nvgpu_##func##_uint8
 __device__ inline uint8_t FN_UINT8(bitwise_and)(uint8_t a, uint8_t b) { return a & b; }
+__device__ inline uint8_t FN_UINT8(bitwise_or)(uint8_t a, uint8_t b) { return a | b; }
+__device__ inline uint8_t FN_UINT8(bitwise_xor)(uint8_t a, uint8_t b) { return a ^ b; }
+__device__ inline uint8_t FN_UINT8(bitwise_not)(uint8_t a) { return ~a; }
 
 // *************************************************************** //
 // int8 unary and binary operator
 #define FN_INT8(func) cinn_nvgpu_##func##_int8
 __device__ inline int8_t FN_INT8(bitwise_and)(int8_t a, int8_t b) { return a & b; }
+__device__ inline int8_t FN_INT8(bitwise_or)(int8_t a, int8_t b) { return a | b; }
+__device__ inline int8_t FN_INT8(bitwise_xor)(int8_t a, int8_t b) { return a ^ b; }
+__device__ inline int8_t FN_INT8(bitwise_not)(int8_t a) { return ~a; }
 
 // *************************************************************** //
 // int16 unary and binary operator
 #define FN_INT16(func) cinn_nvgpu_##func##_int16
 __device__ inline int16_t FN_INT16(bitwise_and)(int16_t a, int16_t b) { return a & b; }
+__device__ inline int16_t FN_INT16(bitwise_or)(int16_t a, int16_t b) { return a | b; }
+__device__ inline int16_t FN_INT16(bitwise_xor)(int16_t a, int16_t b) { return a ^ b; }
+__device__ inline int16_t FN_INT16(bitwise_not)(int16_t a) { return ~a; }
 
 // *************************************************************** //
 // float32 unary and binary operator
@@ -150,6 +162,9 @@ __device__ inline int FN_INT32(mod)(int a, int b) {
 #define FN_INT64(func) cinn_nvgpu_##func##_int64
 
 __device__ inline long long int FN_INT64(bitwise_and)(long long int a, long long int b) { return a & b; }
+__device__ inline long long int FN_INT64(bitwise_or)(long long int a, long long int b) { return a | b; }
+__device__ inline long long int FN_INT64(bitwise_xor)(long long int a, long long int b) { return a ^ b; }
+__device__ inline long long int FN_INT64(bitwise_not)(long long int a) { return ~a; }
 __device__ inline long long int FN_INT64(clz)(long long int a) { return __clzll(a); }
 __device__ inline long long int FN_INT64(popc)(long long int a) { return __popcll(a); }
 __device__ inline long long int FN_INT64(mod)(long long int a, long long int b) {

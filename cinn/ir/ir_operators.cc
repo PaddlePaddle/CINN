@@ -78,7 +78,15 @@ Expr operator|(Expr a, Expr b) {
       return Expr(int_a->value | int_b->value);
     }
   }
-  return lang::CallExtern("bitwise_or", {a, b}, {{"vectorizable", false}});
+  auto target = common::DefaultTarget();
+  if (target.arch == common::Target::Arch::X86) {
+    return lang::CallExtern("bitwise_or", {a, b}, {{"vectorizable", false}});
+  } else if (target.arch == common::Target::Arch::NVGPU) {
+    auto func_name = hlir::GetExternFuncName(target, t_a, "bitwise_or");
+    return lang::CallExtern(func_name, {a, b}, {{"vectorizable", false}});
+  } else {
+    LOG(FATAL) << "Unsupport arch: " << target.arch_str() << " for bitwise_or.";
+  }
 }
 
 Expr operator&(Expr a, Expr b) {
@@ -98,8 +106,7 @@ Expr operator&(Expr a, Expr b) {
     return lang::CallExtern("bitwise_and", {a, b}, {{"vectorizable", false}});
   } else if (target.arch == common::Target::Arch::NVGPU) {
     auto func_name = hlir::GetExternFuncName(target, t_a, "bitwise_and");
-    auto res       = lang::CallExtern(func_name, {a, b}, {{"vectorizable", false}});
-    return res;
+    return lang::CallExtern(func_name, {a, b}, {{"vectorizable", false}});
   } else {
     LOG(FATAL) << "Unsupport arch: " << target.arch_str() << " for bitwise_and.";
   }
@@ -117,12 +124,28 @@ Expr operator^(Expr a, Expr b) {
       return Expr(int_a->value ^ int_b->value);
     }
   }
-  return lang::CallExtern("bitwise_xor", {a, b}, {{"vectorizable", false}});
+  auto target = common::DefaultTarget();
+  if (target.arch == common::Target::Arch::X86) {
+    return lang::CallExtern("bitwise_xor", {a, b}, {{"vectorizable", false}});
+  } else if (target.arch == common::Target::Arch::NVGPU) {
+    auto func_name = hlir::GetExternFuncName(target, t_a, "bitwise_xor");
+    return lang::CallExtern(func_name, {a, b}, {{"vectorizable", false}});
+  } else {
+    LOG(FATAL) << "Unsupport arch: " << target.arch_str() << " for bitwise_xor.";
+  }
 }
 
 Expr operator~(Expr a) {
   CHECK(a.type().is_int() || a.type().is_uint());
-  return lang::CallExtern("bitwise_not", {a}, {{"vectorizable", false}});
+  auto target = common::DefaultTarget();
+  if (target.arch == common::Target::Arch::X86) {
+    return lang::CallExtern("bitwise_not", {a}, {{"vectorizable", false}});
+  } else if (target.arch == common::Target::Arch::NVGPU) {
+    auto func_name = hlir::GetExternFuncName(target, a->type(), "bitwise_not");
+    return lang::CallExtern(func_name, {a}, {{"vectorizable", false}});
+  } else {
+    LOG(FATAL) << "Unsupport arch: " << target.arch_str() << " for bitwise_not.";
+  }
 }
 
 }  // namespace ir
