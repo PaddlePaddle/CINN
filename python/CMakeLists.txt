@@ -127,6 +127,11 @@ ADD_TEST(NAME test_cinn_real_squeezenet
     COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
     python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_squeezenet.py "${CMAKE_BINARY_DIR}/thirds/SqueezeNet" "${WITH_CUDA}"
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+
+ADD_TEST(NAME test_paddle_model_convertor
+    COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
+    python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_paddle_model_convertor.py --path "${CMAKE_BINARY_DIR}/thirds/resnet_model"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 endif()
 
 #ADD_TEST(NAME test_cinn_real_facedet
@@ -216,6 +221,21 @@ foreach(pass_test_name ${CINN_PASS_TEST})
     ADD_TEST(NAME ${pass_test_name}
         COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
         python3 ${CMAKE_CURRENT_SOURCE_DIR}/${pass_test_name}.py
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    )
+endforeach()
+
+file(GLOB CINN_FUSION_TEST RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" "tests/fusion/test_*.py")
+
+foreach(fusion_test_name ${EXCLUDE_FUSION})
+    list(REMOVE_ITEM CINN_FUSION_TEST tests/fusion/${fusion_test_name}.py)
+endforeach()
+
+foreach(fusion_test_name ${CINN_FUSION_TEST})
+    string(REGEX REPLACE ".py" "" fusion_test_name ${fusion_test_name})
+    ADD_TEST(NAME ${fusion_test_name}
+        COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
+        python3 ${CMAKE_CURRENT_SOURCE_DIR}/${fusion_test_name}.py
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     )
 endforeach()

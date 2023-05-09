@@ -55,6 +55,7 @@ namespace cinn {
 namespace backends {
 
 using BinaryInstruction = llvm::Instruction::BinaryOps;
+using common::bfloat16;
 using common::float16;
 
 namespace {
@@ -238,7 +239,9 @@ llvm::Value *CodeGenLLVM::Visit(const ir::FloatImm *op) {
     return llvm::ConstantFP::get(b_->getDoubleTy(), op->value);
   } else if (op->type().is_float(32)) {
     return llvm::ConstantFP::get(b_->getFloatTy(), op->value);
-  } else if (op->type().is_float(16)) {
+  } else if (op->type().is_bfloat16()) {
+    return llvm::ConstantFP::get(b_->getBFloatTy(), op->value);
+  } else if (op->type().is_float16()) {
     return llvm::ConstantFP::get(b_->getHalfTy(), op->value);
   } else {
     LOG(FATAL) << "illegal float type.";
@@ -381,7 +384,9 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Cast *op) {
       callee = m_->getFunction(runtime::intrinsic::pod_value_to_float);
     } else if (op->type().is_float(64)) {
       callee = m_->getFunction(runtime::intrinsic::pod_value_to_double);
-    } else if (op->type().is_float(16)) {
+    } else if (op->type().is_bfloat16()) {
+      callee = m_->getFunction(runtime::intrinsic::pod_value_to_bfloat16);
+    } else if (op->type().is_float16()) {
       callee = m_->getFunction(runtime::intrinsic::pod_value_to_float16);
     } else if (op->type() == type_of<void *>()) {
       callee = m_->getFunction(runtime::intrinsic::pod_value_to_void_p);

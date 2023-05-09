@@ -110,7 +110,8 @@ std::string CodeGenC::GetTypeName(Type type) {
   GET_SCALAR_TYPE(type.is_uint(32), "uint32_t");
   GET_SCALAR_TYPE(type.is_uint(64), "uint64_t");
 
-  GET_SCALAR_TYPE(type.is_float(16), "float16");
+  GET_SCALAR_TYPE(type.is_bfloat16(), "bfloat16");
+  GET_SCALAR_TYPE(type.is_float16(), "float16");
   GET_SCALAR_TYPE(type.is_float(32), "float")
   GET_SCALAR_TYPE(type.is_float(64), "double")
 #undef GET_SCALAR_TYPE
@@ -690,6 +691,8 @@ void CodeGenC::PrintRuntimeType(const cinn_type_t &type) {
     os() << "cinn_uint32_t()";
   } else if (type == cinn_uint64_t()) {
     os() << "cinn_uint64_t()";
+  } else if (type == cinn_bfloat16_t()) {
+    os() << "cinn_bfloat16_t()";
   } else if (type == cinn_float16_t()) {
     os() << "cinn_float16_t()";
   } else if (type == cinn_float32_t()) {

@@ -30,6 +30,7 @@ inline void fold_broadcast_to_constant(const FusionHelperBase* helper, Graph* gr
   // create constant op.
   Node* node_tmp = new Node(Operator::Get("fill_constant"), "fill_constant", common::UniqName("fill_constant"));
   // set node attr
+  node_tmp->attrs.attr_store["dtype"]     = constant_op->attrs.attr_store.at("dtype");
   node_tmp->attrs.attr_store["shape"]     = shape;
   node_tmp->attrs.attr_store["value"]     = constant_op->attrs.attr_store.at("value");
   node_tmp->attrs.attr_store["force_cpu"] = false;
@@ -61,6 +62,7 @@ inline void fold_reshape_fill_constant(const FusionHelperBase* helper, Graph* gr
   // create constant op.
   Node* node_tmp = new Node(Operator::Get("fill_constant"), "fill_constant", common::UniqName("fill_constant"));
   // set node attr
+  node_tmp->attrs.attr_store["dtype"]     = constant_op->attrs.attr_store.at("dtype");
   node_tmp->attrs.attr_store["shape"]     = shape;
   node_tmp->attrs.attr_store["value"]     = constant_op->attrs.attr_store.at("value");
   node_tmp->attrs.attr_store["force_cpu"] = false;
@@ -108,6 +110,7 @@ inline void fold_squeeze_fill_constant(const FusionHelperBase* helper, Graph* gr
     }
   }
 
+  node_tmp->attrs.attr_store["dtype"]     = constant_op->attrs.attr_store.at("dtype");
   node_tmp->attrs.attr_store["shape"]     = n_shape;
   node_tmp->attrs.attr_store["value"]     = constant_op->attrs.attr_store.at("value");
   node_tmp->attrs.attr_store["force_cpu"] = false;
@@ -158,6 +161,7 @@ inline void fold_expand_dims_fill_constant(const FusionHelperBase* helper, Graph
   }
 
   // set node attr
+  node_tmp->attrs.attr_store["dtype"]     = constant_op->attrs.attr_store.at("dtype");
   node_tmp->attrs.attr_store["shape"]     = n_shape;
   node_tmp->attrs.attr_store["value"]     = constant_op->attrs.attr_store.at("value");
   node_tmp->attrs.attr_store["force_cpu"] = false;
