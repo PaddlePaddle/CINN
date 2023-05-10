@@ -15,10 +15,12 @@
 # limitations under the License.
 
 import paddle
+import numpy as np
+import unittest
 from cinn.frontend import *
 from cinn.common import *
 from op_test import OpTest, OpTestTool
-from op_test_helper import TestCaseHelper
+from op_test_helper import TestCaseHelper, run_test
 
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
@@ -56,6 +58,19 @@ class TestSortOp(OpTest):
 
     def test_check_results(self):
         self.check_outputs_and_grads()
+
+
+class TestSortOpDumpicateElement(TestSortOp):
+    def setUp(self):
+        self.inputs = {}
+        self.prepare_inputs()
+
+    def prepare_inputs(self):
+        self.inputs = {
+            "x": np.array([1, 1, 1, 2, 2, 2, 3, 3, 3]).astype("int64")
+        }
+        self.axis = 0
+        self.descending = False
 
 
 class TestSortOpShapeTest(TestCaseHelper):
@@ -198,6 +213,8 @@ class TestSortOpDescedingTest(TestSortOpShapeTest):
 
 
 if __name__ == "__main__":
+    run_test(TestSortOpDumpicateElement)
+
     TestSortOpShapeTest().run()
     TestSortOpDtypeTest().run()
     TestSortOpAxisTest().run()

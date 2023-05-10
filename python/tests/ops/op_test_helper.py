@@ -18,6 +18,8 @@ import itertools
 import unittest
 import re
 
+from typing import Union, List, Type
+
 parser = argparse.ArgumentParser(description="Argparse for op test helper")
 parser.add_argument(
     "--case",
@@ -102,4 +104,13 @@ class TestCaseHelper():
             test_suite.addTests(test_loader.loadTestsFromTestCase(x))
         runner = unittest.TextTestRunner()
         res = runner.run(test_suite)
+        if not res.wasSuccessful():
+            sys.exit(not res.wasSuccessful())
+
+
+def run_test(test_class: Union[int, List[Type]]):
+    test_suite = unittest.TestLoader().loadTestsFromTestCase(test_class)
+    runner = unittest.TextTestRunner()
+    res = runner.run(test_suite)
+    if not res.wasSuccessful():
         sys.exit(not res.wasSuccessful())
