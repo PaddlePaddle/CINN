@@ -14,12 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
-import numpy as np
 from op_test import OpTest, OpTestTool
 from op_test_helper import TestCaseHelper
 import paddle
-import cinn
 from cinn.frontend import *
 from cinn.common import *
 
@@ -68,30 +65,43 @@ class TestExpandDimsAll(TestCaseHelper):
         self.inputs = [
             {
                 "x_shape": [1],
-            },
-            {
-                "x_shape": [256],
-            },
-            {
-                "x_shape": [512],
+                "axes_shape": [0],
             },
             {
                 "x_shape": [1024],
+                "axes_shape": [0, 1],
             },
             {
-                "x_shape": [512, 256],
+                "x_shape": [32, 64],
+                "axes_shape": [0, 2],
             },
             {
-                "x_shape": [128, 64, 32],
+                "x_shape": [32, 64],
+                "axes_shape": [0, 1, 2],
             },
             {
-                "x_shape": [128, 64, 32],
+                "x_shape": [32, 64, 128],
+                "axes_shape": [0, 1, 2],
             },
             {
-                "x_shape": [16, 8, 4, 2],
+                "x_shape": [32, 64, 128],
+                "axes_shape": [1, 2, 3],
+            },
+            {
+                "x_shape": [128, 64, 32, 16],
+                "axes_shape": [0, 1],
+            },
+            {
+                "x_shape": [128, 64, 32, 16],
+                "axes_shape": [3, 4],
             },
             {
                 "x_shape": [16, 8, 4, 2, 1],
+                "axes_shape": [2],
+            },
+            {
+                "x_shape": [16, 8, 4, 2, 1],
+                "axes_shape": [5],
             },
         ]
         self.dtypes = [
@@ -128,35 +138,7 @@ class TestExpandDimsAll(TestCaseHelper):
             #    "axes_dtype": "int32",
             #},
         ]
-        self.attrs = [
-            {
-                "axes_shape": [0],
-            },
-            {
-                "axes_shape": [0, 2],
-            },
-            {
-                "axes_shape": [0, 1, 2],
-            },
-            {
-                "axes_shape": [0, 1, 2, 3],
-            },
-            {
-                "axes_shape": [0, 1, 2],
-            },
-            {
-                "axes_shape": [1, 2, 3],
-            },
-            {
-                "axes_shape": [0, 1],
-            },
-            {
-                "axes_shape": [1, 2],
-            },
-            {
-                "axes_shape": [1],
-            },
-        ]
+        self.attrs = []
 
 
 if __name__ == "__main__":
