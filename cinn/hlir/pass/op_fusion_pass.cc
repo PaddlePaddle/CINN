@@ -121,14 +121,14 @@ class OpFusionPassHelper : public FusionHelperBase {
 
  private:
   void DoOpFusion() {
-    for (auto consumer : nodes_) {
+    for (auto consumer : nodes_) {  // 遍历所有结点，设定当前结点为消费者结点
       // kNonFusible op can't fuse any other op.
-      if (GetOpKind(consumer) == framework::kNonFusible) {
+      if (GetOpKind(consumer) == framework::kNonFusible) {  // 若为kNonFusible，跳过
         continue;
       }
 
       // fusion op for consumer
-      auto consumer_fusion = fusion_groups_[consumer];
+      auto consumer_fusion = fusion_groups_[consumer];  //
       // check all linkin node
       for (auto& edge : consumer->inlinks()) {
         auto graph_node    = edge->source();
