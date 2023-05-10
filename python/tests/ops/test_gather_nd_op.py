@@ -86,7 +86,12 @@ class TestGatherOpAll(TestGatherNdOp):
                 self.inputs.append({"x": x_shape, "index": [8, j]})
 
         self.dtypes = [
-            "float32", "float64", "int16", "int32", "int64", "uint8"
+            "float32",
+            "float64",
+            "int16",
+            "int32",
+            "int64",
+            # "uint8"  # note: some types is not supported in paddle now.
         ]
 
 
