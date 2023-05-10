@@ -300,39 +300,39 @@ CINN_REGISTER_HELPER(cuda_intrinsics) {
       .AddInputType<int>()
       .End();
 
-#define _REGISTER_CINN_CUDA_LT_NUM(TYPE_SUFFIX, TYPE)                        \
-  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_cuda_lt_num_##TYPE_SUFFIX, target) \
-      .SetRetType<int>()                                                     \
-      .AddInputType<cinn_buffer_t *>()                                       \
-      .AddInputType<int>()                                                   \
-      .AddInputType<TYPE>()                                                  \
-      .AddInputType<int>()                                                   \
-      .AddInputType<int>()                                                   \
+#define _REGISTER_CINN_NVGPU_LT_NUM(TYPE_SUFFIX, TYPE)                        \
+  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_nvgpu_lt_num_##TYPE_SUFFIX, target) \
+      .SetRetType<int>()                                                      \
+      .AddInputType<cinn_buffer_t *>()                                        \
+      .AddInputType<int>()                                                    \
+      .AddInputType<TYPE>()                                                   \
+      .AddInputType<int>()                                                    \
+      .AddInputType<int>()                                                    \
       .End();
 
-  _REGISTER_CINN_CUDA_LT_NUM(fp32, float);
-  _REGISTER_CINN_CUDA_LT_NUM(fp64, double);
-  _REGISTER_CINN_CUDA_LT_NUM(int32, int);
-  _REGISTER_CINN_CUDA_LT_NUM(int64, int64_t);
+  _REGISTER_CINN_NVGPU_LT_NUM(fp32, float);
+  _REGISTER_CINN_NVGPU_LT_NUM(fp64, double);
+  _REGISTER_CINN_NVGPU_LT_NUM(int32, int);
+  _REGISTER_CINN_NVGPU_LT_NUM(int64, int64_t);
 
-#undef _REGISTER_CINN_CUDA_LT_NUM
+#undef _REGISTER_CINN_NVGPU_LT_NUM
 
-#define _REGISTER_CINN_CUDA_GT_NUM(TYPE_SUFFIX, TYPE)                        \
-  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_cuda_gt_num_##TYPE_SUFFIX, target) \
-      .SetRetType<int>()                                                     \
-      .AddInputType<cinn_buffer_t *>()                                       \
-      .AddInputType<int>()                                                   \
-      .AddInputType<TYPE>()                                                  \
-      .AddInputType<int>()                                                   \
-      .AddInputType<int>()                                                   \
+#define _REGISTER_CINN_NVGPU_GT_NUM(TYPE_SUFFIX, TYPE)                        \
+  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_nvgpu_gt_num_##TYPE_SUFFIX, target) \
+      .SetRetType<int>()                                                      \
+      .AddInputType<cinn_buffer_t *>()                                        \
+      .AddInputType<int>()                                                    \
+      .AddInputType<TYPE>()                                                   \
+      .AddInputType<int>()                                                    \
+      .AddInputType<int>()                                                    \
       .End();
 
-  _REGISTER_CINN_CUDA_GT_NUM(fp32, float);
-  _REGISTER_CINN_CUDA_GT_NUM(fp64, double);
-  _REGISTER_CINN_CUDA_GT_NUM(int32, int);
-  _REGISTER_CINN_CUDA_GT_NUM(int64, int64_t);
+  _REGISTER_CINN_NVGPU_GT_NUM(fp32, float);
+  _REGISTER_CINN_NVGPU_GT_NUM(fp64, double);
+  _REGISTER_CINN_NVGPU_GT_NUM(int32, int);
+  _REGISTER_CINN_NVGPU_GT_NUM(int64, int64_t);
 
-#undef _REGISTER_CINN_CUDA_GT_NUM
+#undef _REGISTER_CINN_NVGPU_GT_NUM
 
   REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_cuda_index_add, target)
       .SetRetType<float>()

@@ -63,9 +63,9 @@ std::vector<ir::Tensor> ArgSort(const ir::Tensor &A,
     LOG(FATAL) << "ArgSort only supports X86 and NVGPU ! Please Check.\n";
   }
   if (is_ascend) {
-    index_func_name = cinn::hlir::GetExternFuncName(target, A->type(), "cuda_lt_num", true, false, true);
+    index_func_name = cinn::hlir::GetExternFuncName(target, A->type(), "lt_num");
   } else {
-    index_func_name = cinn::hlir::GetExternFuncName(target, A->type(), "cuda_gt_num", true, false, true);
+    index_func_name = cinn::hlir::GetExternFuncName(target, A->type(), "gt_num");
   }
   int pos_axis = axis;
   if (pos_axis < 0) {
