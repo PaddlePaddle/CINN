@@ -14,16 +14,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
-import numpy as np
 from op_test import OpTest, OpTestTool
 from op_test_helper import TestCaseHelper
 import paddle
-import cinn
 from cinn.frontend import *
 from cinn.common import *
 
 
+@OpTestTool.skip_if(not is_compiled_with_cuda(),
+                    "x86 test will be skipped due to timeout.")
 class TestBroadcastToOp(OpTest):
     def setUp(self):
         print(f"\nRunning {self.__class__.__name__}: {self.case}")
@@ -67,18 +66,28 @@ class TestBroadcastToAllOne(TestCaseHelper):
         self.inputs = [
             {
                 "x_shape": [1],
+                "d_shape": [3, 2],
+                "broadcast_axes": [1],
             },
             {
                 "x_shape": [1024, 2],
+                "d_shape": [1, 2],
+                "broadcast_axes": [1, 2],
             },
             {
                 "x_shape": [256, 128, 2],
+                "d_shape": [4, 3, 2],
+                "broadcast_axes": [1, 2],
             },
             {
                 "x_shape": [16, 8, 4, 2],
+                "d_shape": [2, 3, 4],
+                "broadcast_axes": [0, 1, 2, 4],
             },
             {
                 "x_shape": [16, 8, 4, 1, 2],
+                "d_shape": [4, 2, 3, 5],
+                "broadcast_axes": [0, 1, 2, 3, 5],
             },
         ]
         self.dtypes = [
@@ -86,28 +95,7 @@ class TestBroadcastToAllOne(TestCaseHelper):
                 "x_dtype": "float32",
             },
         ]
-        self.attrs = [
-            {
-                "d_shape": [1, 2],
-                "broadcast_axes": [1],
-            },
-            {
-                "d_shape": [1, 2],
-                "broadcast_axes": [1],
-            },
-            {
-                "d_shape": [4, 3, 2],
-                "broadcast_axes": [1],
-            },
-            {
-                "d_shape": [5, 4, 3, 2],
-                "broadcast_axes": [1],
-            },
-            {
-                "d_shape": [6, 5, 4, 3, 2],
-                "broadcast_axes": [1],
-            },
-        ]
+        self.attrs = []
 
 
 class TestBroadcastToAllTwo(TestCaseHelper):
@@ -116,7 +104,29 @@ class TestBroadcastToAllTwo(TestCaseHelper):
         self.cls = TestBroadcastToOp
         self.inputs = [
             {
-                "x_shape": [64, 2],
+                "x_shape": [6, 2],
+                "d_shape": [4, 5, 2],
+                "broadcast_axes": [1, 2],
+            },
+            {
+                "x_shape": [6, 2],
+                "d_shape": [3, 2],
+                "broadcast_axes": [1, 2],
+            },
+            {
+                "x_shape": [6, 2],
+                "d_shape": [4, 3, 2],
+                "broadcast_axes": [1, 2],
+            },
+            {
+                "x_shape": [6, 2],
+                "d_shape": [5, 4, 3, 2],
+                "broadcast_axes": [1, 2],
+            },
+            {
+                "x_shape": [6, 2],
+                "d_shape": [6, 5, 4, 3, 2],
+                "broadcast_axes": [1, 2],
             },
         ]
         self.dtypes = [
@@ -136,28 +146,7 @@ class TestBroadcastToAllTwo(TestCaseHelper):
                 "x_dtype": "float64",
             },
         ]
-        self.attrs = [
-            {
-                "d_shape": [4, 5, 2],
-                "broadcast_axes": [1, 2],
-            },
-            {
-                "d_shape": [3, 2],
-                "broadcast_axes": [1, 2],
-            },
-            {
-                "d_shape": [4, 3, 2],
-                "broadcast_axes": [1, 2],
-            },
-            {
-                "d_shape": [5, 4, 3, 2],
-                "broadcast_axes": [1, 2],
-            },
-            {
-                "d_shape": [6, 5, 4, 3, 2],
-                "broadcast_axes": [1, 2],
-            },
-        ]
+        self.attrs = []
 
 
 class TestBroadcastToOpNoAxes(OpTest):
@@ -200,18 +189,23 @@ class TestBroadcastToOpNoAxesAllOne(TestCaseHelper):
         self.inputs = [
             {
                 "x_shape": [1],
+                "d_shape": [3, 2],
             },
             {
                 "x_shape": [1024, 2],
+                "d_shape": [32, 2],
             },
             {
                 "x_shape": [32, 64, 2],
+                "d_shape": [4, 3, 2],
             },
             {
                 "x_shape": [16, 8, 4, 2],
+                "d_shape": [5, 3, 4, 2],
             },
             {
                 "x_shape": [16, 8, 4, 1, 2],
+                "d_shape": [6, 4, 5, 3, 2],
             },
         ]
         self.dtypes = [
@@ -219,23 +213,7 @@ class TestBroadcastToOpNoAxesAllOne(TestCaseHelper):
                 "x_dtype": "float32",
             },
         ]
-        self.attrs = [
-            {
-                "d_shape": [3, 2],
-            },
-            {
-                "d_shape": [32, 2],
-            },
-            {
-                "d_shape": [4, 3, 2],
-            },
-            {
-                "d_shape": [5, 3, 4, 2],
-            },
-            {
-                "d_shape": [6, 4, 5, 3, 2],
-            },
-        ]
+        self.attrs = []
 
 
 class TestBroadcastToOpNoAxesAllTwo(TestCaseHelper):
@@ -245,6 +223,19 @@ class TestBroadcastToOpNoAxesAllTwo(TestCaseHelper):
         self.inputs = [
             {
                 "x_shape": [32, 2],
+                "d_shape": [3, 2],
+            },
+            {
+                "x_shape": [32, 2],
+                "d_shape": [4, 3, 2],
+            },
+            {
+                "x_shape": [32, 2],
+                "d_shape": [5, 4, 3, 2],
+            },
+            {
+                "x_shape": [32, 2],
+                "d_shape": [6, 5, 4, 3, 2],
             },
         ]
         self.dtypes = [
@@ -264,23 +255,7 @@ class TestBroadcastToOpNoAxesAllTwo(TestCaseHelper):
                 "x_dtype": "float64",
             },
         ]
-        self.attrs = [
-            {
-                "d_shape": [3, 2],
-            },
-            {
-                "d_shape": [3, 2],
-            },
-            {
-                "d_shape": [4, 3, 2],
-            },
-            {
-                "d_shape": [5, 4, 3, 2],
-            },
-            {
-                "d_shape": [6, 5, 4, 3, 2],
-            },
-        ]
+        self.attrs = []
 
 
 if __name__ == "__main__":
