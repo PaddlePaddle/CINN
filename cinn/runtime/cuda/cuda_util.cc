@@ -175,14 +175,11 @@ void cinn_call_cublas(void *v_args,
         cublasGemm(cuda_dtype, cuhandle, trans_op_l, trans_op_r, m, n, k, alpha, lhs, ldl, rhs, ldr, beta, C, ldc));
   } else if (a1 * b1 == 1) {
     CHECK(a2 == b2 || a2 == 1 || b2 == 1);
-    if (b2 == 1 && !trans_a) {
+    if (b2 == 1 && trans_op_r == CUBLAS_OP_N) {
       // In case of [1, bs, M, K] * [1, 1, K, N]
-      VLOG(3) << "call cublasGemm for a1 * b1 = 1, b2 = 1, trans_a = False";
-      m   = a2 * m;
-      ldl = m;
-      ldc = m;
-      CUBLAS_CALL(
-          cublasGemm(cuda_dtype, cuhandle, trans_op_l, trans_op_r, m, n, k, alpha, lhs, ldl, rhs, ldr, beta, C, ldc));
+      VLOG(3) << "call cublasGemm for a1 * b1 = 1, b2 = 1, trans_op_r:" << trans_op_r;
+      CUBLAS_CALL(cublasGemm(
+          cuda_dtype, cuhandle, trans_op_l, trans_op_r, m, a2 * n, k, alpha, lhs, ldl, A, ldr, beta, C, ldc));
     } else {
       int stride_l = trans_o ? (a2 > 1 ? a3 * a4 : 0) : (b2 > 1 ? b3 * b4 : 0);
       int stride_r = trans_o ? (b2 > 1 ? b3 * b4 : 0) : (a2 > 1 ? a3 * a4 : 0);
