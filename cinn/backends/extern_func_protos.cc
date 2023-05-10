@@ -27,7 +27,9 @@ ExternFunctionProtoRegistry::ExternFunctionProtoRegistry() {
   static const std::vector<std::string> extern_funcs_float_bool_unary = {"isnan", "isfinite", "isinf"};
   static const std::vector<std::string> extern_funcs_int_binary       = {
       "left_shift", "right_shift", "bitwise_or", "bitwise_and", "bitwise_xor", "bitwise_not"};
-  static const std::vector<std::string> extern_funcs_int_int_unary = {"bitwise_not"};
+  static const std::vector<std::string> extern_funcs_int_int_unary   = {"bitwise_not"};
+  static const std::vector<std::string> extern_funcs_int_float_call  = {"cinn_nvgpu_uniform_random_fp32"};
+  static const std::vector<std::string> extern_funcs_int_double_call = {"cinn_nvgpu_uniform_random_fp64"};
   for (int i = 0; i < extern_funcs_fp32_unary.size(); ++i) {
     auto* proto = new FunctionProto(extern_funcs_fp32_unary[i], {Float(32)}, Float(32));
     Register(proto->name, proto);
@@ -42,6 +44,14 @@ ExternFunctionProtoRegistry::ExternFunctionProtoRegistry() {
   }
   for (int i = 0; i < extern_funcs_int_int_unary.size(); ++i) {
     auto* proto = new FunctionProto(extern_funcs_int_int_unary[i], {Int(32)}, Int(32));
+    Register(proto->name, proto);
+  }
+  for (int i = 0; i < extern_funcs_int_float_call.size(); ++i) {
+    auto* proto = new FunctionProto(extern_funcs_int_float_call[i], {Int(32)}, Float(32));
+    Register(proto->name, proto);
+  }
+  for (int i = 0; i < extern_funcs_int_double_call.size(); ++i) {
+    auto* proto = new FunctionProto(extern_funcs_int_double_call[i], {Int(32)}, Float(64));
     Register(proto->name, proto);
   }
 

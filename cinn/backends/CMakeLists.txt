@@ -40,7 +40,7 @@ endif()
 
 if (WITH_CUDA)
   nv_test(test_codegen_cuda_generate SRCS codegen_cuda_generate_test.cc DEPS cinncore)
-  nv_test(test_codegen_debug SRCS codegen_debug_test.cc DEPS cinncore)
+  nv_test(test_codegen_debug SRCS codegen_debug_test.cc DEPS cinncore cinn_runtime)
 
   if (WITH_TESTING)
     cc_library(generated1_cuda SRCS generated1.cu DEPS cinncore)

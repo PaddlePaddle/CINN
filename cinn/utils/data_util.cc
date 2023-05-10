@@ -116,6 +116,7 @@ std::vector<T> GetTensorData(const hlir::framework::Tensor& tensor, const common
 }
 
 template std::vector<float> GetTensorData<float>(const hlir::framework::Tensor& tensor, const common::Target& target);
+template std::vector<double> GetTensorData<double>(const hlir::framework::Tensor& tensor, const common::Target& target);
 template std::vector<int> GetTensorData<int>(const hlir::framework::Tensor& tensor, const common::Target& target);
 
 }  // namespace cinn
