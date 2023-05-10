@@ -52,7 +52,8 @@ class TestBitwiseOp(OpTest):
     def build_cinn_program(self, target):
         builder = NetBuilder("bitwise")
         x = builder.create_input(
-            self.nptype2cinntype(self.case["dtype"]), self.case["x_shape"], "x")
+            self.nptype2cinntype(self.case["dtype"]), self.case["x_shape"],
+            "x")
         if self.case["op_type"] != "not":
             y = builder.create_input(
                 self.nptype2cinntype(self.case["dtype"]), self.case["y_shape"],
