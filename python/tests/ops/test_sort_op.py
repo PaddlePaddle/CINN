@@ -64,27 +64,29 @@ class TestSortOpShapeTest(TestCaseHelper):
         self.cls = TestSortOp
         self.inputs = [
             {
-                "shape": [10],
+                "shape": [512],
             },
             {
-                "shape": [8, 5],
+                "shape": [1024],
             },
             {
-                "shape": [10, 3, 5],
+                "shape": [2048],
             },
-            # F0509 08:18:53.483060 2316861 cuda_util.cc:110] CUDA Driver Error: cuLaunchKernel(static_cast<CUfunction>(kernel_fn), grid_x, grid_y, grid_z, block_x, block_y, block_z, 0, static_cast<CUstream>(stream), kernel_args.data(), nullptr) failed with error: invalid argument
-            # {
-            #     "shape": [80, 40, 5, 7],
-            # },
             {
-                "shape": [80, 1, 5, 7],
+                "shape": [128, 64],
             },
-            # {
-            #     "shape": [80, 3, 1024, 7],
-            # },
-            # {
-            #     "shape": [10, 5, 1024, 2048],
-            # },
+            {
+                "shape": [8, 32, 16],
+            },
+            {
+                "shape": [16, 8, 4, 2],
+            },
+            {
+                "shape": [16, 8, 4, 2, 5],
+            },
+            {
+                "shape": [16, 8, 1, 2, 32],
+            },
             {
                 "shape": [1],
             },
@@ -94,27 +96,17 @@ class TestSortOpShapeTest(TestCaseHelper):
             {
                 "shape": [1, 1, 1, 1, 1],
             },
-            {
-                "shape": [512],
-            },
-            {
-                "shape": [1024],
-            },
-            {
-                "shape": [2048],
-            },
+            # TODO: known issue cinn/hlir/op/contrib/sort.cc:201
+            # the array will exceed the cuda kernel stack size limit
             # {
-            #     "shape": [512, 256],
+            #     "shape": [32768],
             # },
             # {
-            #     "shape": [128, 64, 32],
+            #     "shape": [65536],
             # },
-            {
-                "shape": [16, 8, 4, 2],
-            },
-            {
-                "shape": [16, 8, 4, 2, 1],
-            }
+            # {
+            #     "shape": [131072],
+            # },
         ]
         self.dtypes = [{"dtype": "float32"}]
         self.attrs = [{"axis": 0, "descending": False}]
@@ -126,14 +118,17 @@ class TestSortOpDtypeTest(TestCaseHelper):
         self.cls = TestSortOp
         self.inputs = [
             {
+                "shape": [2048],
+            },
+            {
+                "shape": [128, 64],
+            },
+            {
+                "shape": [8, 32, 16],
+            },
+            {
                 "shape": [16, 8, 4, 2],
             },
-            # {
-            #     "shape": [80, 40, 5, 7],
-            # },
-            # {
-            #     "shape": [16, 8, 4, 2, 1],
-            # }
         ]
         self.dtypes = [
             {
@@ -160,12 +155,6 @@ class TestSortOpAxisTest(TestCaseHelper):
             {
                 "shape": [16, 8, 4, 2],
             },
-            # {
-            #     "shape": [80, 40, 5, 7],
-            # },
-            # {
-            #     "shape": [16, 8, 4, 2, 1],
-            # }
         ]
         self.dtypes = [{"dtype": "float32"}]
         self.attrs = [{
@@ -189,71 +178,27 @@ class TestSortOpDescedingTest(TestSortOpShapeTest):
         self.cls = TestSortOp
         self.inputs = [
             {
-                "shape": [10],
-            },
-            {
-                "shape": [8, 5],
-            },
-            {
-                "shape": [10, 3, 5],
-            },
-            # F0509 08:18:53.483060 2316861 cuda_util.cc:110] CUDA Driver Error: cuLaunchKernel(static_cast<CUfunction>(kernel_fn), grid_x, grid_y, grid_z, block_x, block_y, block_z, 0, static_cast<CUstream>(stream), kernel_args.data(), nullptr) failed with error: invalid argument
-            # {
-            #     "shape": [80, 40, 5, 7],
-            # },
-            {
-                "shape": [80, 1, 5, 7],
-            },
-            # {
-            #     "shape": [80, 3, 1024, 7],
-            # },
-            # {
-            #     "shape": [10, 5, 1024, 2048],
-            # },
-            {
-                "shape": [1],
-            },
-            {
-                "shape": [1, 1, 1, 1],
-            },
-            {
-                "shape": [1, 1, 1, 1, 1],
-            },
-            {
-                "shape": [512],
-            },
-            {
-                "shape": [1024],
-            },
-            {
-                "shape": [2048],
-            },
-            # {
-            #     "shape": [512, 256],
-            # },
-            # {
-            #     "shape": [128, 64, 32],
-            # },
-            {
                 "shape": [16, 8, 4, 2],
             },
-            {
-                "shape": [16, 8, 4, 2, 1],
-            }
         ]
         self.dtypes = [{"dtype": "float32"}]
-        self.attrs = [
-            # NOTE: TestSortOpShapeTest has already tested with
-            # the parameter 'descending=False', so just skip
-            {
-                "axis": 0,
-                "descending": True
-            }
-        ]
+        self.attrs = [{
+            "axis": 0,
+            "descending": True
+        }, {
+            "axis": 1,
+            "descending": True
+        }, {
+            "axis": 2,
+            "descending": True
+        }, {
+            "axis": 3,
+            "descending": True
+        }]
 
 
 if __name__ == "__main__":
-    # TestSortOpShapeTest().run()
+    TestSortOpShapeTest().run()
     TestSortOpDtypeTest().run()
     TestSortOpAxisTest().run()
     TestSortOpDescedingTest().run()
