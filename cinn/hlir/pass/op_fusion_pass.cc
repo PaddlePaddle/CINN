@@ -122,8 +122,9 @@ class OpFusionPassHelper : public FusionHelperBase {
  private:
   void DoOpFusion() {
     for (auto consumer : nodes_) {
+      auto consumer_kind = GetOpKind(consumer);
       // kNonFusible op can't fuse any other op.
-      if (GetOpKind(consumer) == framework::kNonFusible) {
+      if (consumer_kind == framework::kNonFusible) {
         continue;
       }
 
@@ -147,11 +148,12 @@ class OpFusionPassHelper : public FusionHelperBase {
         }
 
         // kNonFusible op can't fuse any other op.
-        if (GetOpKind(producer) == framework::kNonFusible) {
+        auto producer_kind = GetOpKind(producer);
+        if (producer_kind == framework::kNonFusible) {
           continue;
         }
-        VLOG(3) << "Producer Op: " << producer->id() << ", Op Pattern: " << GetOpKind(producer)
-                << " -> Consumer Op: " << consumer->id() << ", Op Pattern: " << GetOpKind(consumer);
+        VLOG(3) << "Producer Op: " << producer->id() << ", Op Pattern: " << producer_kind
+                << " -> Consumer Op: " << consumer->id() << ", Op Pattern: " << consumer_kind;
         bool can_fuse = true;
         // checkout producer node outputs are all in fusion op
         for (auto& link : producer_data->outlinks()) {
@@ -173,11 +175,11 @@ class OpFusionPassHelper : public FusionHelperBase {
         consumer_fusion->nodes_set.insert(producer);
         consumer_fusion->input_nodes.erase(producer);
         consumer_fusion->op_pattern_kind =
-            static_cast<int>(consumer_fusion->op_pattern_kind) > static_cast<int>(GetOpKind(producer))
+            static_cast<int>(consumer_fusion->op_pattern_kind) > static_cast<int>(producer_kind)
                 ? consumer_fusion->op_pattern_kind
-                : GetOpKind(producer);
+                : producer_kind;
 
-        if (GetOpKind(producer) == framework::kReduction) {
+        if (producer_kind == framework::kReduction) {
           consumer_fusion->master_nodes.insert(producer);
         }
 
