@@ -16,8 +16,12 @@
 
 #include <string>
 
+#include "cinn/common/target.h"
+
 namespace cinn {
 namespace runtime {
+
+using common::Target;
 
 bool CheckStringFlagTrue(const std::string &flag);
 bool CheckStringFlagFalse(const std::string &flag);
@@ -36,6 +40,19 @@ class RandomSeed {
   RandomSeed &operator=(const RandomSeed &) = delete;
 
   static unsigned long long seed_;
+};
+
+class CurrentTarget {
+ public:
+  static Target &GetCurrentTarget();
+  static void SetCurrentTarget(const Target &target);
+
+ private:
+  CurrentTarget()                      = default;
+  CurrentTarget(const CurrentTarget &) = delete;
+  CurrentTarget &operator=(const CurrentTarget &) = delete;
+
+  static Target target_;
 };
 
 }  // namespace runtime

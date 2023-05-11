@@ -19,6 +19,8 @@
 
 #include <unordered_set>
 
+#include "cinn/common/target.h"
+
 #ifdef CINN_WITH_CUDNN
 DEFINE_bool(cinn_cudnn_deterministic,
             false,
@@ -172,6 +174,12 @@ unsigned long long RandomSeed::Clear() {
   seed_         = 0ULL;
   return old_seed;
 }
+
+Target CurrentTarget::target_ = common::DefaultTarget();
+
+void CurrentTarget::SetCurrentTarget(const Target& target) { target_ = target; }
+
+Target& CurrentTarget::GetCurrentTarget() { return target_; }
 
 }  // namespace runtime
 }  // namespace cinn

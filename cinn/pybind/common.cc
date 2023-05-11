@@ -20,6 +20,7 @@
 #include "cinn/ir/ir_operators.h"
 #include "cinn/pybind/bind.h"
 #include "cinn/pybind/bind_utils.h"
+#include "cinn/runtime/flags.h"
 #include "cinn/utils/string.h"
 
 namespace py = pybind11;
@@ -74,6 +75,9 @@ void BindTarget(py::module *m) {
   m->def("DefaultHostTarget", &common::DefaultHostTarget)
       .def("DefaultNVGPUTarget", &common::DefaultNVGPUTarget)
       .def("DefaultTarget", &common::DefaultTarget);
+
+  m->def("get_target", &cinn::runtime::CurrentTarget::GetCurrentTarget);
+  m->def("set_target", &cinn::runtime::CurrentTarget::SetCurrentTarget, py::arg("target"));
 
   py::enum_<Target::OS> os(target, "OS");
   os.value("Unk", Target::OS::Unk).value("Linux", Target::OS::Linux).value("Windows", Target::OS::Windows);
