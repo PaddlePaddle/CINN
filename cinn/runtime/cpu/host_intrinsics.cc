@@ -73,8 +73,9 @@ inline int cinn_host_next_smallest_int32(cinn_buffer_t* buf, int size, int num, 
   }
   if (id != -1) {
     reinterpret_cast<int*>(buf->memory)[id] = 2147483647;
+    return (id - begin) / stride;
   }
-  return (id - begin) / stride;
+  return -1;
 }
 
 #define CINN_HOST_LT_NUM(TYPE_SUFFIX, TYPE)                                                           \

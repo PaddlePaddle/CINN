@@ -531,8 +531,9 @@ __device__ inline int cinn_nvgpu_next_smallest_int32(int *buf, int size, int num
   }
   if (id != -1) {
     buf[id] = 2147483647;
+    return (id - begin) / stride;
   }
-  return (id - begin) / stride;
+  return -1;
 }
 
 #define __cinn_cuda_find_from_kernel(buf, size, num, begin) \
