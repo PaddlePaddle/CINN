@@ -31,6 +31,7 @@
 #include "cinn/ir/ir_base.h"
 #include "cinn/optim/ir_simplify.h"
 #include "cinn/poly/isl_utils.h"
+#include "cinn/utils/string.h"
 
 namespace cinn {
 namespace hlir {
@@ -462,7 +463,12 @@ void IRCudaScheduleBlockReduce(ir::IRSchedule &ir_sch,
     }
   }
 
-  if (tmp_out->shape.size() == 1) {
+  // Special handling when keepdim = True in reduce stage 1. When keepdim = True, shape size may not be equal to 1. But
+  // we still need to split the loops, otherwise there will be a problem of data read and write conflict.
+  int numel = std::accumulate(tmp_out->shape.begin(), tmp_out->shape.end(), 1, [](const int &num, const ir::Expr &e) {
+    return num * e.as_int32();
+  });
+  if (tmp_out->shape.size() == 1 || (numel == tmp_out->shape.back().as_int32())) {
     CHECK_EQ(out->shape[0], Expr(1));
 
     // block and root

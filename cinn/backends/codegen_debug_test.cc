@@ -60,9 +60,9 @@ TEST(CodeGenDebug, RunCudaSourceCode) {
   common::Context::Global().ResetNameId();
 
   std::string source_code = R"ROC(
-extern "C" {
 
 #include "cinn_cuda_runtime_source.cuh"
+extern "C" {
 
 #ifdef __CUDACC_RTC__
 typedef int int32_t;

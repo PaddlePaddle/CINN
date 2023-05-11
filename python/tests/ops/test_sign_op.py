@@ -14,24 +14,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
 import numpy as np
-from op_test import OpTest, OpTestTool
 import paddle
-import cinn
 from cinn.frontend import *
 from cinn.common import *
+from op_test import OpTest, OpTestTool
+from op_test_helper import TestCaseHelper
 
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
                     "x86 test will be skipped due to timeout.")
 class TestSignOp(OpTest):
     def setUp(self):
-        self.init_case()
+        print(f"\nRunning {self.__class__.__name__}: {self.case}")
+        self.inputs = {}
+        self.prepare_inputs()
 
-    def init_case(self):
+    def prepare_inputs(self):
         self.inputs = {
-            "x": np.random.uniform(-10, 10, (10, 10)).astype("float32")
+            "x": self.random(self.case["shape"], self.case["dtype"], -10, 10)
         }
 
     def build_paddle_program(self, target):
@@ -42,7 +43,9 @@ class TestSignOp(OpTest):
 
     def build_cinn_program(self, target):
         builder = NetBuilder("sign")
-        x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
+        x = builder.create_input(
+            self.nptype2cinntype(self.inputs["x"].dtype),
+            self.inputs["x"].shape, "x")
         out = builder.sign(x)
 
         prog = builder.build()
@@ -63,5 +66,81 @@ class TestSignOp1(TestSignOp):
         }
 
 
+class TestSignOpShape(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestSignOpShape"
+        self.cls = TestSignOp
+        self.inputs = [
+            {
+                "shape": [10],
+            },
+            {
+                "shape": [8, 5],
+            },
+            {
+                "shape": [10, 3, 5],
+            },
+            {
+                "shape": [80, 40, 5, 7],
+            },
+            {
+                "shape": [80, 1, 5, 7],
+            },
+            {
+                "shape": [80, 3, 1024, 7],
+            },
+            {
+                "shape": [10, 5, 1024, 2048],
+            },
+            {
+                "shape": [1],
+            },
+            {
+                "shape": [512],
+            },
+            {
+                "shape": [1024],
+            },
+            {
+                "shape": [2048],
+            },
+            {
+                "shape": [1, 1, 1, 1],
+            },
+        ]
+        self.dtypes = [
+            {
+                "dtype": "float32"
+            },
+        ]
+        self.attrs = []
+
+
+class TestSignOpDtype(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestSignOpDtype"
+        self.cls = TestSignOp
+        self.inputs = [
+            {
+                "shape": [1],
+            },
+            {
+                "shape": [5],
+            },
+            {
+                "shape": [80, 40, 5, 7],
+            },
+        ]
+        self.dtypes = [{
+            "dtype": "float16"
+        }, {
+            "dtype": "float32"
+        }, {
+            "dtype": "float64"
+        }]
+        self.attrs = []
+
+
 if __name__ == "__main__":
-    unittest.main()
+    TestSignOpShape().run()
+    TestSignOpDtype().run()
