@@ -19,11 +19,12 @@
 #ifdef CINN_WITH_CUDA
 
 #include <cuda_runtime.h>
-#include <direct.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 
-#include <ifstream>
+#include <fstream>
 #include <iostream>
-#include <ofstream>
 
 namespace cinn {
 namespace backends {
@@ -32,43 +33,43 @@ namespace nvrtc {
 std::string NvccCompiler::operator()(const std::string& cuda_c) {
   // read dir source
   std::string dir = "./source";
-  if (_access(dir.c_str(), 0) == -1) {
-    CHECK(mkdir(dir.c_str()) != -1) << "Fail to mkdir " << dir;
+  if (access(dir.c_str(), 0) == -1) {
+    CHECK(mkdir(dir.c_str(), 7) != -1) << "Fail to mkdir " << dir;
   }
 
   // get unqiue prefix name
-  auto prefix_name = dir + "/" + common::UniqName("rtc_tmp");
+  prefix_name_ = dir + "/" + common::UniqName("rtc_tmp");
 
-  auto cuda_c_file = prefix_name + ".cu";
+  auto cuda_c_file = prefix_name_ + ".cu";
   std::ofstream ofs(cuda_c_file, std::ios::out);
   CHECK(ofs.is_open()) << "Fail to open file " << cuda_c_file;
   ofs << cuda_c;
   ofs.close();
 
-  CompileToPtx(prefix_name);
-  CompileToCubin(prefix_name);
+  CompileToPtx();
+  CompileToCubin();
 
-  return ReadFile(prefix_name + ".cubin", std::ios::in | std::ios::binary);
+  return ReadFile(prefix_name_ + ".cubin", std::ios::in | std::ios::binary);
 }
 
-std::string GetPtx() { return ReadFile(prefix_name + ".ptx", std::ios::in); }
+std::string NvccCompiler::GetPtx() { return ReadFile(prefix_name_ + ".ptx", std::ios::in); }
 
-void NvccCompiler::CompileToPtx(const std::string& prefix_name) {
-  auto options = "export PATH=/usr/local/cuda/bin:$PATH && nvcc --ptx -O3";
-  options += " -arch=" + GetDeviceArch;
-  options += " -o " + prefix_name + ".ptx";
-  options += " " + prefix_name + ".cu";
+void NvccCompiler::CompileToPtx() {
+  std::string options = "export PATH=/usr/local/cuda/bin:$PATH && nvcc --ptx -O3";
+  options += " -arch=" + GetDeviceArch();
+  options += " -o " + prefix_name_ + ".ptx";
+  options += " " + prefix_name_ + ".cu";
 
-  CHECK(system(options) == 0) << options;
+  CHECK(system(options.c_str()) == 0) << options;
 }
 
-void NvccCompiler::CompileToCubin(const std::string& prefix_name) {
-  auto options = "export PATH=/usr/local/cuda/bin:$PATH && nvcc --cubin -O3";
-  options += " -arch=" + GetDeviceArch;
-  options += " -o " + prefix_name + ".cubin";
-  options += " " + prefix_name + ".ptx";
+void NvccCompiler::CompileToCubin() {
+  std::string options = "export PATH=/usr/local/cuda/bin:$PATH && nvcc --cubin -O3";
+  options += " -arch=" + GetDeviceArch();
+  options += " -o " + prefix_name_ + ".cubin";
+  options += " " + prefix_name_ + ".ptx";
 
-  CHECK(system(options) == 0) << options;
+  CHECK(system(options.c_str()) == 0) << options;
 }
 
 std::string NvccCompiler::GetDeviceArch() {
@@ -79,7 +80,7 @@ std::string NvccCompiler::GetDeviceArch() {
   } else {
     LOG(WARNING) << "cannot detect compute capability from your device, "
                  << "fall back to compute_30.";
-    return "sm_30"
+    return "sm_30";
   }
 }
 
@@ -92,10 +93,10 @@ std::string NvccCompiler::ReadFile(const std::string& file_name, std::ios_base::
   ifs.seekg(0);
 
   // read cubin file
-  std::string file_data(len,'');
-  ifs.read(&file_data.data(), len);
+  std::string file_data(len, ' ');
+  ifs.read(&file_data[0], len);
   ifs.close();
-  return file_data;
+  return std::move(file_data);
 }
 
 }  // namespace nvrtc

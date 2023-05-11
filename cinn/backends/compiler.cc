@@ -130,7 +130,7 @@ void Compiler::CompileCudaModule(const Module& module, const std::string& code) 
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty()) << "Compile PTX failed from source code:\n" << source_code;
   */
-  backends::nvrtc::NvccCompiler compiler;
+  nvrtc::NvccCompiler compiler;
 
   cuda_module_.reset(new CUDAModule(compiler(source_code), CUDAModule::Kind::CUBIN));
 

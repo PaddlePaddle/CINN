@@ -24,6 +24,7 @@
 #include "cinn/backends/compiler.h"
 #include "cinn/backends/llvm/codegen_x86.h"
 #include "cinn/backends/llvm/runtime_symbol_registry.h"
+#include "cinn/backends/nvrtc/nvcc_util.h"
 #include "cinn/backends/nvrtc/nvrtc_util.h"
 #include "cinn/common/context.h"
 #include "cinn/hlir/framework/pass.h"
@@ -176,7 +177,7 @@ void ParallelCompiler::Task::CodegenAndJit() {
 
     using runtime::cuda::CUDAModule;
     backends::nvrtc::NvccCompiler compiler;
-    cuda_module_.reset(new CUDAModule(compiler(source_code), CUDAModule::Kind::CUBIN));
+    cumodule.reset(new CUDAModule(compiler(cuda_c), CUDAModule::Kind::CUBIN));
 
     // save ptx
     graph->SavePTXCode(compiler.GetPtx());

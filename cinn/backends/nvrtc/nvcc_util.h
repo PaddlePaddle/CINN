@@ -13,6 +13,9 @@
 // limitations under the License.
 #pragma once
 
+#include <ios>
+#include <string>
+
 #ifdef CINN_WITH_CUDA
 
 namespace cinn {
@@ -27,11 +30,13 @@ class NvccCompiler {
   std::string GetPtx();
 
  private:
-  void CompileToPtx(const std::string&);
-  void CompileToCubin(const std::string&);
+  void CompileToPtx();
+  void CompileToCubin();
   std::string GetDeviceArch();
 
   std::string ReadFile(const std::string&, std::ios_base::openmode);
+
+  std::string prefix_name_{""};
 };
 
 }  // namespace nvrtc
