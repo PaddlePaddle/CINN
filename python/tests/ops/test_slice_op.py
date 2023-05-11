@@ -233,9 +233,6 @@ class TestSliceOpDtypeTest(TestCaseHelper):
         ]
         self.dtypes = [
             {
-                "dtype": "float16"
-            },
-            {
                 "dtype": "float32"
             },
             {

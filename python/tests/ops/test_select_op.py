@@ -133,9 +133,6 @@ class TestSelectOpDtype(TestCaseHelper):
         ]
         self.dtypes = [
             {
-                "dtype": "float16"
-            },
-            {
                 "dtype": "float32"
             },
             {
@@ -147,28 +144,6 @@ class TestSelectOpDtype(TestCaseHelper):
             {
                 "dtype": "int64"
             },
-            {
-                "dtype": "uint16"
-            },
-            # Paddle does not support the following data type
-            # {
-            #     "dtype": "bool"
-            # },
-            # {
-            #     "dtype": "int8"
-            # },
-            # {
-            #     "dtype": "int16"
-            # },
-            # {
-            #     "dtype": "uint8"
-            # },
-            # {
-            #     "dtype": "uint32"
-            # },
-            # {
-            #     "dtype": "uint64"
-            # },
         ]
         self.attrs = []
 

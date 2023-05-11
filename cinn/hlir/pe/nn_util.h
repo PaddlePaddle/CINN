@@ -36,6 +36,11 @@ std::vector<std::vector<std::vector<float>>> get_winograd_val(const int& tile_si
 
 std::vector<ir::Tensor> winograd_transform_matrices(const int& tile_size, const int& kernel_size);
 
+std::vector<int> GetFirstStepReduceShape(const std::vector<int>& shape,
+                                         const std::vector<int>& axes,
+                                         bool& inbound,
+                                         int& tail);
+
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn
