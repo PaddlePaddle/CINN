@@ -21,6 +21,7 @@
 #include "cinn/common/type.h"
 #include "cinn/hlir/op/op_util.h"
 #include "cinn/lang/compute.h"
+#include "cinn/runtime/flags.h"
 
 namespace cinn {
 namespace ir {
@@ -78,7 +79,7 @@ Expr operator|(Expr a, Expr b) {
       return Expr(int_a->value | int_b->value);
     }
   }
-  auto target = common::DefaultTarget();
+  auto target = cinn::runtime::CurrentTarget::GetCurrentTarget();
   if (target.arch == common::Target::Arch::X86) {
     return lang::CallExtern("bitwise_or", {a, b}, {{"vectorizable", false}});
   } else if (target.arch == common::Target::Arch::NVGPU) {
@@ -101,7 +102,7 @@ Expr operator&(Expr a, Expr b) {
       return Expr(int_a->value & int_b->value);
     }
   }
-  auto target = common::DefaultTarget();
+  auto target = cinn::runtime::CurrentTarget::GetCurrentTarget();
   if (target.arch == common::Target::Arch::X86) {
     return lang::CallExtern("bitwise_and", {a, b}, {{"vectorizable", false}});
   } else if (target.arch == common::Target::Arch::NVGPU) {
@@ -124,7 +125,7 @@ Expr operator^(Expr a, Expr b) {
       return Expr(int_a->value ^ int_b->value);
     }
   }
-  auto target = common::DefaultTarget();
+  auto target = cinn::runtime::CurrentTarget::GetCurrentTarget();
   if (target.arch == common::Target::Arch::X86) {
     return lang::CallExtern("bitwise_xor", {a, b}, {{"vectorizable", false}});
   } else if (target.arch == common::Target::Arch::NVGPU) {
@@ -137,7 +138,7 @@ Expr operator^(Expr a, Expr b) {
 
 Expr operator~(Expr a) {
   CHECK(a.type().is_int() || a.type().is_uint());
-  auto target = common::DefaultTarget();
+  auto target = cinn::runtime::CurrentTarget::GetCurrentTarget();
   if (target.arch == common::Target::Arch::X86) {
     return lang::CallExtern("bitwise_not", {a}, {{"vectorizable", false}});
   } else if (target.arch == common::Target::Arch::NVGPU) {
