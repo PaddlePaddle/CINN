@@ -51,6 +51,13 @@ CONDITION_FUNC(without_last_dimension_in_reduce) {
   return helper->WithoutLastDimInReduce(in_shape, reduce_axes);
 }
 
+inline bool ReduceSplitCanFuse(const Node* producer, const Node* reducer) {
+  if (utils::Startswith(producer->id(), "reduce_split") && utils::Startswith(reducer->id(), "reduce_split")) {
+    return true;
+  }
+  return false;
+}
+
 CONDITION_FUNC(reduce_fuse_reduce) {
   Node* reducer = NULL;
   for (auto* master : consumer->master_nodes) {
@@ -59,6 +66,11 @@ CONDITION_FUNC(reduce_fuse_reduce) {
       break;
     }
   }
+
+  if (ReduceSplitCanFuse(producer, reducer)) {
+    return true;
+  }
+
   // check reduce has same input shape and output shape
   auto producer_input_shape  = helper->shape_dict_.at(producer->inlinks_in_order()[0]->source()->id());
   auto producer_output_shape = helper->shape_dict_.at(producer->outlinks_in_order()[0]->sink()->id());
