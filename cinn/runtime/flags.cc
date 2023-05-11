@@ -177,7 +177,13 @@ unsigned long long RandomSeed::Clear() {
 
 Target CurrentTarget::target_ = common::DefaultTarget();
 
-void CurrentTarget::SetCurrentTarget(const Target& target) { target_ = target; }
+void CurrentTarget::SetCurrentTarget(const Target& target) {
+  if (!IsCompiledWithCUDA() && target.arch == common::Target::Arch::NVGPU) {
+    LOG(FATAL) << "Current CINN version does not support NVGPU, please try to recompile with -DWITH_CUDA.";
+  } else {
+    target_ = target;
+  }
+}
 
 Target& CurrentTarget::GetCurrentTarget() { return target_; }
 

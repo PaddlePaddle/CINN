@@ -52,6 +52,14 @@ class CurrentTarget {
   CurrentTarget(const CurrentTarget &) = delete;
   CurrentTarget &operator=(const CurrentTarget &) = delete;
 
+  static bool IsCompiledWithCUDA() {
+#ifdef CINN_WITH_CUDA
+    return true;
+#else
+    return false;
+#endif
+  }
+
   static Target target_;
 };
 
