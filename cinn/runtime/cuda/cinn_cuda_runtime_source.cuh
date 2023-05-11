@@ -298,7 +298,7 @@ __device__ inline float cinn_min_fp32(const float left, const float right) { ret
 
 #ifdef CINN_CUDA_BF16
 
-#define EXPAND_REDUCE_BFP16_MACRO(MACRO, ...)                                           \
+#define EXPAND_REDUCE_BF16_MACRO(MACRO, ...)                                           \
   MACRO(sum_bf16, bfloat16(0.0), bfloat16, ##__VA_ARGS__)                                \
   MACRO(prod_bf16, bfloat16(1.0), bfloat16, ##__VA_ARGS__)                               \
   MACRO(max_bf16, cinn::common::raw_uint16_to_bfloat16(0xfbff), bfloat16, ##__VA_ARGS__) \

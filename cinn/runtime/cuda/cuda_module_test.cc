@@ -126,7 +126,7 @@ TEST(CUDAModule, bfloat16) {
   using cinn::common::bfloat16;
 
   extern "C" __global__
-  void cast_fp32_to_bf16_cuda_kernel(const bfloat* input, const int num, bfloat16* output) {
+  void cast_fp32_to_bf16_cuda_kernel(const float* input, const int num, bfloat16* output) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
    if (idx < num) {
       output[idx] = bfloat16(input[idx]);

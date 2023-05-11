@@ -365,4 +365,43 @@ __host__ __device__ inline bfloat16(abs)(const bfloat16& a) {
 }  // namespace cinn
 #endif  // __cplusplus
 
+#if defined(__cplusplus) && defined(CINN_CUDA_BF16)
+__device__ inline cinn::common::bfloat16 __shfl_sync(unsigned mask,
+                                                     cinn::common::bfloat16 var,
+                                                     int srcLane,
+                                                     int width = warpSize) {
+  return cinn::common::bfloat16(__shfl_sync(mask, var.to_nv_bfloat16(), srcLane, width));
+}
+
+__device__ inline cinn::common::bfloat16 __shfl_up_sync(unsigned mask,
+                                                        cinn::common::bfloat16 var,
+                                                        unsigned int delta,
+                                                        int width = warpSize) {
+  return cinn::common::bfloat16(__shfl_up_sync(mask, var.to_nv_bfloat16(), delta, width));
+}
+
+__device__ inline cinn::common::bfloat16 __shfl_down_sync(unsigned mask,
+                                                          cinn::common::bfloat16 var,
+                                                          unsigned int delta,
+                                                          int width = warpSize) {
+  return cinn::common::bfloat16(__shfl_down_sync(mask, var.to_nv_bfloat16(), delta, width));
+}
+
+__device__ inline cinn::common::bfloat16 __shfl_xor_sync(unsigned mask,
+                                                         cinn::common::bfloat16 var,
+                                                         int laneMask,
+                                                         int width = warpSize) {
+  return cinn::common::bfloat16(__shfl_xor_sync(mask, var.to_nv_bfloat16(), laneMask, width));
+}
+
+__host__ __device__ inline cinn::common::bfloat16 max(const cinn::common::bfloat16& a,
+                                                      const cinn::common::bfloat16& b) {
+  return a > b ? a : b;
+}
+__host__ __device__ inline cinn::common::bfloat16 min(const cinn::common::bfloat16& a,
+                                                      const cinn::common::bfloat16& b) {
+  return a < b ? a : b;
+}
+#endif  // __cplusplus && CINN_CUDA_FP16
+
 #endif  // CINN_COMMON_BFLOAT16_H
