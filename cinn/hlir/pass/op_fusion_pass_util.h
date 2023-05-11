@@ -52,8 +52,12 @@ CONDITION_FUNC(without_last_dimension_in_reduce) {
 }
 
 inline bool ReduceSplitCanFuse(const Node* producer, const Node* reducer) {
-  if (utils::Startswith(producer->id(), "reduce_split") && utils::Startswith(reducer->id(), "reduce_split")) {
-    return true;
+  static std::unordered_set<std::string> reduce_op_type = {
+      "reduce_sum", "reduce_mean", "reduce_max", "reduce_min", "reduce_all", "reduce_any"};
+  for (const std::string& op_type : reduce_op_type) {
+    if (utils::Startswith(producer->id(), op_type + "_split") && utils::Startswith(reducer->id(), op_type + "_split")) {
+      return true;
+    }
   }
   return false;
 }
