@@ -14,15 +14,16 @@
 
 #include "cinn/backends/nvrtc/nvcc_util.h"
 
+#include "cinn/common/common.h"
+
+#ifdef CINN_WITH_CUDA
+
+#include <cuda_runtime.h>
 #include <direct.h>
 
 #include <ifstream>
 #include <iostream>
 #include <ofstream>
-
-#include "cinn/common/common.h"
-
-#ifdef CINN_WITH_CUDA
 
 namespace cinn {
 namespace backends {
@@ -36,7 +37,7 @@ std::string NvccCompiler::operator()(const std::string& cuda_c) {
   }
 
   // get unqiue prefix name
-  auto prefix_name = dir + common::UniqName("cuda_c");
+  auto prefix_name = dir + "/" + common::UniqName("rtc_tmp");
 
   auto cuda_c_file = prefix_name + ".cu";
   std::ofstream ofs(cuda_c_file, std::ios::out);
@@ -47,20 +48,10 @@ std::string NvccCompiler::operator()(const std::string& cuda_c) {
   CompileToPtx(prefix_name);
   CompileToCubin(prefix_name);
 
-  // open cubin file
-  auto cuda_cubin_file = prefix_name + ".cubin";
-  std::ifstream ifs(cuda_cubin_file, std::ios::in | std::ios::binary);
-  CHECK(ifs.is_open()) << "Fail to open file " << cuda_cubin_file;
-  ifs.seekg(std::ios::end);
-  auto len = ifs.tellg();
-  ifs.seekg(0);
-
-  // read cubin file
-  std::string cubin(len,'');
-  ifs.read(&ubin.data(), len);
-  ifs.close();
-  return cubin;
+  return ReadFile(prefix_name + ".cubin", std::ios::in | std::ios::binary);
 }
+
+std::string GetPtx() { return ReadFile(prefix_name + ".ptx", std::ios::in); }
 
 void NvccCompiler::CompileToPtx(const std::string& prefix_name) {
   auto options = "export PATH=/usr/local/cuda/bin:$PATH && nvcc --ptx -O3";
@@ -84,12 +75,27 @@ std::string NvccCompiler::GetDeviceArch() {
   int major = 0, minor = 0;
   if (cudaDeviceGetAttribute(&major, cudaDevAttrComputeCapabilityMajor, 0) == cudaSuccess &&
       cudaDeviceGetAttribute(&minor, cudaDevAttrComputeCapabilityMinor, 0) == cudaSuccess) {
-    return "sm" + std::to_string(major) + std::to_string(minor);
+    return "sm_" + std::to_string(major) + std::to_string(minor);
   } else {
     LOG(WARNING) << "cannot detect compute capability from your device, "
                  << "fall back to compute_30.";
     return "sm_30"
   }
+}
+
+std::string NvccCompiler::ReadFile(const std::string& file_name, std::ios_base::openmode mode) {
+  // open cubin file
+  std::ifstream ifs(file_name, mode);
+  CHECK(ifs.is_open()) << "Fail to open file " << file_name;
+  ifs.seekg(std::ios::end);
+  auto len = ifs.tellg();
+  ifs.seekg(0);
+
+  // read cubin file
+  std::string file_data(len,'');
+  ifs.read(&file_data.data(), len);
+  ifs.close();
+  return file_data;
 }
 
 }  // namespace nvrtc

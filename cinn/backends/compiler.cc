@@ -22,6 +22,7 @@
 #include "cinn/backends/codegen_cuda_dev.h"
 #include "cinn/backends/codegen_cuda_host.h"
 #include "cinn/backends/codegen_cuda_util.h"
+#include "cinn/backends/nvrtc/nvcc_util.h"
 #include "cinn/backends/nvrtc/nvrtc_util.h"
 #include "cinn/runtime/cuda/cuda_module.h"
 #include "cinn/runtime/cuda/cuda_util.h"
@@ -123,13 +124,15 @@ void Compiler::CompileCudaModule(const Module& module, const std::string& code) 
   SourceCodePrint::GetInstance()->write(source_code);
   using runtime::cuda::CUDAModule;
 
+  /*
   backends::nvrtc::Compiler compiler;
 
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty()) << "Compile PTX failed from source code:\n" << source_code;
+  */
+  backends::nvrtc::NvccCompiler compiler;
 
-  cuda_module_.reset(
-      new CUDAModule(ptx, compiler.compile_to_cubin() ? CUDAModule::Kind::CUBIN : CUDAModule::Kind::PTX));
+  cuda_module_.reset(new CUDAModule(compiler(source_code), CUDAModule::Kind::CUBIN));
 
   RuntimeSymbols symbols;
 

@@ -24,11 +24,14 @@ class NvccCompiler {
   NvccCompiler(){};
   ~NvccCompiler(){};
   std::string operator()(const std::string&);
+  std::string GetPtx();
 
  private:
   void CompileToPtx(const std::string&);
   void CompileToCubin(const std::string&);
   std::string GetDeviceArch();
+
+  std::string ReadFile(const std::string&, std::ios_base::openmode);
 };
 
 }  // namespace nvrtc

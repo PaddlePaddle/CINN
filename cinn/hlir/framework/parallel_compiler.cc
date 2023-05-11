@@ -175,13 +175,11 @@ void ParallelCompiler::Task::CodegenAndJit() {
     graph->SaveSourceCode(cuda_c);
 
     using runtime::cuda::CUDAModule;
-    backends::nvrtc::Compiler compiler;
-    auto ptx = compiler(cuda_c);
-    CHECK(!ptx.empty()) << "Compile PTX failed from source code:\n" << cuda_c;
-    graph->SavePTXCode(ptx);
+    backends::nvrtc::NvccCompiler compiler;
+    cuda_module_.reset(new CUDAModule(compiler(source_code), CUDAModule::Kind::CUBIN));
 
-    // load cumodule
-    cumodule.reset(new CUDAModule(ptx, compiler.compile_to_cubin() ? CUDAModule::Kind::CUBIN : CUDAModule::Kind::PTX));
+    // save ptx
+    graph->SavePTXCode(compiler.GetPtx());
     // register kernel
     backends::RuntimeSymbols symbols;
     for (auto& fn : dmodule.functions()) {
