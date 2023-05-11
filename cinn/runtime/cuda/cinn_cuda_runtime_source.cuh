@@ -525,6 +525,19 @@ __device__ inline int cinn_cuda_find_float_nd(const float *buf, int size, float 
 
 #undef __cinn_cuda_find_kernel
 
+__device__ inline int cinn_nvgpu_next_smallest_int32(int *buf, int size, int num, int begin, int stride) {
+  int id = -1;
+  for (int i = begin; i < begin + size * stride; i += stride) {
+    if (id == -1 || buf[i] < buf[id]) {
+      id = i;
+    }
+  }
+  if (id != -1) {
+    buf[id] = 2147483647;
+  }
+  return (id - begin) / stride;
+}
+
 #define __cinn_cuda_find_from_kernel(buf, size, num, begin) \
   do {                                                      \
     for (int i = begin; i < size; ++i) {                    \

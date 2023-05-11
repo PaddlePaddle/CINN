@@ -18,7 +18,8 @@ import itertools
 import unittest
 import re
 
-from typing import Union, List, Type
+from unittest import suite
+from typing import Union, List
 
 parser = argparse.ArgumentParser(description="Argparse for op test helper")
 parser.add_argument(
@@ -108,8 +109,14 @@ class TestCaseHelper():
             sys.exit(not res.wasSuccessful())
 
 
-def run_test(test_class: Union[int, List[Type]]):
-    test_suite = unittest.TestLoader().loadTestsFromTestCase(test_class)
+def run_test(test_class: Union[suite.TestSuite, List[suite.TestSuite]]):
+    test_suite = unittest.TestSuite()
+    test_loader = unittest.TestLoader()
+    if isinstance(test_class, type):
+        test_suite.addTests(test_loader.loadTestsFromTestCase(test_class))
+    else:
+        for cls in test_class:
+            test_suite.addTests(test_loader.loadTestsFromTestCase(cls))
     runner = unittest.TextTestRunner()
     res = runner.run(test_suite)
     if not res.wasSuccessful():
