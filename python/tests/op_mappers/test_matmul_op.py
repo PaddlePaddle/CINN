@@ -31,11 +31,11 @@ class TestMatmulOp(OpMapperTest):
         return "matmul"
 
     def set_op_inputs(self):
-        x = paddle.static.data('X', self.feed_data["X"].shape,
+        X = paddle.static.data('X', self.feed_data["X"].shape,
                                self.feed_data["X"].dtype)
-        x = paddle.static.data('Y', self.feed_data["Y"].shape,
+        Y = paddle.static.data('Y', self.feed_data["Y"].shape,
                                self.feed_data["Y"].dtype)
-        return {'X': [x], 'Y': [y]}
+        return {'X': [X], 'Y': [Y]}
 
     def set_op_attrs(self):
         return {"trans_x": False, "trans_y": False}
