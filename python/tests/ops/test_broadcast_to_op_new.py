@@ -76,18 +76,18 @@ class TestBroadcastToAllOne(TestCaseHelper):
             },
             {
                 "x_shape": [4, 5, 3],
-                "d_shape": [4, 5, 3],
-                "broadcast_axes": [0, 1, 2],
+                "d_shape": [6, 4, 5, 3],
+                "broadcast_axes": [1, 2, 3],
             },
             {
                 "x_shape": [5, 4, 3, 2],
-                "d_shape": [5, 2, 3, 4],
-                "broadcast_axes": [0, 2],
+                "d_shape": [6, 5, 4, 3, 2],
+                "broadcast_axes": [1, 2],
             },
             {
                 "x_shape": [16, 8, 4, 2, 1],
-                "d_shape": [16, 1, 3, 2, 5],
-                "broadcast_axes": [0, 3],
+                "d_shape": [32, 16, 8, 4, 2, 1],
+                "broadcast_axes": [2, 3, 4],
             },
         ]
         self.dtypes = [
@@ -177,15 +177,15 @@ class TestBroadcastToOpNoAxesAllOne(TestCaseHelper):
             },
             {
                 "x_shape": [64, 32, 16],
-                "d_shape": [64, 32, 16, 3],
+                "d_shape": [128, 64, 32, 16],
             },
             {
                 "x_shape": [64, 32, 16, 8],
-                "d_shape": [64, 32, 16, 8, 4],
+                "d_shape": [128, 64, 32, 16, 8],
             },
             #{
             #    "x_shape": [128, 64, 32, 16, 8],
-            #    "d_shape": [128, 64, 32, 16, 8, 5],
+            #    "d_shape": [256, 128, 64, 32, 16, 8],
             #},
         ]
         self.dtypes = [
