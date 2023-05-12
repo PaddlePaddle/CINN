@@ -617,10 +617,6 @@ class FusionMergePassHelper : public FusionHelperBase {
 
   void RecomputeWithCostModel(const GroupPtr& producer,
                               std::unordered_set<GroupPtr, Hasher, Comparator>& fusionable_consumers) {
-    if (producer->op_pattern_kind == framework::kReduction) {
-      CHECK_EQ(fusionable_consumers.size(), 1) << "Find more than one consumer can fuse to " << producer->group_id;
-    }
-
     // if is const op
     if (is_const_group(this, producer)) {
       std::unordered_set<GroupPtr, Hasher, Comparator> candidates;
@@ -818,14 +814,23 @@ class FusionMergePassHelper : public FusionHelperBase {
       auto& consumers = input_consumers.second;
       std::unordered_set<GroupPtr, Hasher, Comparator> updated_consumers;
       for (auto& consumer : consumers) {
-        // if group is sub group
-        if (consumer->belong_groups.size()) {
-          // inset belong group to consumers.
-          for (auto& belong_group : consumer->belong_groups) {
-            updated_consumers.insert(belong_group);
+        std::queue<GroupPtr> fused_groups;
+        fused_groups.push(consumer);
+        while (!fused_groups.empty()) {
+          auto& cur = fused_groups.front();
+          fused_groups.pop();
+          // if group is sub group
+          if (cur->belong_groups.empty()) {
+            updated_consumers.insert(cur);
+          } else {
+            for (auto& belong_group : cur->belong_groups) {
+              if (belong_group->group_id == cur->group_id) {
+                updated_consumers.insert(belong_group);
+              } else {
+                fused_groups.push(belong_group);
+              }
+            }
           }
-        } else {
-          updated_consumers.insert(consumer);
         }
       }
       consumers = updated_consumers;
@@ -976,7 +981,7 @@ class FusionMergePassHelper : public FusionHelperBase {
       relation.vertical_relation = {// reduce and elementwise can be horizontal/vertical relation.
                                     {OpPatternKind::kElementWise, reduce_fuse_elementwise},
                                     // reduce and broadcast op must be horizontal relation.
-                                    {OpPatternKind::kBroadcast, is_same_size},
+                                    {OpPatternKind::kBroadcast, reduce_fuse_broadcast},
                                     // reduce and injective op must be horizontal relation.
                                     {OpPatternKind::kInjective, horizontal_with_injective},
                                     // reduce and reduce must be horizontal relation.
