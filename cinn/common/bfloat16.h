@@ -365,6 +365,7 @@ __host__ __device__ inline bfloat16(abs)(const bfloat16& a) {
 }  // namespace cinn
 #endif  // __cplusplus
 
+// for runtime calls
 #if defined(__cplusplus) && defined(CINN_CUDA_BF16)
 __device__ inline cinn::common::bfloat16 __shfl_sync(unsigned mask,
                                                      cinn::common::bfloat16 var,
