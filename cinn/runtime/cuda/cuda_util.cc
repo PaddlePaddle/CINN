@@ -131,6 +131,9 @@ void cinn_call_cublas(void *v_args,
   cinn_pod_value_t *args   = static_cast<cinn_pod_value_t *>(v_args);
   cudaStream_t custream    = static_cast<cudaStream_t>(stream);
   CUBLAS_CALL(cublasSetStream(cuhandle, custream));
+  VLOG(3) << "a1 ~ a4: " << a1 << " " << a2 << " " << a3 << " " << a4;
+  VLOG(3) << "b1 ~ b4: " << b1 << " " << b2 << " " << b3 << " " << b4;
+  VLOG(3) << "trans_a: " << trans_a << ", trans_b: " << trans_b << ", trans_o: " << trans_o;
 
   void *A = args[0].operator cinn_buffer_t *()->memory;
   void *B = args[1].operator cinn_buffer_t *()->memory;
@@ -167,32 +170,42 @@ void cinn_call_cublas(void *v_args,
   }
 
   if (a1 * a2 * b1 * b2 == 1) {
+    VLOG(3) << "call cublasGemm for a1 * a2 * b1 * b2 == 1";
     CUBLAS_CALL(
         cublasGemm(cuda_dtype, cuhandle, trans_op_l, trans_op_r, m, n, k, alpha, lhs, ldl, rhs, ldr, beta, C, ldc));
   } else if (a1 * b1 == 1) {
     CHECK(a2 == b2 || a2 == 1 || b2 == 1);
-    int stride_l = trans_o ? (a2 > 1 ? a3 * a4 : 0) : (b2 > 1 ? b3 * b4 : 0);
-    int stride_r = trans_o ? (b2 > 1 ? b3 * b4 : 0) : (a2 > 1 ? a3 * a4 : 0);
-    int batch    = std::max(a2, b2);
-    CUBLAS_CALL(cublasGemmStridedBatched(cuda_dtype,
-                                         cuhandle,
-                                         trans_op_l,
-                                         trans_op_r,
-                                         m,
-                                         n,
-                                         k,
-                                         alpha,
-                                         lhs,
-                                         ldl,
-                                         stride_l,
-                                         rhs,
-                                         ldr,
-                                         stride_r,
-                                         beta,
-                                         C,
-                                         ldc,
-                                         m * n,
-                                         batch));
+    if (b2 == 1 && trans_op_r == CUBLAS_OP_N) {
+      // In case of [1, bs, M, K] * [1, 1, K, N]
+      VLOG(3) << "call cublasGemm for a1 * b1 = 1, b2 = 1, trans_op_r:" << trans_op_r;
+      CUBLAS_CALL(cublasGemm(
+          cuda_dtype, cuhandle, trans_op_l, trans_op_r, m, a2 * n, k, alpha, lhs, ldl, A, ldr, beta, C, ldc));
+    } else {
+      int stride_l = trans_o ? (a2 > 1 ? a3 * a4 : 0) : (b2 > 1 ? b3 * b4 : 0);
+      int stride_r = trans_o ? (b2 > 1 ? b3 * b4 : 0) : (a2 > 1 ? a3 * a4 : 0);
+      int batch    = std::max(a2, b2);
+      VLOG(3) << "call cublasGemmStridedBatched with a1*b1 = 1, stride_l = " << stride_l << ", stride_r = " << stride_r
+              << ", batch = " << batch;
+      CUBLAS_CALL(cublasGemmStridedBatched(cuda_dtype,
+                                           cuhandle,
+                                           trans_op_l,
+                                           trans_op_r,
+                                           m,
+                                           n,
+                                           k,
+                                           alpha,
+                                           lhs,
+                                           ldl,
+                                           stride_l,
+                                           rhs,
+                                           ldr,
+                                           stride_r,
+                                           beta,
+                                           C,
+                                           ldc,
+                                           m * n,
+                                           batch));
+    }
   } else {
     int l1 = trans_o ? a1 : b1, l2 = trans_o ? a2 : b2, l3 = trans_o ? a3 : b3, l4 = trans_o ? a4 : b4;
     int r1 = trans_o ? b1 : a1, r2 = trans_o ? b2 : a2, r3 = trans_o ? b3 : a3, r4 = trans_o ? b4 : a4;
@@ -204,6 +217,8 @@ void cinn_call_cublas(void *v_args,
       // four types matmul:
       // (N, L) * (N, L) , (N, 1) * (N, 1)
       // (N, L) * (1, 1) , (1, 1) * (N, L)
+      VLOG(3) << "call cublasGemmStridedBatched for stride_l = " << stride_l << ", stride_r = " << stride_r
+              << ", batch = " << std::max(l1, r1) * std::max(l2, r2);
       CUBLAS_CALL(cublasGemmStridedBatched(cuda_dtype,
                                            cuhandle,
                                            trans_op_l,

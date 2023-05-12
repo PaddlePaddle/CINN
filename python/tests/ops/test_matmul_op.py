@@ -56,8 +56,9 @@ class TestMatmulOp(OpTest):
 
     def build_cinn_program(self, target):
         builder = NetBuilder("matmul")
-        x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
-        y = builder.create_input(Float(32), self.inputs["y"].shape, "y")
+        dtype = self.nptype2cinntype(self.inputs["x"].dtype)
+        x = builder.create_input(dtype, self.inputs["x"].shape, "x")
+        y = builder.create_input(dtype, self.inputs["y"].shape, "y")
         out = self.cinn_func(builder, x, y)
 
         prog = builder.build()
@@ -145,8 +146,8 @@ class TestMatmulCase7(TestMatmulOp):
 class TestMatmulCase8(TestMatmulOp):
     def init_case(self):
         self.inputs = {
-            "x": np.random.random([8, 16, 4]).astype("float32"),
-            "y": np.random.random([1, 4, 16]).astype("float32")
+            "x": np.random.random([8, 16, 4]).astype("float16"),
+            "y": np.random.random([1, 4, 16]).astype("float16")
         }
         self.transpose_x = False
         self.transpose_y = False
@@ -165,8 +166,8 @@ class TestMatmulCase9(TestMatmulOp):
 class TestMatmulCase10(TestMatmulOp):
     def init_case(self):
         self.inputs = {
-            "x": np.random.random([8, 16, 4]).astype("float32"),
-            "y": np.random.random([4, 16]).astype("float32")
+            "x": np.random.random([8, 16, 4]).astype("float16"),
+            "y": np.random.random([4, 16]).astype("float16")
         }
         self.transpose_x = False
         self.transpose_y = False
