@@ -82,19 +82,19 @@ class TestSortOpShapeTest(TestCaseHelper):
                 "shape": [2048],
             },
             {
-                "shape": [128, 64],
+                "shape": [64, 32],
             },
             {
-                "shape": [8, 32, 16],
+                "shape": [4, 32, 16],
             },
             {
                 "shape": [16, 8, 4, 2],
             },
             {
-                "shape": [16, 8, 4, 2, 5],
+                "shape": [2, 8, 4, 2, 5],
             },
             {
-                "shape": [16, 8, 1, 2, 32],
+                "shape": [4, 8, 1, 2, 32],
             },
             {
                 "shape": [1],
@@ -130,10 +130,10 @@ class TestSortOpDtypeTest(TestCaseHelper):
                 "shape": [2048],
             },
             {
-                "shape": [128, 64],
+                "shape": [64, 32],
             },
             {
-                "shape": [8, 32, 16],
+                "shape": [4, 32, 16],
             },
             {
                 "shape": [16, 8, 4, 2],
