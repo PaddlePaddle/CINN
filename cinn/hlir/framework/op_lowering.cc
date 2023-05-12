@@ -1216,6 +1216,7 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
 
   // do schedule
   for (auto node : nodes_in_order) {
+    const auto& output_id = GetNodeData(node)->id();
     // consumers.
     auto consumers      = GetConsumersInSet(node, nodes_set);
     const Node* reducer = greducer ? FindNearestReducer(node, nodes_set) : greducer;
@@ -1228,7 +1229,7 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
 
     // node can be inline.
     if (CanbeInline(node, consumers, reducer, nodes_in_order.front(), group, nodes_set, this->shape_dict_)) {
-      auto block = ir_sch.GetBlock(GetNodeData(node)->id());
+      auto block = ir_sch.GetBlock(output_id);
       ir::ComputeInlineChecker checker(ir_sch, block);
       if (!checker.Check()) {
         checker.BuildDataDependency();
@@ -1237,7 +1238,7 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
 
       // if exist global reduce node.
       if (greducer) {
-        auto loops = ir_sch.GetLoops(GetNodeData(node)->id());
+        auto loops = ir_sch.GetLoops(output_id);
         if (op_pattern_dict[node->op()] == framework::kElementWise) {
           ir_sch.FlattenLoops(loops, true);
         } else {
@@ -1257,7 +1258,7 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
       LoopAssignReduce(ir_sch, node, reducer, this->target_, tensor_map, this->shape_dict_);
     } else if (greducer) {
       // if node is horizontal with reduce or node is reduce, loop assign master.
-      auto loops = ir_sch.GetLoops(GetNodeData(node)->id());
+      auto loops = ir_sch.GetLoops(output_id);
       if (op_pattern_dict[node->op()] == framework::kElementWise) {
         ir_sch.FlattenLoops(loops, true);
       } else if (op_pattern_dict[node->op()] != framework::kReduction) {
@@ -1270,7 +1271,11 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
         for (auto loop : master_loops) {
           splits.push_back(loop.As<ir::For>()->extent.as_int32());
         }
-        loops = ir_sch.GetLoops(GetNodeData(node)->id());
+        CHECK(!splits.empty()) << "Cannot Split a loop at " << output_id << " with an empty factors.";
+        if (splits.size() == 1) {
+          splits = {-1, splits[0]};
+        }
+        loops = ir_sch.GetLoops(output_id);
         ir_sch.Split(loops[0], splits);
       }
     }
