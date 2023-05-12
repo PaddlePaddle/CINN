@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import sys
 import argparse
 import itertools
 import unittest
@@ -100,4 +101,6 @@ class TestCaseHelper():
         for x in self.all_classes:
             test_suite.addTests(test_loader.loadTestsFromTestCase(x))
         runner = unittest.TextTestRunner()
-        runner.run(test_suite)
+        res = runner.run(test_suite)
+        if not res.wasSuccessful():
+            sys.exit(not res.wasSuccessful())

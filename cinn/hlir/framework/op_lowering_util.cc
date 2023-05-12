@@ -14,6 +14,7 @@
 
 #include "cinn/hlir/framework/op_lowering_util.h"
 #ifdef CINN_WITH_CUDA
+#include "cinn/common/bfloat16.h"
 #include "cinn/common/float16.h"
 #endif
 #include <queue>
@@ -45,7 +46,9 @@ ir::Tensor GetTensor(const NodeData* node_data,
     return lang::Placeholder<float>(node_data->id(), shape_dict.at(node_data->id()));
   } else if (dtype.is_float(64)) {
     return lang::Placeholder<double>(node_data->id(), shape_dict.at(node_data->id()));
-  } else if (dtype.is_float(16)) {
+  } else if (dtype.is_bfloat16()) {
+    return lang::Placeholder<common::bfloat16>(node_data->id(), shape_dict.at(node_data->id()));
+  } else if (dtype.is_float16()) {
     return lang::Placeholder<common::float16>(node_data->id(), shape_dict.at(node_data->id()));
   } else if (dtype.is_bool()) {
     return lang::Placeholder<bool>(node_data->id(), shape_dict.at(node_data->id()));

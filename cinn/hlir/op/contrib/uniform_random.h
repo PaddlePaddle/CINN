@@ -1,4 +1,4 @@
-// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+// Copyright (c) 2022 CINN Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,12 +13,25 @@
 // limitations under the License.
 
 #pragma once
-#include "cinn/backends/extern_func_jit_register.h"
 
-#ifdef CINN_WITH_CUDA
-CINN_USE_REGISTER(cinn_cuda_host_api)
-CINN_USE_REGISTER(cuda_intrinsics)
-CINN_USE_REGISTER(cuda_intrinsics_reduce)
-CINN_USE_REGISTER(cuda_intrinsics_bfloat16)
-CINN_USE_REGISTER(cuda_intrinsics_float16)
-#endif
+#include <string>
+#include <vector>
+
+#include "cinn/ir/ir.h"
+#include "cinn/ir/ir_base.h"
+#include "cinn/ir/tensor.h"
+
+namespace cinn {
+namespace hlir {
+namespace op {
+
+// Only for min = 0. and max = 1.
+ir::Tensor UniformRandom(const std::vector<int>& shape,
+                         int seed,
+                         const std::string& dtype,
+                         const Target& target,
+                         const std::string& tensor_name);
+
+}  // namespace op
+}  // namespace hlir
+}  // namespace cinn

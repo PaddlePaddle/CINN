@@ -85,12 +85,12 @@ struct ReturnType {
  *
  * TODO(Superjomn) Add a registry (symbol table?) to make return result inference automatically.
  *
- * @param target The name of the function to call.
+ * @param func_name The name of the function to call.
  * @param args The readonly arguments(while the mutable tensors are return result).
  * @param return_types The types of the return values.
  * @return Return one or more tensors as result.
  */
-std::vector<ir::Tensor> CallLowered(const std::string &target,
+std::vector<ir::Tensor> CallLowered(const std::string &func_name,
                                     const std::vector<Expr> &args,
                                     const std::vector<ReturnType> &return_types);
 
@@ -120,11 +120,11 @@ std::vector<ir::Tensor> CallLowered(const std::string &target,
  * }
  * \endcode
  *
- * @param target The name of the function to call.
+ * @param func_name The name of the function to call.
  * @param args The readonly arguments(while there should be only one tensor as result).
  * @param attrs The readonly attrs.
  */
-Expr CallExtern(const std::string &target,
+Expr CallExtern(const std::string &func_name,
                 const std::vector<Expr> &args,
                 const std::map<std::string, attr_t> &attrs = {});
 

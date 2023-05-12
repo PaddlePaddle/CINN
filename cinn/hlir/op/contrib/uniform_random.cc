@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#include "cinn/hlir/op/contrib/uniform_random.h"
 
 #include <gflags/gflags.h>
 
@@ -45,12 +46,42 @@
 #include "cinn/poly/stage.h"
 #include "glog/logging.h"
 
+DECLARE_bool(cinn_ir_schedule);
+
 namespace cinn {
 namespace hlir {
 namespace op {
 
 using common::CINNValue;
 using common::CINNValuePack;
+
+// Only for min = 0. and max = 1.
+ir::Tensor UniformRandom(const std::vector<int> &shape,
+                         int seed,
+                         const std::string &dtype,
+                         const Target &target,
+                         const std::string &tensor_name) {
+  std::string extern_func = "cinn_nvgpu_uniform_random_";
+  if (target != common::DefaultNVGPUTarget()) {
+    LOG(FATAL) << "Not Implemented UniformRandom for target: " << target;
+  }
+
+  if (dtype == "float32") {
+    extern_func += "fp32";
+  } else if (dtype == "float64") {
+    extern_func += "fp64";
+  } else {
+    LOG(FATAL) << "Not Implemented UniformRandom for dtype: " << dtype;
+  }
+
+  std::vector<Expr> new_shape;
+  for (auto item : shape) {
+    new_shape.push_back(Expr(item));
+  }
+
+  return lang::Compute(
+      new_shape, [=]() { return lang::CallExtern(extern_func, {Expr(seed)}); }, tensor_name);
+}
 
 std::shared_ptr<framework::OpStrategy> StrategyForUniformRandom(const framework::NodeAttr &attrs,
                                                                 const std::vector<ir::Tensor> &inputs,
@@ -60,9 +91,22 @@ std::shared_ptr<framework::OpStrategy> StrategyForUniformRandom(const framework:
   framework::CINNCompute uniform_random_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(attrs.attr_store.count("shape"));
     ir::Tensor shape_tensor;
-    std::string tensor_name = "uniform_random_out";
-    auto out                = pe::Identity(shape_tensor, tensor_name).front();
-    auto stages             = CreateStages({out});
+    CHECK(output_shapes.size() == 1UL);
+    CHECK(attrs.attr_store.count("seed"));
+    int seed          = absl::get<int>(attrs.attr_store.at("seed"));
+    std::string dtype = "float32";
+    if (attrs.attr_store.find("dtype") != attrs.attr_store.end()) {
+      dtype = absl::get<std::string>(attrs.attr_store.at("dtype"));
+    }
+    CINNValuePack arg_pack  = args[0];
+    std::string tensor_name = UniqName("uniform_random_out");
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(arg_pack.size(), 1U);
+      CHECK(arg_pack[0].is_string());
+      tensor_name = arg_pack[0].operator std::string();
+    }
+    auto out    = UniformRandom(output_shapes[0], seed, dtype, target, tensor_name);
+    auto stages = CreateStages({out});
     std::vector<CINNValue> res{CINNValue(out), CINNValue(stages)};
     *ret = CINNValuePack{res};
   });
@@ -104,7 +148,7 @@ CINN_REGISTER_HELPER(uniform_random_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForUniformRandom)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForUniformRandom))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForUniformRandom))
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kNonFusible)
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElementWise)
       .set_support_level(4);
 
   return true;

@@ -57,7 +57,7 @@ class TestScaleOp(OpTest):
         self.check_outputs_and_grads(max_relative_error=max_relative_error)
 
 
-class TestScaleAll(TestCaseHelper):
+class TestScaleShape(TestCaseHelper):
     def init_attrs(self):
         self.class_name = "TestScaleOpCase"
         self.cls = TestScaleOp
@@ -73,6 +73,19 @@ class TestScaleAll(TestCaseHelper):
             "x_shape": [16, 8, 4, 2],
         }, {
             "x_shape": [16, 8, 4, 2, 1],
+        }]
+        self.dtypes = [{
+            "x_dtype": "float32",
+        }]
+        self.attrs = [{"scale": -0.1, "bias": 10, "bias_after_scale": False}]
+
+
+class TestScaleDtype(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestScaleOpCase"
+        self.cls = TestScaleOp
+        self.inputs = [{
+            "x_shape": [32, 64],
         }]
         self.dtypes = [
             # {
@@ -102,6 +115,19 @@ class TestScaleAll(TestCaseHelper):
                 "x_dtype": "float64",
             },
         ]
+        self.attrs = [{"scale": -0.1, "bias": 10, "bias_after_scale": False}]
+
+
+class TestScaleAttr(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestScaleOpCase"
+        self.cls = TestScaleOp
+        self.inputs = [{
+            "x_shape": [32, 64],
+        }]
+        self.dtypes = [{
+            "x_dtype": "float32",
+        }]
         self.attrs = [{
             "scale": 0,
             "bias": 0,
@@ -138,4 +164,6 @@ class TestScaleAll(TestCaseHelper):
 
 
 if __name__ == "__main__":
-    TestScaleAll().run()
+    TestScaleShape().run()
+    TestScaleDtype().run()
+    TestScaleAttr().run()

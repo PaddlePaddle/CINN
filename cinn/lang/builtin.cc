@@ -26,6 +26,7 @@
 namespace cinn {
 namespace lang {
 
+using cinn::common::bfloat16;
 using cinn::common::float16;
 
 Expr logic_and(const std::vector<Expr>& conds) {
@@ -123,6 +124,7 @@ Expr min_value(const Type& type) {
   FOR_CASE(uint16_t)
   FOR_CASE(uint32_t)
   FOR_CASE(uint64_t)
+  FOR_CASE(bfloat16)
   FOR_CASE(float16)
   FOR_CASE(float)
   FOR_CASE(double)
@@ -145,6 +147,7 @@ Expr max_value(const Type& type) {
   FOR_CASE(uint16_t)
   FOR_CASE(uint32_t)
   FOR_CASE(uint64_t)
+  FOR_CASE(bfloat16)
   FOR_CASE(float16)
   FOR_CASE(float)
   FOR_CASE(double)
@@ -169,6 +172,7 @@ Expr Epsilon(const Type& type) {
   FOR_CASE(uint16_t)
   FOR_CASE(uint32_t)
   FOR_CASE(uint64_t)
+  FOR_CASE(bfloat16)
   FOR_CASE(float16)
   FOR_CASE(float)
   FOR_CASE(double)

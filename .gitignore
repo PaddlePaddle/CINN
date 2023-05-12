@@ -21,4 +21,5 @@ docs/source/cpp
 docs/source/doxygen_output
 docs/source/tutorials
 cinn/runtime/cuda/float16.h
+cinn/runtime/cuda/bfloat16.h
 .vscode*
