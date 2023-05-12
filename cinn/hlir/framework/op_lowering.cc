@@ -1226,8 +1226,9 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
       }
     }
 
+    auto masters = GetMasters(node, nodes_inline, nodes_set);
     // node can be inline.
-    if (CanbeInline(node, consumers, reducer, nodes_in_order.front(), group, nodes_set, this->shape_dict_)) {
+    if (CanbeInline(node, consumers, reducer, masters, group, nodes_set, this->shape_dict_)) {
       auto block = ir_sch.GetBlock(GetNodeData(node)->id());
       ir::ComputeInlineChecker checker(ir_sch, block);
       if (!checker.Check()) {
