@@ -137,7 +137,6 @@ void Compiler::CompileCudaModule(const Module& module, const std::string& code) 
   }
 
   RuntimeSymbols symbols;
-
   for (auto& fn : device_module.functions()) {
     std::string kernel_fn_name = fn->name;
     auto fn_kernel             = cuda_module_->GetFunction(0, kernel_fn_name);

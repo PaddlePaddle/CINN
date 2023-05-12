@@ -83,8 +83,12 @@ DEFINE_bool(cinn_use_dense_merge_pass,
             "Whether use dense merge pass.");
 
 DEFINE_bool(nvrtc_compile_to_cubin,
-            BoolFromEnv("FLAGS_nvrtc_compile_to_cubin", false),
+            BoolFromEnv("FLAGS_nvrtc_compile_to_cubin", true),
             "Whether nvrtc compile cuda source into cubin instead of ptx (only works after cuda-11.1).");
+
+DEFINE_bool(cinn_compile_with_nvrtc,
+            BoolFromEnv("FLAGS_cinn_compile_with_nvrtc", false),
+            "Whether nvrtc compile cuda source with nvrtc(default nvcc).");
 
 // FLAGS for performance analysis and accuracy debug
 DEFINE_bool(cinn_sync_run,
@@ -178,7 +182,7 @@ unsigned long long RandomSeed::Clear() {
 
 bool CanUseNvccCompiler() {
   std::string nvcc_dir = "/usr/local/cuda/bin/nvcc";
-  return access(nvcc_dir.c_str(), 0) == -1 ? false : true;
+  return (access(nvcc_dir.c_str(), 0) == -1 ? false : true) && (!FLAGS_cinn_compile_with_nvrtc);
 }
 
 }  // namespace runtime
