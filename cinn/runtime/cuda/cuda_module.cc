@@ -103,8 +103,9 @@ CUfunction CUDAModule::GetFunction(int device_id, const std::string& func_name) 
     jit_options[4]  = CU_JIT_GENERATE_LINE_INFO;
     jit_opt_vals[4] = reinterpret_cast<void*>(value);
 
-    CUresult status = cuModuleLoadDataEx(
-        &module_per_card_[device_id], data_.c_str(), jit_num_options, jit_options.data(), jit_opt_vals.data());
+    // CUresult status = cuModuleLoadDataEx(
+    //    &module_per_card_[device_id], data_.c_str(), jit_num_options, jit_options.data(), jit_opt_vals.data());
+    CUresult status = cuModuleLoad(&module_per_card_[device_id], data_.c_str());
 
     if (CUDA_SUCCESS != status) {
       RAW_LOG(ERROR, "PTX JIT ERROR LOG: %s\n.", log_buffer.data());
@@ -124,7 +125,7 @@ CUfunction CUDAModule::GetFunction(int device_id, const std::string& func_name) 
 CUdeviceptr CUDAModule::GetGlobal(int device_id, const std::string& name, size_t nbytes) {
   if (!module_per_card_[device_id]) {
     std::lock_guard<std::mutex> lock(mutex_);
-    CUDA_DRIVER_CALL(cuModuleLoadData(&module_per_card_[device_id], data_.c_str()));
+    CUDA_DRIVER_CALL(cuModuleLoad(&module_per_card_[device_id], data_.c_str()));
   }
 
   CUdeviceptr global;

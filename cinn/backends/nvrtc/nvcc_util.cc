@@ -49,13 +49,24 @@ std::string NvccCompiler::operator()(const std::string& cuda_c) {
   CompileToPtx();
   CompileToCubin();
 
-  return ReadFile(prefix_name_ + ".cubin", std::ios::in | std::ios::binary);
+  return prefix_name_ + ".cubin";
 }
 
 std::string NvccCompiler::GetPtx() { return ReadFile(prefix_name_ + ".ptx", std::ios::in); }
 
 void NvccCompiler::CompileToPtx() {
-  std::string options = "export PATH=/usr/local/cuda/bin:$PATH && nvcc --ptx -O3";
+  auto include_dir            = common::Context::Global().runtime_include_dir();
+  std::string include_dir_str = "";
+  for (auto dir : include_dir) {
+    if (include_dir_str.empty()) {
+      include_dir_str = dir;
+    } else {
+      include_dir_str += ":" + dir;
+    }
+  }
+
+  std::string options =
+      std::string("export PATH=/usr/local/cuda/bin:$PATH && nvcc -std=c++14 --ptx -O3 -I ") + include_dir_str;
   options += " -arch=" + GetDeviceArch();
   options += " -o " + prefix_name_ + ".ptx";
   options += " " + prefix_name_ + ".cu";
