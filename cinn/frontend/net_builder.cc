@@ -189,8 +189,8 @@ NETBUILDER_BINARY_OP_DEF(BitwiseOr, bitwise_or)
 NETBUILDER_BINARY_OP_DEF(BitwiseXor, bitwise_xor)
 NETBUILDER_BINARY_OP_DEF(LeftShift, left_shift)
 NETBUILDER_BINARY_OP_DEF(RightShift, right_shift)
-NETBUILDER_BINARY_OP_DEF(GreaterThan, greater);
-NETBUILDER_BINARY_OP_DEF(LessThan, less);
+NETBUILDER_BINARY_OP_DEF(GreaterThan, greater_than);
+NETBUILDER_BINARY_OP_DEF(LessThan, less_than);
 NETBUILDER_BINARY_OP_DEF(Equal, equal);
 NETBUILDER_BINARY_OP_DEF(NotEqual, not_equal);
 NETBUILDER_BINARY_OP_DEF(GreaterEqual, greater_equal);

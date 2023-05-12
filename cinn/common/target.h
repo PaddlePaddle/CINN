@@ -99,10 +99,6 @@ const Target& DefaultNVGPUTarget();
 
 const Target& DefaultTarget();
 
-int GetMaxThreads();
-
-int GetMaxBlocks();
-
 std::ostream& operator<<(std::ostream& os, Target::Arch arch);
 
 }  // namespace common

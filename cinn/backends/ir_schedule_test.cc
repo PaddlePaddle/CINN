@@ -55,10 +55,12 @@ TEST(IrSchedule, split_and_fuse1) {
   ir::IRSchedule ir_sch(mod_expr);
   auto fused   = ir_sch.Fuse("B", {0, 1});
   auto splited = ir_sch.Split(fused, {4, -1});
+  LOG(INFO) << "After split {4, -1}, IR is : " << ir_sch.GetModule().GetExprs().at(0);
 
   auto loops = ir_sch.GetLoops("B");
   fused      = ir_sch.Fuse(loops);
   splited    = ir_sch.Split(fused, {256, -1});
+  LOG(INFO) << "After split {256, -1}, IR is : " << ir_sch.GetModule().GetExprs().at(0);
 
   Module::Builder builder("module1", target);
   for (auto& i : func) {
@@ -68,6 +70,8 @@ TEST(IrSchedule, split_and_fuse1) {
   CodeGenC codegen(target);
   codegen.SetInlineBuiltinCodes(false);
   auto source_code = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
+
+  LOG(INFO) << "split_and_fuse1 source code is :\n" << source_code;
 
   std::string target_code = R"ROC(
 #include <cinn_runtime.h>
@@ -80,9 +84,9 @@ void test_split_and_fuse1(void* _args, int32_t num_args)
   cinn_buffer_malloc((void*)(0), _B);
   const float* A = ((const float*)(_A->memory));
   float* B = ((float*)(_B->memory));
-  for (int32_t i_j_fused_i_j_fused_0_fused = 0; i_j_fused_i_j_fused_0_fused < 256; i_j_fused_i_j_fused_0_fused += 1) {
-    for (int32_t i_j_fused_i_j_fused_0_fused_0 = 0; i_j_fused_i_j_fused_0_fused_0 < 4; i_j_fused_i_j_fused_0_fused_0 += 1) {
-      B[(((i_j_fused_i_j_fused_0_fused / 8) * 32) + (((4 * i_j_fused_i_j_fused_0_fused) + i_j_fused_i_j_fused_0_fused_0) & 31))] = A[(((i_j_fused_i_j_fused_0_fused / 8) * 32) + (((4 * i_j_fused_i_j_fused_0_fused) + i_j_fused_i_j_fused_0_fused_0) & 31))];
+  for (int32_t i_j_fused_0_i_j_fused_1_fused_0 = 0; i_j_fused_0_i_j_fused_1_fused_0 < 256; i_j_fused_0_i_j_fused_1_fused_0 += 1) {
+    for (int32_t i_j_fused_0_i_j_fused_1_fused_1 = 0; i_j_fused_0_i_j_fused_1_fused_1 < 4; i_j_fused_0_i_j_fused_1_fused_1 += 1) {
+      B[(((i_j_fused_0_i_j_fused_1_fused_0 / 8) * 32) + (((4 * i_j_fused_0_i_j_fused_1_fused_0) + i_j_fused_0_i_j_fused_1_fused_1) & 31))] = A[(((i_j_fused_0_i_j_fused_1_fused_0 / 8) * 32) + (((4 * i_j_fused_0_i_j_fused_1_fused_0) + i_j_fused_0_i_j_fused_1_fused_1) & 31))];
     };
   };
   cinn_buffer_free((void*)(0), _B);
@@ -139,10 +143,10 @@ void test_split_and_fuse2(void* _args, int32_t num_args)
   cinn_buffer_malloc((void*)(0), _B);
   const float* A = ((const float*)(_A->memory));
   float* B = ((float*)(_B->memory));
-  for (int32_t i_j_fused = 0; i_j_fused < 52; i_j_fused += 1) {
-    for (int32_t i_j_fused_0 = 0; i_j_fused_0 < 20; i_j_fused_0 += 1) {
-      if ((((20 * i_j_fused) + i_j_fused_0) < 1024)) {
-        B[((20 * i_j_fused) + i_j_fused_0)] = A[((20 * i_j_fused) + i_j_fused_0)];
+  for (int32_t i_j_fused_0 = 0; i_j_fused_0 < 52; i_j_fused_0 += 1) {
+    for (int32_t i_j_fused_1 = 0; i_j_fused_1 < 20; i_j_fused_1 += 1) {
+      if ((((20 * i_j_fused_0) + i_j_fused_1) < 1024)) {
+        B[((20 * i_j_fused_0) + i_j_fused_1)] = A[((20 * i_j_fused_0) + i_j_fused_1)];
       };
     };
   };
@@ -202,11 +206,11 @@ void test_reorder1(void* _args, int32_t num_args)
   const float* A = ((const float*)(_A->memory));
   float* B = ((float*)(_B->memory));
   for (int32_t k = 0; k < 32; k += 1) {
-    for (int32_t i_0 = 0; i_0 < 4; i_0 += 1) {
-      for (int32_t j = 0; j < 16; j += 1) {
-        for (int32_t j_0 = 0; j_0 < 2; j_0 += 1) {
-          for (int32_t i = 0; i < 8; i += 1) {
-            B[((4096 * i) + ((1024 * i_0) + ((64 * j) + ((32 * j_0) + k))))] = A[((4096 * i) + ((1024 * i_0) + ((64 * j) + ((32 * j_0) + k))))];
+    for (int32_t i_1 = 0; i_1 < 4; i_1 += 1) {
+      for (int32_t j_0 = 0; j_0 < 16; j_0 += 1) {
+        for (int32_t j_1 = 0; j_1 < 2; j_1 += 1) {
+          for (int32_t i_0 = 0; i_0 < 8; i_0 += 1) {
+            B[((4096 * i_0) + ((1024 * i_1) + ((64 * j_0) + ((32 * j_1) + k))))] = A[((4096 * i_0) + ((1024 * i_1) + ((64 * j_0) + ((32 * j_1) + k))))];
           };
         };
       };
@@ -267,11 +271,11 @@ void test_reorder2(void* _args, int32_t num_args)
   const float* A = ((const float*)(_A->memory));
   float* B = ((float*)(_B->memory));
   for (int32_t k = 0; k < 32; k += 1) {
-    for (int32_t j = 0; j < 16; j += 1) {
-      for (int32_t j_0 = 0; j_0 < 2; j_0 += 1) {
-        for (int32_t i_0 = 0; i_0 < 4; i_0 += 1) {
-          for (int32_t i = 0; i < 8; i += 1) {
-            B[((4096 * i) + ((1024 * i_0) + ((64 * j) + ((32 * j_0) + k))))] = A[((4096 * i) + ((1024 * i_0) + ((64 * j) + ((32 * j_0) + k))))];
+    for (int32_t j_0 = 0; j_0 < 16; j_0 += 1) {
+      for (int32_t j_1 = 0; j_1 < 2; j_1 += 1) {
+        for (int32_t i_1 = 0; i_1 < 4; i_1 += 1) {
+          for (int32_t i_0 = 0; i_0 < 8; i_0 += 1) {
+            B[((4096 * i_0) + ((1024 * i_1) + ((64 * j_0) + ((32 * j_1) + k))))] = A[((4096 * i_0) + ((1024 * i_1) + ((64 * j_0) + ((32 * j_1) + k))))];
           };
         };
       };
@@ -333,13 +337,13 @@ void test_reorder3(void* _args, int32_t num_args)
   cinn_buffer_malloc((void*)(0), _B);
   const float* A = ((const float*)(_A->memory));
   float* B = ((float*)(_B->memory));
-  for (int32_t j_0 = 0; j_0 < 2; j_0 += 1) {
-    for (int32_t i_0 = 0; i_0 < 5; i_0 += 1) {
-      for (int32_t j = 0; j < 16; j += 1) {
-        for (int32_t i = 0; i < 7; i += 1) {
-          if ((((5 * i) + i_0) < 32)) {
+  for (int32_t j_1 = 0; j_1 < 2; j_1 += 1) {
+    for (int32_t i_1 = 0; i_1 < 5; i_1 += 1) {
+      for (int32_t j_0 = 0; j_0 < 16; j_0 += 1) {
+        for (int32_t i_0 = 0; i_0 < 7; i_0 += 1) {
+          if ((((5 * i_0) + i_1) < 32)) {
             for (int32_t k = 0; k < 32; k += 1) {
-              B[((5120 * i) + ((1024 * i_0) + ((64 * j) + ((32 * j_0) + k))))] = A[((5120 * i) + ((1024 * i_0) + ((64 * j) + ((32 * j_0) + k))))];
+              B[((5120 * i_0) + ((1024 * i_1) + ((64 * j_0) + ((32 * j_1) + k))))] = A[((5120 * i_0) + ((1024 * i_1) + ((64 * j_0) + ((32 * j_1) + k))))];
             };
           };
         };
@@ -404,14 +408,14 @@ void test_reorder4(void* _args, int32_t num_args)
   cinn_buffer_malloc((void*)(0), _B);
   const float* A = ((const float*)(_A->memory));
   float* B = ((float*)(_B->memory));
-  for (int32_t i = 0; i < 4; i += 1) {
-    for (int32_t j = 0; j < 7; j += 1) {
-      for (int32_t i_0 = 0; i_0 < 10; i_0 += 1) {
-        if ((((10 * i) + i_0) < 32)) {
-          for (int32_t j_0 = 0; j_0 < 5; j_0 += 1) {
-            if ((((5 * j) + j_0) < 32)) {
+  for (int32_t i_0 = 0; i_0 < 4; i_0 += 1) {
+    for (int32_t j_0 = 0; j_0 < 7; j_0 += 1) {
+      for (int32_t i_1 = 0; i_1 < 10; i_1 += 1) {
+        if ((((10 * i_0) + i_1) < 32)) {
+          for (int32_t j_1 = 0; j_1 < 5; j_1 += 1) {
+            if ((((5 * j_0) + j_1) < 32)) {
               for (int32_t k = 0; k < 32; k += 1) {
-                B[((10240 * i) + ((1024 * i_0) + ((160 * j) + ((32 * j_0) + k))))] = A[((10240 * i) + ((1024 * i_0) + ((160 * j) + ((32 * j_0) + k))))];
+                B[((10240 * i_0) + ((1024 * i_1) + ((160 * j_0) + ((32 * j_1) + k))))] = A[((10240 * i_0) + ((1024 * i_1) + ((160 * j_0) + ((32 * j_1) + k))))];
               };
             };
           };
@@ -447,6 +451,7 @@ TEST(IrSchedule, parallel) {
   auto loops = ir_sch.GetLoops("B");
   CHECK(!loops.empty());
   ir_sch.Parallel(loops[0]);
+  LOG(INFO) << "After parallel , IR is : \n" << ir_sch.GetModule().GetExprs().at(0);
 
   Module::Builder builder("module1", target);
   for (auto& i : func) {
@@ -456,6 +461,8 @@ TEST(IrSchedule, parallel) {
   CodeGenC codegen(target);
   codegen.SetInlineBuiltinCodes(false);
   auto source_code = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
+
+  LOG(INFO) << "parallel source code is :\n" << source_code;
 
   std::string target_code = R"ROC(
 #include <cinn_runtime.h>
@@ -512,6 +519,7 @@ TEST(IrSchedule, vectorize) {
   CHECK_EQ(loops.size(), 2U);
   ir_sch.Vectorize(loops[1], 16);
   std::string origin = utils::GetStreamCnt(func[0]);
+  LOG(INFO) << "After Vectorize , func is : \n" << func[0];
   EXPECT_EQ(origin, utils::Trim(R"ROC(
 function test_vectorize (_A, _B)
 {
@@ -540,6 +548,8 @@ function test_vectorize (_A, _B)
   CodeGenC codegen(target);
   codegen.SetInlineBuiltinCodes(false);
   auto source_code = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
+
+  LOG(INFO) << "Vectorize source code is :\n" << source_code;
 
   std::string target_code = R"ROC(
 #include <cinn_runtime.h>
@@ -585,6 +595,7 @@ TEST(IrSchedule, unroll) {
   CHECK_EQ(loops.size(), 2U);
   ir_sch.Unroll(loops[1]);
   std::string origin = utils::GetStreamCnt(func[0]);
+  LOG(INFO) << "After unroll , func is : \n" << func[0];
   EXPECT_EQ(origin, utils::Trim(R"ROC(
 function test_unroll (_A, _B)
 {
@@ -613,6 +624,8 @@ function test_unroll (_A, _B)
   CodeGenC codegen(target);
   codegen.SetInlineBuiltinCodes(false);
   auto source_code = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
+
+  LOG(INFO) << "Unroll source code is :\n" << source_code;
 
   std::string target_code = R"ROC(
 #include <cinn_runtime.h>
@@ -657,6 +670,7 @@ TEST(IrSchedule, bind) {
   CHECK_EQ(loops.size(), 2U);
   ir_sch.Bind(loops[0], "blockIdx.x");
   std::string origin = utils::GetStreamCnt(func[0]);
+  LOG(INFO) << "After bind , func is : \n" << func[0];
   EXPECT_EQ(origin, utils::Trim(R"ROC(
 function test_bind (_A, _B)
 {
@@ -734,12 +748,12 @@ void test_simple_compute_at(void* _args, int32_t num_args)
   const float* A = ((const float*)(_A->memory));
   float* B = ((float*)(_B->memory));
   float* C = ((float*)(_C->memory));
-  for (int32_t i_j_fused_1 = 0; i_j_fused_1 < 2; i_j_fused_1 += 1) {
-    for (int32_t i_j_fused_2 = 0; i_j_fused_2 < 1024; i_j_fused_2 += 1) {
-      if ((((1024 * i_j_fused_1) + i_j_fused_2) < 1280)) {
+  for (int32_t i_j_fused_0 = 0; i_j_fused_0 < 2; i_j_fused_0 += 1) {
+    for (int32_t i_j_fused_1 = 0; i_j_fused_1 < 1024; i_j_fused_1 += 1) {
+      if ((((1024 * i_j_fused_0) + i_j_fused_1) < 1280)) {
       {
-        B[((1024 * i_j_fused_1) + i_j_fused_2)] = A[((1024 * i_j_fused_1) + i_j_fused_2)];
-        C[((1024 * i_j_fused_1) + i_j_fused_2)] = B[((1024 * i_j_fused_1) + i_j_fused_2)];
+        B[((1024 * i_j_fused_0) + i_j_fused_1)] = A[((1024 * i_j_fused_0) + i_j_fused_1)];
+        C[((1024 * i_j_fused_0) + i_j_fused_1)] = B[((1024 * i_j_fused_0) + i_j_fused_1)];
       }
       };
     };
@@ -808,12 +822,12 @@ void test_compute_at0(void* _args, int32_t num_args)
   const float* A = ((const float*)(_A->memory));
   float* B = ((float*)(_B->memory));
   float* C = ((float*)(_C->memory));
-  for (int32_t i_j_fused_1 = 0; i_j_fused_1 < 2; i_j_fused_1 += 1) {
-    for (int32_t i_j_fused_2 = 0; i_j_fused_2 < 1024; i_j_fused_2 += 1) {
-      if ((((1024 * i_j_fused_1) + i_j_fused_2) < 1280)) {
+  for (int32_t i_j_fused_0 = 0; i_j_fused_0 < 2; i_j_fused_0 += 1) {
+    for (int32_t i_j_fused_1 = 0; i_j_fused_1 < 1024; i_j_fused_1 += 1) {
+      if ((((1024 * i_j_fused_0) + i_j_fused_1) < 1280)) {
       {
-        B[((1024 * i_j_fused_1) + i_j_fused_2)] = A[((1024 * i_j_fused_1) + i_j_fused_2)];
-        C[((1024 * i_j_fused_1) + i_j_fused_2)] = B[((1024 * i_j_fused_1) + i_j_fused_2)];
+        B[((1024 * i_j_fused_0) + i_j_fused_1)] = A[((1024 * i_j_fused_0) + i_j_fused_1)];
+        C[((1024 * i_j_fused_0) + i_j_fused_1)] = B[((1024 * i_j_fused_0) + i_j_fused_1)];
       }
       };
     };
@@ -1028,14 +1042,14 @@ void test_compute_at3(void* _args, int32_t num_args)
   const float* A = ((const float*)(_A->memory));
   float* B = ((float*)(_B->memory));
   float* C = ((float*)(_C->memory));
-  for (int32_t i_j_fused = 0; i_j_fused < 32; i_j_fused += 1) {
+  for (int32_t i_j_fused_0 = 0; i_j_fused_0 < 32; i_j_fused_0 += 1) {
     for (int32_t ax0 = 0; ax0 < 2; ax0 += 1) {
       for (int32_t ax1 = 0; ax1 < 64; ax1 += 1) {
-        B[((64 * ax0) + ((128 * i_j_fused) + ax1))] = A[((64 * ax0) + ((128 * i_j_fused) + ax1))];
+        B[((64 * ax0) + ((128 * i_j_fused_0) + ax1))] = A[((64 * ax0) + ((128 * i_j_fused_0) + ax1))];
       };
     };
-    for (int32_t i_j_fused_0 = 0; i_j_fused_0 < 128; i_j_fused_0 += 1) {
-      C[((128 * i_j_fused) + i_j_fused_0)] = B[((128 * i_j_fused) + i_j_fused_0)];
+    for (int32_t i_j_fused_1 = 0; i_j_fused_1 < 128; i_j_fused_1 += 1) {
+      C[((128 * i_j_fused_0) + i_j_fused_1)] = B[((128 * i_j_fused_0) + i_j_fused_1)];
     };
   };
   cinn_buffer_free((void*)(0), _B);
@@ -1222,10 +1236,10 @@ void test_compute_at6(const float* __restrict__ A, float* __restrict__ C)
 {
   float _B_temp_buffer [ 4096 ];
   float* B = _B_temp_buffer;
-  for (int32_t i_j_fused = 0; i_j_fused < 32; i_j_fused += 1) {
-    for (int32_t i_j_fused_0 = 0; i_j_fused_0 < 128; i_j_fused_0 += 1) {
-      B[((128 * i_j_fused) + i_j_fused_0)] = A[((128 * i_j_fused) + i_j_fused_0)];
-      C[((128 * i_j_fused) + i_j_fused_0)] = B[((128 * i_j_fused) + i_j_fused_0)];
+  for (int32_t i_j_fused_0 = 0; i_j_fused_0 < 32; i_j_fused_0 += 1) {
+    for (int32_t i_j_fused_1 = 0; i_j_fused_1 < 128; i_j_fused_1 += 1) {
+      B[((128 * i_j_fused_0) + i_j_fused_1)] = A[((128 * i_j_fused_0) + i_j_fused_1)];
+      C[((128 * i_j_fused_0) + i_j_fused_1)] = B[((128 * i_j_fused_0) + i_j_fused_1)];
     };
   };
 }
@@ -1741,6 +1755,8 @@ TEST(IrSchedule, sync_threads) {
   codegen.SetInlineBuiltinCodes(false);
   auto source_code = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
 
+  LOG(INFO) << "sync_threads source code is :\n" << source_code;
+
   std::string target_code = codegen.GetSourceHeader() + R"ROC(__global__
 void test_sync_threads(const float* __restrict__ A, float* __restrict__ C)
 {
@@ -1880,6 +1896,7 @@ TEST(IrSchedule, rfactor) {
   func[0]->temp_bufs.push_back(new_rf_tensor_ref->buffer);
   func[0]->PrepareBufferCastExprs();
   std::string origin = utils::GetStreamCnt(func[0]);
+  LOG(INFO) << "After rfactor , func is : \n" << func[0];
   EXPECT_EQ(origin, utils::Trim(R"ROC(
 function test_rfactor (_A, _B)
 {
@@ -1935,6 +1952,7 @@ function test_rfactor (_A, _B)
   codegen.SetInlineBuiltinCodes(false);
   auto source_code = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
 
+  LOG(INFO) << "rfactor source code is :\n" << source_code;
   std::string target_code = R"ROC(
 #include <cinn_runtime.h>
 #include <stdio.h>
@@ -2006,7 +2024,7 @@ TEST(IrSchedule, rfactor1) {
   func[0]->temp_bufs.push_back(new_rf_tensor_ref->buffer);
   func[0]->PrepareBufferCastExprs();
   std::string origin = utils::GetStreamCnt(func[0]);
-
+  LOG(INFO) << "After rfactor , func is : \n" << func[0];
   EXPECT_EQ(origin, utils::Trim(R"ROC(
 function test_rfactor (_A, _B)
 {
@@ -2062,6 +2080,7 @@ function test_rfactor (_A, _B)
   codegen.SetInlineBuiltinCodes(false);
   auto source_code = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
 
+  LOG(INFO) << "rfactor source code is :\n" << source_code;
   std::string target_code = R"ROC(
 #include <cinn_runtime.h>
 #include <stdio.h>
@@ -2129,7 +2148,7 @@ TEST(IrSchedule, rfactor2) {
   func[0]->temp_bufs.push_back(new_rf_tensor_ref->buffer);
   func[0]->PrepareBufferCastExprs();
   std::string origin = utils::GetStreamCnt(func[0]);
-
+  LOG(INFO) << "After rfactor , func is : \n" << func[0];
   EXPECT_EQ(origin, utils::Trim(R"ROC(
 function test_rfactor (_A, _B, _C)
 {
@@ -2188,6 +2207,7 @@ function test_rfactor (_A, _B, _C)
   codegen.SetInlineBuiltinCodes(false);
   auto source_code = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
 
+  LOG(INFO) << "rfactor source code is :\n" << source_code;
   std::string target_code = R"ROC(
 #include <cinn_runtime.h>
 #include <stdio.h>
@@ -2458,6 +2478,8 @@ TEST(IrSchedule, compute_inline4) {
   codegen.SetInlineBuiltinCodes(false);
   auto source_code = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
 
+  LOG(INFO) << "compute_inline4 source code is :\n" << source_code;
+
   std::string target_code = codegen.GetSourceHeader() + R"ROC(__global__
 void test_compute_inline4(const float* __restrict__ A, float* __restrict__ C)
 {
@@ -2634,7 +2656,9 @@ TEST(IrSchedule, copytransform1) {
   auto block_b = ir_sch.GetBlock("B");
   block_c      = ir_sch.GetBlock("C");
 
+  LOG(INFO) << "Before CopyTransformAndLoopInfo, IR is : " << ir_sch.GetModule().GetExprs().at(0);
   ir_sch.CopyTransformAndLoopInfo(block_b, block_c);
+  LOG(INFO) << "After CopyTransformAndLoopInfo, IR is : " << ir_sch.GetModule().GetExprs().at(0);
   Module::Builder builder("module1", target);
   for (auto& i : func) {
     builder.AddFunction(i);
@@ -2643,6 +2667,8 @@ TEST(IrSchedule, copytransform1) {
   CodeGenC codegen(target);
   codegen.SetInlineBuiltinCodes(false);
   auto source_code = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
+
+  LOG(INFO) << "copytransform1 source code is :\n" << source_code;
 
   std::string target_code = R"ROC(
 #include <cinn_runtime.h>
@@ -2658,23 +2684,23 @@ void test_copytransform1(void* _args, int32_t num_args)
   const float* A = ((const float*)(_A->memory));
   float* B = ((float*)(_B->memory));
   float* C = ((float*)(_C->memory));
-  for (int32_t i = 0; i < 4; i += 1) {
-    for (int32_t i_0 = 0; i_0 < 8; i_0 += 1) {
-      for (int32_t j = 0; j < 8; j += 1) {
-        for (int32_t j_0 = 0; j_0 < 4; j_0 += 1) {
+  for (int32_t i_0 = 0; i_0 < 4; i_0 += 1) {
+    for (int32_t i_1 = 0; i_1 < 8; i_1 += 1) {
+      for (int32_t j_0 = 0; j_0 < 8; j_0 += 1) {
+        for (int32_t j_1 = 0; j_1 < 4; j_1 += 1) {
           for (int32_t k = 0; k < 32; k += 1) {
-            B[((8192 * i) + ((1024 * i_0) + ((128 * j) + ((32 * j_0) + k))))] = (1.00000000f + A[((8192 * i) + ((1024 * i_0) + ((128 * j) + ((32 * j_0) + k))))]);
+            B[((8192 * i_0) + ((1024 * i_1) + ((128 * j_0) + ((32 * j_1) + k))))] = (1.00000000f + A[((8192 * i_0) + ((1024 * i_1) + ((128 * j_0) + ((32 * j_1) + k))))]);
           };
         };
       };
     };
   };
-  for (int32_t i = 0; i < 4; i += 1) {
-    for (int32_t i_0 = 0; i_0 < 8; i_0 += 1) {
-      for (int32_t j = 0; j < 8; j += 1) {
-        for (int32_t j_0 = 0; j_0 < 4; j_0 += 1) {
+  for (int32_t i_0 = 0; i_0 < 4; i_0 += 1) {
+    for (int32_t i_1 = 0; i_1 < 8; i_1 += 1) {
+      for (int32_t j_0 = 0; j_0 < 8; j_0 += 1) {
+        for (int32_t j_1 = 0; j_1 < 4; j_1 += 1) {
           for (int32_t k = 0; k < 32; k += 1) {
-            C[((8192 * i) + ((1024 * i_0) + ((128 * j) + ((32 * j_0) + k))))] = (2.00000000f * B[((256 * i) + ((32 * i_0) + ((4096 * j) + ((1024 * j_0) + k))))]);
+            C[((8192 * i_0) + ((1024 * i_1) + ((128 * j_0) + ((32 * j_1) + k))))] = (2.00000000f * B[((256 * i_0) + ((32 * i_1) + ((4096 * j_0) + ((1024 * j_1) + k))))]);
           };
         };
       };
@@ -2729,6 +2755,8 @@ TEST(IrSchedule, copytransform2) {
   codegen.SetInlineBuiltinCodes(false);
   auto source_code = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
 
+  LOG(INFO) << "copytransform2 source code is :\n" << source_code;
+
   std::string target_code = R"ROC(
 #include <cinn_runtime.h>
 #include <stdio.h>
@@ -2743,21 +2771,21 @@ void test_copytransform2(void* _args, int32_t num_args)
   const float* A = ((const float*)(_A->memory));
   float* B = ((float*)(_B->memory));
   float* C = ((float*)(_C->memory));
-  for (int32_t i = 0; i < 4; i += 1) {
-    for (int32_t i_0 = 0; i_0 < 8; i_0 += 1) {
+  for (int32_t i_0 = 0; i_0 < 4; i_0 += 1) {
+    for (int32_t i_1 = 0; i_1 < 8; i_1 += 1) {
       for (int32_t j = 0; j < 64; j += 1) {
         for (int32_t k = 0; k < 128; k += 1) {
-          B[((65536 * i) + ((8192 * i_0) + ((128 * j) + k)))] = (1.00000000f + A[((65536 * i) + ((8192 * i_0) + ((128 * j) + k)))]);
+          B[((65536 * i_0) + ((8192 * i_1) + ((128 * j) + k)))] = (1.00000000f + A[((65536 * i_0) + ((8192 * i_1) + ((128 * j) + k)))]);
         };
       };
     };
   };
-  for (int32_t i = 0; i < 4; i += 1) {
-    for (int32_t i_0 = 0; i_0 < 8; i_0 += 1) {
-      for (int32_t j = 0; j < 8; j += 1) {
-        for (int32_t j_0 = 0; j_0 < 4; j_0 += 1) {
+  for (int32_t i_0 = 0; i_0 < 4; i_0 += 1) {
+    for (int32_t i_1 = 0; i_1 < 8; i_1 += 1) {
+      for (int32_t j_0 = 0; j_0 < 8; j_0 += 1) {
+        for (int32_t j_1 = 0; j_1 < 4; j_1 += 1) {
           for (int32_t k = 0; k < 128; k += 1) {
-            C[((32768 * i) + ((4096 * i_0) + ((512 * j) + ((128 * j_0) + k))))] = (2.00000000f * B[((65536 * i) + ((8192 * i_0) + ((512 * j) + ((128 * j_0) + k))))]);
+            C[((32768 * i_0) + ((4096 * i_1) + ((512 * j_0) + ((128 * j_1) + k))))] = (2.00000000f * B[((65536 * i_0) + ((8192 * i_1) + ((512 * j_0) + ((128 * j_1) + k))))]);
           };
         };
       };
@@ -2917,25 +2945,25 @@ void TestIrSchedule_ReduceSum(void* _args, int32_t num_args)
   const float* A = ((const float*)(_A->memory));
   float* B = ((float*)(_B->memory));
   float* B__reduce_init = ((float*)(_B->memory));
-  for (int32_t i = 0; i < 8; i += 1) {
-    for (int32_t i_0 = 0; i_0 < 4; i_0 += 1) {
-      B__reduce_init[((4 * i) + i_0)] = 0.00000000f;
+  for (int32_t i_0 = 0; i_0 < 8; i_0 += 1) {
+    for (int32_t i_1 = 0; i_1 < 4; i_1 += 1) {
+      B__reduce_init[((4 * i_0) + i_1)] = 0.00000000f;
     };
   };
-  for (int32_t reduce_axis_k = 0; reduce_axis_k < 32; reduce_axis_k += 1) {
+  for (int32_t reduce_axis_k_0 = 0; reduce_axis_k_0 < 32; reduce_axis_k_0 += 1) {
     for (int32_t ax0 = 0; ax0 < 32; ax0 += 1) {
       for (int32_t ax1 = 0; ax1 < 2; ax1 += 1) {
-        A_shared_temp_buffer[((64 * ax0) + ((2 * reduce_axis_k) + ax1))] = A[((64 * ax0) + ((2 * reduce_axis_k) + ax1))];
+        A_shared_temp_buffer[((64 * ax0) + ((2 * reduce_axis_k_0) + ax1))] = A[((64 * ax0) + ((2 * reduce_axis_k_0) + ax1))];
       };
     };
-    for (int32_t i = 0; i < 8; i += 1) {
-      for (int32_t reduce_axis_k_0 = 0; reduce_axis_k_0 < 2; reduce_axis_k_0 += 1) {
-        for (int32_t i_0 = 0; i_0 < 4; i_0 += 1) {
-          B_local_temp_buffer[((4 * i) + i_0)] = (B_local_temp_buffer[((4 * i) + i_0)] + A_shared_temp_buffer[((256 * i) + ((64 * i_0) + ((2 * reduce_axis_k) + reduce_axis_k_0)))]);
+    for (int32_t i_0 = 0; i_0 < 8; i_0 += 1) {
+      for (int32_t reduce_axis_k_1 = 0; reduce_axis_k_1 < 2; reduce_axis_k_1 += 1) {
+        for (int32_t i_1 = 0; i_1 < 4; i_1 += 1) {
+          B_local_temp_buffer[((4 * i_0) + i_1)] = (B_local_temp_buffer[((4 * i_0) + i_1)] + A_shared_temp_buffer[((256 * i_0) + ((64 * i_1) + ((2 * reduce_axis_k_0) + reduce_axis_k_1)))]);
         };
       };
       for (int32_t ax0_0 = 0; ax0_0 < 4; ax0_0 += 1) {
-        B[((4 * i) + ax0_0)] = B_local_temp_buffer[((4 * i) + ax0_0)];
+        B[((4 * i_0) + ax0_0)] = B_local_temp_buffer[((4 * i_0) + ax0_0)];
       };
     };
   };
@@ -2959,6 +2987,7 @@ TEST(IrSchedule, SamplePerfectTile) {
   ir::IRSchedule ir_sch(ir::ModuleExpr({funcs[0]->body}));
   auto loops_b             = ir_sch.GetLoops("B");
   std::vector<Expr> result = ir_sch.SamplePerfectTile(loops_b[0], 3, 64);
+  LOG(INFO) << "SamplePerfectTile result: " << result;
   ASSERT_EQ(result.size(), 3);
 }
 
@@ -3010,6 +3039,7 @@ TEST(IrSchedule, SampleCategorical) {
 
   ir::IRSchedule ir_sch(ir::ModuleExpr({funcs[0]->body}));
   Expr result = ir_sch.SampleCategorical({1, 2, 3}, {1.0, 2.0, 3.0}, {decision});
+  LOG(INFO) << "SampleCategorical result: " << result;
   ASSERT_EQ(result.type(), Int(32));
 }
 
