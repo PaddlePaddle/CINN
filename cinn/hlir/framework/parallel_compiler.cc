@@ -29,6 +29,7 @@
 #include "cinn/common/context.h"
 #include "cinn/hlir/framework/pass.h"
 #include "cinn/ir/module.h"
+#include "cinn/runtime/flags.h"
 
 DECLARE_int32(cinn_parallel_compile_size);
 DECLARE_int32(cinn_parallel_compile_thread);
@@ -176,11 +177,21 @@ void ParallelCompiler::Task::CodegenAndJit() {
     graph->SaveSourceCode(cuda_c);
 
     using runtime::cuda::CUDAModule;
-    backends::nvrtc::NvccCompiler compiler;
-    cumodule.reset(new CUDAModule(compiler(cuda_c), CUDAModule::Kind::CUBIN));
+    if (runtime::CanUseNvccCompiler()) {
+      backends::nvrtc::NvccCompiler compiler;
+      // load cumodule
+      cumodule.reset(new CUDAModule(compiler(cuda_c), CUDAModule::Kind::CUBIN));
+      graph->SavePTXCode(compiler.GetPtx());
+    } else {
+      backends::nvrtc::Compiler compiler;
+      auto ptx = compiler(cuda_c);
+      CHECK(!ptx.empty()) << "Compile PTX failed from source code:\n" << cuda_c;
+      // load cumodule
+      cumodule.reset(
+          new CUDAModule(ptx, compiler.compile_to_cubin() ? CUDAModule::Kind::CUBIN : CUDAModule::Kind::PTX));
+      graph->SavePTXCode(ptx);
+    }
 
-    // save ptx
-    graph->SavePTXCode(compiler.GetPtx());
     // register kernel
     backends::RuntimeSymbols symbols;
     for (auto& fn : dmodule.functions()) {

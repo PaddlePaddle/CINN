@@ -16,6 +16,9 @@
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include <unordered_set>
 
@@ -171,6 +174,11 @@ unsigned long long RandomSeed::Clear() {
   auto old_seed = seed_;
   seed_         = 0ULL;
   return old_seed;
+}
+
+bool CanUseNvccCompiler() {
+  std::string nvcc_dir = "/usr/local/cuda/bin/nvcc";
+  return access(nvcc_dir.c_str(), 0) == -1 ? false : true;
 }
 
 }  // namespace runtime
