@@ -67,6 +67,18 @@ class TestSortOpDumpicateElement(TestSortOp):
         self.descending = False
 
 
+# This test case will cause CINN to allocate a large amount of GPU memory, nearly 10 GB.
+class TestSortOpLargeCudaMemoryOccupation(TestSortOp):
+    def setUp(self):
+        self.inputs = {}
+        self.prepare_inputs()
+
+    def prepare_inputs(self):
+        self.inputs = {"x": self.random([128, 64], "float64")}
+        self.axis = 0
+        self.descending = False
+
+
 class TestSortOpShapeTest(TestCaseHelper):
     def init_attrs(self):
         self.class_name = "TestSortOpShapeTest"
@@ -82,7 +94,7 @@ class TestSortOpShapeTest(TestCaseHelper):
                 "shape": [2048],
             },
             {
-                "shape": [64, 32],
+                "shape": [128, 64],
             },
             {
                 "shape": [4, 32, 16],
@@ -208,6 +220,7 @@ class TestSortOpDescedingTest(TestSortOpShapeTest):
 
 if __name__ == "__main__":
     run_test(TestSortOpDumpicateElement)
+    # run_test(TestSortOpLargeCudaMemoryOccupation)
 
     TestSortOpShapeTest().run()
     TestSortOpDtypeTest().run()
