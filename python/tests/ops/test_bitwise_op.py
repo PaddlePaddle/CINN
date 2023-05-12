@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import numpy as np
 from op_test import OpTest, OpTestTool
 from op_test_helper import TestCaseHelper
 import paddle
@@ -27,8 +28,21 @@ class TestBitwiseOp(OpTest):
         self.prepare_inputs()
 
     def prepare_inputs(self):
-        self.x_np = self.random(
-            shape=self.case["x_shape"], dtype=self.case["dtype"])
+        # Test with infinite values
+        if "with_inf" in self.case:
+            self.x_np = np.full(
+                shape=self.case["x_shape"],
+                fill_value=np.inf,
+                dtype=self.case["dtype"])
+        # Test with nan values
+        elif "with_nan" in self.case:
+            self.x_np = np.full(
+                shape=self.case["x_shape"],
+                fill_value=np.nan,
+                dtype=self.case["dtype"])
+        else:
+            self.x_np = self.random(
+                shape=self.case["x_shape"], dtype=self.case["dtype"])
         if self.case["op_type"] != "not":
             self.y_np = self.random(
                 shape=self.case["y_shape"], dtype=self.case["dtype"])
@@ -210,7 +224,33 @@ class TestBitwiseOpBroadcast(TestBitwiseOpShape):
         ]
 
 
+class TestBitwiseWithINF(TestBitwiseOpDtype):
+    def init_attrs(self):
+        super().init_attrs()
+        self.inputs = [
+            {
+                "x_shape": [16],
+                "y_shape": [16],
+                "with_inf": True,
+            },
+        ]
+
+
+class TestBitwiseWithNAN(TestBitwiseOpDtype):
+    def init_attrs(self):
+        super().init_attrs()
+        self.inputs = [
+            {
+                "x_shape": [16],
+                "y_shape": [16],
+                "with_nan": True,
+            },
+        ]
+
+
 if __name__ == "__main__":
     TestBitwiseOpShape().run()
     TestBitwiseOpDtype().run()
     TestBitwiseOpBroadcast().run()
+    TestBitwiseWithINF().run()
+    TestBitwiseWithNAN().run()
