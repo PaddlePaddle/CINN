@@ -36,6 +36,9 @@ using ::GFLAGS_NAMESPACE::Int64FromEnv;
 using ::GFLAGS_NAMESPACE::StringFromEnv;
 
 DEFINE_string(cinn_x86_builtin_code_root, StringFromEnv("FLAGS_cinn_x86_builtin_code_root", ""), "");
+DEFINE_string(cinn_nvcc_cmd_path,
+              StringFromEnv("FLAGS_cinn_nvcc_cmd_path", "/usr/local/cuda/bin"),
+              "Setting nvcc default path!");
 
 DEFINE_int32(cinn_parallel_compile_size,
              Int32FromEnv("FLAGS_cinn_parallel_compile_size", 16),
@@ -181,7 +184,7 @@ unsigned long long RandomSeed::Clear() {
 }
 
 bool CanUseNvccCompiler() {
-  std::string nvcc_dir = "/usr/local/cuda/bin/nvcc";
+  std::string nvcc_dir = FLAGS_cinn_nvcc_cmd_path + "/nvcc";
   return (access(nvcc_dir.c_str(), 0) == -1 ? false : true) && (!FLAGS_cinn_compile_with_nvrtc);
 }
 

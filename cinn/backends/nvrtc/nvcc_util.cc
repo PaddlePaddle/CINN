@@ -26,6 +26,8 @@
 #include <fstream>
 #include <iostream>
 
+DECLARE_string(cinn_nvcc_cmd_path);
+
 namespace cinn {
 namespace backends {
 namespace nvrtc {
@@ -65,21 +67,24 @@ void NvccCompiler::CompileToPtx() {
     }
   }
 
-  std::string options =
-      std::string("export PATH=/usr/local/cuda/bin:$PATH && nvcc -std=c++14 --ptx -O3 -I ") + include_dir_str;
+  std::string options = std::string("export PATH=") + FLAGS_cinn_nvcc_cmd_path +
+                        std::string(":$PATH && nvcc -std=c++14 --ptx -O3 -I ") + include_dir_str;
   options += " -arch=" + GetDeviceArch();
   options += " -o " + prefix_name_ + ".ptx";
   options += " " + prefix_name_ + ".cu";
 
+  VLOG(2) << "Nvcc Compile Options : " << options;
   CHECK(system(options.c_str()) == 0) << options;
 }
 
 void NvccCompiler::CompileToCubin() {
-  std::string options = "export PATH=/usr/local/cuda/bin:$PATH && nvcc --cubin -O3";
+  std::string options =
+      std::string("export PATH=") + FLAGS_cinn_nvcc_cmd_path + std::string(":$PATH && nvcc --cubin -O3");
   options += " -arch=" + GetDeviceArch();
   options += " -o " + prefix_name_ + ".cubin";
   options += " " + prefix_name_ + ".ptx";
 
+  VLOG(2) << "Nvcc Compile Options : " << options;
   CHECK(system(options.c_str()) == 0) << options;
 }
 
