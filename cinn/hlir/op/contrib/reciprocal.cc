@@ -59,7 +59,9 @@ ir::Tensor Reciprocal(const ir::Tensor &input, const std::string &output_name) {
     extern_func += "_fp32";
   } else if (input->type().is_float(64)) {
     extern_func += "_fp64";
-  } else if (input->type().is_float(16)) {
+  } else if (input->type().is_bfloat16()) {
+    extern_func += "_bf16";
+  } else if (input->type().is_float16()) {
     extern_func += "_fp16";
   } else {
     CINN_NOT_IMPLEMENTED

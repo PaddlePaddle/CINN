@@ -26,6 +26,7 @@ namespace cinn {
 namespace hlir {
 namespace framework {
 
+using common::bfloat16;
 using common::float16;
 
 using framework::Graph;
@@ -1207,7 +1208,7 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
   // topological order.
   auto nodes_set      = group->NodeSet();
   auto v_consumers    = BuildVirtualConsumer(group, this->shape_dict_);
-  auto nodes_in_order = TopologicalOrder(group, v_consumers);
+  auto nodes_in_order = BFSTopologicalOrderWithPriority(group, v_consumers, this->shape_dict_);
   // find reducer.
   std::unordered_set<Node*> nodes_inline;
   auto greducer         = FindGlobalReducer(nodes_in_order);
@@ -1225,8 +1226,9 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
       }
     }
 
+    auto masters = GetMasters(node, nodes_inline, nodes_set);
     // node can be inline.
-    if (CanbeInline(node, consumers, reducer, nodes_in_order.front(), group, nodes_set, this->shape_dict_)) {
+    if (CanbeInline(node, consumers, reducer, masters, group, nodes_set, this->shape_dict_)) {
       auto block = ir_sch.GetBlock(GetNodeData(node)->id());
       ir::ComputeInlineChecker checker(ir_sch, block);
       if (!checker.Check()) {
@@ -1308,7 +1310,7 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
       // get dtype of vectorized var
       auto dtype = this->type_dict_.at(tensor_name);
       VLOG(4) << tensor_name << " dtype " << dtype;
-      if (psize % 8 == 0 && dtype.is_float(16)) {
+      if (psize % 8 == 0 && (dtype.is_float16() || dtype.is_bfloat16())) {
         vector_width = 8;
       } else if (psize % 4 == 0) {
         vector_width = 4;
@@ -1326,7 +1328,7 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
   }
 
   VLOG(3) << "Before Sync IRLowerOp schedule, ir is: \n" << ir_sch.GetModule().GetExprs().at(0);
-  SyncThreadWithShared(ir_sch, nodes_inline, nodes_set, this->shape_dict_, tensor_map);
+  SyncThreadWithShared(ir_sch, nodes_inline, nodes_set, this->shape_dict_, tensor_map, group);
   VLOG(4) << "After IRSchedule,  ir is: \n" << ir_sch.GetModule().GetExprs().at(0);
 }
 

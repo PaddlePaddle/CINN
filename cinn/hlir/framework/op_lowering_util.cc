@@ -14,6 +14,7 @@
 
 #include "cinn/hlir/framework/op_lowering_util.h"
 #ifdef CINN_WITH_CUDA
+#include "cinn/common/bfloat16.h"
 #include "cinn/common/float16.h"
 #endif
 #include <queue>
@@ -45,7 +46,9 @@ ir::Tensor GetTensor(const NodeData* node_data,
     return lang::Placeholder<float>(node_data->id(), shape_dict.at(node_data->id()));
   } else if (dtype.is_float(64)) {
     return lang::Placeholder<double>(node_data->id(), shape_dict.at(node_data->id()));
-  } else if (dtype.is_float(16)) {
+  } else if (dtype.is_bfloat16()) {
+    return lang::Placeholder<common::bfloat16>(node_data->id(), shape_dict.at(node_data->id()));
+  } else if (dtype.is_float16()) {
     return lang::Placeholder<common::float16>(node_data->id(), shape_dict.at(node_data->id()));
   } else if (dtype.is_bool()) {
     return lang::Placeholder<bool>(node_data->id(), shape_dict.at(node_data->id()));
@@ -165,11 +168,10 @@ bool IsConstOp(const framework::Node* node) {
 }
 
 std::vector<int> GetInputShape(const Node* node, const absl::flat_hash_map<std::string, shape_t>& shape_dict) {
-  auto producers = GetProducers(node);
-  CHECK(producers.size());
+  auto input_data = GetInputNodeData(node);
+  CHECK(input_data.size());
 
-  auto producer_data = GetNodeData(producers.front());
-  return shape_dict.at(producer_data->id());
+  return shape_dict.at(input_data.front()->id());
 }
 
 std::vector<int> GetOutputShape(const Node* node, const absl::flat_hash_map<std::string, shape_t>& shape_dict) {
@@ -298,6 +300,23 @@ std::unordered_map<Node*, Node*> BuildVirtualConsumer(const GroupPtr& group,
       }
     }
   }
+  // Establish virtual consumer relationships between output nodes with the same shape.
+  // This allows the calculation of output nodes without affiliation to be placed under the same loop.
+  std::unordered_map<int, Node*> numel_consumers;
+  for (auto out_node : group->output_nodes) {
+    if (virtual_consumers.find(out_node) != virtual_consumers.end() ||
+        !GetConsumersInSet(out_node, nodes_set).empty()) {
+      continue;
+    }
+    auto shape = GetOutputShape(out_node, shape_dict);
+    int numel  = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<int>());
+    if (numel_consumers.find(numel) == numel_consumers.end()) {
+      numel_consumers.insert(std::make_pair(numel, out_node));
+    } else {
+      virtual_consumers[out_node] = numel_consumers[numel];
+    }
+  }
+
   return virtual_consumers;
 }
 
@@ -309,6 +328,19 @@ std::vector<Node*> FindConsumers(Node* node,
     consumers.push_back(virtual_consumers.find(node)->second);
   }
   return consumers;
+}
+
+std::vector<Node*> FindProducers(Node* node,
+                                 const std::unordered_set<Node*>& nodes_set,
+                                 const std::unordered_map<Node*, Node*>& virtual_consumers) {
+  auto producers = GetProducersInSet(node, nodes_set);
+  for (const auto& iter : virtual_consumers) {
+    if (iter.second == node) {
+      producers.push_back(iter.first);
+    }
+  }
+
+  return producers;
 }
 
 std::vector<Node*> TopologicalOrder(const GroupPtr& group, const std::unordered_map<Node*, Node*>& virtual_consumers) {
@@ -330,6 +362,93 @@ std::vector<Node*> TopologicalOrder(const GroupPtr& group, const std::unordered_
       if (cant_be_erase) continue;
       nodes_in_order.push_back(node);
       nodes_set.erase(node);
+    }
+  }
+
+  return nodes_in_order;
+}
+
+std::vector<Node*> BFSTopologicalOrderWithPriority(const GroupPtr& group,
+                                                   const std::unordered_map<Node*, Node*>& virtual_consumers,
+                                                   const absl::flat_hash_map<std::string, shape_t>& shape_dict) {
+  struct NodeWithPriority {
+    Node* node;
+    int priority;
+  };
+
+  struct Comparator {
+    bool operator()(const NodeWithPriority& lhs, const NodeWithPriority& rhs) { return lhs.priority > rhs.priority; }
+  };
+
+  std::vector<Node*> nodes_in_order;
+  std::unordered_set<Node*> visited;
+  std::unordered_set<Node*> nodes_set = group->NodeSet();
+  std::unordered_map<Node*, int> degree_map;
+  std::priority_queue<NodeWithPriority, std::vector<NodeWithPriority>, Comparator> priority_candidates;
+  std::vector<int> visited_numel;
+
+  // Calculate the priority of a node.
+  // The smaller the value, the higher the priority.
+  // Prioritize the same shape before considering OpPattern
+  auto PriorityFunc = [&visited_numel, &shape_dict](const Node* node) -> int {
+    auto node_shape = GetOutputShape(node, shape_dict);
+    int numel       = std::accumulate(node_shape.begin(), node_shape.end(), 1, std::multiplies<int>());
+    int index       = -1;
+    for (int i = 0; i < visited_numel.size(); ++i) {
+      if (numel == visited_numel[i]) {
+        index = i;
+        break;
+      }
+    }
+    if (index == -1) {
+      index = visited_numel.size();
+      visited_numel.push_back(numel);
+    }
+    auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
+    return index * 10 + static_cast<int>(op_pattern_dict[node->op()]);
+  };
+
+  for (Node* node : nodes_set) {
+    auto consumers = FindConsumers(node, nodes_set, virtual_consumers);
+    // Some nodes may have multiple edges between them, resulting in duplicates in the consumer.
+    // We only need to calculate once.
+    std::unordered_set<Node*> consumers_without_duplicate(consumers.begin(), consumers.end());
+    degree_map[node] = consumers_without_duplicate.size();
+    if (degree_map.at(node) == 0) {
+      priority_candidates.push(NodeWithPriority{node, PriorityFunc(node)});
+    }
+  }
+
+  // Nested BFS, outer layer traverses priority, inner layer performs BFS on current priority.
+  while (!priority_candidates.empty()) {
+    Node* cur_priority_node = priority_candidates.top().node;
+    priority_candidates.pop();
+
+    std::queue<Node*> bfs_queue;
+    bfs_queue.push(cur_priority_node);
+    visited.insert(cur_priority_node);
+    while (!bfs_queue.empty()) {
+      Node* cur = bfs_queue.front();
+      bfs_queue.pop();
+
+      nodes_in_order.push_back(cur);
+      auto producers = FindProducers(cur, nodes_set, virtual_consumers);
+      std::unordered_set<Node*> producers_without_duplicate(producers.begin(), producers.end());
+      for (Node* node : producers_without_duplicate) {
+        --degree_map[node];
+        // Ensure that each node is accessed only once and maintain topological order.
+        if (visited.count(node) != 0 || degree_map[node] != 0) {
+          continue;
+        }
+        // Perform BFS access to the current priority producers
+        int node_priority = PriorityFunc(node);
+        if (node_priority <= PriorityFunc(cur_priority_node)) {
+          bfs_queue.push(node);
+          visited.insert(node);
+        } else {
+          priority_candidates.push(NodeWithPriority{node, node_priority});
+        }
+      }
     }
   }
 
@@ -536,7 +655,7 @@ void LoopAssignReduceWithLast(ir::IRSchedule& ir_sch,
 bool CanbeInline(Node* node,
                  const std::vector<Node*> consumers,
                  const Node* reducer,
-                 const Node* laster,
+                 const std::unordered_set<Node*> masters,
                  const GroupPtr& group,
                  const std::unordered_set<Node*>& nodes_set,
                  const absl::flat_hash_map<std::string, shape_t>& shape_dict) {
@@ -578,10 +697,14 @@ bool CanbeInline(Node* node,
     return false;
   } else {
     auto node_shape = GetOutputShape(node, shape_dict);
-    auto last_shape = GetOutputShape(laster, shape_dict);
-    if (std::accumulate(node_shape.begin(), node_shape.end(), 1, std::multiplies<int>()) !=
-        std::accumulate(last_shape.begin(), last_shape.end(), 1, std::multiplies<int>())) {
-      return true;
+    auto node_size  = std::accumulate(node_shape.begin(), node_shape.end(), 1, std::multiplies<int>());
+
+    for (auto master : masters) {
+      auto master_shape = GetOutputShape(master, shape_dict);
+      auto master_size  = std::accumulate(master_shape.begin(), master_shape.end(), 1, std::multiplies<int>());
+      if (node_size != master_size) {
+        return true;
+      }
     }
 
     return false;
@@ -1213,7 +1336,7 @@ void LoopComputeAt(ir::IRSchedule& ir_sch,
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
   if (!group->output_nodes.count(node)) {
     auto block = ir_sch.GetBlock(GetNodeData(node)->id());
-    ir_sch.SetBuffer(block, "local", true);
+    ir_sch.SetBuffer(block, "local");
   }
 
   if (op_pattern_dict[node->op()] == framework::kReduction) {
@@ -1270,11 +1393,14 @@ std::unordered_map<std::string, NodeData*> GetNodeDataSet(const std::unordered_s
   return node_data_set;
 }
 
-Node* GetMaster(Node* node, const std::unordered_set<Node*>& nodes_inline, const std::unordered_set<Node*>& nodes_set) {
+std::unordered_set<Node*> GetMasters(Node* node,
+                                     const std::unordered_set<Node*>& nodes_inline,
+                                     const std::unordered_set<Node*>& nodes_set) {
   // find consumer
   std::unordered_set<Node*> visited;
   std::queue<Node*> candidates;
   candidates.push(node);
+  std::unordered_set<Node*> masters;
 
   while (!candidates.empty()) {
     auto candidate = candidates.front();
@@ -1289,19 +1415,20 @@ Node* GetMaster(Node* node, const std::unordered_set<Node*>& nodes_inline, const
         candidates.push(consumer);
         visited.insert(consumer);
       } else {
-        return consumer;
+        masters.insert(consumer);
       }
     }
   }
 
-  return nullptr;
+  return masters;
 }
 
 void SyncThreadWithShared(ir::IRSchedule& ir_sch,
                           const std::unordered_set<Node*>& nodes_inline,
                           const std::unordered_set<Node*>& nodes_set,
                           const absl::flat_hash_map<std::string, shape_t>& shape_dict,
-                          const std::unordered_map<std::string, ir::Tensor>& tensor_map) {
+                          const std::unordered_map<std::string, ir::Tensor>& tensor_map,
+                          const GroupPtr& group) {
   auto exprs_inorder    = ir_sch.GetAllBlocks();
   auto node_data_set    = GetNodeDataSet(nodes_set);
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
@@ -1338,33 +1465,34 @@ void SyncThreadWithShared(ir::IRSchedule& ir_sch,
     auto node       = node_data->source_node.get();
     auto node_shape = shape_dict.at(node_data->id());
 
-    auto master = GetMaster(node, nodes_inline, nodes_set);
-    if (!master) {
+    auto masters = GetMasters(node, nodes_inline, nodes_set);
+    if (masters.empty()) {
       continue;
     }
 
-    auto master_data  = GetNodeData(master);
-    auto master_shape = shape_dict.at(master_data->id());
-    if (op_pattern_dict[master->op()] == framework::kReduction) {
-      master_shape = shape_dict.at(master->inlinks_in_order()[0]->source()->id());
+    bool do_set_buffer_to_shared = false;
+    for (auto master : masters) {
+      auto master_data  = GetNodeData(master);
+      auto master_shape = shape_dict.at(master_data->id());
+      if (op_pattern_dict[master->op()] == framework::kReduction) {
+        master_shape = shape_dict.at(master->inlinks_in_order()[0]->source()->id());
+      }
+
+      auto node_size   = std::accumulate(node_shape.begin(), node_shape.end(), 1, std::multiplies<int>());
+      auto master_size = std::accumulate(master_shape.begin(), master_shape.end(), 1, std::multiplies<int>());
+
+      if (node_size != master_size) {
+        if (check_sync_mark(idx, master_data->id())) {
+          auto loops = ir_sch.GetLoops(master_data->id());
+          ir_sch.SyncThreads(loops.back(), false);
+          sync_mark.insert(master_data->id());
+        }
+        do_set_buffer_to_shared = true;
+      }
     }
-
-    auto node_size   = std::accumulate(node_shape.begin(), node_shape.end(), 1, std::multiplies<int>());
-    auto master_size = std::accumulate(master_shape.begin(), master_shape.end(), 1, std::multiplies<int>());
-
-    if (node_size == master_size) {
-      continue;
-    }
-
-    {
+    if (do_set_buffer_to_shared && group->output_nodes.find(node) == group->output_nodes.end()) {
       auto block = ir_sch.GetBlock(node_data->id());
       ir_sch.SetBuffer(block, "shared", true);
-    }
-
-    if (check_sync_mark(idx, master_data->id())) {
-      auto loops = ir_sch.GetLoops(master_data->id());
-      ir_sch.SyncThreads(loops.back(), false);
-      sync_mark.insert(master_data->id());
     }
   }
 }

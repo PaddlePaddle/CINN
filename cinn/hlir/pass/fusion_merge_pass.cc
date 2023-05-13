@@ -617,10 +617,6 @@ class FusionMergePassHelper : public FusionHelperBase {
 
   void RecomputeWithCostModel(const GroupPtr& producer,
                               std::unordered_set<GroupPtr, Hasher, Comparator>& fusionable_consumers) {
-    if (producer->op_pattern_kind == framework::kReduction) {
-      CHECK_EQ(fusionable_consumers.size(), 1) << "Find more than one consumer can fuse to " << producer->group_id;
-    }
-
     // if is const op
     if (is_const_group(this, producer)) {
       std::unordered_set<GroupPtr, Hasher, Comparator> candidates;
@@ -976,7 +972,7 @@ class FusionMergePassHelper : public FusionHelperBase {
       relation.vertical_relation = {// reduce and elementwise can be horizontal/vertical relation.
                                     {OpPatternKind::kElementWise, reduce_fuse_elementwise},
                                     // reduce and broadcast op must be horizontal relation.
-                                    {OpPatternKind::kBroadcast, is_same_size},
+                                    {OpPatternKind::kBroadcast, reduce_fuse_broadcast},
                                     // reduce and injective op must be horizontal relation.
                                     {OpPatternKind::kInjective, horizontal_with_injective},
                                     // reduce and reduce must be horizontal relation.

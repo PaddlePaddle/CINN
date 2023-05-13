@@ -96,7 +96,9 @@ void MapExternCall(Expr *e, Target target) {
           suffix = "_fp64";
         } else if (dtype.is_float(32)) {
           suffix = "_fp32";
-        } else if (dtype.is_float(16)) {
+        } else if (dtype.is_bfloat16()) {
+          suffix = "_bf16";
+        } else if (dtype.is_float16()) {
           suffix = "_fp16";
         }
       }

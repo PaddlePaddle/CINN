@@ -131,6 +131,9 @@ void cinn_call_cublas(void *v_args,
   cinn_pod_value_t *args   = static_cast<cinn_pod_value_t *>(v_args);
   cudaStream_t custream    = static_cast<cudaStream_t>(stream);
   CUBLAS_CALL(cublasSetStream(cuhandle, custream));
+  VLOG(3) << "a1 ~ a4: " << a1 << " " << a2 << " " << a3 << " " << a4;
+  VLOG(3) << "b1 ~ b4: " << b1 << " " << b2 << " " << b3 << " " << b4;
+  VLOG(3) << "trans_a: " << trans_a << ", trans_b: " << trans_b << ", trans_o: " << trans_o;
 
   void *A = args[0].operator cinn_buffer_t *()->memory;
   void *B = args[1].operator cinn_buffer_t *()->memory;
@@ -152,44 +155,57 @@ void cinn_call_cublas(void *v_args,
   void *rhs = trans_o ? B : A;
 
   cudaDataType_t cuda_dtype;
-  auto type_code = args[0].operator cinn_buffer_t *()->type.code;
-  bool is_float  = type_code == cinn_type_float;
-  int bytes      = args[0].operator cinn_buffer_t *()->type.bits / CHAR_BIT;
+  auto type_code   = args[0].operator cinn_buffer_t *()->type.code;
+  bool is_float    = type_code == cinn_type_float;
+  bool is_bfloat16 = type_code == cinn_type_bfloat;
+  int bytes        = args[0].operator cinn_buffer_t *()->type.bits / CHAR_BIT;
   if (is_float && bytes == sizeof(common::float16)) {
     cuda_dtype = CUDA_R_16F;
   } else if (is_float && bytes == sizeof(float)) {
     cuda_dtype = CUDA_R_32F;
+  } else if (is_bfloat16) {
+    cuda_dtype = CUDA_R_16BF;
   } else {
     LOG(FATAL) << "unsupported cublas data type: " << static_cast<int>(type_code) << ", bytes = " << bytes;
   }
 
   if (a1 * a2 * b1 * b2 == 1) {
+    VLOG(3) << "call cublasGemm for a1 * a2 * b1 * b2 == 1";
     CUBLAS_CALL(
         cublasGemm(cuda_dtype, cuhandle, trans_op_l, trans_op_r, m, n, k, alpha, lhs, ldl, rhs, ldr, beta, C, ldc));
   } else if (a1 * b1 == 1) {
     CHECK(a2 == b2 || a2 == 1 || b2 == 1);
-    int stride_l = trans_o ? (a2 > 1 ? a3 * a4 : 0) : (b2 > 1 ? b3 * b4 : 0);
-    int stride_r = trans_o ? (b2 > 1 ? b3 * b4 : 0) : (a2 > 1 ? a3 * a4 : 0);
-    int batch    = std::max(a2, b2);
-    CUBLAS_CALL(cublasGemmStridedBatched(cuda_dtype,
-                                         cuhandle,
-                                         trans_op_l,
-                                         trans_op_r,
-                                         m,
-                                         n,
-                                         k,
-                                         alpha,
-                                         lhs,
-                                         ldl,
-                                         stride_l,
-                                         rhs,
-                                         ldr,
-                                         stride_r,
-                                         beta,
-                                         C,
-                                         ldc,
-                                         m * n,
-                                         batch));
+    if (b2 == 1 && trans_op_r == CUBLAS_OP_N) {
+      // In case of [1, bs, M, K] * [1, 1, K, N]
+      VLOG(3) << "call cublasGemm for a1 * b1 = 1, b2 = 1, trans_op_r:" << trans_op_r;
+      CUBLAS_CALL(cublasGemm(
+          cuda_dtype, cuhandle, trans_op_l, trans_op_r, m, a2 * n, k, alpha, lhs, ldl, A, ldr, beta, C, ldc));
+    } else {
+      int stride_l = trans_o ? (a2 > 1 ? a3 * a4 : 0) : (b2 > 1 ? b3 * b4 : 0);
+      int stride_r = trans_o ? (b2 > 1 ? b3 * b4 : 0) : (a2 > 1 ? a3 * a4 : 0);
+      int batch    = std::max(a2, b2);
+      VLOG(3) << "call cublasGemmStridedBatched with a1*b1 = 1, stride_l = " << stride_l << ", stride_r = " << stride_r
+              << ", batch = " << batch;
+      CUBLAS_CALL(cublasGemmStridedBatched(cuda_dtype,
+                                           cuhandle,
+                                           trans_op_l,
+                                           trans_op_r,
+                                           m,
+                                           n,
+                                           k,
+                                           alpha,
+                                           lhs,
+                                           ldl,
+                                           stride_l,
+                                           rhs,
+                                           ldr,
+                                           stride_r,
+                                           beta,
+                                           C,
+                                           ldc,
+                                           m * n,
+                                           batch));
+    }
   } else {
     int l1 = trans_o ? a1 : b1, l2 = trans_o ? a2 : b2, l3 = trans_o ? a3 : b3, l4 = trans_o ? a4 : b4;
     int r1 = trans_o ? b1 : a1, r2 = trans_o ? b2 : a2, r3 = trans_o ? b3 : a3, r4 = trans_o ? b4 : a4;
@@ -201,6 +217,8 @@ void cinn_call_cublas(void *v_args,
       // four types matmul:
       // (N, L) * (N, L) , (N, 1) * (N, 1)
       // (N, L) * (1, 1) , (1, 1) * (N, L)
+      VLOG(3) << "call cublasGemmStridedBatched for stride_l = " << stride_l << ", stride_r = " << stride_r
+              << ", batch = " << std::max(l1, r1) * std::max(l2, r2);
       CUBLAS_CALL(cublasGemmStridedBatched(cuda_dtype,
                                            cuhandle,
                                            trans_op_l,
@@ -300,13 +318,16 @@ void cinn_call_batched_cublas(void *v_args,
   CUBLAS_CALL(cublasSetStream(cuhandle, custream));
 
   cudaDataType_t cuda_dtype;
-  auto type_code = args[0].operator cinn_buffer_t *()->type.code;
-  bool is_float  = type_code == cinn_type_float;
-  int bytes      = args[0].operator cinn_buffer_t *()->type.bits / CHAR_BIT;
+  auto type_code   = args[0].operator cinn_buffer_t *()->type.code;
+  bool is_float    = type_code == cinn_type_float;
+  bool is_bfloat16 = type_code == cinn_type_bfloat;
+  int bytes        = args[0].operator cinn_buffer_t *()->type.bits / CHAR_BIT;
   if (is_float && bytes == sizeof(common::float16)) {
     cuda_dtype = CUDA_R_16F;
   } else if (is_float && bytes == sizeof(float)) {
     cuda_dtype = CUDA_R_32F;
+  } else if (is_bfloat16) {
+    cuda_dtype = CUDA_R_16BF;
   } else {
     LOG(FATAL) << "unsupported cublas data type: " << static_cast<int>(type_code) << ", bytes = " << bytes;
   }
@@ -487,11 +508,14 @@ cudnnDataType_t convert_to_cudnn_dtype(void *v_args, int num_args) {
     }
   }
   cudnnDataType_t data_type;
-  bool is_float = type_code == cinn_type_float;
+  bool is_float    = type_code == cinn_type_float;
+  bool is_bfloat16 = type_code == cinn_type_bfloat;
   if (is_float && bits == 16) {
     data_type = CUDNN_DATA_HALF;
   } else if (is_float && bits == 32) {
     data_type = CUDNN_DATA_FLOAT;
+  } else if (is_bfloat16) {
+    data_type = CUDNN_DATA_BFLOAT16;
   } else {
     LOG(FATAL) << "unsupported cudnn data type: " << static_cast<int>(type_code) << ", bits = " << bits;
   }
@@ -502,9 +526,10 @@ cudnnDataType_t get_cudnn_compute_dtype(cudnnDataType_t data_type) {
   switch (data_type) {
     case CUDNN_DATA_FLOAT:
     case CUDNN_DATA_HALF:
+    case CUDNN_DATA_BFLOAT16:
       return CUDNN_DATA_FLOAT;
     default:
-      LOG(FATAL) << "unsupported cudnn data type, only support float16 and float32 now!";
+      LOG(FATAL) << "unsupported cudnn data type, only support float16/bfloat16 and float32 now!";
   }
   return CUDNN_DATA_FLOAT;
 }
@@ -527,8 +552,10 @@ std::string debug_cudnn_tensor_dtype(cudnnDataType_t tensor_dtype) {
       return "float32";
     case CUDNN_DATA_HALF:
       return "float16";
+    case CUDNN_DATA_BFLOAT16:
+      return "bfloat16";
     default:
-      LOG(FATAL) << "Only support float16 and float32 now!";
+      LOG(FATAL) << "Only support float16/bfloat16 and float32 now!";
   };
   return "";
 }
@@ -1632,11 +1659,14 @@ cudnnDataType_t convert_to_cudnn_dtype(cinn_buffer_t *input) {
   auto type_code = input->type.code;
   int bits       = input->type.bits;
   cudnnDataType_t data_type;
-  bool is_float = type_code == cinn_type_float;
+  bool is_float    = type_code == cinn_type_float;
+  bool is_bfloat16 = type_code == cinn_type_bfloat;
   if (is_float && bits == 16) {
     data_type = CUDNN_DATA_HALF;
   } else if (is_float && bits == 32) {
     data_type = CUDNN_DATA_FLOAT;
+  } else if (is_bfloat16) {
+    data_type = CUDNN_DATA_BFLOAT16;
   } else {
     LOG(FATAL) << "unsupported cudnn data type: " << static_cast<int>(type_code) << ", bits = " << bits;
   }

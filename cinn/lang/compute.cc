@@ -180,14 +180,14 @@ ir::Tensor Compute(const std::vector<Expr> &domain,
   return tensor;
 }
 
-std::vector<ir::Tensor> CallLowered(const std::string &target,
+std::vector<ir::Tensor> CallLowered(const std::string &func_name,
                                     const std::vector<Expr> &args,
                                     const std::vector<ReturnType> &return_types) {
-  auto call = ir::Call::Make(Void(), target, args, {}, ir::CallType::CINN, ir::FunctionRef(), 0);
+  auto call = ir::Call::Make(Void(), func_name, args, {}, ir::CallType::CINN, ir::FunctionRef(), 0);
   std::vector<ir::Tensor> new_tensors;
   for (int i = 0; i < return_types.size(); i++) {
     auto &return_type = return_types[i];
-    auto call_op      = ir::CallOp::Make(target, call);
+    auto call_op      = ir::CallOp::Make(func_name, call);
     auto new_tensor   = ir::Tensor(return_type.name, return_type.type, return_type.dims, {Expr(1)}, call_op);
     // Append write tensors in the tail.
     call.As<ir::Call>()->write_args.push_back(new_tensor);
@@ -199,22 +199,24 @@ std::vector<ir::Tensor> CallLowered(const std::string &target,
   return new_tensors;
 }
 
-Expr CallExtern(const std::string &target, const std::vector<Expr> &args, const std::map<std::string, attr_t> &attrs) {
-  auto *proto = backends::ExternFunctionProtoRegistry::Global().Lookup(target);
-  CHECK(proto) << "No extern function prototype " << target << " found\n"
+Expr CallExtern(const std::string &func_name,
+                const std::vector<Expr> &args,
+                const std::map<std::string, attr_t> &attrs) {
+  auto *proto = backends::ExternFunctionProtoRegistry::Global().Lookup(func_name);
+  CHECK(proto) << "No extern function prototype " << func_name << " found\n"
                << "existing records are:\n"
                << backends::ExternFunctionProtoRegistry::Global().debug_string();
 
-  auto call = ir::Call::Make(proto->ret_type, target, args, {}, ir::CallType::Extern, ir::FunctionRef(), 0, attrs);
+  auto call = ir::Call::Make(proto->ret_type, func_name, args, {}, ir::CallType::Extern, ir::FunctionRef(), 0, attrs);
   std::vector<Expr> mutable_args;
   // Call a function with multiple outputs.
   if (proto->ret_type.is_void()) {
     for (int i = 0; i < proto->mutable_arg_types.size(); i++) {
       auto shape                         = proto->shape_inference(args, i);
-      auto op                            = ir::CallOp::Make(target, call);
+      auto op                            = ir::CallOp::Make(func_name, call);
       op->as<ir::CallOp>()->value_slot   = i;
       op->as<ir::CallOp>()->is_tuple_get = true;
-      auto name = Context::Global().NewName("tuple_" + target + "_out" + std::to_string(i) + "_");
+      auto name = Context::Global().NewName("tuple_" + func_name + "_out" + std::to_string(i) + "_");
       auto ret  = ir::Tensor(name, proto->mutable_arg_types[i], shape, shape, op, {});
       mutable_args.push_back(ret);
     }
