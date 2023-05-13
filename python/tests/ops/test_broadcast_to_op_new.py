@@ -82,12 +82,12 @@ class TestBroadcastToAllOne(TestCaseHelper):
             {
                 "x_shape": [5, 4, 3, 2],
                 "d_shape": [6, 5, 4, 3, 2],
-                "broadcast_axes": [1, 2],
+                "broadcast_axes": [1, 2, 3, 4],
             },
             {
                 "x_shape": [16, 8, 4, 2, 1],
                 "d_shape": [32, 16, 8, 4, 2, 1],
-                "broadcast_axes": [2, 3, 4],
+                "broadcast_axes": [1, 2, 3, 4, 5],
             },
         ]
         self.dtypes = [
