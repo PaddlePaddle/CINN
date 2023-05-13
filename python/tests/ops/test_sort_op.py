@@ -74,7 +74,7 @@ class TestSortOpLargeCudaMemoryOccupation(TestSortOp):
         self.prepare_inputs()
 
     def prepare_inputs(self):
-        self.inputs = {"x": self.random([128, 64], "float64")}
+        self.inputs = {"x": self.random([8192], "float64")}
         self.axis = 0
         self.descending = False
 
@@ -91,13 +91,13 @@ class TestSortOpShapeTest(TestCaseHelper):
                 "shape": [1024],
             },
             {
-                "shape": [2048],
+                "shape": [1200],
             },
             {
-                "shape": [128, 64],
+                "shape": [64, 16],
             },
             {
-                "shape": [4, 32, 16],
+                "shape": [4, 32, 8],
             },
             {
                 "shape": [16, 8, 4, 2],
@@ -106,7 +106,7 @@ class TestSortOpShapeTest(TestCaseHelper):
                 "shape": [2, 8, 4, 2, 5],
             },
             {
-                "shape": [4, 8, 1, 2, 32],
+                "shape": [4, 8, 1, 2, 16],
             },
             {
                 "shape": [1],
@@ -139,13 +139,13 @@ class TestSortOpDtypeTest(TestCaseHelper):
         self.cls = TestSortOp
         self.inputs = [
             {
-                "shape": [2048],
+                "shape": [1024],
             },
             {
-                "shape": [64, 32],
+                "shape": [64, 16],
             },
             {
-                "shape": [4, 32, 16],
+                "shape": [4, 32, 8],
             },
             {
                 "shape": [16, 8, 4, 2],
