@@ -34,7 +34,7 @@ using common::float16;
 
 void IrPrinter::Print(Expr e) { IRVisitor::Visit(&e); }
 void IrPrinter::Print(const std::vector<Expr> &exprs, const std::string &splitter) {
-  for (int i = 0; !exprs.empty() && i < exprs.size() - 1; i++) {
+  for (std::size_t i = 0; !exprs.empty() && i + 1 < exprs.size(); i++) {
     Print(exprs[i]);
     os_ << splitter;
   }
@@ -223,7 +223,7 @@ void IrPrinter::Visit(const Block *x) {
   os_ << "{\n";
 
   IncIndent();
-  for (int i = 0; !x->stmts.empty() && i < x->stmts.size() - 1; i++) {
+  for (std::size_t i = 0; !x->stmts.empty() && i + 1 < x->stmts.size(); i++) {
     DoIndent();
     Print(x->stmts[i]);
     os_ << "\n";
@@ -240,7 +240,7 @@ void IrPrinter::Visit(const Block *x) {
 void IrPrinter::Visit(const Call *x) {
   os_ << x->name << "(";
   if (!x->read_args.empty()) {
-    for (int i = 0; i < x->read_args.size() - 1; i++) {
+    for (std::size_t i = 0; i + 1 < x->read_args.size(); i++) {
       Print(x->read_args[i]);
       os_ << ", ";
     }
@@ -250,7 +250,7 @@ void IrPrinter::Visit(const Call *x) {
   if (!x->write_args.empty()) {
     if (!x->read_args.empty()) os() << ", ";
 
-    for (int i = 0; i < x->write_args.size() - 1; i++) {
+    for (std::size_t i = 0; i + 1 < x->write_args.size(); i++) {
       Print(x->write_args[i]);
       os_ << ", ";
     }
@@ -295,7 +295,7 @@ void IrPrinter::Visit(const Load *x) {
   }
 
   os_ << "[";
-  for (int i = 0; i < x->indices.size() - 1; i++) {
+  for (std::size_t i = 0; i + 1 < x->indices.size(); i++) {
     Print(x->indices[i]);
     os() << ", ";
   }
@@ -314,7 +314,7 @@ void IrPrinter::Visit(const Store *x) {
   }
 
   os_ << "[";
-  for (int i = 0; i < x->indices.size() - 1; i++) {
+  for (std::size_t i = 0; i + 1 < x->indices.size(); i++) {
     Print(x->indices[i]);
     os() << ", ";
   }
@@ -345,7 +345,7 @@ void IrPrinter::Visit(const _Tensor_ *x) {
   os() << x->name << ", ";
   os() << "[";
   if (!x->shape.empty()) {
-    for (int i = 0; i < x->shape.size() - 1; i++) {
+    for (std::size_t i = 0; i + 1 < x->shape.size(); i++) {
       Print(x->shape[i]);
       os() << ",";
     }
@@ -437,7 +437,7 @@ void IrPrinter::Visit(const FracOp *x) {
 
 void IrPrinter::Visit(const Product *x) {
   os() << "(";
-  for (int i = 0; i < x->operands().size() - 1; i++) {
+  for (std::size_t i = 0; i + 1 < x->operands().size(); i++) {
     Print(x->operand(i));
     os() << " * ";
   }
@@ -447,7 +447,7 @@ void IrPrinter::Visit(const Product *x) {
 
 void IrPrinter::Visit(const Sum *x) {
   os() << "(";
-  for (int i = 0; i < x->operands().size() - 1; i++) {
+  for (std::size_t i = 0; i + 1 < x->operands().size(); i++) {
     Print(x->operand(i));
     os() << " + ";
   }
@@ -474,7 +474,7 @@ void IrPrinter::Visit(const _BufferRange_ *x) {
   auto *buffer = x->buffer.As<ir::_Buffer_>();
   CHECK(buffer);
   os() << buffer->name << "[";
-  for (int i = 0; i < x->ranges.size(); i++) {
+  for (std::size_t i = 0; i < x->ranges.size(); i++) {
     if (i) os() << ", ";
     auto &range = x->ranges[i];
     os() << range->name << "(";
@@ -507,12 +507,12 @@ void IrPrinter::Visit(const ScheduleBlockRealize *x) {
   CHECK_EQ(iter_vars.size(), iter_values.size());
   IncIndent();
   if (!iter_vars.empty()) DoIndent();
-  for (int i = 0; i < iter_vars.size(); i++) {
+  for (std::size_t i = 0; i < iter_vars.size(); i++) {
     if (i) os() << ", ";
     os() << iter_vars[i]->name;
   }
   if (!iter_vars.empty()) os() << " = axis.bind(";
-  for (int i = 0; i < iter_values.size(); i++) {
+  for (std::size_t i = 0; i < iter_values.size(); i++) {
     if (i) os() << ", ";
     os() << iter_values[i];
   }
@@ -522,7 +522,7 @@ void IrPrinter::Visit(const ScheduleBlockRealize *x) {
     DoIndent();
     os() << "read_buffers(";
     auto &read_buffers = schedule_block->read_buffers;
-    for (int i = 0; i < read_buffers.size(); i++) {
+    for (std::size_t i = 0; i < read_buffers.size(); i++) {
       if (i) os() << ", ";
       Print(read_buffers[i]);
     }
@@ -532,7 +532,7 @@ void IrPrinter::Visit(const ScheduleBlockRealize *x) {
     DoIndent();
     os() << "write_buffers(";
     auto &write_buffers = schedule_block->write_buffers;
-    for (int i = 0; i < write_buffers.size(); i++) {
+    for (std::size_t i = 0; i < write_buffers.size(); i++) {
       if (i) os() << ", ";
       Print(write_buffers[i]);
     }
@@ -606,7 +606,7 @@ void IrPrinter::Visit(const intrinsics::BuiltinIntrin *x) {
   os_ << runtime::intrinsic::builtin_intrin_repr << "_";
   os_ << x->name << "(";
   if (!x->args.empty()) {
-    for (int i = 0; i < x->args.size() - 1; i++) {
+    for (std::size_t i = 0; i + 1 < x->args.size(); i++) {
       Print(x->args[i]);
       os_ << ", ";
     }

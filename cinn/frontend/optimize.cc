@@ -73,7 +73,7 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
   options.program_passes.emplace_back("RemoveIdentity");
   options.program_passes.emplace_back("DeadCodeEliminate");
 
-  options.graph_passes = {"ConstantFolding"};
+  options.graph_passes = {"ExpandZeroDimPass", "ConstantFolding"};
   if (FLAGS_cinn_use_dense_merge_pass) {
     options.graph_passes.push_back("DenseMergePass");
   }

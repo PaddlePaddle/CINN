@@ -204,10 +204,25 @@ void BindFrontend(pybind11::module *m) {
             }
             program->Execute();
 
+            // Acquire all 0D outputs from frontend::Program
+            std::unordered_set<std::string> zero_dim_outputs;
+            for (std::size_t i = 0; i < self.size(); i++) {
+              for (auto &output : self[i].GetOutputs()) {
+                if (output->shape.empty()) {
+                  zero_dim_outputs.insert(output->id);
+                }
+              }
+            }
+
             std::vector<hlir::framework::Tensor> outputs;
             for (size_t i = 0; i < tensor_outputs.size(); i++) {
               outputs.push_back(scope->GetTensor(tensor_outputs[i]->id));
               outputs.back()->set_type(tensor_outputs[i]->type);
+              // Change Tensor from 1D to 0D
+              if (outputs.back()->shape().numel() == 1 &&
+                  zero_dim_outputs.find(tensor_outputs[i]->id) != zero_dim_outputs.end()) {
+                outputs.back()->Resize({});
+              }
             }
 
             return outputs;

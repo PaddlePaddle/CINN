@@ -17,6 +17,7 @@ gather_srcs(cinnapi_src SRCS
     dense_merge_pass.cc
     reduce_split_pass.cc
     single_group_optimize_pass.cc
+    expand_zero_dim_pass.cc
     )
 
 #cc_test(test_opfusion SRCS opfusion_test.cc DEPS cinncore)
@@ -39,3 +40,4 @@ cc_test(test_dot_merger SRCS test_dot_merger.cc DEPS cinncore)
 cc_test(test_dce_pass SRCS dce_pass_test.cc DEPS cinncore)
 cc_test(test_common_subexpression_elimination SRCS common_subexpression_elimination_test.cc DEPS cinncore)
 cc_test(test_constant_folding_pass SRCS constant_folding_pass_test.cc DEPS cinncore)
+# cc_test(test_expand_zero_dim_pass SRCS expand_zero_dim_pass_test.cc DEPS cinncore)
