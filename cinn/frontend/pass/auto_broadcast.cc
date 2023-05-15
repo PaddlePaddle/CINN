@@ -68,6 +68,11 @@ class AutoBroadcastPass : public ProgramPass {
       builder->AppendInstruction(instr);
       return;
     }
+    if (instr->inputs.size() <= 1) {
+      // skip broadcast_to and other op
+      builder->AppendInstruction(instr);
+      return;
+    }
 
     const auto& outputs = instr.GetOutputs();
     CHECK_EQ(outputs.size(), 1) << "The broadcast operator should has and only has one output";
@@ -78,6 +83,7 @@ class AutoBroadcastPass : public ProgramPass {
       axis = instr.GetAttrs<int>("axis");
     }
 
+    bool need_insert = false;
     std::vector<Variable> new_inputs;
     for (auto input : instr->inputs) {
       if (input->shape == output->shape) {
@@ -85,13 +91,20 @@ class AutoBroadcastPass : public ProgramPass {
         new_inputs.emplace_back(input);
       } else {
         // else insert broadcast_to
+        need_insert = true;
+
         auto new_var = builder->BroadcastTo(input, output->shape, GetBroadcastAxes(input->shape, output->shape, axis));
         new_inputs.emplace_back(new_var);
       }
     }
-    // update origin broadcast op's input and attribute
-    broadcast_op->SetInputs(std::move(new_inputs));
-    (*broadcast_op)->attrs["axis"] = -1;
+
+    if (need_insert) {
+      VLOG(4) << "Before Insert broadcast_to: " << *broadcast_op;
+      // update origin broadcast op's input and attribute
+      broadcast_op->SetInputs(std::move(new_inputs));
+      (*broadcast_op)->attrs["axis"] = -1;
+      VLOG(4) << "After Insert broadcast_to: " << *broadcast_op;
+    }
     // append new broadcast
     builder->AppendInstruction(*broadcast_op);
   }
