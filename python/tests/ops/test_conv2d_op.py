@@ -105,6 +105,18 @@ class TestConv2dNCHWFP16(TestConv2dNCHW):
         self.check_outputs_and_grads(max_relative_error=1e-3)
 
 
+class TestConv2dNCHWFP64(TestConv2dNCHW):
+    def init_case(self):
+        self.inputs = {
+            "x": self.random([3, 16, 32, 32], "float64"),
+            "weight": self.random([16, 16, 3, 3], "float64"),
+            "dy": self.random([3, 16, 30, 30], "float64")
+        }
+
+    def test_check_results(self):
+        self.check_outputs_and_grads(max_relative_error=1e-3)
+
+
 @OpTestTool.skip_if(not is_compiled_with_cudnn(),
                     "conv2d NHWC only support cudnn now.")
 class TestConv2dNHWC(OpTest):

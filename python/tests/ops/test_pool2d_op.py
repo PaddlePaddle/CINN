@@ -110,6 +110,18 @@ class TestMaxPool2dFP16(TestPool2dOp):
         self.exclusive = True
 
 
+class TestMaxPool2dFP64(TestPool2dOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([1, 3, 32, 32], "float64")}
+        self.polling_type = "max"
+        self.data_format = "NCHW"
+        self.kernel_size = [2, 2]
+        self.stride = [2, 2]
+        self.paddings = [0, 0]
+        self.ceil_mode = False
+        self.exclusive = True
+
+
 class TestMaxPool2dFP16NHWC(TestPool2dOp):
     def init_case(self):
         self.inputs = {"x": self.random([1, 32, 32, 3], "float16")}
