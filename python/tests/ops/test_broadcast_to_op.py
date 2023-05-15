@@ -23,15 +23,9 @@ from cinn.frontend import *
 from cinn.common import *
 import sys
 
-enable_gpu = sys.argv.pop()
-
 
 class TestBroadcastToOp(OpTest):
     def setUp(self):
-        if enable_gpu == "ON":
-            self.target = DefaultNVGPUTarget()
-        else:
-            self.target = DefaultHostTarget()
         self.init_case()
 
     def init_case(self):
@@ -105,10 +99,6 @@ class TestBroadcastToCase4(TestBroadcastToOp):
 
 class TestBroadcastToOpNoAxes(OpTest):
     def setUp(self):
-        if enable_gpu == "ON":
-            self.target = DefaultNVGPUTarget()
-        else:
-            self.target = DefaultHostTarget()
         self.init_case()
 
     def init_case(self):

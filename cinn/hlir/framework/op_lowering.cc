@@ -1226,8 +1226,9 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
       }
     }
 
+    auto masters = GetMasters(node, nodes_inline, nodes_set);
     // node can be inline.
-    if (CanbeInline(node, consumers, reducer, nodes_in_order.front(), group, nodes_set, this->shape_dict_)) {
+    if (CanbeInline(node, consumers, reducer, masters, group, nodes_set, this->shape_dict_)) {
       auto block = ir_sch.GetBlock(GetNodeData(node)->id());
       ir::ComputeInlineChecker checker(ir_sch, block);
       if (!checker.Check()) {
@@ -1327,7 +1328,7 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
   }
 
   VLOG(3) << "Before Sync IRLowerOp schedule, ir is: \n" << ir_sch.GetModule().GetExprs().at(0);
-  SyncThreadWithShared(ir_sch, nodes_inline, nodes_set, this->shape_dict_, tensor_map);
+  SyncThreadWithShared(ir_sch, nodes_inline, nodes_set, this->shape_dict_, tensor_map, group);
   VLOG(4) << "After IRSchedule,  ir is: \n" << ir_sch.GetModule().GetExprs().at(0);
 }
 
