@@ -43,22 +43,6 @@ void BindObject(py::module *);
 void BindShared(py::module *);
 void BindCinnValue(py::module *);
 
-bool IsCompiledWithCUDA() {
-#if !defined(CINN_WITH_CUDA)
-  return false;
-#else
-  return true;
-#endif
-}
-
-bool IsCompiledWithCUDNN() {
-#if !defined(CINN_WITH_CUDNN)
-  return false;
-#else
-  return true;
-#endif
-}
-
 void ResetGlobalNameID() { common::Context::Global().ResetNameId(); }
 
 void BindTarget(py::module *m) {
@@ -94,8 +78,8 @@ void BindTarget(py::module *m) {
   py::enum_<Target::Feature> feature(target, "Feature");
   feature.value("JIT", Target::Feature::JIT).value("Debug", Target::Feature::Debug);
 
-  m->def("is_compiled_with_cuda", IsCompiledWithCUDA);
-  m->def("is_compiled_with_cudnn", IsCompiledWithCUDNN);
+  m->def("is_compiled_with_cuda", cinn::runtime::IsCompiledWithCUDA);
+  m->def("is_compiled_with_cudnn", cinn::runtime::IsCompiledWithCUDNN);
   m->def("reset_name_id", ResetGlobalNameID);
 }
 

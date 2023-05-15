@@ -21,8 +21,6 @@
 namespace cinn {
 namespace runtime {
 
-using common::Target;
-
 bool CheckStringFlagTrue(const std::string &flag);
 bool CheckStringFlagFalse(const std::string &flag);
 
@@ -42,25 +40,20 @@ class RandomSeed {
   static unsigned long long seed_;
 };
 
+bool IsCompiledWithCUDA();
+bool IsCompiledWithCUDNN();
+
 class CurrentTarget {
  public:
-  static Target &GetCurrentTarget();
-  static void SetCurrentTarget(const Target &target);
+  static common::Target &GetCurrentTarget();
+  static void SetCurrentTarget(const common::Target &target);
 
  private:
   CurrentTarget()                      = default;
   CurrentTarget(const CurrentTarget &) = delete;
   CurrentTarget &operator=(const CurrentTarget &) = delete;
 
-  static bool IsCompiledWithCUDA() {
-#ifdef CINN_WITH_CUDA
-    return true;
-#else
-    return false;
-#endif
-  }
-
-  static Target target_;
+  static common::Target target_;
 };
 
 }  // namespace runtime
