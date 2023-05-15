@@ -163,6 +163,8 @@ void cinn_call_cublas(void *v_args,
     cuda_dtype = CUDA_R_16F;
   } else if (is_float && bytes == sizeof(float)) {
     cuda_dtype = CUDA_R_32F;
+  } else if (is_float && bytes == sizeof(double)) {
+    cuda_dtype = CUDA_R_64F;
   } else if (is_bfloat16) {
     cuda_dtype = CUDA_R_16BF;
   } else {
@@ -326,6 +328,8 @@ void cinn_call_batched_cublas(void *v_args,
     cuda_dtype = CUDA_R_16F;
   } else if (is_float && bytes == sizeof(float)) {
     cuda_dtype = CUDA_R_32F;
+  } else if (is_float && bytes == sizeof(double)) {
+    cuda_dtype = CUDA_R_64F;
   } else if (is_bfloat16) {
     cuda_dtype = CUDA_R_16BF;
   } else {
