@@ -71,6 +71,9 @@ class TestLayerNormFp16(TestLayerNormOp):
         }
         self.beigin_norm_axis = 1
 
+    def test_check_results(self):
+        self.check_outputs_and_grads(max_relative_error=1e-3)
+
 
 if __name__ == "__main__":
     unittest.main()

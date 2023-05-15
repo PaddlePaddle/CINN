@@ -59,9 +59,9 @@ parser.add_argument(
     default=True)
 args = parser.parse_args()
 
-np.random.seed(2048)
-paddle.seed(2048)
-cinn_seed(2048)
+np.random.seed(1234)
+paddle.seed(1234)
+cinn_seed(1234)
 
 paddle.enable_static()
 
