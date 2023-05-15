@@ -109,7 +109,13 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOp(IRComputeFunction compute,
     ast_exprs = (this->*compute)(stages, arg_tensors, tensor_map, group, group, /*apply_impl_schedule = */ true);
   } else {
     for (auto& sub_group : group->fused_sub_groups) {
+      VLOG(4) << "sub_group->group_id = " << sub_group->group_id;
       auto exprs = (this->*compute)(stages, arg_tensors, tensor_map, group, sub_group, /*apply_impl_schedule = */ true);
+      VLOG(4) << "==== Exprs are ====";
+      for (auto& e : exprs) {
+        VLOG(4) << e;
+      }
+      VLOG(4) << "==== End of Exprs ====";
       ast_exprs.insert(ast_exprs.end(), exprs.begin(), exprs.end());
     }
   }

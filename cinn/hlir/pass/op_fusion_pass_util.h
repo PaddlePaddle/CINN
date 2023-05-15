@@ -54,6 +54,9 @@ CONDITION_FUNC(without_last_dimension_in_reduce) {
 inline bool ReduceSplitCanFuse(const Node* producer, const Node* reducer) {
   static std::unordered_set<std::string> reduce_op_type = {
       "reduce_sum", "reduce_mean", "reduce_max", "reduce_min", "reduce_all", "reduce_any"};
+  VLOG(6) << "Checking ReduceSplitCanFuse";
+  VLOG(6) << "producer->id() = " << producer->id();
+  VLOG(6) << "reducer->id() = " << reducer->id();
   for (const std::string& op_type : reduce_op_type) {
     if (utils::Startswith(producer->id(), op_type + "_split") && utils::Startswith(reducer->id(), op_type + "_split")) {
       return true;
@@ -63,6 +66,7 @@ inline bool ReduceSplitCanFuse(const Node* producer, const Node* reducer) {
 }
 
 CONDITION_FUNC(reduce_fuse_reduce) {
+  VLOG(6) << "In reduce_fuse_reduce";
   Node* reducer = NULL;
   for (auto* master : consumer->master_nodes) {
     if (helper->GetOpKind(master) == framework::kReduction) {
@@ -70,7 +74,7 @@ CONDITION_FUNC(reduce_fuse_reduce) {
       break;
     }
   }
-
+  
   if (ReduceSplitCanFuse(producer, reducer)) {
     return true;
   }
