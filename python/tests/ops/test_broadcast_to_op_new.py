@@ -202,8 +202,8 @@ class TestBroadcastToOpNoAxesAllTwo(TestCaseHelper):
         self.cls = TestBroadcastToOpNoAxes
         self.inputs = [
             {
-                "x_shape": [32, 2],
-                "d_shape": [32, 16, 2],
+                "x_shape": [5, 3],
+                "d_shape": [4, 5, 3],
             },
         ]
         self.dtypes = [
