@@ -59,7 +59,7 @@ if (WITH_CUDA)
   set(CUDA_SEPARABLE_COMPILATION ON)
 
   message(STATUS "copy cinn/common/float16.h cinn/common/bfloat16.h to $ENV{runtime_include_dir}")
-  file(COPY cinn/common/float16.h cinn/common/bfloat16.h DESTINATION $ENV{runtime_include_dir})
+  file(COPY_FILE cinn/common/float16.h cinn/common/bfloat16.h DESTINATION $ENV{runtime_include_dir})
 
   find_library(CUDASTUB libcuda.so HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib64/stubs/ REQUIRED)
   find_library(CUBLAS libcublas.so HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib64 /usr/lib REQUIRED)
