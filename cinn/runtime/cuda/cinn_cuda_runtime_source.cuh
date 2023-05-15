@@ -5,6 +5,9 @@
 #include <cuda_runtime.h>
 #include <curand_kernel.h>
 
+constexpr int CINN_INT32_MAX = 2147483647;
+constexpr int CINN_INT32_MIN = -2147483648;
+
 extern "C" {
 // *************************************************************** //
 // float32 unary and binary operator
@@ -258,8 +261,8 @@ __device__ inline float16 FN_FP16(pow)(float16 a, float16 b) {
 #define EXPAND_REDUCE_INT32_MARCO(MARCO, ...)       \
   MARCO(sum_int32, 0, int, ##__VA_ARGS__)           \
   MARCO(prod_int32, 1, int, ##__VA_ARGS__)          \
-  MARCO(max_int32, -2147483648, int, ##__VA_ARGS__) \
-  MARCO(min_int32, 2147483647, int, ##__VA_ARGS__)
+  MARCO(max_int32, CINN_INT32_MIN, int, ##__VA_ARGS__) \
+  MARCO(min_int32, CINN_INT32_MAX, int, ##__VA_ARGS__)
 
 __device__ inline int cinn_sum_int32(const int left, const int right) { return left + right; }
 __device__ inline int cinn_prod_int32(const int left, const int right) { return left * right; }
@@ -551,7 +554,7 @@ __device__ inline int cinn_nvgpu_next_smallest_int32(int *buf, int size, int num
     }
   }
   if (id != -1) {
-    buf[id] = 2147483647;
+    buf[id] = CINN_INT32_MAX;
     return (id - begin) / stride;
   }
   return -1;
