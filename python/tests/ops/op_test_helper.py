@@ -55,9 +55,9 @@ class TestCaseHelper():
         """
         Generate all test cases
         """
-        assert type(self.inputs) is list
-        assert type(self.dtypes) is list
-        assert type(self.attrs) is list
+        assert isinstance(self.inputs, list)
+        assert isinstance(self.dtypes, list)
+        assert isinstance(self.attrs, list)
         self.all_cases = []
         all_lists = [self.inputs, self.dtypes, self.attrs]
         filtered_lists = filter(lambda x: len(x) > 0, all_lists)
@@ -93,10 +93,10 @@ class TestCaseHelper():
             all_tests = args.case.split(',')
             for test in all_tests:
                 test_info = test.split('.')
-                assert len(test_info) is 2
+                assert len(test_info) == 2
                 if self.__class__.__name__ == test_info[0]:
                     self.specify_test.append(test_info[1])
-            if len(self.specify_test) is 0:
+            if len(self.specify_test) == 0:
                 return
         self._make_all_classes()
         test_suite = unittest.TestSuite()

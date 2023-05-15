@@ -349,20 +349,6 @@ __device__ inline bool cinn_any(const bool left, const bool right) { return left
   shfl_res = __shfl_down_sync(mask, tmp_val, offset, 32); \
   tmp_val  = op((threadIdx.x & 0x1f) + offset < lane ? shfl_res : init, tmp_val);
 
-__device__ inline float cinn_nvgpu_uniform_random_fp32(int seed){
-  curandStatePhilox4_32_10_t state;
-  int idx = threadIdx.x + blockIdx.x * blockDim.x;
-  curand_init(seed, idx, 1, &state);
-  return curand_uniform(&state);
-}
-
-__device__ inline double cinn_nvgpu_uniform_random_fp64(int seed){
-  curandStatePhilox4_32_10_t state;
-  int idx = threadIdx.x + blockIdx.x * blockDim.x;
-  curand_init(seed, idx, 1, &state);
-  return curand_uniform_double(&state);
-}
-
 #define CINN_WARP_SHUFFLE_INTERNAL_IMPL(REDUCE_TYPE, INITIAL_VALUE, DTYPE)                \
   __device__ inline DTYPE cinn_warp_shuffle_##REDUCE_TYPE##_internal(const DTYPE value) { \
     DTYPE tmp_val     = value, shfl_res;                                                  \
