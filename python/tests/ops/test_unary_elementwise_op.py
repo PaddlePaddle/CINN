@@ -27,10 +27,12 @@ from cinn.common import *
                     "x86 test will be skipped due to timeout.")
 class TestUnaryOp(OpTest):
     def setUp(self):
-        self.init_case()
+        print(f"\nRunning {self.__class__.__name__}: {self.case}")
+        self.prepare_inputs()
 
-    def init_case(self):
-        self.inputs = {"x": self.random([32, 64], 'float32', -10.0, 10.0)}
+    def prepare_inputs(self):
+        self.x_np = self.random(
+            shape=self.case["x_shape"], dtype=self.case["x_dtype"])
 
     def paddle_func(self, x):
         return paddle.abs(x)
@@ -39,7 +41,7 @@ class TestUnaryOp(OpTest):
         return builder.abs(x)
 
     def build_paddle_program(self, target):
-        x = paddle.to_tensor(self.inputs["x"], stop_gradient=True)
+        x = paddle.to_tensor(self.x_np, stop_gradient=True)
         out = self.paddle_func(x)
 
         self.paddle_outputs = [out]
@@ -47,23 +49,64 @@ class TestUnaryOp(OpTest):
     def build_cinn_program(self, target):
         builder = NetBuilder("unary_elementwise_test")
         x = builder.create_input(
-            self.nptype2cinntype(self.inputs["x"].dtype),
-            self.inputs["x"].shape, "x")
+            self.nptype2cinntype(self.case["x_dtype"]), self.case["x_shape"],
+            "x")
         out = self.cinn_func(builder, x)
 
         prog = builder.build()
-        res = self.get_cinn_output(prog, target, [x], [self.inputs["x"]],
-                                   [out])
+        res = self.get_cinn_output(prog, target, [x], [self.x_np], [out])
 
-        self.cinn_outputs = res
+        self.cinn_outputs = [res[0]]
 
     def test_check_results(self):
         self.check_outputs_and_grads()
 
 
 class TestSqrtOp(TestUnaryOp):
-    def init_case(self):
-        self.inputs = {"x": self.random([32, 64], 'float32', 1.0, 1000.0)}
+    def init_attrs(self):
+        self.class_name = "TestSqrtOpCase"
+        self.cls = TestUnaryOp
+        self.inputs = [
+            {
+                "x_shape": [1],
+            },
+            {
+                "x_shape": [1024],
+            },
+            {
+                "x_shape": [32, 64],
+            },
+            {
+                "x_shape": [16, 8, 4, 2],
+            },
+        ]
+        self.dtypes = [
+            {
+                "x_dtype": "bool",
+            },
+            {
+                "x_dtype": "int8",
+            },
+            {
+                "x_dtype": "int16"
+            },
+            {
+                "x_dtype": "int32",
+            },
+            {
+                "x_dtype": "int64"
+            },
+            {
+                "x_dtype": "float16",
+                "max_relative_error": 1e-3
+            },
+            {
+                "x_dtype": "float32",
+            },
+            {
+                "x_dtype": "float64",
+            },
+        ]
 
     def paddle_func(self, x):
         return paddle.sqrt(x)
