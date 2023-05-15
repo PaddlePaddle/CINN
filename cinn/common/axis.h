@@ -32,41 +32,8 @@ struct Expr;
 namespace cinn {
 namespace common {
 
-const static std::vector<std::string> kAxises({
-    "i",  // level 0
-    "j",  // level 1
-    "k",  // level 2
-    "a",  // level 3
-    "b",  // level 4
-    "c",  // level 5
-    "d",  // level 6
-    "e",  // level 7
-    "f",  // level 8
-    "g",  // level 9
-    "h",  // level 10
-    "l",  // level 11
-    "m",  // level 12
-    "n",  // level 13
-    "o",  // level 14
-    "p",  // level 15
-    "q",  // level 16
-    "r",  // level 17
-    "s",  // level 18
-    "t",  // level 19
-    "u",  // level 20
-    "v",  // level 21
-    "w",  // level 22
-    "x",  // level 23
-    "y",  // level 24
-    "z"   // level 25
-});
-
 //! Get the predifined axis name.
-inline const std::string& axis_name(int level) {
-  CHECK_LT(level, kAxises.size())
-      << "The loop level should be less than 26. Please check if any variables have dimensions greater than 26.";
-  return kAxises[level];
-}
+std::string axis_name(int level);
 
 //! Generate `naxis` axis using the global names (i,j,k...).
 std::vector<ir::Var> GenDefaultAxis(int naxis);
