@@ -43,12 +43,28 @@ const static std::vector<std::string> kAxises({
     "e",  // level 7
     "f",  // level 8
     "g",  // level 9
-    "h"   // level 10
+    "h",  // level 10
+    "l",  // level 11
+    "m",  // level 12
+    "n",  // level 13
+    "o",  // level 14
+    "p",  // level 15
+    "q",  // level 16
+    "r",  // level 17
+    "s",  // level 18
+    "t",  // level 19
+    "u",  // level 20
+    "v",  // level 21
+    "w",  // level 22
+    "x",  // level 23
+    "y",  // level 24
+    "z"   // level 25
 });
 
 //! Get the predifined axis name.
 inline const std::string& axis_name(int level) {
-  CHECK_LT(level, kAxises.size());
+  CHECK_LT(level, kAxises.size())
+      << "The loop level should be less than 26. Please check if any variables have dimensions greater than 26.";
   return kAxises[level];
 }
 
