@@ -90,7 +90,7 @@ DEFINE_bool(nvrtc_compile_to_cubin,
             "Whether nvrtc compile cuda source into cubin instead of ptx (only works after cuda-11.1).");
 
 DEFINE_bool(cinn_compile_with_nvrtc,
-            BoolFromEnv("FLAGS_cinn_compile_with_nvrtc", false),
+            BoolFromEnv("FLAGS_cinn_compile_with_nvrtc", true),
             "Whether nvrtc compile cuda source with nvrtc(default nvcc).");
 
 // FLAGS for performance analysis and accuracy debug
