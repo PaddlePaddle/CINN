@@ -52,6 +52,23 @@ inline cublasStatus_t cublasGemm(cudaDataType_t dtype,
                        reinterpret_cast<const float *>(&beta),
                        reinterpret_cast<float *>(C),
                        ldc);
+  } else if (dtype == CUDA_R_64F) {
+    const double alpha_fp64 = static_cast<double>(alpha);
+    const double beta_fp64  = static_cast<double>(beta);
+    return cublasDgemm(handle,
+                       transa,
+                       transb,
+                       m,
+                       n,
+                       k,
+                       &alpha_fp64,
+                       reinterpret_cast<const double *>(A),
+                       lda,
+                       reinterpret_cast<const double *>(B),
+                       ldb,
+                       &beta_fp64,
+                       reinterpret_cast<double *>(C),
+                       ldc);
   } else if (dtype == CUDA_R_16F) {
     common::float16 alpha_fp16{alpha};
     common::float16 beta_fp16{beta};
@@ -132,6 +149,27 @@ inline cublasStatus_t cublasGemmStridedBatched(cudaDataType_t dtype,
                                      strideB,
                                      reinterpret_cast<const float *>(&beta),
                                      reinterpret_cast<float *>(C),
+                                     ldc,
+                                     strideC,
+                                     batchCount);
+  } else if (dtype == CUDA_R_64F) {
+    const double alpha_fp64 = static_cast<double>(alpha);
+    const double beta_fp64  = static_cast<double>(beta);
+    return cublasDgemmStridedBatched(handle,
+                                     transa,
+                                     transb,
+                                     m,
+                                     n,
+                                     k,
+                                     &alpha_fp64,
+                                     reinterpret_cast<const double *>(A),
+                                     lda,
+                                     strideA,
+                                     reinterpret_cast<const double *>(B),
+                                     ldb,
+                                     strideB,
+                                     &beta_fp64,
+                                     reinterpret_cast<double *>(C),
                                      ldc,
                                      strideC,
                                      batchCount);
@@ -218,6 +256,24 @@ inline cublasStatus_t cublasGemmBatched(cudaDataType_t dtype,
                               ldb,
                               &beta,
                               reinterpret_cast<float **>(C),
+                              ldc,
+                              batchCount);
+  } else if (dtype == CUDA_R_64F) {
+    const double alpha_fp64 = static_cast<double>(alpha);
+    const double beta_fp64  = static_cast<double>(beta);
+    return cublasDgemmBatched(handle,
+                              transa,
+                              transb,
+                              m,
+                              n,
+                              k,
+                              &alpha_fp64,
+                              reinterpret_cast<double **>(A),
+                              lda,
+                              reinterpret_cast<double **>(B),
+                              ldb,
+                              &beta_fp64,
+                              reinterpret_cast<double **>(C),
                               ldc,
                               batchCount);
   } else if (dtype == CUDA_R_16F) {
