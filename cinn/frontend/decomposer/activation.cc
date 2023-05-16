@@ -14,6 +14,7 @@
 
 #include "cinn/frontend/decomposer_registry.h"
 #include "cinn/frontend/syntax.h"
+#include "cinn/utils/string.h"
 
 namespace cinn {
 namespace frontend {
@@ -86,6 +87,10 @@ void softmax(const Instruction& instr, const DecomposerContext& context) {
     if (std::find(axes.begin(), axes.end(), idx) == axes.end()) {
       b_axes.push_back(idx);
     }
+  }
+  // When the rank of x is 1, broadcast axes will be empty, so we need to insert last dim as broadcast axis.
+  if (b_axes.empty()) {
+    b_axes.emplace_back(-1);
   }
 
   auto mode = instr.GetAttrs<std::string>("mode");
