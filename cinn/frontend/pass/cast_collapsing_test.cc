@@ -27,12 +27,13 @@
 #include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/op/use_ops.h"
 #include "cinn/hlir/pass/use_pass.h"
+#include "cinn/runtime/flags.h"
 #include "cinn/utils/data_util.h"
 
 namespace cinn::frontend {
 
 TEST(CastCollapsing, FuseTwoCast) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     return;
   }
   NetBuilder builder("net_builder");
@@ -51,7 +52,7 @@ TEST(CastCollapsing, FuseTwoCast) {
 }
 
 TEST(CastCollapsing, FuseThreeCast) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     return;
   }
   NetBuilder builder("net_builder");
@@ -71,7 +72,7 @@ TEST(CastCollapsing, FuseThreeCast) {
 }
 
 TEST(CastCollapsing, ReplaceUselessCastWithIndentity) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     return;
   }
   NetBuilder builder("net_builder");
@@ -89,7 +90,7 @@ TEST(CastCollapsing, ReplaceUselessCastWithIndentity) {
 }
 
 TEST(CastCollapsing, FuseCastToUseless) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     return;
   }
   NetBuilder builder("net_builder");
@@ -110,7 +111,7 @@ TEST(CastCollapsing, FuseCastToUseless) {
 }
 
 TEST(TransposeCollapsing, FuseTransposeWithMultiOutput) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     return;
   }
   NetBuilder builder("net_builder");
@@ -133,7 +134,7 @@ TEST(TransposeCollapsing, FuseTransposeWithMultiOutput) {
 }
 
 TEST(TransposeCollapsing, FuseTwoSecTranspose) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     return;
   }
   NetBuilder builder("net_builder");
@@ -156,7 +157,7 @@ TEST(TransposeCollapsing, FuseTwoSecTranspose) {
 }
 
 TEST(TransposeCollapsing, FuseTwoHorizontalTranspose) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     return;
   }
   NetBuilder builder("net_builder");
@@ -176,7 +177,7 @@ TEST(TransposeCollapsing, FuseTwoHorizontalTranspose) {
 }
 
 TEST(TransposeCollapsing, FuseVerAndHorTranspose) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     return;
   }
   NetBuilder builder("net_builder");

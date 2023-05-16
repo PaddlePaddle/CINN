@@ -35,6 +35,7 @@
 #include "cinn/hlir/framework/visualize_helper.h"
 #include "cinn/hlir/op/use_ops.h"
 #include "cinn/pybind/bind.h"
+#include "cinn/runtime/flags.h"
 #include "cinn/utils/string.h"
 #include "cinn/utils/timer.h"
 
@@ -163,6 +164,7 @@ void BindFrontend(pybind11::module *m) {
              const std::vector<Variable> &tensor_outputs,
              const std::vector<std::string> &passes        = std::vector<std::string>{},
              std::shared_ptr<hlir::framework::Scope> scope = nullptr) {
+            cinn::runtime::CurrentTarget::SetCurrentTarget(target);
             std::unordered_set<std::string> fetch_ids;
             for (const auto &out : tensor_outputs) {
               fetch_ids.insert(out->id);

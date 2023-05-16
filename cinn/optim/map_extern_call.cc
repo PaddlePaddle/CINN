@@ -15,6 +15,7 @@
 #include "cinn/optim/map_extern_call.h"
 
 #include "cinn/cinn.h"
+#include "cinn/hlir/op/op_util.h"
 #include "cinn/ir/ir_mutator.h"
 #include "cinn/runtime/cpu/host_intrinsics.h"
 
@@ -84,28 +85,8 @@ void MapExternCall(Expr *e, Target target) {
         return;
       }
 
-      std::string suffix;
-      if (dtype.is_int() && node_in_extern_int32) {
-        if (dtype.is_int(32)) {
-          suffix = "_int32";
-        } else if (dtype.is_int(64)) {
-          suffix = "_int64";
-        }
-      } else if (dtype.is_float() && node_in_extern_fp32) {
-        if (dtype.is_float(64)) {
-          suffix = "_fp64";
-        } else if (dtype.is_float(32)) {
-          suffix = "_fp32";
-        } else if (dtype.is_bfloat16()) {
-          suffix = "_bf16";
-        } else if (dtype.is_float16()) {
-          suffix = "_fp16";
-        }
-      }
-      CHECK(!suffix.empty()) << name << " not support data type " << dtype;
-      std::string extern_func = "cinn_nvgpu_" + name + suffix;
-
-      *expr = lang::CallExtern(extern_func, node->read_args);
+      std::string extern_func = hlir::GetExternFuncName(common::DefaultNVGPUTarget(), dtype, name);
+      *expr                   = lang::CallExtern(extern_func, node->read_args, node->attrs);
     }
 
     // Replace pow(x, 0.5) to sqrt(x) and pow(x, -0.5) to rsqrt(x), which
