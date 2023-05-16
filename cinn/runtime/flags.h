@@ -16,6 +16,8 @@
 
 #include <string>
 
+#include "cinn/common/target.h"
+
 namespace cinn {
 namespace runtime {
 
@@ -36,6 +38,22 @@ class RandomSeed {
   RandomSeed &operator=(const RandomSeed &) = delete;
 
   static unsigned long long seed_;
+};
+
+bool IsCompiledWithCUDA();
+bool IsCompiledWithCUDNN();
+
+class CurrentTarget {
+ public:
+  static common::Target &GetCurrentTarget();
+  static void SetCurrentTarget(const common::Target &target);
+
+ private:
+  CurrentTarget()                      = default;
+  CurrentTarget(const CurrentTarget &) = delete;
+  CurrentTarget &operator=(const CurrentTarget &) = delete;
+
+  static common::Target target_;
 };
 
 }  // namespace runtime

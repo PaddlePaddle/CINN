@@ -19,6 +19,8 @@
 
 #include <unordered_set>
 
+#include "cinn/common/target.h"
+
 #ifdef CINN_WITH_CUDNN
 DEFINE_bool(cinn_cudnn_deterministic,
             false,
@@ -172,6 +174,34 @@ unsigned long long RandomSeed::Clear() {
   seed_         = 0ULL;
   return old_seed;
 }
+
+bool IsCompiledWithCUDA() {
+#if !defined(CINN_WITH_CUDA)
+  return false;
+#else
+  return true;
+#endif
+}
+
+bool IsCompiledWithCUDNN() {
+#if !defined(CINN_WITH_CUDNN)
+  return false;
+#else
+  return true;
+#endif
+}
+
+common::Target CurrentTarget::target_ = common::DefaultTarget();
+
+void CurrentTarget::SetCurrentTarget(const common::Target& target) {
+  if (!IsCompiledWithCUDA() && target.arch == common::Target::Arch::NVGPU) {
+    LOG(FATAL) << "Current CINN version does not support NVGPU, please try to recompile with -DWITH_CUDA.";
+  } else {
+    target_ = target;
+  }
+}
+
+common::Target& CurrentTarget::GetCurrentTarget() { return target_; }
 
 }  // namespace runtime
 }  // namespace cinn

@@ -20,6 +20,7 @@
 #include "cinn/ir/ir_operators.h"
 #include "cinn/pybind/bind.h"
 #include "cinn/pybind/bind_utils.h"
+#include "cinn/runtime/flags.h"
 #include "cinn/utils/string.h"
 
 namespace py = pybind11;
@@ -42,22 +43,6 @@ void BindObject(py::module *);
 void BindShared(py::module *);
 void BindCinnValue(py::module *);
 
-bool IsCompiledWithCUDA() {
-#if !defined(CINN_WITH_CUDA)
-  return false;
-#else
-  return true;
-#endif
-}
-
-bool IsCompiledWithCUDNN() {
-#if !defined(CINN_WITH_CUDNN)
-  return false;
-#else
-  return true;
-#endif
-}
-
 void ResetGlobalNameID() { common::Context::Global().ResetNameId(); }
 
 void BindTarget(py::module *m) {
@@ -75,6 +60,9 @@ void BindTarget(py::module *m) {
       .def("DefaultNVGPUTarget", &common::DefaultNVGPUTarget)
       .def("DefaultTarget", &common::DefaultTarget);
 
+  m->def("get_target", &cinn::runtime::CurrentTarget::GetCurrentTarget);
+  m->def("set_target", &cinn::runtime::CurrentTarget::SetCurrentTarget, py::arg("target"));
+
   py::enum_<Target::OS> os(target, "OS");
   os.value("Unk", Target::OS::Unk).value("Linux", Target::OS::Linux).value("Windows", Target::OS::Windows);
 
@@ -90,8 +78,8 @@ void BindTarget(py::module *m) {
   py::enum_<Target::Feature> feature(target, "Feature");
   feature.value("JIT", Target::Feature::JIT).value("Debug", Target::Feature::Debug);
 
-  m->def("is_compiled_with_cuda", IsCompiledWithCUDA);
-  m->def("is_compiled_with_cudnn", IsCompiledWithCUDNN);
+  m->def("is_compiled_with_cuda", cinn::runtime::IsCompiledWithCUDA);
+  m->def("is_compiled_with_cudnn", cinn::runtime::IsCompiledWithCUDNN);
   m->def("reset_name_id", ResetGlobalNameID);
 }
 
