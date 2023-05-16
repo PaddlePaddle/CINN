@@ -35,15 +35,15 @@ class TestUnaryOp(OpTest):
         self.x_np = self.random(
             shape=self.case["x_shape"], dtype=self.case["x_dtype"])
 
-    def paddle_func(self, x, op_type):
+    def paddle_func(self, x):
         return paddle.abs(x)
 
-    def cinn_func(self, builder, x, op_type):
+    def cinn_func(self, builder, x):
         return builder.abs(x)
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.x_np, stop_gradient=True)
-        out = self.paddle_func(x, self.case["op_type"])
+        out = self.paddle_func(x)
 
         self.paddle_outputs = [out]
 
@@ -52,7 +52,7 @@ class TestUnaryOp(OpTest):
         x = builder.create_input(
             self.nptype2cinntype(self.case["x_dtype"]), self.case["x_shape"],
             "x")
-        out = self.cinn_func(builder, x, self.case["op_type"])
+        out = self.cinn_func(builder, x)
 
         prog = builder.build()
         res = self.get_cinn_output(prog, target, [x], [self.x_np], [out])
@@ -64,7 +64,8 @@ class TestUnaryOp(OpTest):
 
 
 class TestTrigon(TestUnaryOp):
-    def paddle_func(self, x, op_type):
+    def paddle_func(self, x):
+        op_type = self.case["op_type"]
         if op_type == "sin":
             return paddle.sin(x)
         elif op_type == "cos":
@@ -72,13 +73,14 @@ class TestTrigon(TestUnaryOp):
         elif op_type == "tan":
             return paddle.tan(x)
         elif op_type == "sinh":
-            return paddle.cos(x)
+            return paddle.sinh(x)
         elif op_type == "cosh":
             return paddle.cosh(x)
         elif op_type == "tanh":
             return paddle.tanh(x)
 
-    def cinn_func(self, builder, x, op_type):
+    def cinn_func(self, builder, x):
+        op_type = self.case["op_type"]
         if op_type == "sin":
             return builder.sin(x)
         elif op_type == "cos":
@@ -86,7 +88,7 @@ class TestTrigon(TestUnaryOp):
         elif op_type == "tan":
             return builder.tan(x)
         elif op_type == "sinh":
-            return builder.cos(x)
+            return builder.sinh(x)
         elif op_type == "cosh":
             return builder.cosh(x)
         elif op_type == "tanh":
@@ -135,6 +137,97 @@ class TestUnaryTrigon(TestCaseHelper):
             "op_type": "cosh"
         }, {
             "op_type": "tanh"
+        }]
+
+
+class TestArcTrigon(TestUnaryOp):
+    def prepare_inputs(self):
+        if self.case["op_type"] == 'acosh':
+            self.x_np = self.random(
+                shape=self.case["x_shape"],
+                dtype=self.case["x_dtype"],
+                low=1.0,
+                high=100.0)
+        else:
+            self.x_np = self.random(
+                shape=self.case["x_shape"],
+                dtype=self.case["x_dtype"],
+                low=-1.0,
+                high=1.0)
+
+    def paddle_func(self, x):
+        op_type = self.case["op_type"]
+        if op_type == "asin":
+            return paddle.asin(x)
+        elif op_type == "acos":
+            return paddle.acos(x)
+        elif op_type == "atan":
+            return paddle.atan(x)
+        elif op_type == "asinh":
+            return paddle.asinh(x)
+        elif op_type == "acosh":
+            return paddle.acosh(x)
+        elif op_type == "atanh":
+            return paddle.tanh(x)
+
+    def cinn_func(self, builder, x):
+        op_type = self.case["op_type"]
+        if op_type == "asin":
+            return builder.asin(x)
+        elif op_type == "acos":
+            return builder.acos(x)
+        elif op_type == "atan":
+            return builder.atan(x)
+        elif op_type == "asinh":
+            return builder.asinh(x)
+        elif op_type == "acosh":
+            return builder.acosh(x)
+        elif op_type == "atanh":
+            return builder.atanh(x)
+
+
+class TestUnaryArcTrigon(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestUnaryOpCase"
+        self.cls = TestArcTrigon
+        self.inputs = [
+            {
+                "x_shape": [1],
+            },
+            {
+                "x_shape": [1024],
+            },
+            {
+                "x_shape": [32, 64],
+            },
+            {
+                "x_shape": [16, 8, 4, 2],
+            },
+        ]
+        self.dtypes = [
+            {
+                "x_dtype": "float16",
+                "max_relative_error": 1e-3
+            },
+            {
+                "x_dtype": "float32",
+            },
+            {
+                "x_dtype": "float64",
+            },
+        ]
+        self.attrs = [{
+            "op_type": "asin"
+        }, {
+            "op_type": "acos"
+        }, {
+            "op_type": "atan"
+        }, {
+            "op_type": "asinh"
+        }, {
+            "op_type": "acosh"
+        }, {
+            "op_type": "atanh"
         }]
 
 
@@ -258,48 +351,6 @@ class TestUnaryTrigon(TestCaseHelper):
 
 #     def cinn_func(self, builder, x):
 #         return builder.trunc(x)
-
-# class TestSinOp(TestUnaryOp):
-#     def paddle_func(self, x):
-#         return paddle.sin(x)
-
-#     def cinn_func(self, builder, x):
-#         return builder.sin(x)
-
-# class TestCosOp(TestUnaryOp):
-#     def paddle_func(self, x):
-#         return paddle.cos(x)
-
-#     def cinn_func(self, builder, x):
-#         return builder.cos(x)
-
-# class TestTanOp(TestUnaryOp):
-#     def paddle_func(self, x):
-#         return paddle.tan(x)
-
-#     def cinn_func(self, builder, x):
-#         return builder.tan(x)
-
-# class TestSinhOp(TestUnaryOp):
-#     def paddle_func(self, x):
-#         return paddle.sinh(x)
-
-#     def cinn_func(self, builder, x):
-#         return builder.sinh(x)
-
-# class TestCoshOp(TestUnaryOp):
-#     def paddle_func(self, x):
-#         return paddle.cosh(x)
-
-#     def cinn_func(self, builder, x):
-#         return builder.cosh(x)
-
-# class TestTanhOp(TestUnaryOp):
-#     def paddle_func(self, x):
-#         return paddle.tanh(x)
-
-#     def cinn_func(self, builder, x):
-#         return builder.tanh(x)
 
 # class TestAsinOp(TestUnaryOp):
 #     def init_case(self):
@@ -444,4 +495,5 @@ class TestUnaryTrigon(TestCaseHelper):
 
 if __name__ == "__main__":
     TestUnaryTrigon().run()
+    TestUnaryArcTrigon().run()
 
