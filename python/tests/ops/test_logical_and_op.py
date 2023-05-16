@@ -84,9 +84,39 @@ class TestLogicalAndOp(OpTest):
         self.check_outputs_and_grads(max_relative_error=max_relative_error)
 
 
-class TestLogicalAndCase(TestCaseHelper):
+class TestLogicalAndCase1(TestCaseHelper):
     def init_attrs(self):
-        self.class_name = "TestLogicalAndCase"
+        self.class_name = "TestLogicalAndCase1"
+        self.cls = TestLogicalAndOp
+        self.inputs = [{"x_shape": [512, 256], "y_shape": [512, 256]}]
+        self.dtypes = [{
+            "x_dtype": "bool",
+            "y_dtype": "bool"
+        }, {
+            "x_dtype": "int8",
+            "y_dtype": "int8"
+        }, {
+            "x_dtype": "int16",
+            "y_dtype": "int16"
+        }, {
+            "x_dtype": "int32",
+            "y_dtype": "int32"
+        }, {
+            "x_dtype": "int64",
+            "y_dtype": "int64"
+        }, {
+            "x_dtype": "float32",
+            "y_dtype": "float32"
+        }, {
+            "x_dtype": "float64",
+            "y_dtype": "float64"
+        }]
+        self.attrs = [{"axis": -1}]
+
+
+class TestLogicalAndCase2(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestLogicalAndCase2"
         self.cls = TestLogicalAndOp
         self.inputs = [{
             "x_shape": [1],
@@ -113,6 +143,15 @@ class TestLogicalAndCase(TestCaseHelper):
             "x_shape": [16, 8, 4, 2, 1],
             "y_shape": [16, 8, 4, 2, 1]
         }]
+        self.dtypes = [{"x_dtype": "bool", "y_dtype": "bool"}]
+        self.attrs = [{"axis": -1}]
+
+
+class TestLogicalAndCaseWithBroadcast1(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestLogicalAndCaseWithBroadcast1"
+        self.cls = TestLogicalAndOp
+        self.inputs = [{"x_shape": [56], "y_shape": [1]}]
         self.dtypes = [{
             "x_dtype": "bool",
             "y_dtype": "bool"
@@ -138,12 +177,12 @@ class TestLogicalAndCase(TestCaseHelper):
         self.attrs = [{"axis": -1}]
 
 
-class TestLogicalAndCaseWithBroadcast(TestCaseHelper):
+class TestLogicalAndCaseWithBroadcast2(TestCaseHelper):
     def init_attrs(self):
-        self.class_name = "TestLogicalAndCaseWithBroadcast"
+        self.class_name = "TestLogicalAndCaseWithBroadcast2"
         self.cls = TestLogicalAndOp
         self.inputs = [{
-            "x_shape": [1],
+            "x_shape": [56],
             "y_shape": [1]
         }, {
             "x_shape": [1024],
@@ -161,31 +200,12 @@ class TestLogicalAndCaseWithBroadcast(TestCaseHelper):
             "x_shape": [16, 1, 1, 2, 1],
             "y_shape": [16, 8, 4, 2, 1]
         }]
-        self.dtypes = [{
-            "x_dtype": "bool",
-            "y_dtype": "bool"
-        }, {
-            "x_dtype": "int8",
-            "y_dtype": "int8"
-        }, {
-            "x_dtype": "int16",
-            "y_dtype": "int16"
-        }, {
-            "x_dtype": "int32",
-            "y_dtype": "int32"
-        }, {
-            "x_dtype": "int64",
-            "y_dtype": "int64"
-        }, {
-            "x_dtype": "float32",
-            "y_dtype": "float32"
-        }, {
-            "x_dtype": "float64",
-            "y_dtype": "float64"
-        }]
+        self.dtypes = [{"x_dtype": "bool", "y_dtype": "bool"}]
         self.attrs = [{"axis": -1}]
 
 
 if __name__ == "__main__":
-    TestLogicalAndCase().run()
-    TestLogicalAndCaseWithBroadcast().run()
+    TestLogicalAndCase1().run()
+    TestLogicalAndCase2().run()
+    TestLogicalAndCaseWithBroadcast1().run()
+    TestLogicalAndCaseWithBroadcast2().run()
