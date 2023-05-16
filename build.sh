@@ -256,6 +256,8 @@ function run_test {
     else
         ctest --parallel 10 --output-on-failure
     fi
+
+    sleep 30d
 }
 
 function CI {
