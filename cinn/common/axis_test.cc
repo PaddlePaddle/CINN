@@ -27,8 +27,8 @@ namespace common {
 TEST(AXISNAME, BASE) {
   ASSERT_EQ(axis_name(0), std::string("i"));
   ASSERT_EQ(axis_name(1), std::string("j"));
-  ASSERT_EQ(axis_name(26), std::string("ii"));
-  ASSERT_EQ(axis_name(52), std::string("iii"));
+  ASSERT_EQ(axis_name(22), std::string("ii"));
+  ASSERT_EQ(axis_name(44), std::string("iii"));
 }
 
 TEST(AXISNAME, CHECK_RESERVED) {
@@ -38,6 +38,7 @@ TEST(AXISNAME, CHECK_RESERVED) {
   ASSERT_TRUE(IsAxisNameReserved("iiiiiiiiii"));
   ASSERT_FALSE(IsAxisNameReserved("ijk"));
   ASSERT_FALSE(IsAxisNameReserved("iiiiiiiiiij"));
+  ASSERT_FALSE(IsAxisNameReserved("x"));
 }
 
 }  // namespace common

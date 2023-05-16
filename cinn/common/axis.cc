@@ -45,11 +45,7 @@ const static std::vector<std::string> kAxises({
     "s",  // level 18
     "t",  // level 19
     "u",  // level 20
-    "v",  // level 21
-    "w",  // level 22
-    "x",  // level 23
-    "y",  // level 24
-    "z"   // level 25
+    "v"   // level 21
 });
 
 std::string axis_name(int level) {
@@ -61,7 +57,7 @@ std::string axis_name(int level) {
   const auto& base_axis = kAxises[level % kAxises.size()];
 
   // if the level greater than kAxis, repeat the axis, like:
-  // level == 26 ==> axis = "ii"
+  // level == 22 ==> axis = "ii"
   std::string axis;
   for (int i = 0; i < repeat_num; ++i) {
     axis.append(base_axis);

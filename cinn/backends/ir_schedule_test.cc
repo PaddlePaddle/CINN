@@ -748,12 +748,12 @@ void test_simple_compute_at(void* _args, int32_t num_args)
   const float* A = ((const float*)(_A->memory));
   float* B = ((float*)(_B->memory));
   float* C = ((float*)(_C->memory));
-  for (int32_t i_j_fused_0 = 0; i_j_fused_0 < 2; i_j_fused_0 += 1) {
-    for (int32_t i_j_fused_1 = 0; i_j_fused_1 < 1024; i_j_fused_1 += 1) {
-      if ((((1024 * i_j_fused_0) + i_j_fused_1) < 1280)) {
+  for (int32_t i_j_fused_0_0 = 0; i_j_fused_0_0 < 2; i_j_fused_0_0 += 1) {
+    for (int32_t i_j_fused_1_0 = 0; i_j_fused_1_0 < 1024; i_j_fused_1_0 += 1) {
+      if ((((1024 * i_j_fused_0_0) + i_j_fused_1_0) < 1280)) {
       {
-        B[((1024 * i_j_fused_0) + i_j_fused_1)] = A[((1024 * i_j_fused_0) + i_j_fused_1)];
-        C[((1024 * i_j_fused_0) + i_j_fused_1)] = B[((1024 * i_j_fused_0) + i_j_fused_1)];
+        B[((1024 * i_j_fused_0_0) + i_j_fused_1_0)] = A[((1024 * i_j_fused_0_0) + i_j_fused_1_0)];
+        C[((1024 * i_j_fused_0_0) + i_j_fused_1_0)] = B[((1024 * i_j_fused_0_0) + i_j_fused_1_0)];
       }
       };
     };
@@ -822,12 +822,12 @@ void test_compute_at0(void* _args, int32_t num_args)
   const float* A = ((const float*)(_A->memory));
   float* B = ((float*)(_B->memory));
   float* C = ((float*)(_C->memory));
-  for (int32_t i_j_fused_0 = 0; i_j_fused_0 < 2; i_j_fused_0 += 1) {
-    for (int32_t i_j_fused_1 = 0; i_j_fused_1 < 1024; i_j_fused_1 += 1) {
-      if ((((1024 * i_j_fused_0) + i_j_fused_1) < 1280)) {
+  for (int32_t i_j_fused_0_0 = 0; i_j_fused_0_0 < 2; i_j_fused_0_0 += 1) {
+    for (int32_t i_j_fused_1_0 = 0; i_j_fused_1_0 < 1024; i_j_fused_1_0 += 1) {
+      if ((((1024 * i_j_fused_0_0) + i_j_fused_1_0) < 1280)) {
       {
-        B[((1024 * i_j_fused_0) + i_j_fused_1)] = A[((1024 * i_j_fused_0) + i_j_fused_1)];
-        C[((1024 * i_j_fused_0) + i_j_fused_1)] = B[((1024 * i_j_fused_0) + i_j_fused_1)];
+        B[((1024 * i_j_fused_0_0) + i_j_fused_1_0)] = A[((1024 * i_j_fused_0_0) + i_j_fused_1_0)];
+        C[((1024 * i_j_fused_0_0) + i_j_fused_1_0)] = B[((1024 * i_j_fused_0_0) + i_j_fused_1_0)];
       }
       };
     };

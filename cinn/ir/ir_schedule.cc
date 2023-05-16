@@ -1194,7 +1194,6 @@ void ScheduleImpl::SimpleComputeAt(const Expr& block, const Expr& loop) {
   Expr result =
       loops.size() < block_loops.size() ? optim::IRCopy(block_loops[loops.size()]) : optim::IRCopy(this_block);
 
-  ReplaceExpr(&result, replaced_var, substitute_expr);
   Expr new_loop = optim::IRCopy(this_loop);
 
   if (loops.size() >= block_loops.size()) {
@@ -1213,6 +1212,9 @@ void ScheduleImpl::SimpleComputeAt(const Expr& block, const Expr& loop) {
       }
     }
   }
+  // NOTE(thisjiang): ReplaceExpr should be set after split and before result used
+  ReplaceExpr(&result, replaced_var, substitute_expr);
+
   // When there are two identical IfThenElse
   if (new_loop.As<ir::For>() && new_loop.As<ir::For>()->body.As<ir::Block>() &&
       new_loop.As<ir::For>()->body.As<ir::Block>()->stmts[0].As<ir::IfThenElse>()) {
