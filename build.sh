@@ -251,6 +251,9 @@ function run_test {
     source $build_dir/ci-env/bin/activate
     cd $build_dir
     export runtime_include_dir=$workspace/cinn/runtime/cuda
+
+    sleep 30d
+
     if [ ${TESTING_DEBUG_MODE:-OFF} == "ON" ] ; then
         ctest --parallel 10 -V
     else
