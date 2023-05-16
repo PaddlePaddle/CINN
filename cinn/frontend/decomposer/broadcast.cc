@@ -123,8 +123,7 @@ void elementwise_add_grad(const Instruction& instr, const DecomposerContext& con
   auto dy   = instr->outputs[1];
   int axis  = instr.GetAttrs<int>("axis");
   if (axis < 0 && dx->shape.size() < dy->shape.size()) {
-    LOG(FATAL)
-        << "You haven't set axis attribute, x'rank should be greater or equal to y'rank when using default axis value";
+    LOG(FATAL) << "Please make sure x'rank greater than or equal to y'rank when axis = -1";
   }
   axis          = axis >= 0 ? axis : dx->shape.size() - dy->shape.size();
   auto* builder = context.builder();

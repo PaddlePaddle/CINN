@@ -58,9 +58,6 @@ class _Tensor_ : public Object {
 
   void Resize(const Shape& shape) {
     shape_ = shape;
-    if (shape.data().empty()) {
-      return;
-    }
     buffer_->data()->resize(reinterpret_cast<const cinn_dimension_t*>(shape.data().data()), shape.size());
   }
 
