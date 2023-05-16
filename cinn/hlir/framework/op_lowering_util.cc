@@ -168,10 +168,12 @@ bool IsConstOp(const framework::Node* node) {
 }
 
 std::vector<int> GetInputShape(const Node* node, const absl::flat_hash_map<std::string, shape_t>& shape_dict) {
-  auto input_data = GetInputNodeData(node);
-  CHECK(input_data.size());
+  const auto& in_links = node->inlinks_in_order();
+  CHECK(!in_links.empty()) << "Cannot get input shape from a no-input op \"" << node->id() << "\"";
 
-  return shape_dict.at(input_data.front()->id());
+  auto* producer_data = in_links.front()->source()->safe_as<NodeData>();
+  CHECK_NOTNULL(producer_data);
+  return shape_dict.at(producer_data->id());
 }
 
 std::vector<int> GetOutputShape(const Node* node, const absl::flat_hash_map<std::string, shape_t>& shape_dict) {

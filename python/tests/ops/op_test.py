@@ -16,6 +16,7 @@ import unittest
 from cinn import Target
 from cinn.frontend import *
 from cinn.common import *
+from cinn.runtime import seed as cinn_seed
 import numpy as np
 import paddle
 import logging
@@ -31,6 +32,12 @@ class OpTest(unittest.TestCase):
         super(OpTest, self).__init__(*args, **kwargs)
         self._init_target()
         self._init_results()
+        self._init_seed()
+
+    def _init_seed(self, seed_value=1234):
+        np.random.seed(seed_value)
+        paddle.seed(seed_value)
+        cinn_seed(seed_value)
 
     def _init_results(self):
         self.paddle_outputs = []
