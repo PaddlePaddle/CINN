@@ -49,7 +49,7 @@ Expr Optimize(Expr e, Target target, bool runtime_debug_info, bool remove_gpu_fo
   FoldCINNCallArguments(&copied);
   TransformPolyForToFor(&copied);
   ReplaceConstParamToInteger(&copied);
-  CastSimplify(&copied);
+  // Simplify already contains CastSimplify
   Simplify(&copied);
   UnrollLoop(&copied);
   VLOG(4) << "After Optimize UnrollLoop:" << copied;
@@ -74,10 +74,7 @@ Expr Optimize(Expr e, Target target, bool runtime_debug_info, bool remove_gpu_fo
 
   ExternCallMultiOutputShallowStore(&copied);
   VLOG(10) << "After Optimize ExternCallMultiOutputShallowStore:" << copied;
-
-  CastSimplify(&copied);
-  VLOG(10) << "After Optimize CastSimplify:" << copied;
-
+  // Simplify already contains CastSimplify
   Simplify(&copied);
   VLOG(10) << "After Optimize Simplify:" << copied;
 
