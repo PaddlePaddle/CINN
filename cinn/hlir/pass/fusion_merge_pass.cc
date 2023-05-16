@@ -78,6 +78,8 @@ class FusionMergePassHelper : public FusionHelperBase {
     }
     while (DoVerticalFusion()) {
     }
+    while (DoVerticalFusion(true)) {
+    }
   }
 
   bool DoHorizontalFusion() {
@@ -100,7 +102,7 @@ class FusionMergePassHelper : public FusionHelperBase {
     return updated;
   }
 
-  bool DoVerticalFusion() {
+  bool DoVerticalFusion(bool recompute = false) {
     VLOG(3) << "DoVerticalFusion...!";
     bool updated = false;
     for (int idx = 0; idx < fusion_groups_.size(); ++idx) {
@@ -111,8 +113,8 @@ class FusionMergePassHelper : public FusionHelperBase {
         continue;
       }
       // do horizontal fusion.
-      updated |= HorizontalFusion(producer, producer->consumer_groups);
-      updated |= VerticalFusion(producer, producer->consumer_groups);
+      if (!recompute) updated |= HorizontalFusion(producer, producer->consumer_groups);
+      updated |= VerticalFusion(producer, producer->consumer_groups, recompute);
     }
     // fuse input consumers
     updated |= FuseInputToConsumers();
@@ -380,7 +382,7 @@ class FusionMergePassHelper : public FusionHelperBase {
     CHECK(fused_group->output_nodes.size()) << "No output node is found, " << fused_group->group_id;
   }
 
-  bool VerticalFusion(GroupPtr& producer, std::unordered_set<GroupPtr, Hasher, Comparator>& consumers) {
+  bool VerticalFusion(GroupPtr& producer, std::unordered_set<GroupPtr, Hasher, Comparator>& consumers, bool recompute) {
     VLOG(3) << "VerticalFusion, Number of Consumers : " << consumers.size();
     auto& relation = fusion_relation_map_[producer->op_pattern_kind];
     // if producer can't fuse others
@@ -388,8 +390,8 @@ class FusionMergePassHelper : public FusionHelperBase {
       return false;
     }
 
-    std::unordered_set<GroupPtr, Hasher, Comparator> fusionable_consumers;
-    int simple_recompute_fuse_count = 0;
+    std::unordered_set<GroupPtr, Hasher, Comparator> fuse_consumers_unsafe;
+    std::unordered_set<GroupPtr, Hasher, Comparator> fuse_consumers;
     for (auto& consumer : consumers) {
       VLOG(4) << "Check consuemr " << consumer->group_id << " can fuse to producer " << producer->group_id;
       // if can't fuse
@@ -404,13 +406,7 @@ class FusionMergePassHelper : public FusionHelperBase {
         continue;
       }
 
-      if (IsSimpleRecomputable(producer, consumer)) {
-        VLOG(4) << "Found SimpleRecomputable, Consumer " << consumer->group_id << " can be master fused group!";
-        fusionable_consumers.insert(consumer);
-        simple_recompute_fuse_count++;
-        VLOG(4) << fusionable_consumers.size();
-        continue;
-      }
+      fuse_consumers_unsafe.insert(consumer);
 
       if (IsDependencySimplify(producer, consumer, consumers)) {
         VLOG(4) << "IsDependencySimplify, Consumer " << consumer->group_id << " can't be master fused group!";
@@ -422,18 +418,33 @@ class FusionMergePassHelper : public FusionHelperBase {
         continue;
       }
 
-      fusionable_consumers.insert(consumer);
+      fuse_consumers.insert(consumer);
     }
 
-    VLOG(4) << "fusionable_consumers.size(): " << fusionable_consumers.size()
-            << ", simple_recompute_fuse_count: " << simple_recompute_fuse_count;
-    if (fusionable_consumers.size() && fusionable_consumers.size() != simple_recompute_fuse_count) {
-      RecomputeWithCostModel(producer, fusionable_consumers);
+    VLOG(3) << "VerticalFusion, Number of fuse Consumers : " << fuse_consumers.size();
+    VLOG(3) << "VerticalFusion, Number of unsafe fuse Consumers : " << fuse_consumers.size();
+
+    // if can_fuse_consumers == consumers
+    // if producer op kind == kElementwise
+    // if use recompute
+    if (fuse_consumers_unsafe.size() == producer->consumer_groups.size() &&
+        producer->op_pattern_kind == framework::kElementWise) {
+      if (!recompute) {
+        return false;
+      } else {
+        RecomputeEleGraph(producer, fuse_consumers_unsafe);
+        VerticalFuse(producer, fuse_consumers_unsafe);
+        return true;
+      }
+    }
+
+    if (fuse_consumers.size()) {
+      SelectConsumerToFuse(producer, fuse_consumers);
     }
 
     // if fusionable consumers exist
-    if (fusionable_consumers.size()) {
-      VerticalFuse(producer, fusionable_consumers);
+    if (fuse_consumers.size()) {
+      VerticalFuse(producer, fuse_consumers);
       return true;
     }
 
@@ -444,7 +455,6 @@ class FusionMergePassHelper : public FusionHelperBase {
     VLOG(3) << "VerticalFuse...!";
     GroupList fused_groups;
     GroupPtr master_fuesd_group(nullptr);
-    VLOG(4) << fusionable_consumers.size();
     for (auto& consumer : fusionable_consumers) {
       auto fused_group = std::make_shared<Graph::Group>();
       // update depth using consumer depth.
@@ -615,8 +625,15 @@ class FusionMergePassHelper : public FusionHelperBase {
     }
   }
 
-  void RecomputeWithCostModel(const GroupPtr& producer,
-                              std::unordered_set<GroupPtr, Hasher, Comparator>& fusionable_consumers) {
+  void RecomputeEleGraph(const GroupPtr& producer,
+                         std::unordered_set<GroupPtr, Hasher, Comparator>& fusionable_consumers) {
+    if (producer->op_pattern_kind != framework::kElementWise) {
+      SelectConsumerToFuse(producer, fusionable_consumers);
+    }
+  }
+
+  void SelectConsumerToFuse(const GroupPtr& producer,
+                            std::unordered_set<GroupPtr, Hasher, Comparator>& fusionable_consumers) {
     if (producer->op_pattern_kind == framework::kReduction) {
       CHECK_EQ(fusionable_consumers.size(), 1) << "Find more than one consumer can fuse to " << producer->group_id;
     }
@@ -766,25 +783,6 @@ class FusionMergePassHelper : public FusionHelperBase {
         if (!visited_set.count(producer)) {
           visited_set.insert(producer);
           candidates.push(producer);
-        }
-      }
-    }
-    return false;
-  }
-
-  // NOTE(zhiqiu): simple recompute, only support 1 case now for amp performance:
-  // 1. producer is one cast op
-  // 2. consumer is directly depends on producer
-  bool IsSimpleRecomputable(const GroupPtr& producer, const GroupPtr& consumer) {
-    // condition 1
-    VLOG(4) << "nodes.size():" << producer->CollectNodes().size();
-    CHECK(producer->CollectNodes().size());
-    VLOG(4) << "name:" << producer->CollectNodes()[0]->op()->name;
-    if (producer->CollectNodes().size() == 1) {
-      auto node = producer->CollectNodes()[0];
-      if (node->op()->name == "cast") {
-        if (consumer->producer_groups.count(producer)) {
-          return true;
         }
       }
     }
