@@ -44,15 +44,6 @@ DECLARE_bool(cinn_use_op_fusion);
 
 namespace cinn {
 namespace frontend {
-namespace {
-
-inline bool IsCompiledWithCUDA() {
-#if !defined(CINN_WITH_CUDA)
-  return false;
-#else
-  return true;
-#endif
-}
 
 inline void PrintMatrix(const std::vector<float>& mat, int bs, int m, int n) {
   if (!VLOG_IS_ON(5)) {
@@ -217,6 +208,5 @@ inline bool CompareProgramPassResult(Program* program,
   return size_diff == (origin_size - fused_size);
 }
 
-}  // namespace
 }  // namespace frontend
 }  // namespace cinn

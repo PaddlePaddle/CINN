@@ -13,6 +13,7 @@ gather_srcs(cinnapi_src SRCS
     cast_collapsing.cc
     auto_cast.cc
     expand_zero_dim_pass.cc
+    auto_broadcast.cc
     )
 
 if (WITH_CUDA)

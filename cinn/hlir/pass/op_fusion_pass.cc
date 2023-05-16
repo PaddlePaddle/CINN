@@ -122,13 +122,14 @@ class OpFusionPassHelper : public FusionHelperBase {
  private:
   void DoOpFusion() {
     for (auto consumer : nodes_) {
+      auto consumer_kind = GetOpKind(consumer);
       // kNonFusible op can't fuse any other op.
-      if (GetOpKind(consumer) == framework::kNonFusible) {
+      if (consumer_kind == framework::kNonFusible) {
         continue;
       }
 
       // fusion op for consumer
-      auto consumer_fusion = fusion_groups_[consumer];
+      auto consumer_fusion = fusion_groups_[consumer];  //
       // check all linkin node
       for (auto& edge : consumer->inlinks()) {
         auto graph_node    = edge->source();
@@ -147,11 +148,12 @@ class OpFusionPassHelper : public FusionHelperBase {
         }
 
         // kNonFusible op can't fuse any other op.
-        if (GetOpKind(producer) == framework::kNonFusible) {
+        auto producer_kind = GetOpKind(producer);
+        if (producer_kind == framework::kNonFusible) {
           continue;
         }
-        VLOG(3) << "Producer Op: " << producer->id() << ", Op Pattern: " << GetOpKind(producer)
-                << " -> Consumer Op: " << consumer->id() << ", Op Pattern: " << GetOpKind(consumer);
+        VLOG(3) << "Producer Op: " << producer->id() << ", Op Pattern: " << producer_kind
+                << " -> Consumer Op: " << consumer->id() << ", Op Pattern: " << consumer_kind;
         bool can_fuse = true;
         // checkout producer node outputs are all in fusion op
         for (auto& link : producer_data->outlinks()) {
@@ -173,11 +175,11 @@ class OpFusionPassHelper : public FusionHelperBase {
         consumer_fusion->nodes_set.insert(producer);
         consumer_fusion->input_nodes.erase(producer);
         consumer_fusion->op_pattern_kind =
-            static_cast<int>(consumer_fusion->op_pattern_kind) > static_cast<int>(GetOpKind(producer))
+            static_cast<int>(consumer_fusion->op_pattern_kind) > static_cast<int>(producer_kind)
                 ? consumer_fusion->op_pattern_kind
-                : GetOpKind(producer);
+                : producer_kind;
 
-        if (GetOpKind(producer) == framework::kReduction) {
+        if (producer_kind == framework::kReduction) {
           consumer_fusion->master_nodes.insert(producer);
         }
 
@@ -345,105 +347,8 @@ class OpFusionPassHelper : public FusionHelperBase {
   std::unordered_map<framework::OpPatternKind, FusionRelation> fusion_relation_map_;
 };
 
-void InsertBroadcastTo(Graph* graph) {
-  // get nodes and op pattern.
-  auto graph_nodes      = std::get<0>(graph->topological_order());
-  auto& op_pattern_dict = framework::Operator::GetAttrs<OpPatternKind>("OpPattern");
-  auto& dtype_dict      = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict      = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  // node index.
-  auto index = graph_nodes.size();
-  for (auto graph_node : graph_nodes) {
-    auto node = graph_node->safe_as<Node>();
-    // if node is NodeData, continue.
-    if (!node) {
-      continue;
-    }
-    // check kBroadcast op and insert broadcast to.
-    if (op_pattern_dict[node->op()] == framework::kBroadcast && node->op()->name != "broadcast_to") {
-      // get output shape
-      auto node_data = (*node->outlinks().begin())->sink()->safe_as<NodeData>();
-      CHECK(node_data);
-      CHECK(shape_dict.count(node_data->id())) << "Can't find " << node_data->id() << " 's shape!";
-      auto output_shape = shape_dict.at(node_data->id());
-
-      // get input dtype.
-      // broadcast op's input dtype seems to be all the same, so we use this dtype as the broadcast_to op's output
-      // dtype.
-      auto in_node_data = (*node->inlinks().begin())->source()->safe_as<NodeData>();
-      CHECK(in_node_data);
-      CHECK(dtype_dict.count(in_node_data->id())) << "Can't find " << in_node_data->id() << " 's dtype!";
-
-      // check input node
-      for (auto& edge : node->inlinks_in_order()) {
-        auto input_data = edge->source()->safe_as<NodeData>();
-        CHECK(input_data);
-        CHECK(shape_dict.count(input_data->id())) << "Can't find " << input_data->id() << " 's shape!";
-        auto input_shape = shape_dict.at(input_data->id());
-        // input shape is not equal to output shape, insert broadcast_to
-        if (output_shape != input_shape) {
-          // input_data UnLinkTo node
-          std::vector<int> broadcast_axes;
-          if (input_shape.size() == output_shape.size()) {
-            for (int idx = 0; idx < input_shape.size(); ++idx) {
-              broadcast_axes.push_back(idx);
-            }
-          } else {
-            int axis = -1;
-            if (node->attrs.attr_store.find("axis") != node->attrs.attr_store.end()) {
-              axis = absl::get<int>(node->attrs.attr_store["axis"]);
-            }
-            if (axis == -1) {
-              axis = output_shape.size() - input_shape.size();
-            }
-            node->attrs.attr_store = {};
-            CHECK_LE(axis + input_shape.size(), output_shape.size())
-                << "The rank of input " << input_data->id() << " + axis " << axis
-                << " should less equal rank of output " << node_data->id();
-            for (int idx = 0; idx < input_shape.size(); ++idx) {
-              broadcast_axes.push_back(axis++);
-            }
-          }
-          // create node
-          auto tmp_node = new Node(
-              framework::Operator::Get("broadcast_to"), "broadcast_to", "broadcast_to_" + std::to_string(++index));
-          tmp_node->attrs.attr_store["out_shape"]      = output_shape;
-          tmp_node->attrs.attr_store["broadcast_axes"] = broadcast_axes;
-          input_data->LinkTo(tmp_node);
-          graph->RegisterNode(tmp_node->id(), tmp_node);
-          // create node data
-          auto tmp_node_data = new NodeData(Shared<Node>(tmp_node), 0, 0, common::UniqName("var"), false);
-          tmp_node->LinkTo(tmp_node_data);
-          graph->RegisterNode(tmp_node_data->id(), tmp_node_data);
-
-          // input_data->UnLinkSingleTo(node);
-          // tmp_node_data->LinkTo(node);
-          std::vector<NodeData*> upate_node_datas;
-          for (auto inode : FusionHelperBase::GetProducerNodeData(node)) {
-            if (inode == input_data) {
-              upate_node_datas.push_back(tmp_node_data);
-            } else {
-              upate_node_datas.push_back(inode);
-            }
-            inode->UnLinkSingleTo(node);
-          }
-          for (auto inode : upate_node_datas) {
-            inode->LinkTo(node);
-          }
-          // update shape_dict
-          shape_dict[tmp_node_data->id()] = output_shape;
-          // update dtype_dict
-          dtype_dict[tmp_node_data->id()] = common::Str2Type(common::Type2Str(dtype_dict[in_node_data->id()]));
-        }
-      }
-    }
-  }
-}
-
 void OpFusionPassInternal(Graph* graph) {
   VLOG(3) << "OpFusionPass...!";
-  InsertBroadcastTo(graph);
   auto op_fusion_helper = OpFusionPassHelper(graph);
   graph->fusion_groups  = op_fusion_helper();
 

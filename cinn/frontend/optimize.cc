@@ -67,6 +67,7 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
   }
 #endif
 
+  options.program_passes.emplace_back("AutoBroadcast");
   options.program_passes.emplace_back("FillConstantRewriter");
   if (FLAGS_cinn_use_fill_constant_folding) {
     options.program_passes.emplace_back("FillConstantFolding");
