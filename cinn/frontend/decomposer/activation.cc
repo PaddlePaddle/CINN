@@ -14,7 +14,6 @@
 
 #include "cinn/frontend/decomposer_registry.h"
 #include "cinn/frontend/syntax.h"
-#include "cinn/utils/string.h"
 
 namespace cinn {
 namespace frontend {
