@@ -224,8 +224,6 @@ TEST(Concat, ConcatCase0) {
 #endif
 }
 
-#endif
-
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn
