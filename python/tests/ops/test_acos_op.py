@@ -71,6 +71,7 @@ class TestAcosCase1(TestCaseHelper):
         }, {
             "x_dtype": "float64",
         }]
+        self.attrs = []
 
 
 class TestAcosCase2(TestCaseHelper):
@@ -95,6 +96,7 @@ class TestAcosCase2(TestCaseHelper):
             "x_shape": [16, 8, 4, 2, 1]
         }]
         self.dtypes = [{"x_dtype": "float32"}]
+        self.attrs = []
 
 
 if __name__ == "__main__":
