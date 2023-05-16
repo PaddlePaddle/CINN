@@ -167,6 +167,15 @@ void BindFrontend(pybind11::module *m) {
             for (const auto &out : tensor_outputs) {
               fetch_ids.insert(out->id);
             }
+            // Acquire all 0D outputs from frontend::Program
+            std::unordered_set<std::string> zero_dim_outputs;
+            for (std::size_t i = 0; i < self.size(); i++) {
+              for (auto &output : self[i].GetOutputs()) {
+                if (output->shape.empty()) {
+                  zero_dim_outputs.insert(output->id);
+                }
+              }
+            }
 
             auto graph = Optimize(&self, fetch_ids, target, passes);
 
@@ -203,16 +212,6 @@ void BindFrontend(pybind11::module *m) {
               }
             }
             program->Execute();
-
-            // Acquire all 0D outputs from frontend::Program
-            std::unordered_set<std::string> zero_dim_outputs;
-            for (std::size_t i = 0; i < self.size(); i++) {
-              for (auto &output : self[i].GetOutputs()) {
-                if (output->shape.empty()) {
-                  zero_dim_outputs.insert(output->id);
-                }
-              }
-            }
 
             std::vector<hlir::framework::Tensor> outputs;
             for (size_t i = 0; i < tensor_outputs.size(); i++) {

@@ -43,6 +43,7 @@ namespace frontend {
 
 OptimizeOptions DefaultTrainingOptimizeOptions() {
   OptimizeOptions options;
+  options.program_passes.emplace_back("ExpandZeroDim");
   options.program_passes.emplace_back("AutoCast");
   options.program_passes.emplace_back("Decomposer");
   options.program_passes.emplace_back("RemoveIdentity");
@@ -73,7 +74,7 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
   options.program_passes.emplace_back("RemoveIdentity");
   options.program_passes.emplace_back("DeadCodeEliminate");
 
-  options.graph_passes = {"ExpandZeroDimPass", "ConstantFolding"};
+  options.graph_passes = {"ConstantFolding"};
   if (FLAGS_cinn_use_dense_merge_pass) {
     options.graph_passes.push_back("DenseMergePass");
   }

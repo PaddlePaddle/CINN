@@ -78,5 +78,24 @@ class TestElementwiseAddOp(OpTest):
         self.check_outputs_and_grads()
 
 
+# 2) x is ND, y is 0D
+# NOTE: CINN only supports x's rank >= y's rank, hence no need to test next scenario: `3) x is 0D, y is ND`
+@OpTestTool.skip_if(not is_compiled_with_cuda(),
+                    "x86 test will be skipped due to timeout.")
+class TestElementwiseAddOp2(TestElementwiseAddOp):
+    def init_input(self):
+        self.inputs = {
+            "x": np.random.randint(-10, 10, [3, 5]).astype("float32"),
+            "y": np.random.randint(-10, 10, []).astype("float32"),
+            "dout": np.random.randint(-10, 10, [3, 5]).astype("float32"),
+        }
+
+    def assertShapeEqual(self, res):
+        out, x_grad, y_grad = res
+        self.assertEqual(out.shape, (3, 5))
+        self.assertEqual(x_grad.shape, (3, 5))
+        self.assertEqual(y_grad.shape, ())
+
+
 if __name__ == "__main__":
     unittest.main()

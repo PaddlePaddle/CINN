@@ -12,6 +12,7 @@ gather_srcs(cinnapi_src SRCS
     fill_constant_folding.cc
     cast_collapsing.cc
     auto_cast.cc
+    expand_zero_dim_pass.cc
     )
 
 if (WITH_CUDA)
@@ -31,3 +32,4 @@ endif()
 cc_test(test_transpose_collapsing SRCS transpose_collapsing_test.cc DEPS cinncore)
 cc_test(test_cast_collapsing SRCS cast_collapsing_test.cc DEPS cinncore)
 cc_test(test_auto_cast SRCS auto_cast_test.cc DEPS cinncore)
+cc_test(test_expand_zero_dim_pass SRCS expand_zero_dim_pass_test.cc DEPS cinncore)
