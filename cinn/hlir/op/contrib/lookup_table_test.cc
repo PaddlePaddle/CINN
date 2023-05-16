@@ -27,19 +27,11 @@
 #include "cinn/lang/lower.h"
 #include "cinn/lang/placeholder.h"
 #include "cinn/poly/stage.h"
+#include "cinn/runtime/flags.h"
 
 namespace cinn {
 namespace hlir {
 namespace op {
-namespace {
-bool IsCompiledWithCUDA() {
-#if !defined(CINN_WITH_CUDA)
-  return false;
-#else
-  return true;
-#endif
-}
-}  // namespace
 
 TEST(GenerateCode_Cpu, LookupTable) {
   common::Context::Global().ResetNameId();
@@ -69,7 +61,7 @@ TEST(GenerateCode_Cpu, LookupTable) {
 }
 
 TEST(GenerateCode_Gpu, LookupTable) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     return;
   }
   common::Context::Global().ResetNameId();
