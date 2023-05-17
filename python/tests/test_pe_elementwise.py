@@ -37,7 +37,7 @@ class TestPEElementwise(unittest.TestCase):
         self.target.arch = Target.Arch.X86
         self.target.bits = Target.Bit.k32
         self.target.os = Target.OS.Linux
-
+        cinn.set_target(self.target)
         self.unary_data = []
 
     def test_unary(self):

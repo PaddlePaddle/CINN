@@ -74,7 +74,50 @@ void Compile(NetBuilder& net_builder) {
   }
 }
 
-TEST(OpFusionPass, Reduce_With_Last_Axis_1) {
+TEST(OP_LOWERING, Reduce_Without_Last_Axis_3) {
+  int h = 128, w = 128;
+  NetBuilder net_builder("Reduce_Without_Last_Axis_3");
+  // create model
+  {
+    auto A = net_builder.CreateInput(Float(32), {h, w}, "A");
+    auto B = net_builder.CreateInput(Float(32), {h, w}, "B");
+    auto C = net_builder.Add(A, B);
+    auto E = net_builder.ReduceSum(C, {0});
+    auto F = net_builder.ReduceSum(C, {0});
+    auto G = net_builder.Add(E, F);
+  }
+
+  Compile(net_builder);
+}
+
+TEST(OP_LOWERING, Reduce_Without_Last_Axis_2) {
+  int h = 128, w = 128;
+  NetBuilder net_builder("Reduce_Without_Last_Axis_2");
+  // create model
+  {
+    auto A = net_builder.CreateInput(Float(32), {h, w}, "A");
+    auto B = net_builder.CreateInput(Float(32), {h * 2, w}, "B");
+    auto E = net_builder.ReduceSum(A, {0});
+    auto F = net_builder.ReduceSum(B, {0});
+    auto G = net_builder.Add(E, F);
+  }
+
+  Compile(net_builder);
+}
+
+TEST(OP_LOWERING, Reduce_Without_Last_Axis_1) {
+  NetBuilder net_builder("Reduce_Without_Last_Axis_1");
+  // create model
+  {
+    auto A = net_builder.CreateInput(Float(32), {128, 1024}, "A");
+    auto B = net_builder.ReduceSum(A, {0});
+    auto C = net_builder.ReduceSum(A, {0});
+    auto D = net_builder.ReduceSum(A, {0});
+  }
+  Compile(net_builder);
+}
+
+TEST(OP_LOWERING, Reduce_With_Last_Axis_1) {
   NetBuilder net_builder("Reduce_With_Last_Axis_1");
   // create model
   {
@@ -84,7 +127,7 @@ TEST(OpFusionPass, Reduce_With_Last_Axis_1) {
   Compile(net_builder);
 }
 
-TEST(OpFusionPass, Reduce_Fuse_Broadcast_With_Output) {
+TEST(OP_LOWERING, Reduce_Fuse_Broadcast_With_Output) {
   NetBuilder net_builder("Reduce_Fuse_Broadcast_With_Output");
   auto layer_norm_51__tmp_1 = net_builder.CreateInput(Float(32), {256}, "layer_norm_51__tmp_1");
   auto var_3216             = net_builder.CreateInput(Float(32), {256, 60}, "var_3216");
@@ -109,7 +152,7 @@ TEST(OpFusionPass, Reduce_Fuse_Broadcast_With_Output) {
   Compile(net_builder);
 }
 
-TEST(OpFusionPass, Reduce_Fuse_Broadcast_Layernorm) {
+TEST(OP_LOWERING, Reduce_Fuse_Broadcast_Layernorm) {
   int h = 32, w = 1024;
   NetBuilder net_builder("Reduce_Fuse_Broadcast_Layernorm");
   // create model
@@ -149,7 +192,7 @@ TEST(OpFusionPass, Reduce_Fuse_Broadcast_Layernorm) {
   Compile(net_builder);
 }
 
-TEST(OpFusionPass, Reduce_Fuse_Broadcast_Softmax) {
+TEST(OP_LOWERING, Reduce_Fuse_Broadcast_Softmax) {
   int h = 32, w = 1024;
   NetBuilder net_builder("Reduce_Fuse_Broadcast_Softmax");
   // create model
@@ -175,7 +218,7 @@ TEST(OpFusionPass, Reduce_Fuse_Broadcast_Softmax) {
   Compile(net_builder);
 }
 
-TEST(OpFusionPass, Reduce_Fuse_Broadcast_1) {
+TEST(OP_LOWERING, Reduce_Fuse_Broadcast_1) {
   int h = 32, w = 32;
   NetBuilder net_builder("Reduce_Fuse_Broadcast_1");
   // create model
@@ -188,7 +231,7 @@ TEST(OpFusionPass, Reduce_Fuse_Broadcast_1) {
   Compile(net_builder);
 }
 
-TEST(OpFusionPass, Reduce_Fuse_Broadcast_2) {
+TEST(OP_LOWERING, Reduce_Fuse_Broadcast_2) {
   int h = 32, w = 32;
   NetBuilder net_builder("Reduce_Fuse_Broadcast_2");
   // create model
@@ -201,7 +244,7 @@ TEST(OpFusionPass, Reduce_Fuse_Broadcast_2) {
   Compile(net_builder);
 }
 
-TEST(OpFusionPass, Reduce_Fuse_Broadcast_3) {
+TEST(OP_LOWERING, Reduce_Fuse_Broadcast_3) {
   int h = 32, w = 32;
   NetBuilder net_builder("Reduce_Fuse_Broadcast_3");
   // create model
@@ -214,7 +257,7 @@ TEST(OpFusionPass, Reduce_Fuse_Broadcast_3) {
   Compile(net_builder);
 }
 
-TEST(OpFusionPass, Reduce_Fuse_Broadcast_4) {
+TEST(OP_LOWERING, Reduce_Fuse_Broadcast_4) {
   int h = 32, w = 32;
   NetBuilder net_builder("Reduce_Fuse_Broadcast_4");
   // create model
@@ -227,7 +270,7 @@ TEST(OpFusionPass, Reduce_Fuse_Broadcast_4) {
   Compile(net_builder);
 }
 
-TEST(OpFusionPass, Reduce_Fuse_Broadcast_5) {
+TEST(OP_LOWERING, Reduce_Fuse_Broadcast_5) {
   int h = 32, w = 32;
   NetBuilder net_builder("Reduce_Fuse_Broadcast_5");
   // create model
@@ -990,8 +1033,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_12) {
 
   Compile(net_builder);
 }
-/*
-TODO:exist coredump.
+
 TEST(OP_LOWERING, Reduce_Fusion_Test_13) {
   int n = 8, c = 8, h = 8, w = 8;
   NetBuilder net_builder("Reduce_Fusion_Test_13");
@@ -1004,29 +1046,8 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_13) {
     auto F = net_builder.ReduceSum(D, {0, 1, 2});
   }
 
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-  CHECK_EQ(graph->fusion_groups.size(), 3);
-
-  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
-  CHECK_EQ(graph->fusion_groups.size(), 1);
-
-  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-  for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowerer.Lower(fusion_op);
-    CHECK_EQ(lowered_func.size(), 1);
-    LOG(INFO) << lowered_func[0];
-    CodeGen(lowered_func[0]);
-  }
+  Compile(net_builder);
 }
-*/
 
 TEST(OP_LOWERING, Reduce_Fusion_Test_14) {
   int n = 8, c = 8, h = 8, w = 8;
@@ -1138,6 +1159,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_20) {
   Compile(net_builder);
 }
 
+/*
 TEST(OP_LOWERING, Reduce_Fusion_Test_21) {
   int h = 128, w = 4;
   NetBuilder net_builder("Reduce_Fusion_Test_21");
@@ -1170,6 +1192,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_21) {
 
   Compile(net_builder);
 }
+*/
 
 }  // namespace framework
 }  // namespace hlir

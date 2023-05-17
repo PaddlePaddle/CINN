@@ -205,6 +205,7 @@ std::vector<shape_t> InferShapeForBroadcastTo(const std::vector<shape_t> &inputs
   out_shape      = absl::get<std::vector<int>>(attrs.at("out_shape"));
   broadcast_axes = absl::get<std::vector<int>>(attrs.at("broadcast_axes"));
 
+  VLOG(3) << "broadcast input shape: " << utils::Join(inputs_shape[0], ", ");
   VLOG(3) << "broadcast out shape: " << utils::Join(out_shape, ", ");
   VLOG(3) << "broadcast_axes shape: " << utils::Join(broadcast_axes, ", ");
   CHECK_EQ(inputs_shape[0].size(), broadcast_axes.size())
