@@ -595,7 +595,7 @@ CINN_NVGPU_GT_NUM(int64, long long int)
 #undef CINN_NVGPU_GT_NUM
 
 #define CINN_CUDA_INDEX_ADD(TYPE_SUFFIX, TYPE)                                \
-  __device__ inline TYPE cinn_cuda_index_add_##TYPE_SUFFIX(const TYPE x,      \
+  __device__ inline TYPE cinn_nvgpu_index_add_##TYPE_SUFFIX(const TYPE x,      \
                                             const int axis_indice,            \
                                             const TYPE *__restrict__ y,       \
                                             const int offset,                 \
