@@ -137,7 +137,7 @@ class ReduceSplitPass {
         //   1. reshape_loop > split_loop
         //   2. reshape thread > max_threads.
         if (shape[0] <= reduce_numel0 && shape[1] * shape[2] <= common::GetMaxThreads()) {
-          LVLOG(3) << "  Don't Do Reduce Split!";
+          VLOG(3) << "  Don't Do Reduce Split!";
           continue;
         }
         VLOG(3) << "  Do Reduce Split!";
