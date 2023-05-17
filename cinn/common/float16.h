@@ -572,7 +572,6 @@ __host__ __device__ inline float16(abs)(const float16& a) {
 
 __host__ __device__ inline float16(log)(const float16& a) { return float16(std::log(static_cast<float>(a))); }
 
-
 template <typename T, int Size>
 struct alignas(sizeof(T) * Size) AlignedVector {
   T val[Size];
@@ -587,32 +586,36 @@ struct CINN_ALIGN(32) float8 {
   __device__ inline float& operator[](int i) { return data[i]; }
 
   __device__ inline float8& operator+(const float8& x) {
-  #pragma unroll(8)
-    for (int i = 0; i < 8; i++) {;
+#pragma unroll(8)
+    for (int i = 0; i < 8; i++) {
+      ;
       data[i] += x[i];
     };
     return *this;
   }
 
   __device__ inline float8& operator-(const float8& x) {
-  #pragma unroll(8)
-    for (int i = 0; i < 8; i++) {;
+#pragma unroll(8)
+    for (int i = 0; i < 8; i++) {
+      ;
       data[i] -= x[i];
     };
     return *this;
   }
 
   __device__ inline float8& operator*(const float8& x) {
-  #pragma unroll(8)
-    for (int i = 0; i < 8; i++) {;
+#pragma unroll(8)
+    for (int i = 0; i < 8; i++) {
+      ;
       data[i] *= x[i];
     };
     return *this;
   }
 
   __device__ inline float8& operator/(const float8& x) {
-  #pragma unroll(8)
-    for (int i = 0; i < 8; i++) {;
+#pragma unroll(8)
+    for (int i = 0; i < 8; i++) {
+      ;
       data[i] /= x[i];
     };
     return *this;
@@ -626,32 +629,36 @@ struct CINN_ALIGN(16) half8 {
   __device__ inline float16& operator[](int i) { return data[i]; }
 
   __device__ inline half8& operator+(const half8& x) {
-  #pragma unroll(8)
-    for (int i = 0; i < 8; i++) {;
+#pragma unroll(8)
+    for (int i = 0; i < 8; i++) {
+      ;
       data[i] += x[i];
     };
     return *this;
   }
 
   __device__ inline half8& operator-(const half8& x) {
-  #pragma unroll(8)
-    for (int i = 0; i < 8; i++) {;
+#pragma unroll(8)
+    for (int i = 0; i < 8; i++) {
+      ;
       data[i] -= x[i];
     };
     return *this;
   }
 
   __device__ inline half8& operator*(const half8& x) {
-  #pragma unroll(8)
-    for (int i = 0; i < 8; i++) {;
+#pragma unroll(8)
+    for (int i = 0; i < 8; i++) {
+      ;
       data[i] *= x[i];
     };
     return *this;
   }
 
   __device__ inline half8& operator/(const half8& x) {
-  #pragma unroll(8)
-    for (int i = 0; i < 8; i++) {;
+#pragma unroll(8)
+    for (int i = 0; i < 8; i++) {
+      ;
       data[i] /= x[i];
     };
     return *this;
