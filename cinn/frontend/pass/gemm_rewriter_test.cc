@@ -26,11 +26,12 @@
 #include "cinn/frontend/net_builder.h"
 #include "cinn/frontend/pass/pass_test_helper.h"
 #include "cinn/hlir/op/use_ops.h"
+#include "cinn/runtime/flags.h"
 
 namespace cinn::frontend {
 
 TEST(GemmRwriter, BatchedTransLeft) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     return;
   }
   NetBuilder builder("net_builder");
@@ -53,7 +54,7 @@ TEST(GemmRwriter, BatchedTransLeft) {
 }
 
 TEST(GemmRwriter, BatchedTransRight) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     return;
   }
   NetBuilder builder("net_builder");
@@ -76,7 +77,7 @@ TEST(GemmRwriter, BatchedTransRight) {
 }
 
 TEST(GemmRwriter, BatchedTransTwo) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     return;
   }
   NetBuilder builder("net_builder");
@@ -100,7 +101,7 @@ TEST(GemmRwriter, BatchedTransTwo) {
 }
 
 TEST(GemmRwriter, BatchedNoTrans) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     return;
   }
   NetBuilder builder("net_builder");
@@ -122,7 +123,7 @@ TEST(GemmRwriter, BatchedNoTrans) {
 }
 
 TEST(GemmRwriter, TransLeft) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     return;
   }
   NetBuilder builder("net_builder");
@@ -145,7 +146,7 @@ TEST(GemmRwriter, TransLeft) {
 }
 
 TEST(GemmRwriter, TransRight) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     return;
   }
   NetBuilder builder("net_builder");
@@ -168,7 +169,7 @@ TEST(GemmRwriter, TransRight) {
 }
 
 TEST(GemmRwriter, TransTwo) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     return;
   }
   NetBuilder builder("net_builder");
@@ -192,7 +193,7 @@ TEST(GemmRwriter, TransTwo) {
 }
 
 TEST(GemmRwriter, NoTrans) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     return;
   }
   NetBuilder builder("net_builder");
@@ -214,7 +215,7 @@ TEST(GemmRwriter, NoTrans) {
 }
 
 TEST(GemmRwriter, BatchedComplex) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     return;
   }
   NetBuilder builder("net_builder");
@@ -247,7 +248,7 @@ TEST(GemmRwriter, BatchedComplex) {
 }
 
 TEST(GemmRwriter, Complex) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     return;
   }
   NetBuilder builder("net_builder");
