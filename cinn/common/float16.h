@@ -303,18 +303,6 @@ struct CINN_ALIGN(2) float16 {
 #endif  // __cplusplus
 };
 
-struct CINN_ALIGN(32) float8 {
-  float x, y, z, w, v, u, t, s;
-};
-
-struct CINN_ALIGN(16) half8 {
-  float16 x, y, z, w, v, u, t, s;
-};
-
-struct CINN_ALIGN(8) half4 {
-  float16 x, y, z, w;
-};
-
 #ifdef __cplusplus
 // Arithmetic operators on GPU
 // CUDA 9.0 provides built-in arithmetic operators for half while
@@ -583,6 +571,133 @@ __host__ __device__ inline float16(abs)(const float16& a) {
 }
 
 __host__ __device__ inline float16(log)(const float16& a) { return float16(std::log(static_cast<float>(a))); }
+
+
+template <typename T, int Size>
+struct alignas(sizeof(T) * Size) AlignedVector {
+  T val[Size];
+  __host__ __device__ inline const T& operator[](int i) const { return val[i]; }
+  __host__ __device__ inline T& operator[](int i) { return val[i]; }
+};
+
+struct CINN_ALIGN(32) float8 {
+  // float x, y, z, w, v, u, t, s;
+  AlignedVector<float, 8> data;
+  __device__ inline const float& operator[](int i) const { return data[i]; }
+  __device__ inline float& operator[](int i) { return data[i]; }
+
+  __device__ inline float8& operator+(const float8& x) {
+  #pragma unroll(8)
+    for (int i = 0; i < 8; i++) {;
+      data[i] += x[i];
+    };
+    return *this;
+  }
+
+  __device__ inline float8& operator-(const float8& x) {
+  #pragma unroll(8)
+    for (int i = 0; i < 8; i++) {;
+      data[i] -= x[i];
+    };
+    return *this;
+  }
+
+  __device__ inline float8& operator*(const float8& x) {
+  #pragma unroll(8)
+    for (int i = 0; i < 8; i++) {;
+      data[i] *= x[i];
+    };
+    return *this;
+  }
+
+  __device__ inline float8& operator/(const float8& x) {
+  #pragma unroll(8)
+    for (int i = 0; i < 8; i++) {;
+      data[i] /= x[i];
+    };
+    return *this;
+  }
+};
+
+struct CINN_ALIGN(16) half8 {
+  // float16 x, y, z, w, v, u, t, s;
+  AlignedVector<float16, 8> data;
+  __device__ inline const float16& operator[](int i) const { return data[i]; }
+  __device__ inline float16& operator[](int i) { return data[i]; }
+
+  __device__ inline half8& operator+(const half8& x) {
+  #pragma unroll(8)
+    for (int i = 0; i < 8; i++) {;
+      data[i] += x[i];
+    };
+    return *this;
+  }
+
+  __device__ inline half8& operator-(const half8& x) {
+  #pragma unroll(8)
+    for (int i = 0; i < 8; i++) {;
+      data[i] -= x[i];
+    };
+    return *this;
+  }
+
+  __device__ inline half8& operator*(const half8& x) {
+  #pragma unroll(8)
+    for (int i = 0; i < 8; i++) {;
+      data[i] *= x[i];
+    };
+    return *this;
+  }
+
+  __device__ inline half8& operator/(const half8& x) {
+  #pragma unroll(8)
+    for (int i = 0; i < 8; i++) {;
+      data[i] /= x[i];
+    };
+    return *this;
+  }
+};
+
+struct CINN_ALIGN(8) half4 {
+  // float16 x, y, z, w;
+  AlignedVector<float16, 4> data;
+  __device__ inline const float16& operator[](int i) const { return data[i]; }
+  __device__ inline float16& operator[](int i) { return data[i]; }
+
+  __device__ inline half4& operator+(const half4& x) {
+#pragma unroll(4)
+    for (int i = 0; i < 4; i++) {
+      data[i] += x[i];
+    };
+    return *this;
+  }
+
+  __device__ inline half4& operator-(const half4& x) {
+#pragma unroll(4)
+    for (int i = 0; i < 4; i++) {
+      data[i] -= x[i];
+    };
+    return *this;
+  }
+
+  __device__ inline half4& operator*(const half4& x) {
+#pragma unroll(4)
+    for (int i = 0; i < 4; i++) {
+      data[i] *= x[i];
+    };
+    return *this;
+  }
+
+  __device__ inline half4& operator/(const half4& x) {
+#pragma unroll(4)
+    for (int i = 0; i < 4; i++) {
+      data[i] /= x[i];
+    };
+    return *this;
+  }
+};
+
+
 
 #ifdef __cplusplus
 }  // namespace common
