@@ -594,7 +594,7 @@ CINN_NVGPU_GT_NUM(int64, long long int)
 
 #undef CINN_NVGPU_GT_NUM
 
-#define CINN_CUDA_INDEX_ADD(TYPE_SUFFIX, TYPE)                                \
+#define CINN_NVGPU_INDEX_ADD(TYPE_SUFFIX, TYPE)                                \
   __device__ inline TYPE cinn_nvgpu_index_add_##TYPE_SUFFIX(const TYPE x,      \
                                             const int axis_indice,            \
                                             const TYPE *__restrict__ y,       \
@@ -613,10 +613,10 @@ CINN_NVGPU_GT_NUM(int64, long long int)
     return res;                                                               \
   }
 
-CINN_CUDA_INDEX_ADD(fp32, float)
-CINN_CUDA_INDEX_ADD(fp64, double)
+CINN_NVGPU_INDEX_ADD(fp32, float)
+CINN_NVGPU_INDEX_ADD(fp64, double)
 #ifdef CINN_CUDA_FP16
-CINN_CUDA_INDEX_ADD(fp16, float16)
+CINN_NVGPU_INDEX_ADD(fp16, float16)
 #endif
 
 #undef CINN_CUDA_INDEX_ADD
