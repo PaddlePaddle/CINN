@@ -20,6 +20,7 @@
 #include <queue>
 
 #include "absl/types/variant.h"
+#include "cinn/hlir/op/op_util.h"
 #include "cinn/utils/functional.h"
 #include "cinn/utils/type_defs.h"
 
@@ -31,37 +32,24 @@ namespace utils {
 using cinn::utils::Attribute;
 using cinn::utils::AttributeMap;
 
-template <typename T>
-T GetAttr(const AttributeMap& attr_map, const std::string& attr_name) {
-  CHECK(attr_map.count(attr_name)) << "Cannot found attribute \"" << attr_name << "\"";
-  const auto& attr = attr_map.at(attr_name);
-
-  CHECK(absl::holds_alternative<T>(attr)) << "The type of attribute \"" << attr_name << "\" isn't " << typeid(T).name();
-  return absl::get<T>(attr_map.at(attr_name));
-}
-
-template <typename T>
-T SafeGetAttr(const AttributeMap& attr_map, const std::string& attr_name, const T& default_value = T{}) {
-  if (attr_map.count(attr_name)) {
-    return GetAttr<T>(attr_map, attr_name);
-  }
-  return default_value;
-}
-
-class ConstantFoldingPassHelper {
+class ConstantFoldingHelper {
  public:
-  ConstantFoldingPassHelper(const FusionHelperBase* helper, Graph* graph, Node* node)
+  ConstantFoldingHelper(const FusionHelperBase* helper, Graph* graph, Node* node)
       : helper_(helper), graph_(graph), consumer_(node), producer_(helper->GetProducerNode(node)[0]) {}
 
   const AttributeMap& GetProducerAttrs() const { return producer_->attrs.attr_store; }
   const AttributeMap& GetConsumerAttrs() const { return consumer_->attrs.attr_store; }
 
-  void FoldImpl(const std::string& fold_op_name, const AttributeMap& attrs_map) {
-    auto* new_fold_node = CreateNewNode(fold_op_name, attrs_map);
+  // fold consumer node and producer node into a new op node
+  void operator()(const AttributeMap& attrs_map, const std::string& new_op_name) {
+    auto* new_fold_node = CreateNewNode(new_op_name, attrs_map);
 
     // create new link.
     RelinkEdge(new_fold_node);
   }
+
+  // fold consumer node into producer node
+  void operator()(const AttributeMap& attrs_map) { this->operator()(attrs_map, producer_->op()->name); }
 
  private:
   Node* CreateNewNode(const std::string& op_name, const AttributeMap& attrs_map) {
@@ -73,12 +61,12 @@ class ConstantFoldingPassHelper {
 
   void RelinkEdge(Node* new_fold_node) {
     // first relink consumer node.
-    RelinkConsumer(new_fold_node);
+    RelinkAndRemoveConsumer(new_fold_node);
     // then relink producer node.
     RelinkProducer(new_fold_node);
   }
 
-  void RelinkConsumer(Node* new_fold_node) {
+  void RelinkAndRemoveConsumer(Node* new_fold_node) {
     // relink outputs
     {
       const auto& consumer_outputs = helper_->GetNodeDatas(consumer_);
