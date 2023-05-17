@@ -35,7 +35,7 @@ std::unique_ptr<BlockSampler> BlockSampler::Make(const std::vector<ir::Expr>& al
     return std::make_unique<ProbabilisticBlockSampler>(all_blocks, default_remove_policy, rand_seed, weights);
   }
 
-  LOG(FATAL) << "Unimplementd strategy:" << strategy;
+  LOG(FATAL) << "Unimplemented strategy:" << strategy;
   return nullptr;
 }
 

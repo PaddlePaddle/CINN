@@ -32,7 +32,7 @@ std::unique_ptr<RuleSampler> RuleSampler::Make(const std::vector<AutoGenRule*>& 
     return std::make_unique<ProbabilisticRuleSampler>(potential_rules, default_remove_policy, rand_seed, weights);
   }
 
-  LOG(FATAL) << "Unimplementd strategy:" << strategy;
+  LOG(FATAL) << "Unimplemented strategy:" << strategy;
   return nullptr;
 }
 
