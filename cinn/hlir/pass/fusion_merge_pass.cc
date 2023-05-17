@@ -830,7 +830,7 @@ class FusionMergePassHelper : public FusionHelperBase {
         if (consumer->belong_groups.size()) {
           // inset belong group to consumers.
           for (auto& belong_group : consumer->belong_groups) {
-            CHECK(belong_group.expired());
+            CHECK(!belong_group.expired());
             updated_consumers.insert(belong_group.lock());
           }
         } else {
