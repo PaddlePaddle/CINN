@@ -29,7 +29,7 @@ namespace auto_schedule {
 
 // The input to a measurer
 struct MeasureInput {
-  // The task object releated to this measurement.
+  // The task object related to this measurement.
   const TuneTask* task;
   // lowered Exprs to be measured
   std::vector<ir::LoweredFunc> lowered_funcs;
@@ -46,7 +46,7 @@ struct MeasureResult {
   // The time cost of the whole measurement process including
   // building and running
   double elapsed_time = 0.0;  // unit: us
-  // used to return detail messages once an error occurr during measurement,
+  // used to return detail messages once an error occurred during measurement,
   // empty if nothing goes wrong
   std::string error_msg;
 };
@@ -60,8 +60,8 @@ struct BuildResult {
 };
 
 // This interface defines how to generate executable objects
-// with input schedule. A builer should not contain stateful data
-// releated to any task so it can be called parallelly among multiple
+// with input schedule. A builder should not contain stateful data
+// related to any task so it can be called parallelly among multiple
 // processes of task tuning.
 class ScheduleBuilder {
  public:

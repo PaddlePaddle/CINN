@@ -20,6 +20,7 @@
 #include "cinn/common/cas.h"
 #include "cinn/common/context.h"
 #include "cinn/common/ir_util.h"
+#include "cinn/hlir/op/op_util.h"
 #include "cinn/hlir/pe/elementwise.h"
 #include "cinn/hlir/pe/schedule.h"
 #include "cinn/ir/tensor.h"
@@ -1123,6 +1124,8 @@ ir::Tensor ScatterAdd(const ir::Tensor& input,
 
   CHECK_EQ(index->type(), common::Int(32)) << "Param [index] of IndexAdd only support int32 ! Please Check.\n";
   CHECK_EQ(index->shape.size(), 1) << "The dimension of param [index] of IndexAdd should be 1 ! Please Check.\n";
+  CHECK_EQ(input->type(), updates->type())
+      << "Please ensure that the data types for input and updates are identical.\n";
 
   auto pos_axis = axis;
   if (pos_axis < 0) pos_axis += input->shape.size();
@@ -1149,6 +1152,8 @@ ir::Tensor ScatterAdd(const ir::Tensor& input,
     return offset;
   };
 
+  const std::string& extern_func_name = GetExternFuncName(target, input->type(), "index_add");
+
   // assume shape=[1,2,3], axis=1, `cinn_cuda_index_add` extern function do following compute:
   // out[i][j][k] = input[i][j][k]
   // for l in range(index.size()):
@@ -1157,7 +1162,7 @@ ir::Tensor ScatterAdd(const ir::Tensor& input,
   auto output = Compute(
       input->shape,
       [=](const std::vector<Expr>& indice) {
-        return lang::CallExtern("cinn_cuda_index_add",
+        return lang::CallExtern(extern_func_name,
                                 {input(indice),
                                  indice[pos_axis],
                                  updates,

@@ -52,7 +52,7 @@ class CodeGenC : public ir::IrPrinter {
 
   virtual std::string Compile(const ir::Module& module, OutputKind output_kind);
 
-  //! Disable inline the builtin codes(too large) for simpler string comparation.
+  //! Disable inline the builtin codes(too large) for simpler string comparison.
   void SetInlineBuiltinCodes(bool x = true) { inline_builtin_codes_ = x; }
 
  protected:

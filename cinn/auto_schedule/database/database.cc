@@ -50,7 +50,7 @@ std::unique_ptr<Database> Database::Make(const DatabaseConfig& config) {
     return std::make_unique<JSONFileDatabase>(config.capacity_per_task, config.record_file_path, true);
   }
 
-  LOG(FATAL) << "Unimplementd database type.";
+  LOG(FATAL) << "Unimplemented database type.";
   return nullptr;
 }
 

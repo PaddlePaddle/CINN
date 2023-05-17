@@ -151,9 +151,9 @@ void IrPrinter::Visit(const For *x) {
   } else if (x->is_binded()) {
     auto &bind_info = x->bind_info();
     if (bind_info.valid()) {
-      std::string axis_name = "x" + bind_info.offset;
-      auto for_type         = bind_info.for_type;
-      std::string prefix    = for_type == ForType::GPUBlock ? "blockIdx." : "threadIdx.";
+      char axis_name     = 'x' + bind_info.offset;
+      auto for_type      = bind_info.for_type;
+      std::string prefix = for_type == ForType::GPUBlock ? "blockIdx." : "threadIdx.";
       os() << "thread_bind[" << prefix << axis_name << "] for (";
     } else {
       os() << "thread_bind[invalid info] for (";
