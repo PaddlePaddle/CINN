@@ -812,14 +812,23 @@ class FusionMergePassHelper : public FusionHelperBase {
       auto& consumers = input_consumers.second;
       std::unordered_set<GroupPtr, Hasher, Comparator> updated_consumers;
       for (auto& consumer : consumers) {
-        // if group is sub group
-        if (consumer->belong_groups.size()) {
-          // inset belong group to consumers.
-          for (auto& belong_group : consumer->belong_groups) {
-            updated_consumers.insert(belong_group);
+        std::queue<GroupPtr> fused_groups;
+        fused_groups.push(consumer);
+        while (!fused_groups.empty()) {
+          auto& cur = fused_groups.front();
+          fused_groups.pop();
+          // if group is sub group
+          if (cur->belong_groups.empty()) {
+            updated_consumers.insert(cur);
+          } else {
+            for (auto& belong_group : cur->belong_groups) {
+              if (belong_group->group_id == cur->group_id) {
+                updated_consumers.insert(belong_group);
+              } else {
+                fused_groups.push(belong_group);
+              }
+            }
           }
-        } else {
-          updated_consumers.insert(consumer);
         }
       }
       consumers = updated_consumers;

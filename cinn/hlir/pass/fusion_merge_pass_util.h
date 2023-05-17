@@ -388,10 +388,6 @@ CONDITION_FUNC(reduce_fuse_broadcast) {
 }
 
 CONDITION_FUNC(reduce_fuse_reduce) {
-  // check reduce horizontal with reduce.
-  if (!horizontal_relation(helper, first, second, framework::OpPatternKind::kReduction)) {
-    return false;
-  }
   if (!limit_args(helper, first, second)) {
     return false;
   }
