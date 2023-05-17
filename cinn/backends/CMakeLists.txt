@@ -19,12 +19,13 @@ if (WITH_CUDA)
   list(APPEND srcs cuda_util.cc codegen_cuda_dev.cc codegen_cuda_util.cc)
 endif()
 
+if (WITH_OPENMP)
 cc_library(__x86_source_fake_lib SRCS _x86_builtin_source.cc)
+endif()
 add_subdirectory(llvm)
 
 
 if (WITH_CUDA)
-    
     nv_test(test_raw_cuda_code SRCS raw_cuda_code_test.cu DEPS cinncore)
 endif()
 

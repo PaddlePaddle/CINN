@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #pragma once
-#include <omp.h>
 
 #include <thread>
 

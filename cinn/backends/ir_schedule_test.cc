@@ -426,6 +426,7 @@ void test_reorder4(void* _args, int32_t num_args)
   ASSERT_EQ(utils::Trim(target_code), utils::Trim(source_code));
 }
 
+#ifdef CINN_USE_OPENMP
 TEST(IrSchedule, parallel) {
   Context::Global().ResetNameId();
   Expr M(32);
@@ -489,6 +490,7 @@ void test_parallel(void* _args, int32_t num_args)
 )ROC";
   ASSERT_EQ(utils::Trim(target_code), utils::Trim(source_code));
 }
+#endif  // CINN_USE_OPENMP
 
 TEST(IrSchedule, vectorize) {
   Context::Global().ResetNameId();
