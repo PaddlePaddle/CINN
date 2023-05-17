@@ -508,46 +508,53 @@ std::vector<ir::Expr> CustomCallArgsForCudnnPoolForward(const framework::NodeAtt
   CHECK(attr_store.count("pool_type"));
   auto pool_type = absl::get<std::string>(attrs.attr_store.at("pool_type"));
 
+  int height_axis = -1;
+  int width_axis  = -1;
   std::string data_format =
       attr_store.count("data_format") ? absl::get<std::string>(attrs.attr_store.at("data_format")) : "NCHW";
-  if (data_format == "AnyLayout") {
+  if (data_format == "AnyLayout" || data_format == "NCHW") {
     data_format = "NCHW";
+    height_axis = 2;
+    width_axis  = 3;
+  } else if (data_format == "NHWC") {
+    height_axis = 1;
+    width_axis  = 2;
+  } else {
+    LOG(FATAL) << "Unsupported data_format for pool op: " << data_format;
   }
 
+  std::vector<Expr> input = inputs[0]->shape;
   bool global_pooling =
       attr_store.count("global_pooling") ? absl::get<bool>(attrs.attr_store.at("global_pooling")) : false;
   if (global_pooling) {
-    if (data_format == "NCHW") {
-      kernel = {inputs[0]->shape[2].as_int32(), inputs[0]->shape[3].as_int32()};
-    } else if (data_format == "NHWC") {
-      kernel = {inputs[0]->shape[1].as_int32(), inputs[0]->shape[2].as_int32()};
-    }
+    kernel  = {input[height_axis].as_int32(), input[width_axis].as_int32()};
     padding = {0, 0};
   }
 
   bool adaptive = attr_store.count("adaptive") ? absl::get<bool>(attrs.attr_store.at("adaptive")) : false;
   if (adaptive) {
-    CHECK(kernel[0] == 1 && kernel[1] == 1)
-        << "cudnn pool2d in cinn only support kernel_size=[1, 1] now, you can set "
-           "FLAGS_cinn_custom_call_deny_ops=\"pool2d\" to disallow pool2d using cudnn";
-    CHECK(stride[0] == 1 && stride[1] == 1)
-        << "cudnn pool2d in cinn only support stride_size=[1, 1] now, you can set "
-           "FLAGS_cinn_custom_call_deny_ops=\"pool2d\" to disallow pool2d using cudnn";
-    CHECK(padding[0] == 0 && padding[1] == 0)
-        << "cudnn pool2d in cinn only support padding_size=[0, 0] now, you can set "
-           "FLAGS_cinn_custom_call_deny_ops=\"pool2d\" to disallow pool2d using cudnn";
-
-    if (data_format == "NCHW") {
-      kernel = {inputs[0]->shape[2].as_int32(), inputs[0]->shape[3].as_int32()};
-    } else if (data_format == "NHWC") {
-      kernel = {inputs[0]->shape[1].as_int32(), inputs[0]->shape[2].as_int32()};
-    }
+    padding = {0, 0};
   }
 
-  cudnnPoolingMode_t mode    = pool_type == "max" ? CUDNN_POOLING_MAX : CUDNN_POOLING_AVERAGE_COUNT_INCLUDE_PADDING;
+  std::string padding_algorithm = attr_store.count("padding_algorithm")
+                                      ? absl::get<std::string>(attrs.attr_store.at("padding_algorithm"))
+                                      : "EXPLICIT";
+  if (padding_algorithm == "VALID") {
+    padding = {0, 0};
+  } else if (padding_algorithm == "SAME") {
+    int same_pad_h = static_cast<int>(std::ceil(
+        (input[height_axis].as_int32() * stride[0] - input[height_axis].as_int32() + kernel[0] - stride[0]) / 2.0f));
+    int same_pad_w = static_cast<int>(std::ceil(
+        (input[width_axis].as_int32() * stride[1] - input[width_axis].as_int32() + kernel[1] - stride[1]) / 2.0f));
+    padding        = {same_pad_h, same_pad_w};
+  }
+
+  auto exclusive             = absl::get<bool>(attrs.attr_store.at("exclusive"));
+  cudnnPoolingMode_t mode    = pool_type == "max" ? CUDNN_POOLING_MAX
+                                                  : (exclusive ? CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING
+                                                               : CUDNN_POOLING_AVERAGE_COUNT_INCLUDE_PADDING);
   cudnnTensorFormat_t format = data_format == "NCHW" ? CUDNN_TENSOR_NCHW : CUDNN_TENSOR_NHWC;
 
-  std::vector<Expr> input = inputs[0]->shape;
   std::vector<Expr> output;
   std::transform(output_shapes[0].begin(), output_shapes[0].end(), std::back_inserter(output), [](const int dim) {
     return ir::Expr(dim);
@@ -608,24 +615,13 @@ std::vector<ir::Expr> CustomCallArgsForCudnnPoolBackward(const framework::NodeAt
 
   bool adaptive = attr_store.count("adaptive") ? absl::get<bool>(attrs.attr_store.at("adaptive")) : false;
   if (adaptive) {
-    CHECK(kernel[0] == 1 && kernel[1] == 1)
-        << "cudnn pool2d_grad in cinn only support kernel_size=[1, 1] now, you can set "
-           "FLAGS_cinn_custom_call_deny_ops=\"pool2d_grad\" to disallow pool2d_grad using cudnn";
-    CHECK(stride[0] == 1 && stride[1] == 1)
-        << "cudnn pool2d_grad in cinn only support stride_size=[1, 1] now, you can set "
-           "FLAGS_cinn_custom_call_deny_ops=\"pool2d_grad\" to disallow pool2d_grad using cudnn";
-    CHECK(padding[0] == 0 && padding[1] == 0)
-        << "cudnn pool2d_grad in cinn only support padding_size=[0, 0] now, you can set "
-           "FLAGS_cinn_custom_call_deny_ops=\"pool2d_grad\" to disallow pool2d_grad using cudnn";
-
-    if (data_format == "NCHW") {
-      kernel = {inputs[0]->shape[2].as_int32(), inputs[0]->shape[3].as_int32()};
-    } else if (data_format == "NHWC") {
-      kernel = {inputs[0]->shape[1].as_int32(), inputs[0]->shape[2].as_int32()};
-    }
+    padding = {0, 0};
   }
 
-  cudnnPoolingMode_t mode    = pool_type == "max" ? CUDNN_POOLING_MAX : CUDNN_POOLING_AVERAGE_COUNT_INCLUDE_PADDING;
+  auto exclusive             = absl::get<bool>(attrs.attr_store.at("exclusive"));
+  cudnnPoolingMode_t mode    = pool_type == "max" ? CUDNN_POOLING_MAX
+                                                  : (exclusive ? CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING
+                                                               : CUDNN_POOLING_AVERAGE_COUNT_INCLUDE_PADDING);
   cudnnTensorFormat_t format = data_format == "NCHW" ? CUDNN_TENSOR_NCHW : CUDNN_TENSOR_NHWC;
 
   std::vector<Expr> input  = inputs[0]->shape;  // 'x'

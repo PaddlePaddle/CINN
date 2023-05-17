@@ -577,7 +577,9 @@ std::string debug_cudnn_pool_mode(cudnnPoolingMode_t pool_mode) {
     case CUDNN_POOLING_MAX_DETERMINISTIC:
       return "max_deterministic";
     case CUDNN_POOLING_AVERAGE_COUNT_INCLUDE_PADDING:
-      return "avg";
+      return "avg_include_padding";
+    case CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING:
+      return "avg_exclulude_padding";
     default:
       LOG(FATAL) << "Pool only support max and avg now!";
   };

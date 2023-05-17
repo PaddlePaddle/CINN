@@ -1548,12 +1548,13 @@ std::vector<std::vector<int>> InferShapeForPool2d(const std::vector<std::vector<
   std::vector<int> kernel_size;
   std::vector<int> stride_size;
   std::vector<int> padding_size;
-  std::string pool_type   = "max";
-  bool ceil_mode          = false;
-  bool exclusive          = true;
-  std::string data_format = "NCHW";
-  bool global_pooling     = false;
-  bool adaptive           = false;
+  std::string pool_type         = "max";
+  bool ceil_mode                = false;
+  bool exclusive                = true;
+  std::string data_format       = "NCHW";
+  bool global_pooling           = false;
+  bool adaptive                 = false;
+  std::string padding_algorithm = "EXPLICIT";
   for (auto &iter : attrs) {
     if (iter.first == "kernel_size") {
       kernel_size = absl::get<std::vector<int>>(iter.second);
@@ -1573,14 +1574,21 @@ std::vector<std::vector<int>> InferShapeForPool2d(const std::vector<std::vector<
       adaptive = absl::get<bool>(iter.second);
     } else if (iter.first == "pool_type") {
       pool_type = absl::get<std::string>(iter.second);
+    } else if (iter.first == "padding_algorithm") {
+      padding_algorithm = absl::get<std::string>(iter.second);
     }
   }
 
   CHECK(pool_type == "max" || pool_type == "avg") << "pool_type for pool2d should be max or avg.\n";
+  CHECK(data_format == "NCHW" || data_format == "NHWC") << "data_format of pool2d only support NCHW and NHWC.\n";
+  CHECK_EQ(kernel_size.size(), 2U) << "kernel size rank for pool2d should be 2.\n";
+  CHECK(kernel_size[0] > 0 && kernel_size[1] > 0) << "the value of kernel size for pool2d should greater than 0.\n";
+  CHECK_EQ(stride_size.size(), 2U) << "stride_size size for pool2d should be 2.\n";
+  CHECK(stride_size[0] > 0 && stride_size[1] > 0) << "the value of kernel size for pool2d should greater than 0.\n";
+
   if (data_format == "AnyLayout") {
     data_format = "NCHW";
   }
-  CHECK(data_format == "NCHW" || data_format == "NHWC") << "data_format of pool2d only support NCHW and NHWC.\n";
 
   int height_axis = -1;
   int width_axis  = -1;
@@ -1592,15 +1600,25 @@ std::vector<std::vector<int>> InferShapeForPool2d(const std::vector<std::vector<
     width_axis  = 2;
   }
 
+  // When padding_algorithm is VALID, set paddings to [0, 0].
+  // When padding_algorithm is SAME, the calculation formula of padding is as follows:
+  // padding_h/w = ceil((input_h/w * stride_h/w - input_h/w + kernel_h/w - stride_h/w) / 2)
+  if (padding_algorithm == "VALID") {
+    padding_size = {0, 0};
+  } else if (padding_algorithm == "SAME") {
+    int same_pad_h = static_cast<int>(std::ceil((inputs_shape[0][height_axis] * stride_size[0] -
+                                                 inputs_shape[0][height_axis] + kernel_size[0] - stride_size[0]) /
+                                                2.0f));
+    int same_pad_w = static_cast<int>(std::ceil(
+        (inputs_shape[0][width_axis] * stride_size[1] - inputs_shape[0][width_axis] + kernel_size[1] - stride_size[1]) /
+        2.0f));
+    padding_size   = {same_pad_h, same_pad_w};
+  }
+
   if (global_pooling) {
     kernel_size  = {inputs_shape[0][height_axis], inputs_shape[0][width_axis]};
     padding_size = {0, 0, 0, 0};
   }
-
-  CHECK_EQ(kernel_size.size(), 2U) << "kernel size rank for pool2d should be 2.\n";
-  CHECK(kernel_size[0] > 0 && kernel_size[1] > 0) << "the value of kernel size for pool2d should greater than 0.\n";
-  CHECK_EQ(stride_size.size(), 2U) << "stride_size size for pool2d should be 2.\n";
-  CHECK(stride_size[0] > 0 && stride_size[1] > 0) << "the value of kernel size for pool2d should greater than 0.\n";
 
   if (padding_size.size() == 2) {
     padding_size.insert(padding_size.end(), padding_size.begin(), padding_size.end());

@@ -509,7 +509,7 @@ class NetBuilder {
    * @param adaptive When true, will perform adaptive pooling instead, output shape in H and W dimensions will be same
    * as ksize, input data will be divided into grids specify by ksize averagely and perform pooling in each grid area to
    * get output pooling value. Default: False.
-   * @param padding_algorithm CINN not support! It can be "EXPLICIT"/"SAME"/"VALID". Default: "EXPLICIT".
+   * @param padding_algorithm Can be "EXPLICIT"/"SAME"/"VALID". Default: "EXPLICIT".
    * @return The output variable of pooling result. The data type is same as input variable.
    */
   Variable Pool2d(const Variable& x,
