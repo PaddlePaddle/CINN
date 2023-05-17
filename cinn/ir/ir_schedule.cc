@@ -856,44 +856,51 @@ void ScheduleImpl::SyncThreads(const Expr& ir_node, bool after_node) {
 }
 
 void ScheduleImpl::SyncGpuBlocks(const Expr& master_block, const Expr& sequential_block) {
-  GLOG(6) << "Call SyncGpuBlocks";
-  CHECK(ir_node.As<ScheduleBlockRealize>());
-  master_root = GetRootBlock(master_block);
+  VLOG(6) << "Call SyncGpuBlocks";
+  CHECK(master_block.As<ScheduleBlockRealize>() || master_block.As<ScheduleBlock>());
+  CHECK(sequential_block.As<ScheduleBlockRealize>() || sequential_block.As<ScheduleBlock>());
+  Expr master_root = GetRootBlock(master_block);
   ChangeBodyToBlock::Change(&master_root);
 
   Expr sync_threads = runtime::IntrinsicCall(Void(), "__syncthreads", {});
 
   Var block_count_var(common::UniqName("block_count"));
-  Expr atomic_add = runtime::IntrinsicCall(I32(), "atomicAdd", {block_count_var, common::make_const(Int(32), 1)});
+  Expr atomic_add =
+      runtime::IntrinsicCall(common::I32(), "atomicAdd", {block_count_var, common::make_const(Int(32), 1)});
 
-  Expr only_first_thread_add = ir::For::Make(Var(ir::Var(common::UniqName("sync_block_thread_x"),
-				  ir::Expr(0),
-				  ir::Expr(1),
-				  ir::ForType::GPUThread,
-				  atomic_add);  
-  
+  Expr only_first_thread_add = ir::For::Make(Var(common::UniqName("sync_block_thread_x")),
+                                             ir::Expr(0),
+                                             ir::Expr(1),
+                                             ir::ForType::GPUThread,
+                                             ir::DeviceAPI::UNK,
+                                             atomic_add);
 
-  int block_number; // = TODO
-  Expr atomic_max = runtime::IntrinsicCall(I32(), "atomicAdd", {block_count_var, common::make_const(Int(32), -1)});
+  int block_number = 96;  // = TODO
+  Expr atomic_max =
+      runtime::IntrinsicCall(common::I32(), "atomicAdd", {block_count_var, common::make_const(Int(32), -1)});
   Expr loop_waiting = ir::PolyFor::Make(Var(common::UniqName("useless_tmp")),
-		                        ir::Expr(0),
-					ir::LE::Make(atomic_max, ir::Expr(block_number)),
-					ir::Expr(0),
-					ir::ForType::Serial,
-					ir::DeviceAPI::UNK,
-					ir::Block::Make({}));
+                                        ir::Expr(0),
+                                        ir::LE::Make(atomic_max, ir::Expr(block_number)),
+                                        ir::Expr(0),
+                                        ir::ForType::Serial,
+                                        ir::DeviceAPI::UNK,
+                                        ir::Block::Make({}));
 
-  Expr loop_gpu_block = ir::For::Make(Var(ir::Var(common::UniqName("only_first_block_run"),
-                                  ir::Expr(0),
-                                  ir::Expr(1),
-                                  ir::ForType::GPUBlock,
-                                  ir::Block::Make({loop_waiting, sequential_block}));
-  
+  Expr loop_gpu_block = ir::For::Make(Var(common::UniqName("only_first_block_run")),
+                                      ir::Expr(0),
+                                      ir::Expr(1),
+                                      ir::ForType::GPUBlock,
+                                      ir::DeviceAPI::UNK,
+                                      ir::Block::Make({loop_waiting, sequential_block}));
 
-  Expr sync_statements = ir::Block::Make({sync_threads, first_thread_add_only, loop_gpu_block});
+  Expr sync_statements = ir::Block::Make(std::vector<Expr>{sync_threads, only_first_thread_add, loop_gpu_block});
 
-  InsertExpr::Insert(master_block, sync_statements, /* after_node = */ true, &root);
-  return;
+  InsertExpr::Insert(master_block, sync_statements, /* after_node = */ true, &master_root);
+
+  Expr source_expr{nullptr};
+  Expr target_expr{nullptr};
+  LeafBlockRemovalPlan remove_plan(sequential_block, &source_expr, &target_expr);
+  remove_plan(&master_root);
 }
 
 /**
@@ -1001,6 +1008,7 @@ Expr ScheduleImpl::GetRootBlock(const Expr& expr) const {
     }
   }
   LOG(FATAL) << "Didn't find expr \n" << expr << "in ScheduleImpl:\n" << exprs[0];
+  return expr;
 }
 
 // The struct used to reconstruct the new For node to replace the old For node.
@@ -1668,6 +1676,7 @@ Expr ScheduleImpl::GetBlock(const std::string& block_name) const {
     }
   }
   LOG(FATAL) << "Didn't find a block with name " << block_name << " in this ModuleExpr!";
+  return result;
 }
 
 void ScheduleImpl::Annotate(const Expr& block, const std::string& key, const attr_t& value) {
@@ -2188,7 +2197,9 @@ void IRSchedule::SyncGpuBlocks(const Expr& master_block, const Expr& sequential_
   impl_->SyncGpuBlocks(master_block, sequential_block);
   trace_.Append(ScheduleDesc::Step("SyncGpuBlocks",
                                    {{"master_block", std::vector<Expr>({master_block})},
-                                    {"sequential_block", std::vector<Expr>({sequential_block})}}));
+                                    {"sequential_block", std::vector<Expr>({sequential_block})}},
+                                   {},
+                                   {}));
 }
 
 void IRSchedule::SetBuffer(Expr& block, const std::string& memory_type, bool fixed) {

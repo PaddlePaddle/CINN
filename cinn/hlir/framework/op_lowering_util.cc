@@ -1375,8 +1375,8 @@ void SyncGpuBlocks(ir::IRSchedule& ir_sch,
   auto node_data    = GetNodeData(node);
   auto master_data  = GetNodeData(master);
   auto node_block   = ir_sch.GetBlock(node->id());
-  auto master_block = ir_sche.GetBlock(master_data->id());
-  ir_sche.SyncGpuBlocks(master_block, node_block);
+  auto master_block = ir_sch.GetBlock(master_data->id());
+  ir_sch.SyncGpuBlocks(master_block, node_block);
 }
 
 std::unordered_map<std::string, NodeData*> GetNodeDataSet(const std::unordered_set<Node*>& nodes_set) {
