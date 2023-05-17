@@ -352,66 +352,6 @@ class TestUnaryArcTrigon(TestCaseHelper):
 #     def cinn_func(self, builder, x):
 #         return builder.trunc(x)
 
-# class TestAsinOp(TestUnaryOp):
-#     def init_case(self):
-#         self.inputs = {"x": self.random([32, 64], 'float32', -1.0, 1.0)}
-
-#     def paddle_func(self, x):
-#         return paddle.asin(x)
-
-#     def cinn_func(self, builder, x):
-#         return builder.asin(x)
-
-# class TestAcosOp(TestUnaryOp):
-#     def init_case(self):
-#         self.inputs = {"x": self.random([32, 64], 'float32', -1.0, 1.0)}
-
-#     def paddle_func(self, x):
-#         return paddle.acos(x)
-
-#     def cinn_func(self, builder, x):
-#         return builder.acos(x)
-
-# class TestAtanOp(TestUnaryOp):
-#     def init_case(self):
-#         self.inputs = {"x": self.random([32, 64], 'float32', -1.0, 1.0)}
-
-#     def paddle_func(self, x):
-#         return paddle.atan(x)
-
-#     def cinn_func(self, builder, x):
-#         return builder.atan(x)
-
-# class TestAsinhOp(TestUnaryOp):
-#     def init_case(self):
-#         self.inputs = {"x": self.random([32, 64], 'float32', -1.0, 1.0)}
-
-#     def paddle_func(self, x):
-#         return paddle.asinh(x)
-
-#     def cinn_func(self, builder, x):
-#         return builder.asinh(x)
-
-# class TestAcoshOp(TestUnaryOp):
-#     def init_case(self):
-#         self.inputs = {"x": self.random([32, 64], 'float32', 1.0, 100.0)}
-
-#     def paddle_func(self, x):
-#         return paddle.acosh(x)
-
-#     def cinn_func(self, builder, x):
-#         return builder.acosh(x)
-
-# class TestAtanhOp(TestUnaryOp):
-#     def init_case(self):
-#         self.inputs = {"x": self.random([32, 64], 'float32', -1.0, 1.0)}
-
-#     def paddle_func(self, x):
-#         return paddle.atanh(x)
-
-#     def cinn_func(self, builder, x):
-#         return builder.atanh(x)
-
 # class TestLogicalNotOp(TestUnaryOp):
 #     def init_case(self):
 #         self.inputs = {"x": self.random([32, 64], 'bool')}
@@ -496,4 +436,3 @@ class TestUnaryArcTrigon(TestCaseHelper):
 if __name__ == "__main__":
     TestUnaryTrigon().run()
     TestUnaryArcTrigon().run()
-
