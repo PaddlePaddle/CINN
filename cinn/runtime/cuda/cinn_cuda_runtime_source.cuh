@@ -156,6 +156,7 @@ __device__ inline bfloat16 FN_BF16(trunc)(bfloat16 x) { return bfloat16(htrunc(x
 
 __device__ inline bfloat16 FN_BF16(sin)(bfloat16 x) { return bfloat16(hsin(x.to_nv_bfloat16())); }
 __device__ inline bfloat16 FN_BF16(cos)(bfloat16 x) { return bfloat16(hcos(x.to_nv_bfloat16())); }
+__device__ inline bfloat16 FN_BF16(tan)(bfloat16 x) { return bfloat16(htan(x.to_nv_bfloat16())); }
 
 __device__ inline bfloat16 FN_BF16(exp)(bfloat16 x) { return bfloat16(hexp(x.to_nv_bfloat16())); }
 __device__ inline bfloat16 FN_BF16(log)(bfloat16 x) { return bfloat16(hlog(x.to_nv_bfloat16())); }
@@ -209,6 +210,7 @@ __device__ inline float16 FN_FP16(trunc)(float16 x) { return float16(htrunc(x.to
 
 __device__ inline float16 FN_FP16(sin)(float16 x) { return float16(hsin(x.to_half())); }
 __device__ inline float16 FN_FP16(cos)(float16 x) { return float16(hcos(x.to_half())); }
+__device__ inline float16 FN_FP16(tan)(float16 x) { return float16(htan(x.to_half())); }
 
 __device__ inline float16 FN_FP16(exp)(float16 x) { return float16(hexp(x.to_half())); }
 __device__ inline float16 FN_FP16(log)(float16 x) { return float16(hlog(x.to_half())); }
