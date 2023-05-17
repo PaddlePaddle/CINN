@@ -542,11 +542,13 @@ std::vector<ir::Expr> CustomCallArgsForCudnnPoolForward(const framework::NodeAtt
   if (padding_algorithm == "VALID") {
     padding = {0, 0};
   } else if (padding_algorithm == "SAME") {
-    int same_pad_h = static_cast<int>(std::ceil(
-        (input[height_axis].as_int32() * stride[0] - input[height_axis].as_int32() + kernel[0] - stride[0]) / 2.0f));
-    int same_pad_w = static_cast<int>(std::ceil(
-        (input[width_axis].as_int32() * stride[1] - input[width_axis].as_int32() + kernel[1] - stride[1]) / 2.0f));
-    padding        = {same_pad_h, same_pad_w};
+    int out_size_h = (input[height_axis].as_int32() + stride[0] - 1) / stride[0];
+    int out_size_w = (input[width_axis].as_int32() + stride[1] - 1) / stride[1];
+    int pad_sum_h  = std::max((out_size_h - 1) * stride[0] + kernel[0] - input[height_axis].as_int32(), 0);
+    int pad_sum_w  = std::max((out_size_w - 1) * stride[1] + kernel[1] - input[width_axis].as_int32(), 0);
+    int pad_w      = pad_sum_h / 2;
+    int pad_h      = pad_sum_w / 2;
+    padding        = {pad_h, pad_w};
   }
 
   auto exclusive             = absl::get<bool>(attrs.attr_store.at("exclusive"));

@@ -1602,17 +1602,23 @@ std::vector<std::vector<int>> InferShapeForPool2d(const std::vector<std::vector<
 
   // When padding_algorithm is VALID, set paddings to [0, 0].
   // When padding_algorithm is SAME, the calculation formula of padding is as follows:
-  // padding_h/w = ceil((input_h/w * stride_h/w - input_h/w + kernel_h/w - stride_h/w) / 2)
+  // output_h/w = ceil(input_h/w / stride_h/w)
+  // padding_sum_h/w = (output_h/w - 1) * stride_h/w + kernel_h/w - input_h/w
+  // padding_top/left = padding_sum_h/w / 2;
+  // padding_bottom/right = padding_sum_h/w - padding_top/left
   if (padding_algorithm == "VALID") {
     padding_size = {0, 0};
   } else if (padding_algorithm == "SAME") {
-    int same_pad_h = static_cast<int>(std::ceil((inputs_shape[0][height_axis] * stride_size[0] -
-                                                 inputs_shape[0][height_axis] + kernel_size[0] - stride_size[0]) /
-                                                2.0f));
-    int same_pad_w = static_cast<int>(std::ceil(
-        (inputs_shape[0][width_axis] * stride_size[1] - inputs_shape[0][width_axis] + kernel_size[1] - stride_size[1]) /
-        2.0f));
-    padding_size   = {same_pad_h, same_pad_w};
+    int out_size_h = (inputs_shape[0][height_axis] + stride_size[0] - 1) / stride_size[0];
+    int out_size_w = (inputs_shape[0][width_axis] + stride_size[1] - 1) / stride_size[1];
+    int pad_sum_h  = std::max((out_size_h - 1) * stride_size[0] + kernel_size[0] - inputs_shape[0][height_axis], 0);
+    int pad_sum_w  = std::max((out_size_w - 1) * stride_size[1] + kernel_size[1] - inputs_shape[0][width_axis], 0);
+    int pad_top    = pad_sum_h / 2;
+    int pad_bottom = pad_sum_h - pad_top;
+    int pad_left   = pad_sum_w / 2;
+    int pad_right  = pad_sum_w - pad_left;
+    padding_size   = {pad_top, pad_bottom, pad_left, pad_right};
+    // LOG(INFO) << "same padding: " << utils::Join(padding_size, ", ");
   }
 
   if (global_pooling) {
@@ -1654,7 +1660,7 @@ std::vector<std::vector<int>> InferShapeForPool2d(const std::vector<std::vector<
           << "], stride_size=[" << cinn::utils::Join(stride_size, ", ") << "], padding_size=["
           << cinn::utils::Join(padding_size, ", ") << "], pool_type=" << pool_type << ", ceil_mode=" << ceil_mode
           << ", exclusive=" << exclusive << ", data_format=" << data_format << ", global_pooling=" << global_pooling
-          << ", adaptive=" << adaptive;
+          << ", adaptive=" << adaptive << ", padding_algorithm=" << padding_algorithm;
   std::vector<std::vector<int>> res{output_shape1};
   return res;
 }
