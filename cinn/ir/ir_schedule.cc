@@ -86,6 +86,7 @@ class ScheduleImpl {
   Expr CacheRead(const Expr& block, int read_buffer_index, const std::string& memory_type);
   Expr CacheWrite(const Expr& block, int write_buffer_index, const std::string& memory_type);
   void SyncThreads(const Expr& ir_node, bool after_node = true);
+  void SyncGpuBlocks(const Expr& master_block, const Expr& sequential_block);
   void SetBuffer(Expr& block, const std::string& memory_type, bool fixed = false);
   Expr Reorder(const std::vector<Expr>& loops);
   Expr Reorder(const std::string& block_name, const std::vector<int>& loops_index);
@@ -851,6 +852,47 @@ void ScheduleImpl::SyncThreads(const Expr& ir_node, bool after_node) {
   ChangeBodyToBlock::Change(&root);
   Expr sync_threads = runtime::IntrinsicCall(Void(), "__syncthreads", {});
   InsertExpr::Insert(ir_node, sync_threads, after_node, &root);
+  return;
+}
+
+void ScheduleImpl::SyncGpuBlocks(const Expr& master_block, const Expr& sequential_block) {
+  GLOG(6) << "Call SyncGpuBlocks";
+  CHECK(ir_node.As<ScheduleBlockRealize>());
+  master_root = GetRootBlock(master_block);
+  ChangeBodyToBlock::Change(&master_root);
+
+  Expr sync_threads = runtime::IntrinsicCall(Void(), "__syncthreads", {});
+
+  Var block_count_var(common::UniqName("block_count"));
+  Expr atomic_add = runtime::IntrinsicCall(I32(), "atomicAdd", {block_count_var, common::make_const(Int(32), 1)});
+
+  Expr only_first_thread_add = ir::For::Make(Var(ir::Var(common::UniqName("sync_block_thread_x"),
+				  ir::Expr(0),
+				  ir::Expr(1),
+				  ir::ForType::GPUThread,
+				  atomic_add);  
+  
+
+  int block_number; // = TODO
+  Expr atomic_max = runtime::IntrinsicCall(I32(), "atomicAdd", {block_count_var, common::make_const(Int(32), -1)});
+  Expr loop_waiting = ir::PolyFor::Make(Var(common::UniqName("useless_tmp")),
+		                        ir::Expr(0),
+					ir::LE::Make(atomic_max, ir::Expr(block_number)),
+					ir::Expr(0),
+					ir::ForType::Serial,
+					ir::DeviceAPI::UNK,
+					ir::Block::Make({}));
+
+  Expr loop_gpu_block = ir::For::Make(Var(ir::Var(common::UniqName("only_first_block_run"),
+                                  ir::Expr(0),
+                                  ir::Expr(1),
+                                  ir::ForType::GPUBlock,
+                                  ir::Block::Make({loop_waiting, sequential_block}));
+  
+
+  Expr sync_statements = ir::Block::Make({sync_threads, first_thread_add_only, loop_gpu_block});
+
+  InsertExpr::Insert(master_block, sync_statements, /* after_node = */ true, &root);
   return;
 }
 
@@ -2140,6 +2182,13 @@ void IRSchedule::SyncThreads(const Expr& ir_node, bool after_node) {
   impl_->SyncThreads(ir_node, after_node);
   trace_.Append(
       ScheduleDesc::Step("SyncThreads", {{"ir_node", std::vector<Expr>({ir_node})}}, {{"after_node", after_node}}, {}));
+}
+
+void IRSchedule::SyncGpuBlocks(const Expr& master_block, const Expr& sequential_block) {
+  impl_->SyncGpuBlocks(master_block, sequential_block);
+  trace_.Append(ScheduleDesc::Step("SyncGpuBlocks",
+                                   {{"master_block", std::vector<Expr>({master_block})},
+                                    {"sequential_block", std::vector<Expr>({sequential_block})}}));
 }
 
 void IRSchedule::SetBuffer(Expr& block, const std::string& memory_type, bool fixed) {

@@ -221,6 +221,14 @@ class IRSchedule {
    */
   void SyncThreads(const Expr& ir_node, bool after_node = true);
 
+  /**
+   * \brief Add GPU Block sync statements in AST of a master block, then change sequential block loop to match the
+   * master block if needed
+   * @param master_block Block that add GPU Block sync statements
+   * @param sequential_block Block that may change loop info
+   */
+  void SyncGpuBlocks(const Expr& master_block, const Expr& sequential_block);
+
   /*!
    * \brief Set a tensor's buffer type(memory_type)
    * \param block The ScheduleBlockRealize corresponding to an unique tensor.

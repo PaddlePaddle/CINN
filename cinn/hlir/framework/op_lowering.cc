@@ -1280,6 +1280,7 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
         ir_sch.Split(loops[0], splits);
       }
     }
+
     VLOG(3) << "Before loop fusion, ir is: \n" << ir_sch.GetModule().GetExprs().at(0);
     VLOG(4) << " FUSION " << node->op()->name;
     // do loop fuse.

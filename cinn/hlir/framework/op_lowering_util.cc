@@ -1038,6 +1038,7 @@ void MergeReduceToReduce(ir::IRSchedule& ir_sch,
                          const Node* master,
                          const absl::flat_hash_map<std::string, shape_t>& shape_dict,
                          const std::unordered_map<std::string, ir::Tensor>& tensor_map) {
+  VLOG(6) << "Calling MergeReduceToReduceLoop, node->id() = " << node->id();
   auto node_data   = GetNodeData(node);
   auto master_data = GetNodeData(master);
 
@@ -1246,6 +1247,7 @@ void MergeReduceLoop(ir::IRSchedule& ir_sch,
                      const Node* master,
                      const absl::flat_hash_map<std::string, shape_t>& shape_dict,
                      const std::unordered_map<std::string, ir::Tensor>& tensor_map) {
+  VLOG(6) << "Calling MergeReduceLoop, node->id() = " << node->id();
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
   if (op_pattern_dict[master->op()] == kReduction && node != master) {
     MergeReduceToReduce(ir_sch, node, master, shape_dict, tensor_map);
@@ -1362,6 +1364,19 @@ void LoopComputeAt(ir::IRSchedule& ir_sch,
     MergeLoops(ir_sch.GetModule().GetExprs().at(0), node_loops, master_loops, index);
     break;
   } while (--index >= 0);
+}
+
+void SyncGpuBlocks(ir::IRSchedule& ir_sch,
+                   Node* node,
+                   const Node* master,
+                   const GroupPtr& group,
+                   const absl::flat_hash_map<std::string, shape_t>& shape_dict,
+                   const std::unordered_map<std::string, ir::Tensor>& tensor_map) {
+  auto node_data    = GetNodeData(node);
+  auto master_data  = GetNodeData(master);
+  auto node_block   = ir_sch.GetBlock(node->id());
+  auto master_block = ir_sche.GetBlock(master_data->id());
+  ir_sche.SyncGpuBlocks(master_block, node_block);
 }
 
 std::unordered_map<std::string, NodeData*> GetNodeDataSet(const std::unordered_set<Node*>& nodes_set) {
