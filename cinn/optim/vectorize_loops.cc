@@ -176,7 +176,7 @@ class CudaVectorizer : public IRMutator<Expr *> {
   std::vector<Expr> vectorized_store_exprs_;
 
  public:
-  static constexpr int CudaVectorTypeMaxLanes = 8;
+  static constexpr int CudaVectorTypeMaxLanes = 4;
   CudaVectorizer(const Var &iter_var,
                  const int factor,
                  const absl::flat_hash_map<std::string, common::CasInterval> *var_intervals)

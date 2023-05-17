@@ -697,7 +697,76 @@ struct CINN_ALIGN(8) half4 {
   }
 };
 
+struct CINN_ALIGN(16) float4 {
+  // float x, y, z, w;
+  AlignedVector<float, 4> data;
+  __device__ inline const float& operator[](int i) const { return data[i]; }
+  __device__ inline float& operator[](int i) { return data[i]; }
 
+  __device__ inline float4& operator+(const float4& x) {
+#pragma unroll(4)
+    for (int i = 0; i < 4; i++) {
+      data[i] += x[i];
+    };
+    return *this;
+  }
+
+  __device__ inline float4& operator-(const float4& x) {
+#pragma unroll(4)
+    for (int i = 0; i < 4; i++) {
+      data[i] -= x[i];
+    };
+    return *this;
+  }
+
+  __device__ inline float4& operator*(const float4& x) {
+#pragma unroll(4)
+    for (int i = 0; i < 4; i++) {
+      data[i] *= x[i];
+    };
+    return *this;
+  }
+
+  __device__ inline float4& operator/(const float4& x) {
+#pragma unroll(4)
+    for (int i = 0; i < 4; i++) {
+      data[i] /= x[i];
+    };
+    return *this;
+  }
+
+  __device__ inline float4& operator+(const half4& x) {
+#pragma unroll(4)
+    for (int i = 0; i < 4; i++) {
+      data[i] += static_cast<float>(x[i]);
+    };
+    return *this;
+  }
+
+  __device__ inline float4& operator-(const half4& x) {
+#pragma unroll(4)
+    for (int i = 0; i < 4; i++) {
+      data[i] -= static_cast<float>(x[i]);
+    };
+    return *this;
+  }
+
+  __device__ inline float4& operator*(const half4& x) {
+#pragma unroll(4)
+    for (int i = 0; i < 4; i++) {
+      data[i] *= static_cast<float>(x[i]);
+    };
+    return *this;
+  }
+
+  __device__ inline float4& operator/(const half4& x) {
+#pragma unroll(4)
+    for (int i = 0; i < 4; i++) {
+      data[i] /= static_cast<float>(x[i]);
+    };
+    return *this;
+  }
+};
 
 #ifdef __cplusplus
 }  // namespace common
