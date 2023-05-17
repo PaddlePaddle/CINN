@@ -43,7 +43,7 @@ if (WITH_CUDA)
   nv_test(test_codegen_debug SRCS codegen_debug_test.cc DEPS cinncore)
 
   if (WITH_TESTING)
-    cc_library(generated1_cuda SRCS generated1.cu DEPS cinncore)
+    nv_test(generated1_cuda SRCS generated1.cu DEPS cinncore)
     add_run_test_dependency(generated1_cuda test_codegen_cuda_generate)
   endif()
 
