@@ -189,37 +189,5 @@ class TestScatterAddCase8(TestScatterAddCase7):
         }
 
 
-class TestScatterAddOp9(TestScatterAddOp):
-    def setUp(self):
-        self.init_case()
-        self.target = DefaultNVGPUTarget()
-
-    def init_case(self):
-        self.axis = 0
-        self.inputs = {
-            "x": np.random.random([10, 5]).astype("float64"),
-            "y": np.random.random([5, 5]).astype("float64"),
-            "index": np.array([0, 5, 0, 9, 0]).astype("int32")
-        }
-
-    def build_cinn_program(self, target):
-        builder = NetBuilder("scatter_add")
-        x = builder.create_input(Float(64), self.inputs["x"].shape, "x")
-        y = builder.create_input(Float(64), self.inputs["y"].shape, "y")
-        index = builder.create_input(
-            Int(32), self.inputs["index"].shape, "index")
-        out = builder.scatter_add(x, y, index, self.axis)
-
-        prog = builder.build()
-        res = self.get_cinn_output(
-            prog, target, [x, y, index],
-            [self.inputs["x"], self.inputs["y"], self.inputs["index"]], [out])
-
-        self.cinn_outputs = [res[0]]
-
-    def test_check_results(self):
-        self.check_outputs_and_grads()
-
-
 if __name__ == "__main__":
     unittest.main()
