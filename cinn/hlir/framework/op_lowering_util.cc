@@ -13,6 +13,8 @@
 // limitations under the License.
 
 #include "cinn/hlir/framework/op_lowering_util.h"
+
+#include "cinn/hlir/pe/nn_util.h"
 #ifdef CINN_WITH_CUDA
 #include "cinn/common/bfloat16.h"
 #include "cinn/common/float16.h"
@@ -534,60 +536,94 @@ void LoopAssignReduceWithoutLast(ir::IRSchedule& ir_sch,
                                  const std::vector<int>& inshape,
                                  const std::vector<int>& axes,
                                  const common::Target& target) {
-  CHECK(axes.size());
-  int lane            = 1;
-  int max_num_threads = target.max_num_threads();
-  for (int idx = axes.back() + 1; idx < inshape.size(); ++idx) {
-    lane *= inshape[idx];
-  }
-  CHECK_LE(lane, max_num_threads / 2) << "Parallel threads must less equal max_num_threads/2 on gpu!";
-  int pos   = 0;
-  int index = axes.size() - 1;
-  for (; index >= 0; --index) {
-    if (index + 1 < axes.size() && axes[index] != axes[index + 1] - 1) {
-      pos = axes[index + 1];
-      break;
-    }
+  int tail   = 0;
+  bool bound = true;
+  auto shape = pe::GetFirstStepReduceShape(inshape, axes, bound, tail);
+  CHECK(bound);
 
-    lane *= inshape[axes[index]];
-    if (lane > max_num_threads / 2) {
-      pos = axes[index];
-      break;
-    }
-
-    if (index == 0) {
-      pos = axes[0];
-    }
-  }
-
-  if (lane > max_num_threads / 2) {
-    int prefix = inshape[axes[index]];
-    int tail   = lane / prefix;
-    for (int idx = max_num_threads / tail; idx > (max_num_threads / 2) / tail; --idx) {
-      if (prefix % idx == 0) {
-        ir_sch.Split(block_name, axes[index], {-1, idx});
-        break;
+  // remove loop size = 1 and remove axis in axes.
+  std::vector<int> nshape, naxes = axes;
+  for (int idx = 0; idx < shape.size(); ++idx) {
+    if (shape[idx] == 1 && idx < axes.back()) {
+      auto iter = std::find(naxes.begin(), naxes.end(), idx);
+      if (iter != naxes.end()) {
+        naxes.erase(iter);
       }
-      CHECK_GT(idx - 1, (max_num_threads / 2) / tail) << "idx should greater than (max_num_threads / 2) / tail.";
+      for (auto& axis : naxes) {
+        if (axis > idx) {
+          --axis;
+        }
+      }
+    } else {
+      nshape.push_back(shape[idx]);
     }
   }
 
-  // insert 1
-  for (int idx = 0; idx < axes.size() - 1 - index; ++idx) {
-    auto loops = ir_sch.GetLoops(block_name);
-    ir_sch.Split(block_name, pos, {-1, ir::GetLoopExtent(loops[pos])});
+  // fuse tail for bind threadIdx.x
+  int ptail = 1;
+  int index = naxes.back() + 2;
+  for (int idx = index; idx < nshape.size(); ++idx) {
+    ptail *= nshape[idx];
   }
-  LoopOrderAssignReduce(ir_sch, block_name, axes, target);
-  // return insert 1
-  int start_index = ir_sch.GetLoops(block_name).size() - axes.size();
-  for (int idx = 0; idx < axes.size(); ++idx) {
-    auto loops = ir_sch.GetLoops(block_name);
-    if (ir::GetLoopExtent(loops[start_index]) == 1) {
-      ir_sch.Fuse({loops[start_index - 1], loops[start_index]});
+  nshape.resize(index);
+  nshape.push_back(ptail);
+
+  ir_sch.Split(block_name, 0, nshape);
+  LoopOrderAssignReduce(ir_sch, block_name, naxes, target, true);
+
+  // fuse loop for bind blockIdx.x
+  auto loops = ir_sch.GetLoops(block_name);
+  auto fsize = nshape.size() - (naxes.size() + 2);
+  if (fsize > 1) {
+    ir_sch.Fuse({loops.begin(), loops.begin() + fsize});
+  }
+
+  auto get_tile_size = [&](int idx) {
+    auto range = GetLoopExtent(loops[idx - 1]);
+    if (range > 32) {
+      return 8;
+    } else if (range > 16) {
+      return 16;
+    } else if (range > 4) {
+      return 32;
     } else {
-      ++start_index;
+      return 64;
+    }
+  };
+
+  std::vector<int> new_order;
+  loops = ir_sch.GetLoops(block_name);
+  if (fsize) {
+    int tail_index = 2;
+    auto tile_size = get_tile_size(tail_index);
+    if (GetLoopExtent(loops[tail_index]) > tile_size) {
+      // split index
+      ir_sch.Split(loops[tail_index], {-1, tile_size});
+      loops = ir_sch.GetLoops(block_name);
+      // order
+      new_order = {0, 2, 3, 1};
+    } else {
+      // order
+      new_order = {0, 2, 1};
+    }
+  } else {
+    int tail_index = 1;
+    auto tile_size = get_tile_size(tail_index);
+    if (GetLoopExtent(loops[tail_index]) > tile_size) {
+      // split index
+      ir_sch.Split(loops[tail_index], {-1, tile_size});
+      loops = ir_sch.GetLoops(block_name);
+      // order
+      new_order = {1, 2, 0};
+    } else {
+      // order
+      new_order = {1, 0};
     }
   }
+  for (int idx = new_order.size(); idx < loops.size(); ++idx) {
+    new_order.push_back(idx);
+  }
+  ir_sch.Reorder(block_name, new_order);
 }
 
 void LoopAssignReduceWithLast(ir::IRSchedule& ir_sch,
@@ -856,11 +892,11 @@ void LoopAssignReduce(ir::IRSchedule& ir_sch,
     auto rloops = ir_sch.GetLoops(reducer_data->id());
 
     for (auto& loop : rloops) {
-      extend *= loop.As<ir::For>()->extent.as_int32();
-      if (extend > loops.back().As<ir::For>()->extent.as_int32()) {
+      if (extend >= loops.back().As<ir::For>()->extent.as_int32() && factors.size() &&
+          loop.As<ir::For>()->extent.as_int32() > 1) {
         break;
       }
-      CHECK_LE(extend, loops.back().As<ir::For>()->extent.as_int32());
+      extend *= loop.As<ir::For>()->extent.as_int32();
       factors.push_back(loop.As<ir::For>()->extent.as_int32());
     }
 
@@ -873,9 +909,7 @@ void LoopAssignReduce(ir::IRSchedule& ir_sch,
 
   // node output is same shape with reduce input.
   if (WithoutLastDimInReduce(shape, axes)) {
-    auto nloops = ir_sch.GetLoops(node_data->id());
-    ir_sch.Split(nloops.back(), shape);
-    // if using block shuffle
+    // if using two strep reduce.
     if (tensor_map.count(reducer_data->id() + "_1")) {
       LoopAssignReduceWithoutLast(ir_sch, node_data->id(), shape, axes, target);
       auto nloops = ir_sch.GetLoops(node_data->id());
@@ -888,8 +922,10 @@ void LoopAssignReduce(ir::IRSchedule& ir_sch,
       // copy loop info form rloops.
       copy_loop_info(nloops, rloops);
     } else {
-      LoopOrderAssignReduce(ir_sch, node_data->id(), axes, target);
       auto nloops = ir_sch.GetLoops(node_data->id());
+      ir_sch.Split(nloops.back(), shape);
+      LoopOrderAssignReduce(ir_sch, node_data->id(), axes, target);
+      nloops      = ir_sch.GetLoops(node_data->id());
       auto rloops = ir_sch.GetLoops(tensor_map.find(reducer_data->id())->second->name);
       if (nloops.size() < rloops.size()) {
         ir_sch.Split(nloops[0], {1, -1});
@@ -1020,7 +1056,7 @@ void InsertSyncThread(ir::IRSchedule& ir_sch,
     if (idx > 0) {
       // insert syncthreads.
       auto loops = ir_sch.GetLoops(node_data->id());
-      ir_sch.SyncThreads(loops.back(), false);
+      ir_sch.SyncThreads(loops[loops.size() - 2], false);
       return;
     }
   }
@@ -1073,16 +1109,21 @@ void MergeReduceToReduce(ir::IRSchedule& ir_sch,
   }
   if (WithoutLastDimInReduce(shape, axes)) {
     auto mshape = shape_dict.at(master->inlinks_in_order()[0]->source()->id());
-    // using block shuffle
     if (tensor_map.count(node_data->id() + "_1")) {
       if (shape == mshape) {
-        // block shuffle
+        // second step reduce
         {
           auto block = ir_sch.GetBlock(node_data->id());
           auto loops = ir_sch.GetLoops(master_data->id());
           ir_sch.SimpleComputeAt(block, loops.back());
+          // reduce init
+          {
+            auto block = ir_sch.GetBlock(node_data->id() + "__reduce_init");
+            auto loops = ir_sch.GetLoops(master_data->id() + "__reduce_init");
+            ir_sch.SimpleComputeAt(block, loops.back());
+          }
         }
-        // reduce loop
+        // first step reduce
         {
           auto n_tensor = tensor_map.find(node_data->id() + "_0")->second;
           auto m_tensor = tensor_map.find(master_data->id() + "_0")->second;
@@ -1100,62 +1141,32 @@ void MergeReduceToReduce(ir::IRSchedule& ir_sch,
       } else {
         auto n_tensor = tensor_map.find(node_data->id() + "_0")->second;
         auto m_tensor = tensor_map.find(master_data->id() + "_0")->second;
-        if (n_tensor->shape.back() == m_tensor->shape.back()) {
-          // block shuffle
+        if (n_tensor->shape == m_tensor->shape) {
+          // second step reduce
           {
             auto block = ir_sch.GetBlock(node_data->id());
             auto loops = ir_sch.GetLoops(master_data->id());
             ir_sch.SimpleComputeAt(block, loops.back());
-          }
-          // reduce loop
-          {
-            auto n_tensor = tensor_map.find(node_data->id() + "_0")->second;
-            auto m_tensor = tensor_map.find(master_data->id() + "_0")->second;
-
-            auto n_block = ir_sch.GetBlock(n_tensor->name);
-            auto m_block = ir_sch.GetBlock(m_tensor->name);
-
-            auto n_loops = ir_sch.GetLoops(n_tensor->name);
-            auto m_loops = ir_sch.GetLoops(m_tensor->name);
-
-            std::vector<ir::Var> src_vars;
-            std::vector<ir::Expr> dst_vars;
-            for (int idx = 0; idx < m_loops.size() - 1; ++idx) {
-              src_vars.push_back(n_loops[idx].As<ir::For>()->loop_var);
-              dst_vars.push_back(ir::Expr(m_loops[idx].As<ir::For>()->loop_var));
-            }
-            ReplaceExpr(&n_block, src_vars, dst_vars);
-
-            int index = n_loops.size();
-            InsertExpr insert_expr(n_loops[index - 1], m_loops[index - 1]);
-            insert_expr(&m_loops[0]);
-
             // reduce init
             {
-              auto block = ir_sch.GetBlock(n_tensor->name + "__reduce_init");
-              auto loops = ir_sch.GetLoops(m_tensor->name + "__reduce_init");
+              auto block = ir_sch.GetBlock(node_data->id() + "__reduce_init");
+              auto loops = ir_sch.GetLoops(master_data->id() + "__reduce_init");
               ir_sch.SimpleComputeAt(block, loops.back());
             }
-            RemoveExpr remove_expr(n_loops[0]);
-            remove_expr(&ir_sch.GetModule().GetExprs().at(0));
           }
-        } else {
-          // block shuffle
-          {
-            auto block = ir_sch.GetBlock(node_data->id());
-            auto loops = ir_sch.GetLoops(master_data->id());
-            ir_sch.SimpleComputeAt(block, loops.back());
-          }
-          // reducer loop
+          // first step reduce
           {
             auto n_tensor = tensor_map.find(node_data->id() + "_0")->second;
             auto m_tensor = tensor_map.find(master_data->id() + "_0")->second;
 
-            auto n_loops = ir_sch.GetLoops(n_tensor->name);
-            auto m_loops = ir_sch.GetLoops(m_tensor->name);
+            auto n_loops = ir_sch.GetLoops(n_tensor->name + "__reduce_init");
+            auto m_loops = ir_sch.GetLoops(m_tensor->name + "__reduce_init");
 
-            MergeLoops(ir_sch.GetModule().GetExprs().at(0), n_loops, m_loops, 0);
+            CHECK_EQ(n_loops.size(), m_loops.size());
+            MergeLoops(ir_sch.GetModule().GetExprs().at(0), n_loops, m_loops, n_loops.size() - 1);
           }
+        } else {
+          LOG(FATAL) << "not support this type fusion!";
         }
       }
     } else {
@@ -1226,6 +1237,7 @@ void MergeReduceToReduce(ir::IRSchedule& ir_sch,
 
         auto n_loops = ir_sch.GetLoops(n_tensor->name);
         auto m_loops = ir_sch.GetLoops(m_tensor->name);
+        CHECK_EQ(n_loops.size(), m_loops.size());
 
         std::vector<ir::Var> src_vars;
         std::vector<ir::Expr> dst_vars;
@@ -1323,11 +1335,42 @@ void MergeReduceLoop(ir::IRSchedule& ir_sch,
       auto block = ir_sch.GetBlock(node_data->id());
       auto loops = ir_sch.GetLoops(master_data->id());
       ir_sch.SimpleComputeAt(block, loops.back());
+
+      if (ir_sch.HasBlock(node_data->id() + "__reduce_init")) {
+        auto block = ir_sch.GetBlock(node_data->id() + "__reduce_init");
+        auto loops = ir_sch.GetLoops(master_data->id());
+        ir_sch.SimpleComputeAt(block, loops.back());
+      }
     }
 
     break;
   } while (--index >= 0);
 }
+
+// The struct used to find all ir::For or ScheduleBlock in given block.
+class FindExprInBlock : public ir::IRMutator<> {
+ public:
+  FindExprInBlock() {}
+
+  std::vector<ir::Expr> operator()(Expr* expr) {
+    IRMutator::Visit(expr, expr);
+    return exprs_;
+  }
+
+ private:
+  void Visit(const ir::ScheduleBlockRealize* expr, Expr* op) override { exprs_.push_back(*op); }
+
+  void Visit(const ir::For* expr, Expr* op) override { exprs_.push_back(*op); }
+
+  void Visit(const ir::Block* expr, Expr* op) override {
+    auto node = op->As<ir::Block>();
+    for (auto stmt : node->stmts) {
+      IRMutator::Visit(&stmt, &stmt);
+    }
+  }
+
+  std::vector<ir::Expr> exprs_;
+};
 
 void LoopComputeAt(ir::IRSchedule& ir_sch,
                    Node* node,
@@ -1380,8 +1423,8 @@ void LoopComputeAt(ir::IRSchedule& ir_sch,
     if (node_loops[index].As<ir::For>()->extent.as_int32() != master_loops[index].As<ir::For>()->extent.as_int32()) {
       continue;
     }
-
     MergeLoops(ir_sch.GetModule().GetExprs().at(0), node_loops, master_loops, index);
+
     break;
   } while (--index >= 0);
 }
@@ -1426,11 +1469,11 @@ std::unordered_set<Node*> GetMasters(Node* node,
 }
 
 void SyncThreadWithShared(ir::IRSchedule& ir_sch,
+                          const GroupPtr& group,
                           const std::unordered_set<Node*>& nodes_inline,
                           const std::unordered_set<Node*>& nodes_set,
                           const absl::flat_hash_map<std::string, shape_t>& shape_dict,
-                          const std::unordered_map<std::string, ir::Tensor>& tensor_map,
-                          const GroupPtr& group) {
+                          const std::unordered_map<std::string, ir::Tensor>& tensor_map) {
   auto exprs_inorder    = ir_sch.GetAllBlocks();
   auto node_data_set    = GetNodeDataSet(nodes_set);
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
@@ -1494,7 +1537,7 @@ void SyncThreadWithShared(ir::IRSchedule& ir_sch,
     }
     if (do_set_buffer_to_shared && group->output_nodes.find(node) == group->output_nodes.end()) {
       auto block = ir_sch.GetBlock(node_data->id());
-      ir_sch.SetBuffer(block, "shared", true);
+      ir_sch.SetBuffer(block, "shared");
     }
   }
 }
