@@ -15,7 +15,7 @@
 # limitations under the License.
 
 import paddle
-import paddle.fluid as fluid
+import paddle.static as static
 from cinn.frontend import *
 from cinn import Target
 from cinn.framework import *
@@ -26,7 +26,6 @@ from cinn import ir
 from cinn import lang
 from cinn.common import *
 import numpy as np
-import paddle.fluid as fluid
 import sys
 
 enable_gpu = sys.argv.pop()
@@ -42,12 +41,12 @@ class TestNetBuilder(unittest.TestCase):
     def paddle_verify_basic(self, result):
         paddle.enable_static()
 
-        a = fluid.layers.data(name='A', shape=[24, 56, 56], dtype='float32')
-        b = fluid.layers.data(name='B', shape=[24, 56, 56], dtype='float32')
-        c = fluid.layers.elementwise_add(a, b)
-        d = fluid.initializer.NumpyArrayInitializer(
+        a = static.data(name='A', shape=[1, 24, 56, 56], dtype='float32')
+        b = static.data(name='B', shape=[1, 24, 56, 56], dtype='float32')
+        c = paddle.add(a, b)
+        d = paddle.nn.initializer.NumpyArrayInitializer(
             np.array(result[2]).reshape((144, 24, 1, 1)).astype('float32'))
-        res = fluid.layers.conv2d(
+        res = static.nn.conv2d(
             input=c,
             num_filters=144,
             filter_size=1,
@@ -56,8 +55,8 @@ class TestNetBuilder(unittest.TestCase):
             dilation=1,
             param_attr=d)
 
-        exe = fluid.Executor(fluid.CPUPlace())
-        exe.run(fluid.default_startup_program())
+        exe = static.Executor(paddle.CPUPlace())
+        exe.run(static.default_startup_program())
 
         x = np.array(result[0]).reshape((1, 24, 56, 56)).astype("float32")
         y = np.array(result[1]).reshape((1, 24, 56, 56)).astype("float32")

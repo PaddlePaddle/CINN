@@ -15,15 +15,15 @@
 # limitations under the License.
 
 import paddle
-import paddle.fluid as fluid
+import paddle.static as static
 import numpy as np
 
 
 def conv2d_native(inputs_data, input_shape, filter_size, attrs, is_depthwise):
-    main_program = fluid.Program()
+    main_program = static.Program()
     paddle.enable_static()
 
-    with fluid.program_guard(main_program, fluid.Program()):
+    with static.program_guard(main_program, static.Program()):
         padding = [0, 0]
         stride = [1, 1]
         dilation = [1, 1]
@@ -43,8 +43,7 @@ def conv2d_native(inputs_data, input_shape, filter_size, attrs, is_depthwise):
             else:
                 raise ValueError("attr_store {} is not supported".format(key))
 
-        img = fluid.layers.data(
-            name='img', shape=input_shape[1:], dtype='float32')
+        img = static.data(name='img', shape=input_shape[1:], dtype='float32')
         if is_depthwise:
             if data_format == "NCHW":
                 cin_index = 1
@@ -56,7 +55,7 @@ def conv2d_native(inputs_data, input_shape, filter_size, attrs, is_depthwise):
             ]
         else:
             filter_size_new = filter_size
-        param = fluid.initializer.NumpyArrayInitializer(
+        param = paddle.nn.initializer.NumpyArrayInitializer(
             np.array(
                 inputs_data[1]).reshape(filter_size_new).astype("float32"))
         # filter: (c_out, c_in // group, kernel_h, kernel_w)
@@ -70,7 +69,7 @@ def conv2d_native(inputs_data, input_shape, filter_size, attrs, is_depthwise):
         if isinstance(dilation, int):
             dilation = [dilation.copy(), dilation.copy()]
 
-        res = fluid.layers.conv2d(
+        res = static.nn.conv2d(
             input=img,
             num_filters=filter_size_new[0],
             filter_size=filter_hw,
@@ -80,8 +79,8 @@ def conv2d_native(inputs_data, input_shape, filter_size, attrs, is_depthwise):
             groups=groups,
             param_attr=param,
             data_format=data_format)
-        exe = fluid.Executor(fluid.CPUPlace())
-        exe.run(fluid.default_startup_program())
+        exe = static.Executor(paddle.CPUPlace())
+        exe.run(static.default_startup_program())
 
         x = np.array(inputs_data[0]).reshape(input_shape).astype("float32")
         output = exe.run(feed={"img": x}, fetch_list=[res])

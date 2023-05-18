@@ -17,27 +17,27 @@ import sys, os
 import numpy as np
 import paddle
 import paddle.fluid as fluid
-from paddle.fluid.backward import append_backward
+import paddle.static as static
 
 size = 30
 paddle.enable_static()
 
-a = fluid.data(name="A", shape=[-1, size], dtype='float32')
-label = fluid.layers.data(name="label", shape=[size], dtype='float32')
+a = static.data(name="A", shape=[-1, size], dtype='float32')
+label = static.data(name="label", shape=[size], dtype='float32')
 
-a1 = fluid.layers.fc(
-    input=a, size=size, act="relu", bias_attr=None, num_flatten_dims=1)
+a1 = static.nn.fc(
+    x=a, size=size, activation="relu", bias_attr=None, num_flatten_dims=1)
 
-cost = fluid.layers.square_error_cost(a1, label)
-avg_cost = fluid.layers.mean(cost)
+cost = paddle.nn.functional.square_error_cost(a1, label)
+avg_cost = paddle.mean(cost)
 
-optimizer = fluid.optimizer.SGD(learning_rate=0.001)
+optimizer = paddle.optimizer.SGD(learning_rate=0.001)
 optimizer.minimize(avg_cost)
 
-cpu = fluid.core.CPUPlace()
-loss = exe = fluid.Executor(cpu)
+cpu = paddle.CPUPlace()
+loss = exe = static.Executor(cpu)
 
-exe.run(fluid.default_startup_program())
+exe.run(static.default_startup_program())
 
 fluid.io.save_inference_model("./naive_mul_model", [a.name], [a1], exe)
 print('res is : ', a1.name)

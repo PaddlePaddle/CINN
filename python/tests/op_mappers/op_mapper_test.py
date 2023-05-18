@@ -19,7 +19,7 @@ import os
 import logging
 
 import paddle
-from paddle.fluid.framework import Variable as PaddleVariable
+from paddle.static import Variable as PaddleVariable
 from paddle.fluid.layer_helper import LayerHelper
 
 from cinn.frontend import NetBuilder, PaddleModelConvertor
@@ -196,8 +196,7 @@ class OpMapperTest(OpTest):
                 self.assertIsInstance(
                     var,
                     PaddleVariable,
-                    msg=
-                    "The type of argument should be paddle.fluid.framework.Variable"
+                    msg="The type of argument should be paddle.static.Variable"
                 )
                 self.assertTrue(
                     (var.name not in arg_maps) or (arg_maps[var.name] == var),
