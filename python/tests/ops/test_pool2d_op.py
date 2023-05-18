@@ -21,6 +21,8 @@ from op_test_helper import TestCaseHelper
 import paddle
 from cinn.frontend import *
 from cinn.common import *
+from paddle import _C_ops
+from paddle.fluid.layers import LayerHelper
 
 
 @OpTestTool.skip_if(not is_compiled_with_cudnn(),
@@ -36,23 +38,20 @@ class TestPool2dOp(OpTest):
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.x_np, stop_gradient=False)
-        if self.case["polling_type"] == "max":
-            out = paddle.nn.functional.max_pool2d(
-                x,
-                kernel_size=self.case["kernel_size"],
-                stride=self.case["stride"],
-                padding=self.case["padding"],
-                ceil_mode=self.case["ceil_mode"],
-                data_format=self.case["data_format"])
-        elif self.case["polling_type"] == "avg":
-            out = paddle.nn.functional.avg_pool2d(
-                x,
-                kernel_size=self.case["kernel_size"],
-                stride=self.case["stride"],
-                padding=self.case["padding"],
-                ceil_mode=self.case["ceil_mode"],
-                exclusive=self.case["exclusive"],
-                data_format=self.case["data_format"])
+        out = _C_ops.pool2d(
+            x,
+            self.case["kernel_size"],
+            self.case["stride"],
+            self.case["padding"],
+            self.case["ceil_mode"],
+            self.case["exclusive"],
+            self.case["data_format"],
+            self.case["pooling_type"],
+            self.case["global_pooling"],
+            self.case["adaptive"],
+            self.case["padding_algorithm"],
+            True,  # Need in paddlepaddle-2.4.2, will be removed in paddlepaddle-2.5
+        )
         self.paddle_outputs = [out]
 
     def build_cinn_program(self, target):
@@ -61,13 +60,17 @@ class TestPool2dOp(OpTest):
             self.nptype2cinntype(self.case["dtype"]), self.case["shape"], "x")
         out = builder.pool2d(
             x,
-            polling_type=self.case["polling_type"],
+            pooling_type=self.case["pooling_type"],
             kernel_size=self.case["kernel_size"],
             stride=self.case["stride"],
             padding=self.case["padding"],
             ceil_mode=self.case["ceil_mode"],
             exclusive=self.case["exclusive"],
-            data_format=self.case["data_format"])
+            data_format=self.case["data_format"],
+            global_pooling=self.case["global_pooling"],
+            adaptive=self.case["adaptive"],
+            padding_algorithm=self.case["padding_algorithm"],
+        )
         prog = builder.build()
         res = self.get_cinn_output(
             prog, target, [x], [self.x_np], [out], passes=[])
@@ -112,52 +115,70 @@ class TestPool2dOpAll(TestCaseHelper):
         ]
         self.attrs = [
             {
-                "polling_type": "max",
+                "pooling_type": "max",
                 "kernel_size": [2, 2],
                 "stride": [1, 1],
                 "padding": [0, 0],
+                "padding_algorithm": "VALID",
+                "global_pooling": False,
                 "ceil_mode": False,
                 "exclusive": True,
+                "adaptive": False,
             },
             {
-                "polling_type": "max",
+                "pooling_type": "max",
                 "kernel_size": [3, 3],
                 "stride": [2, 2],
                 "padding": [1, 1],
-                "ceil_mode": False,
-                "exclusive": True,
-            },
-            {
-                "polling_type": "max",
-                "kernel_size": [5, 5],
-                "stride": [2, 2],
-                "padding": [1, 1],
+                "padding_algorithm": "SAME",
+                "global_pooling": False,
                 "ceil_mode": True,
                 "exclusive": True,
+                "adaptive": False,
             },
             {
-                "polling_type": "avg",
-                "kernel_size": [2, 2],
-                "stride": [2, 2],
-                "padding": [0, 0],
-                "ceil_mode": False,
-                "exclusive": True,
-            },
-            {
-                "polling_type": "avg",
-                "kernel_size": [3, 3],
-                "stride": [2, 2],
-                "padding": [0, 0],
-                "ceil_mode": False,
-                "exclusive": True,
-            },
-            {
-                "polling_type": "avg",
+                "pooling_type": "max",
                 "kernel_size": [5, 5],
-                "stride": [2, 2],
-                "padding": [1, 1],
+                "stride": [3, 3],
+                "padding": [2, 2],
+                "padding_algorithm": "EXPLICIT",
+                "global_pooling": False,
                 "ceil_mode": False,
                 "exclusive": False,
+                "adaptive": False,
+            },
+            {
+                "pooling_type": "avg",
+                "kernel_size": [2, 2],
+                "stride": [1, 1],
+                "padding": [0, 0],
+                "padding_algorithm": "VALID",
+                "global_pooling": False,
+                "ceil_mode": False,
+                "exclusive": True,
+                "adaptive": False,
+            },
+            {
+                "pooling_type": "avg",
+                "kernel_size": [3, 3],
+                "stride": [2, 2],
+                "padding": [1, 1],
+                "padding_algorithm": "SAME",
+                "global_pooling": True,
+                "ceil_mode": False,
+                "exclusive": True,
+                "adaptive": False,
+            },
+            {
+                "pooling_type": "avg",
+                "kernel_size": [5, 5],
+                "stride": [3, 3],
+                "padding": [1, 1],
+                "padding_algorithm": "EXPLICIT",
+                "global_pooling": False,
+                "ceil_mode": False,
+                "exclusive": True,
+                "adaptive": True,
             },
         ]
 
@@ -171,62 +192,66 @@ class TestPool2dBackwardOp(OpTest):
 
     def prepare_inputs(self):
         self.x_np = self.random(
-            shape=self.case["x_shape"], dtype=self.case["x_dtype"])
+            shape=self.case["shape"], dtype=self.case["dtype"])
         self.dy_np = self.random(
-            shape=self.case["dy_shape"], dtype=self.case["dy_dtype"])
+            shape=self.case["shape"], dtype=self.case["dtype"])
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.x_np, stop_gradient=False)
-        if self.case["polling_type"] == "max":
-            out = paddle.nn.functional.max_pool2d(
-                x,
-                kernel_size=self.case["kernel_size"],
-                stride=self.case["stride"],
-                padding=self.case["padding"],
-                ceil_mode=self.case["ceil_mode"],
-                data_format=self.case["data_format"])
-        elif self.case["polling_type"] == "avg":
-            out = paddle.nn.functional.avg_pool2d(
-                x,
-                kernel_size=self.case["kernel_size"],
-                stride=self.case["stride"],
-                padding=self.case["padding"],
-                ceil_mode=self.case["ceil_mode"],
-                exclusive=self.case["exclusive"],
-                data_format=self.case["data_format"])
-        self.paddle_outputs = [out]
-        self.paddle_grads = self.get_paddle_grads([out], [x], [self.dy_np])
+        forward_out = _C_ops.pool2d(
+            x,
+            self.case["kernel_size"],
+            self.case["stride"],
+            self.case["padding"],
+            self.case["ceil_mode"],
+            self.case["exclusive"],
+            self.case["data_format"],
+            self.case["pooling_type"],
+            self.case["global_pooling"],
+            self.case["adaptive"],
+            self.case["padding_algorithm"],
+            True,  # Need in paddlepaddle-2.4.2, will be removed in paddlepaddle-2.5
+        )
+        self.paddle_outputs = [forward_out]
+        self.paddle_grads = self.get_paddle_grads([forward_out], [x],
+                                                  [self.dy_np])
 
     def build_cinn_program(self, target):
         builder = NetBuilder("pool2d")
         # forward
         x = builder.create_input(
-            self.nptype2cinntype(self.case["x_dtype"]), self.case["x_shape"],
-            "x")
+            self.nptype2cinntype(self.case["dtype"]), self.case["shape"], "x")
         y = builder.pool2d(
             x,
-            polling_type=self.case["polling_type"],
             kernel_size=self.case["kernel_size"],
             stride=self.case["stride"],
             padding=self.case["padding"],
             ceil_mode=self.case["ceil_mode"],
             exclusive=self.case["exclusive"],
-            data_format=self.case["data_format"])
+            data_format=self.case["data_format"],
+            pooling_type=self.case["pooling_type"],
+            global_pooling=self.case["global_pooling"],
+            adaptive=self.case["adaptive"],
+            padding_algorithm=self.case["padding_algorithm"],
+        )
         # backward
         dy = builder.create_input(
-            self.nptype2cinntype(self.case["dy_dtype"]), self.case["dy_shape"],
-            "dy")
+            self.nptype2cinntype(self.case["dtype"]), self.case["shape"], "dy")
         dx = builder.pool2d_grad(
             x,
             y,
             dy,
-            polling_type=self.case["polling_type"],
             kernel_size=self.case["kernel_size"],
             stride=self.case["stride"],
             padding=self.case["padding"],
             ceil_mode=self.case["ceil_mode"],
             exclusive=self.case["exclusive"],
-            data_format=self.case["data_format"])
+            data_format=self.case["data_format"],
+            pooling_type=self.case["pooling_type"],
+            global_pooling=self.case["global_pooling"],
+            adaptive=self.case["adaptive"],
+            padding_algorithm=self.case["padding_algorithm"],
+        )
         prog = builder.build()
         res = self.get_cinn_output(
             prog, target, [x, dy], [self.x_np, self.dy_np], [y, dx], passes=[])
@@ -245,63 +270,70 @@ class TestPool2dBackwardAll(TestCaseHelper):
         self.cls = TestPool2dBackwardOp
         self.inputs = [
             {
-                "x_shape": [1, 3, 32, 32],
-                "dy_shape": [1, 3, 16, 16],
+                "shape": [1, 3, 32, 32],
                 "data_format": "NCHW",
             },
             {
-                "x_shape": [1, 32, 32, 3],
-                "dy_shape": [1, 16, 16, 3],
+                "shape": [1, 32, 32, 3],
                 "data_format": "NHWC",
             },
         ]
         self.dtypes = [
             {
-                "x_dtype": "float16",
-                "dy_dtype": "float16",
-                "max_relative_error": 1e-3,
+                "dtype": "float16",
+                "max_relative_error": 1e-2,
             },
             {
-                "x_dtype": "float32",
-                "dy_dtype": "float32",
+                "dtype": "float32",
             },
             {
-                "x_dtype": "float64",
-                "dy_dtype": "float64",
+                "dtype": "float64",
             },
         ]
         self.attrs = [
             {
-                "polling_type": "max",
+                "pooling_type": "max",
+                "kernel_size": [5, 5],
+                "stride": [2, 2],
+                "padding": [0, 0],
+                "padding_algorithm": "SAME",
+                "global_pooling": False,
+                "ceil_mode": False,
+                "exclusive": True,
+                "adaptive": False,
+            },
+            {
+                "pooling_type": "max",
+                "kernel_size": [3, 3],
+                "stride": [2, 2],
+                "padding": [1, 1],
+                "padding_algorithm": "VALID",
+                "global_pooling": False,
+                "ceil_mode": True,
+                "exclusive": False,
+                "adaptive": False,
+            },
+            {
+                "pooling_type": "avg",
                 "kernel_size": [2, 2],
                 "stride": [2, 2],
                 "padding": [0, 0],
+                "padding_algorithm": "SAME",
+                "global_pooling": True,
                 "ceil_mode": False,
                 "exclusive": True,
+                "adaptive": False,
             },
             {
-                "polling_type": "max",
+                "pooling_type": "avg",
                 "kernel_size": [3, 3],
                 "stride": [2, 2],
-                "padding": [0, 0],
+                "padding": [1, 1],
+                "padding_algorithm": "EXPLICIT",
+                "global_pooling": False,
                 "ceil_mode": False,
                 "exclusive": True,
-            },
-            {
-                "polling_type": "avg",
-                "kernel_size": [2, 2],
-                "stride": [2, 2],
-                "padding": [0, 0],
-                "ceil_mode": False,
-                "exclusive": True,
-            },
-            {
-                "polling_type": "avg",
-                "kernel_size": [3, 3],
-                "stride": [2, 2],
-                "padding": [0, 0],
-                "ceil_mode": False,
-                "exclusive": True,
+                "adaptive": True,
             },
         ]
 

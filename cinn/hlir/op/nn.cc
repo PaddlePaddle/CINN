@@ -1617,8 +1617,7 @@ std::vector<std::vector<int>> InferShapeForPool2d(const std::vector<std::vector<
     int pad_bottom = pad_sum_h - pad_top;
     int pad_left   = pad_sum_w / 2;
     int pad_right  = pad_sum_w - pad_left;
-    padding_size   = {pad_top, pad_bottom, pad_left, pad_right};
-    // LOG(INFO) << "same padding: " << utils::Join(padding_size, ", ");
+    padding_size   = {pad_top, pad_left, pad_bottom, pad_right};
   }
 
   if (global_pooling) {
