@@ -168,7 +168,7 @@ class TestArcTrigon(TestUnaryOp):
         elif op_type == "acosh":
             return paddle.acosh(x)
         elif op_type == "atanh":
-            return paddle.tanh(x)
+            return paddle.atanh(x)
 
     def cinn_func(self, builder, x):
         op_type = self.case["op_type"]
