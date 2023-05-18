@@ -77,7 +77,7 @@ FunctionGroup TaskOptimizer::Optimize(const TuningOptions& options) {
   }
   // TODO(CtfGo): the input/output names of a Graph::Group will be changed in Lowering by OpLowerer currently,
   // so we should revert them after following different lower methods, remove this hard code by fixing the
-  // decoupling between lowering and BuildInstrutions
+  // decoupling between lowering and BuildInstructions
   auto initial_input_names  = task_->subgraph->input_names;
   auto initial_output_names = task_->subgraph->output_names;
 
@@ -165,7 +165,7 @@ TaskOptimizer::Result TaskOptimizer::OptimizeByExternal(bool need_measured) {
 bool IsForbiddenToTune(const TuneTask* task) {
   // TODO(CtfGo): some operators may change its linked edges in
   // TransToCustomCallPass, like conv2d, we will skip these ops in auto-schedule
-  // becuase they can't revert original links for no schedule and manual schedule lowering.
+  // because they can't revert original links for no schedule and manual schedule lowering.
   static std::unordered_set<std::string> links_changed_ops = {"conv2d"};
   auto nodes                                               = task->subgraph->CollectNodes();
   auto&& op_name                                           = nodes.front()->op()->name;
@@ -332,7 +332,7 @@ std::vector<SearchState> TaskOptimizer::SearchOneRound(const TuningOptions& opti
   return states;
 }
 
-// detect the limit of avaliable shared memory on the currnet NVGPU with CUDA runtime
+// detect the limit of avaliable shared memory on the current NVGPU with CUDA runtime
 size_t GetGPUSharedMemoryLimit() {
 #ifdef CINN_WITH_CUDA
   int device_id;
@@ -346,7 +346,7 @@ size_t GetGPUSharedMemoryLimit() {
 #endif
 }
 
-// detect the limit of avaliable local/stack memory on the currnet NVGPU with CUDA runtime
+// detect the limit of avaliable local/stack memory on the current NVGPU with CUDA runtime
 size_t GetGPULocalStackLimit() {
 #ifdef CINN_WITH_CUDA
   int device_id;
