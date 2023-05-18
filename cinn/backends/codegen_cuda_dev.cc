@@ -108,9 +108,14 @@ std::vector<Expr> CodeGenCUDA_Dev::GenerateBufferAliasExprs(const ir::_LoweredFu
 
   return buffer_alias;
 }
-
+__device__ int block_count = 0;
 void CodeGenCUDA_Dev::Visit(const ir::_LoweredFunc_ *op) {
   // clear names valid within scope when enter a new function
+  std::set<Expr> device_count_exprs = op->PrepareDeviceCountExprs();
+  for (auto dce : device_count_exprs) {
+    os() << "__device__ int " << dce.As<ir::_Var_>()->name << " = 0\n";
+  }
+
   vectorized_tensor_names_.clear();
   os() << "__global__\n";
 
