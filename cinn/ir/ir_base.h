@@ -79,6 +79,7 @@ class ScheduleBlockRealize;
 #define NODETY_UNARY_OP_FOR_EACH(macro__) \
   macro__(Minus)                          \
   macro__(Not)                            \
+  macro__(GetReference)                   \
 
 #define NODETY_OP_FOR_EACH(macro__) NODETY_BINARY_OP_FOR_EACH(macro__) NODETY_UNARY_OP_FOR_EACH(macro__)
 

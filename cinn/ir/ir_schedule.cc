@@ -856,7 +856,7 @@ void ScheduleImpl::SyncThreads(const Expr& ir_node, bool after_node) {
 }
 
 void ScheduleImpl::SyncGpuBlocks(const Expr& master_block, const Expr& sequential_block) {
-  VLOG(6) << "Call SyncGpuBlocks";
+  VLOG(6) << "Call ScheduleImpl::SyncGpuBlocks";
   CHECK(master_block.As<ScheduleBlockRealize>() || master_block.As<ScheduleBlock>());
   CHECK(sequential_block.As<ScheduleBlockRealize>() || sequential_block.As<ScheduleBlock>());
   Expr master_root = GetRootBlock(master_block);
@@ -895,6 +895,8 @@ void ScheduleImpl::SyncGpuBlocks(const Expr& master_block, const Expr& sequentia
 
   Expr sync_statements = ir::Block::Make(std::vector<Expr>{sync_threads, only_first_thread_add, loop_gpu_block});
 
+  VLOG(6) << "Debug sync_statements = ";
+  VLOG(6) << sync_statements;
   InsertExpr::Insert(master_block, sync_statements, /* after_node = */ true, &master_root);
 
   Expr source_expr{nullptr};

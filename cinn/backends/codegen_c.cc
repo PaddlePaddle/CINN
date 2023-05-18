@@ -143,9 +143,12 @@ std::string CodeGenC::GetTypeRepr(Type type) {
     str += "*";
   } else if (type.is_cpp_handle2()) {
     str += "**";
+  } else if (type.is_cpp_reference()) {
+    str += "&";
   }
   return str;
 }
+
 void CodeGenC::Visit(const ir::IntImm *op) { IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::UIntImm *op) { IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::FloatImm *op) { IrPrinter::Visit(op); }
@@ -186,6 +189,7 @@ void CodeGenC::Visit(const ir::Not *op) {
   IrPrinter::Print(op->v());
   os() << ")";
 }
+void CodeGenC::Visit(const ir::GetReference *op) { IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::Cast *op) { PrintCastExpr(op->type(), op->v()); }
 void CodeGenC::Visit(const ir::For *op) {
   Expr extent  = op->extent;

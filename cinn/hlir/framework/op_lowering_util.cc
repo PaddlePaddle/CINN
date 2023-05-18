@@ -13,6 +13,8 @@
 // limitations under the License.
 
 #include "cinn/hlir/framework/op_lowering_util.h"
+
+#include "cinn/utils/string.h"
 #ifdef CINN_WITH_CUDA
 #include "cinn/common/bfloat16.h"
 #include "cinn/common/float16.h"
@@ -1366,12 +1368,47 @@ void LoopComputeAt(ir::IRSchedule& ir_sch,
   } while (--index >= 0);
 }
 
+bool CanFuseReduceByBlockSync(ir::IRSchedule& ir_sch,
+                              Node* node,
+                              const Node* master,
+                              const GroupPtr& group,
+                              const absl::flat_hash_map<std::string, shape_t>& shape_dict,
+                              const std::unordered_map<std::string, ir::Tensor>& tensor_map) {
+  auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
+  if (op_pattern_dict[node->op()] == framework::kReduction && op_pattern_dict[master->op()] == framework::kReduction &&
+      node != master) {
+    auto node_shape   = shape_dict.at(node->inlinks_in_order()[0]->source()->id());
+    auto master_shape = shape_dict.at(master->inlinks_in_order()[0]->source()->id());
+
+    VLOG(6) << "Checking CanFuseReduceByBlockSync";
+    VLOG(6) << "node->id() = " << node->id() << ", node_shape.size() = " << node_shape.size();
+    VLOG(6) << "master->id() = " << master->id() << ", master_shape.size() = " << master_shape.size();
+
+    static std::unordered_set<std::string> reduce_op_type = {
+        "reduce_sum", "reduce_mean", "reduce_max", "reduce_min", "reduce_all", "reduce_any"};
+    for (const std::string& op_type : reduce_op_type) {
+      // TODO: this may speed up not only reduce_xxx_split nodes, but we limit it to reduce_xxx_split nodes for accuracy
+      // safety
+      if (cinn::utils::Startswith(master->id(), op_type + "_split") &&
+          cinn::utils::Startswith(node->id(), op_type + "_split")) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 void SyncGpuBlocks(ir::IRSchedule& ir_sch,
                    Node* node,
                    const Node* master,
                    const GroupPtr& group,
                    const absl::flat_hash_map<std::string, shape_t>& shape_dict,
                    const std::unordered_map<std::string, ir::Tensor>& tensor_map) {
+  VLOG(6) << "Calling SyncGpuBlocks";
+  if (!group->output_nodes.count(node)) {
+    auto block = ir_sch.GetBlock(GetNodeData(node)->id());
+    ir_sch.SetBuffer(block, "local", true);
+  }
   auto node_data    = GetNodeData(node);
   auto master_data  = GetNodeData(master);
   auto node_block   = ir_sch.GetBlock(node->id());

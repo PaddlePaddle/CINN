@@ -344,6 +344,11 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Minus *op) {
   return (op->type().is_int() || op->type().is_uint()) ? Neg(v) : FNeg(v);
 }
 
+llvm::Value *CodeGenLLVM::Visit(const ir::GetReference *op) {
+  LOG(FATAL) << "TODO: Unimplementd CodeGenLLVM::Visit(const ir::GetReference *op)";
+  return nullptr;
+}
+
 llvm::Value *CodeGenLLVM::Visit(const ir::Not *op) { return Not(Visit(&op->v())); }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::Cast *op) {

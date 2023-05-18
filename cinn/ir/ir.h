@@ -295,6 +295,22 @@ struct Not : public UnaryOpNode<Not> {
   static const IrNodeTy _node_type_ = IrNodeTy::Not;
 };
 
+/**
+ * Get reference, such as C++ &x
+ *
+ * TODO: transformers for this Node is not completed. Be careful to use it.
+ */
+struct GetReference : public UnaryOpNode<GetReference> {
+  explicit GetReference(Expr v) : UnaryOpNode<GetReference>(common::Int(32).set_cpp_reference(), v) {}
+
+  static Expr Make(Expr v);
+
+  Type type() const override;
+  void Verify() const override;
+
+  static const IrNodeTy _node_type_ = IrNodeTy::GetReference;
+};
+
 struct Let : public ExprNode<Let> {
   Expr symbol;
   Expr body;

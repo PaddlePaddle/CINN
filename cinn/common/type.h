@@ -65,6 +65,7 @@ struct Type {
     Const        = 1,       // const.
     Handle       = 1 << 1,  // pointer type, such as `cinn_buffer_t*`.
     HandleHandle = 1 << 2,  // pointer of pointer, such as `cinn_buffer_t**`.
+    Reference    = 1 << 4,  // reference type, such as `&cinn_buffer_t`.
   };
 
   Type();
@@ -99,6 +100,9 @@ struct Type {
 
   Type& set_cpp_handle2(bool x = true);
   CINN_NODISCARD bool is_cpp_handle2() const;
+
+  Type& set_cpp_reference(bool x = true);
+  CINN_NODISCARD bool is_cpp_reference() const;
 
   Type& set_cpp_const(bool is_const = true);
   CINN_NODISCARD bool is_cpp_const() const;
