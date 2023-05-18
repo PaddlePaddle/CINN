@@ -25,6 +25,7 @@
 
 #include "cinn/backends/cuda_util.h"
 #include "cinn/runtime/cuda/cuda_util.h"
+#include "cinn/runtime/flags.h"
 
 namespace cinn {
 namespace runtime {
@@ -103,16 +104,11 @@ CUfunction CUDAModule::GetFunction(int device_id, const std::string& func_name) 
     jit_options[4]  = CU_JIT_GENERATE_LINE_INFO;
     jit_opt_vals[4] = reinterpret_cast<void*>(value);
 
-    CUresult status = cuModuleLoadDataEx(
-        &module_per_card_[device_id], data_.c_str(), jit_num_options, jit_options.data(), jit_opt_vals.data());
-
-    if (CUDA_SUCCESS != status) {
-      RAW_LOG(ERROR, "PTX JIT ERROR LOG: %s\n.", log_buffer.data());
-      const char* name;
-      cuGetErrorName(status, &name);
-      const char* msg;
-      cuGetErrorString(status, &msg);
-      RAW_LOG(FATAL, "The error `%s` occurs while compiling the ptx! And its message is `%s`.", name, msg);
+    if (runtime::CanUseNvccCompiler()) {
+      CUDA_DRIVER_CALL(cuModuleLoad(&module_per_card_[device_id], data_.c_str()));
+    } else {
+      CUDA_DRIVER_CALL(cuModuleLoadDataEx(
+          &module_per_card_[device_id], data_.c_str(), jit_num_options, jit_options.data(), jit_opt_vals.data()));
     }
   }
 
@@ -124,11 +120,15 @@ CUfunction CUDAModule::GetFunction(int device_id, const std::string& func_name) 
 CUdeviceptr CUDAModule::GetGlobal(int device_id, const std::string& name, size_t nbytes) {
   if (!module_per_card_[device_id]) {
     std::lock_guard<std::mutex> lock(mutex_);
-    CUDA_DRIVER_CALL(cuModuleLoadData(&module_per_card_[device_id], data_.c_str()));
+    if (runtime::CanUseNvccCompiler()) {
+      CUDA_DRIVER_CALL(cuModuleLoad(&module_per_card_[device_id], data_.c_str()));
+    } else {
+      CUDA_DRIVER_CALL(cuModuleLoadData(&module_per_card_[device_id], data_.c_str()));
+    }
   }
 
-  CUdeviceptr global;
   size_t _nbytes;
+  CUdeviceptr global;
   CUDA_DRIVER_CALL(cuModuleGetGlobal(&global, &_nbytes, module_per_card_[device_id], name.c_str()));
   return global;
 }

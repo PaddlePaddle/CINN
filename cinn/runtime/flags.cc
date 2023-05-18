@@ -16,6 +16,9 @@
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include <unordered_set>
 
@@ -35,6 +38,9 @@ using ::GFLAGS_NAMESPACE::Int64FromEnv;
 using ::GFLAGS_NAMESPACE::StringFromEnv;
 
 DEFINE_string(cinn_x86_builtin_code_root, StringFromEnv("FLAGS_cinn_x86_builtin_code_root", ""), "");
+DEFINE_string(cinn_nvcc_cmd_path,
+              StringFromEnv("FLAGS_cinn_nvcc_cmd_path", "/usr/local/cuda/bin"),
+              "Setting nvcc default path!");
 
 DEFINE_int32(cinn_parallel_compile_size,
              Int32FromEnv("FLAGS_cinn_parallel_compile_size", 16),
@@ -82,8 +88,12 @@ DEFINE_bool(cinn_use_dense_merge_pass,
             "Whether use dense merge pass.");
 
 DEFINE_bool(nvrtc_compile_to_cubin,
-            BoolFromEnv("FLAGS_nvrtc_compile_to_cubin", false),
+            BoolFromEnv("FLAGS_nvrtc_compile_to_cubin", true),
             "Whether nvrtc compile cuda source into cubin instead of ptx (only works after cuda-11.1).");
+
+DEFINE_bool(cinn_compile_with_nvrtc,
+            BoolFromEnv("FLAGS_cinn_compile_with_nvrtc", true),
+            "Whether nvrtc compile cuda source with nvrtc(default nvcc).");
 
 // FLAGS for performance analysis and accuracy debug
 DEFINE_bool(cinn_sync_run,
@@ -173,6 +183,11 @@ unsigned long long RandomSeed::Clear() {
   auto old_seed = seed_;
   seed_         = 0ULL;
   return old_seed;
+}
+
+bool CanUseNvccCompiler() {
+  std::string nvcc_dir = FLAGS_cinn_nvcc_cmd_path + "/nvcc";
+  return (access(nvcc_dir.c_str(), 0) == -1 ? false : true) && (!FLAGS_cinn_compile_with_nvrtc);
 }
 
 bool IsCompiledWithCUDA() {
