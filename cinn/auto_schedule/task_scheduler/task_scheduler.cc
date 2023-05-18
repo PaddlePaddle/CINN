@@ -33,7 +33,7 @@ std::unique_ptr<TaskScheduler> TaskScheduler::Make(const std::vector<TuneTask>& 
     return std::make_unique<EfficiencyPriority>(tasks, config);
   }
 
-  LOG(FATAL) << "Unimplementd strategy:" << strategy;
+  LOG(FATAL) << "Unimplemented strategy:" << strategy;
   return nullptr;
 }
 

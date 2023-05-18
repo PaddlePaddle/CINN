@@ -127,7 +127,7 @@ std::vector<Expr> ScheduleImpl::Split(const Expr& loop, const std::vector<int>& 
   std::vector<Var> new_loop_vars;
   Expr substitute_value(0);
   for (int i = 0; i < processed_factors.size(); ++i) {
-    Var temp_var(for_node->loop_var->name + "_" + std::to_string(i));
+    Var temp_var(common::UniqName(for_node->loop_var->name));
     substitute_value = Expr(temp_var) + substitute_value * Expr(processed_factors[i]);
     new_loop_vars.push_back(temp_var);
   }
@@ -1087,8 +1087,10 @@ void ScheduleImpl::SetBuffer(Expr& block, const std::string& memory_type, bool f
 
   auto exprs = this->GetModule().GetExprs();
   for (auto& it_expr : exprs) {
-    auto find_tensor = ir::CollectIRNodesWithoutTensor(
-        it_expr, [&](const Expr* x) { return x->as_tensor() && x->as_tensor()->name == tensor.as_tensor_ref()->name; });
+    auto find_tensor = ir::CollectIRNodesWithoutTensor(it_expr, [&](const Expr* x) {
+      return x->as_tensor() && (x->as_tensor()->name == tensor.as_tensor_ref()->name ||
+                                x->as_tensor()->name == tensor.as_tensor_ref()->name + "__reduce_init");
+    });
     for (auto& t : find_tensor) {
       CHECK(t.as_tensor());
       t.as_tensor_ref()->Bind(tensor.as_tensor_ref()->buffer);
@@ -1191,10 +1193,9 @@ void ScheduleImpl::SimpleComputeAt(const Expr& block, const Expr& loop) {
     replaced_var.push_back(block_loops[i].As<ir::For>()->loop_var);
     substitute_expr.push_back(Expr(loops[i].As<ir::For>()->loop_var));
   }
+
   Expr result =
       loops.size() < block_loops.size() ? optim::IRCopy(block_loops[loops.size()]) : optim::IRCopy(this_block);
-
-  ReplaceExpr(&result, replaced_var, substitute_expr);
   Expr new_loop = optim::IRCopy(this_loop);
 
   if (loops.size() >= block_loops.size()) {
@@ -1213,6 +1214,8 @@ void ScheduleImpl::SimpleComputeAt(const Expr& block, const Expr& loop) {
       }
     }
   }
+
+  ReplaceExpr(&result, replaced_var, substitute_expr);
   // When there are two identical IfThenElse
   if (new_loop.As<ir::For>() && new_loop.As<ir::For>()->body.As<ir::Block>() &&
       new_loop.As<ir::For>()->body.As<ir::Block>()->stmts[0].As<ir::IfThenElse>()) {
@@ -1230,6 +1233,7 @@ void ScheduleImpl::SimpleComputeAt(const Expr& block, const Expr& loop) {
   } else {
     new_loop.As<ir::For>()->body = ir::Block::Make({result, new_loop.As<ir::For>()->body});
   }
+
   Expr source_expr{nullptr};
   Expr target_expr{nullptr};
 

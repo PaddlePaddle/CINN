@@ -135,6 +135,11 @@ DEFINE_bool(verbose_function_register,
             BoolFromEnv("FLAGS_verbose_function_register", false),
             "Whether to verbose function regist log. This will only work if CINN build with flag -DWITH_DEBUG=ON.");
 
+DEFINE_int32(
+    cinn_profiler_state,
+    Int32FromEnv("FLAGS_cinn_profiler_state", -1),
+    "Specify the ProfilerState by Int in CINN, 0 for kDisabled, 1 for kCPU, 2 for kCUDA, 3 for kAll, default 0.");
+
 namespace cinn {
 namespace runtime {
 
