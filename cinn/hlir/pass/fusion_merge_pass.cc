@@ -76,9 +76,9 @@ class FusionMergePassHelper : public FusionHelperBase {
     VLOG(3) << "DoFusionMerge...!";
     while (DoHorizontalFusion()) {
     }
-    while (DoVerticalFusion()) {
+    while (DoVerticalFusion(/* recompute=*/false)) {
     }
-    while (DoVerticalFusion(true)) {
+    while (DoVerticalFusion(/* recompute=*/true)) {
     }
   }
 
@@ -102,7 +102,7 @@ class FusionMergePassHelper : public FusionHelperBase {
     return updated;
   }
 
-  bool DoVerticalFusion(bool recompute = false) {
+  bool DoVerticalFusion(bool recompute) {
     VLOG(3) << "DoVerticalFusion...!";
     bool updated = false;
     for (int idx = 0; idx < fusion_groups_.size(); ++idx) {
@@ -113,7 +113,9 @@ class FusionMergePassHelper : public FusionHelperBase {
         continue;
       }
       // do horizontal fusion.
-      if (!recompute) updated |= HorizontalFusion(producer, producer->consumer_groups);
+      if (!recompute) {
+        updated |= HorizontalFusion(producer, producer->consumer_groups);
+      }
       updated |= VerticalFusion(producer, producer->consumer_groups, recompute);
     }
     // fuse input consumers
@@ -171,7 +173,7 @@ class FusionMergePassHelper : public FusionHelperBase {
     }
   }
 
-  bool HorizontalFusion(GroupPtr& producer, std::unordered_set<GroupPtr, Hasher, Comparator>& consumers) {
+  bool HorizontalFusion(GroupPtr producer, std::unordered_set<GroupPtr, Hasher, Comparator>& consumers) {
     VLOG(3) << "HorizontalFusion...!";
     if (consumers.size() <= 1) {
       return false;
@@ -424,6 +426,9 @@ class FusionMergePassHelper : public FusionHelperBase {
     VLOG(3) << "VerticalFusion, Number of fuse Consumers : " << fuse_consumers.size();
     VLOG(3) << "VerticalFusion, Number of unsafe fuse Consumers : " << fuse_consumers.size();
 
+    if (fuse_consumers.size() == 0) {
+      return false;
+    }
     // if can_fuse_consumers == consumers
     // if producer op kind == kElementwise
     // if use recompute

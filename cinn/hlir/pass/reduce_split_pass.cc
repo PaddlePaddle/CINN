@@ -113,10 +113,10 @@ class ReduceSplitPass {
         CHECK(reduce_numel > 0);
         // if the numel is not large enough, it is no need to split
         // if loop times is too large with reduce optimize
-        auto all_loop_times = std::accumulate(in_shape.begin(), (in_shape.end() - 1), 1, std::multiplies<int>());
-        int tail            = 0;
-        bool bound          = true;
-        auto shape          = pe::GetFirstStepReduceShape({all_loop_times, in_shape.back()}, {0}, bound, tail);
+        int size   = std::accumulate(in_shape.begin(), (in_shape.end() - 1), 1, std::multiplies<int>());
+        int tail   = 0;
+        bool bound = true;
+        auto shape = pe::GetFirstStepReduceShape({size, in_shape.back()}, {0}, bound, tail);
         CHECK(bound);
         CHECK_EQ(shape.size(), 3);
 
@@ -124,9 +124,10 @@ class ReduceSplitPass {
         int reduce_numel0 = std::get<0>(res), reduce_numel1 = std::get<1>(res);
 
         VLOG(3) << "InShape -> "
-                << std::accumulate(in_shape.begin(), in_shape.end(), std::string(""), [](std::string left, int right) {
-                     return left + std::to_string(right) + " ";
-                   });
+                << std::accumulate(
+                       in_shape.begin(), in_shape.end(), std::string(""), [](const std::string& left, const int right) {
+                         return left + std::to_string(right) + " ";
+                       });
         VLOG(3) << "  reduce  split : " << reduce_numel0 << " " << reduce_numel1 << " " << in_shape.back();
         VLOG(3) << "  reshape split : "
                 << std::accumulate(shape.begin(), shape.end(), std::string(""), [](std::string left, int right) {
