@@ -11,8 +11,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-#pragma once
-
 #include "cinn/hlir/pass/constant_folding_pass_util.h"
 
 #include <algorithm>
@@ -27,11 +25,12 @@
 namespace cinn {
 namespace hlir {
 namespace pass {
-namespace utils {
 
 using cinn::utils::Attribute;
 using cinn::utils::AttributeMap;
+using cinn::utils::ShapeType;
 
+namespace utils {
 class ConstantFoldingHelper {
  public:
   ConstantFoldingHelper(const FusionHelperBase* helper, Graph* graph, Node* node)
@@ -137,79 +136,45 @@ class ConstantFoldingHelper {
 
 }  // namespace utils
 
-inline void fold_broadcast_to_constant(const FusionHelperBase* helper, Graph* graph, Node* node) {
-  auto constant_op = helper->GetProducerNode(node)[0];
-  CHECK(node->attrs.attr_store.count("out_shape"));
-  auto shape = absl::get<std::vector<int>>(node->attrs.attr_store.at("out_shape"));
-  CHECK(constant_op->attrs.attr_store.count("value"));
-  // create constant op.
-  Node* node_tmp = utils::CreateNewNode("fill_constant");
-  // set node attr
-  node_tmp->attrs.attr_store["dtype"]     = constant_op->attrs.attr_store.at("dtype");
-  node_tmp->attrs.attr_store["shape"]     = shape;
-  node_tmp->attrs.attr_store["value"]     = constant_op->attrs.attr_store.at("value");
-  node_tmp->attrs.attr_store["force_cpu"] = false;
-  graph->RegisterNode(node_tmp->id(), node_tmp);
-  // create new link.
-  NodeData* node_data = helper->GetNodeData(node);
-  node_data->source_node.Reset(node_tmp);
-  node->UnLinkSingleTo(node_data);
-  node_tmp->LinkTo(node_data);
+// fold fill_constant/const_scalar->broadcast_to ==> fill_constant
+void fold_broadcast_to_constant(const FusionHelperBase* helper, Graph* graph, Node* node) {
+  utils::ConstantFoldingHelper fold_helper(helper, graph, node);
 
-  // drop node.
-  auto constant_node_data = helper->GetNodeData(constant_op);
-  if (constant_node_data->outlinks().size() == 1) {
-    graph->DropNode(node);
-    graph->DropNode(constant_op);
-    graph->DropNode(constant_node_data);
-  } else {
-    constant_node_data->UnLinkSingleTo(node);
-    graph->DropNode(node);
-  }
+  const auto& broadcast_to_attrs = fold_helper.GetConsumerAttrs();
+  const auto& constant_attrs     = fold_helper.GetProducerAttrs();
+
+  auto shape = GetAttr<ShapeType>(broadcast_to_attrs, "out_shape");
+
+  AttributeMap new_attrs;
+  new_attrs["dtype"]     = constant_attrs.at("dtype");
+  new_attrs["shape"]     = GetAttr<ShapeType>(broadcast_to_attrs, "out_shape");
+  new_attrs["value"]     = constant_attrs.at("value");
+  new_attrs["force_cpu"] = false;
+
+  fold_helper(new_attrs, "fill_constant");
 }
 
-inline void fold_reshape_fill_constant(const FusionHelperBase* helper, Graph* graph, Node* node) {
-  auto constant_op = helper->GetProducerNode(node)[0];
-  CHECK(node->attrs.attr_store.count("shape"));
-  auto shape = absl::get<std::vector<int>>(node->attrs.attr_store.at("shape"));
-  CHECK(constant_op->attrs.attr_store.count("value"));
+// fold fill_constant->reshape ==> fill_constant
+void fold_reshape_fill_constant(const FusionHelperBase* helper, Graph* graph, Node* node) {
+  utils::ConstantFoldingHelper fold_helper(helper, graph, node);
 
-  // create constant op.
-  Node* node_tmp = new Node(Operator::Get("fill_constant"), "fill_constant", common::UniqName("fill_constant"));
-  // set node attr
-  node_tmp->attrs.attr_store["dtype"]     = constant_op->attrs.attr_store.at("dtype");
-  node_tmp->attrs.attr_store["shape"]     = shape;
-  node_tmp->attrs.attr_store["value"]     = constant_op->attrs.attr_store.at("value");
-  node_tmp->attrs.attr_store["force_cpu"] = false;
-  graph->RegisterNode(node_tmp->id(), node_tmp);
-  // create new link.
-  NodeData* node_data = helper->GetNodeData(node);
-  node_data->source_node.Reset(node_tmp);
-  node->UnLinkSingleTo(node_data);
-  node_tmp->LinkTo(node_data);
+  const auto& reshape_attrs = fold_helper.GetConsumerAttrs();
 
-  // drop node.
-  auto constant_node_data = helper->GetNodeData(constant_op);
-  if (constant_node_data->outlinks().size() == 1) {
-    graph->DropNode(node);
-    graph->DropNode(constant_op);
-    graph->DropNode(constant_node_data);
-  } else {
-    constant_node_data->UnLinkSingleTo(node);
-    graph->DropNode(node);
-  }
+  AttributeMap new_attrs = fold_helper.GetProducerAttrs();
+  new_attrs["shape"]     = GetAttr<ShapeType>(reshape_attrs, "shape");
+
+  fold_helper(new_attrs);
 }
 
 // fold fill_constant->squeeze ==> fill_constant
-inline void fold_squeeze_fill_constant(const FusionHelperBase* helper, Graph* graph, Node* node) {
-  auto constant_op = helper->GetProducerNode(node)[0];
-  CHECK(constant_op->attrs.attr_store.count("shape"));
-  auto shape = absl::get<std::vector<int>>(constant_op->attrs.attr_store.at("shape"));
-  CHECK(node->attrs.attr_store.count("axes"));
-  auto axes = absl::get<std::vector<int>>(node->attrs.attr_store.at("axes"));
+void fold_squeeze_fill_constant(const FusionHelperBase* helper, Graph* graph, Node* node) {
+  utils::ConstantFoldingHelper fold_helper(helper, graph, node);
 
-  // create constant op.
-  Node* node_tmp = new Node(Operator::Get("fill_constant"), "fill_constant", common::UniqName("fill_constant"));
+  const auto& squeeze_attrs  = fold_helper.GetConsumerAttrs();
+  const auto& constant_attrs = fold_helper.GetProducerAttrs();
+
+  const auto& shape = GetAttr<ShapeType>(constant_attrs, "shape");
+  const auto& axes  = GetAttr<ShapeType>(squeeze_attrs, "axes");
   // set node attr
   std::vector<int> n_shape;
   if (axes.size() == 0) {
@@ -226,44 +191,28 @@ inline void fold_squeeze_fill_constant(const FusionHelperBase* helper, Graph* gr
     }
   }
 
-  node_tmp->attrs.attr_store["dtype"]     = constant_op->attrs.attr_store.at("dtype");
-  node_tmp->attrs.attr_store["shape"]     = n_shape;
-  node_tmp->attrs.attr_store["value"]     = constant_op->attrs.attr_store.at("value");
-  node_tmp->attrs.attr_store["force_cpu"] = false;
-  graph->RegisterNode(node_tmp->id(), node_tmp);
-  // create new link.
-  NodeData* node_data = helper->GetNodeData(node);
-  node_data->source_node.Reset(node_tmp);
-  node->UnLinkSingleTo(node_data);
-  node_tmp->LinkTo(node_data);
+  AttributeMap new_attrs = constant_attrs;
+  new_attrs["shape"]     = n_shape;
 
-  // drop node.
-  auto constant_node_data = helper->GetNodeData(constant_op);
-  if (constant_node_data->outlinks().size() == 1) {
-    graph->DropNode(node);
-    graph->DropNode(constant_op);
-    graph->DropNode(constant_node_data);
-  } else {
-    constant_node_data->UnLinkSingleTo(node);
-    graph->DropNode(node);
-  }
+  fold_helper(new_attrs);
 }
 
 // fold fill_constant->expand_dims ==> fill_constant
-inline void fold_expand_dims_fill_constant(const FusionHelperBase* helper, Graph* graph, Node* node) {
-  auto constant_op = helper->GetProducerNode(node)[0];
-  CHECK(constant_op->attrs.attr_store.count("shape"));
-  auto shape = absl::get<std::vector<int>>(constant_op->attrs.attr_store.at("shape"));
-  CHECK(node->attrs.attr_store.count("axes"));
-  auto axes = absl::get<std::vector<int>>(node->attrs.attr_store.at("axes"));
+void fold_expand_dims_fill_constant(const FusionHelperBase* helper, Graph* graph, Node* node) {
+  utils::ConstantFoldingHelper fold_helper(helper, graph, node);
 
-  // create constant op.
-  Node* node_tmp = new Node(Operator::Get("fill_constant"), "fill_constant", common::UniqName("fill_constant"));
+  const auto& expand_dims_attrs = fold_helper.GetConsumerAttrs();
+  const auto& constant_attrs    = fold_helper.GetProducerAttrs();
+
+  const auto& shape = GetAttr<ShapeType>(constant_attrs, "shape");
+  auto axes         = GetAttr<ShapeType>(expand_dims_attrs, "axes");
+
   int shape_size = shape.size();
   int axes_size  = axes.size();
   int total_size = shape_size + axes_size;
+  axes           = cinn::utils::GetPositiveAxes(axes, total_size);
+
   // check axes whether in range [-total_size, total_size-1] and convert all to [0, total_size-1].
-  axes = utils::GetPositiveAxes(axes, total_size);
   // check axes can't repeat.
   std::sort(axes.begin(), axes.end(), std::less<int>());
   for (int idx = 0; idx < axes_size - 1; ++idx) {
@@ -277,32 +226,11 @@ inline void fold_expand_dims_fill_constant(const FusionHelperBase* helper, Graph
     }
   }
 
-  // set node attr
-  node_tmp->attrs.attr_store["dtype"]     = constant_op->attrs.attr_store.at("dtype");
-  node_tmp->attrs.attr_store["shape"]     = n_shape;
-  node_tmp->attrs.attr_store["value"]     = constant_op->attrs.attr_store.at("value");
-  node_tmp->attrs.attr_store["force_cpu"] = false;
-  graph->RegisterNode(node_tmp->id(), node_tmp);
-  // create new link.
-  NodeData* node_data = helper->GetNodeData(node);
-  node_data->source_node.Reset(node_tmp);
-  node->UnLinkSingleTo(node_data);
-  node_tmp->LinkTo(node_data);
+  AttributeMap new_attrs = constant_attrs;
+  new_attrs["shape"]     = n_shape;
 
-  // drop node.
-  auto constant_node_data = helper->GetNodeData(constant_op);
-  if (constant_node_data->outlinks().size() == 1) {
-    graph->DropNode(node);
-    graph->DropNode(constant_op);
-    graph->DropNode(constant_node_data);
-  } else {
-    constant_node_data->UnLinkSingleTo(node);
-    graph->DropNode(node);
-  }
+  fold_helper(new_attrs);
 }
-
-// fold reshape->broadcast_to ==> broadcast_to
-inline void fold_broadcast_to_reshape(const FusionHelperBase* helper, Graph* graph, Node* node) {}
 
 }  // namespace pass
 }  // namespace hlir

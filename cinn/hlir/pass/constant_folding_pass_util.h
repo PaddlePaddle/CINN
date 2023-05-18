@@ -22,8 +22,10 @@ namespace cinn {
 namespace hlir {
 namespace pass {
 
+// fold fill_constant/const_scalar->broadcast_to ==> fill_constant
 void fold_broadcast_to_constant(const FusionHelperBase* helper, Graph* graph, Node* node);
 
+// fold fill_constant->reshape ==> fill_constant
 void fold_reshape_fill_constant(const FusionHelperBase* helper, Graph* graph, Node* node);
 
 // fold fill_constant->squeeze ==> fill_constant
@@ -31,9 +33,6 @@ void fold_squeeze_fill_constant(const FusionHelperBase* helper, Graph* graph, No
 
 // fold fill_constant->expand_dims ==> fill_constant
 void fold_expand_dims_fill_constant(const FusionHelperBase* helper, Graph* graph, Node* node);
-
-// fold reshape->broadcast_to ==> broadcast_to
-inline void fold_broadcast_to_reshape(const FusionHelperBase* helper, Graph* graph, Node* node);
 
 }  // namespace pass
 }  // namespace hlir
