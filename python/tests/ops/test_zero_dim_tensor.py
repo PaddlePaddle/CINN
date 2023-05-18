@@ -17,7 +17,7 @@
 import unittest
 import numpy as np
 from op_test import OpTest, OpTestTool
-import paddle
+# import paddle
 import cinn
 from cinn.frontend import *
 from cinn.common import *
@@ -44,13 +44,17 @@ class TestElementwiseAddOp(OpTest):
         self.assertEqual(y_grad.shape, ())
 
     def build_paddle_program(self, target):
-        x = paddle.to_tensor(self.inputs["x"], stop_gradient=False)
-        y = paddle.to_tensor(self.inputs["y"], stop_gradient=False)
-        out = paddle.add(x, y)
+        # x = paddle.to_tensor(self.inputs["x"], stop_gradient=False)
+        # y = paddle.to_tensor(self.inputs["y"], stop_gradient=False)
+        # out = paddle.add(x, y)
 
-        self.paddle_outputs = [out]
-        self.paddle_grads = self.get_paddle_grads([out], [x, y],
-                                                  [self.inputs["dout"]])
+        # self.paddle_outputs = [out]
+        # self.paddle_grads = self.get_paddle_grads([out], [x, y],
+        #                                           [self.inputs["dout"]])
+
+        x, y, dout = self.inputs["x"], self.inputs["y"], self.inputs["dout"]
+        self.paddle_outputs = [x + y]
+        self.paddle_grads = [dout, dout]
 
     def build_cinn_program(self, target):
         builder = NetBuilder("add")
@@ -89,6 +93,11 @@ class TestElementwiseAddOp2(TestElementwiseAddOp):
             "y": np.random.randint(-10, 10, []).astype("float32"),
             "dout": np.random.randint(-10, 10, [3, 5]).astype("float32"),
         }
+
+    def build_paddle_program(self, target):
+        x, y, dout = self.inputs["x"], self.inputs["y"], self.inputs["dout"]
+        self.paddle_outputs = [x + y]
+        self.paddle_grads = [dout, np.sum(dout)]
 
     def assertShapeEqual(self, res):
         out, x_grad, y_grad = res
