@@ -67,6 +67,7 @@ TEST(common_subexpression_elimination, common_subexpression_elimination_case1) {
 
   hlir::framework::ApplyPass(graph.get(), "InferShape");
   hlir::framework::ApplyPass(graph.get(), "CommonSubexpressionEliminationPass");
+  hlir::framework::ApplyPass(graph.get(), "BuildNonFusedGroupsPass");
   auto scope = BuildScope(target, graph);
 
   hlir::framework::GraphCompiler gc(target, scope, graph);
@@ -110,6 +111,7 @@ TEST(common_subexpression_elimination, common_subexpression_elimination_case2) {
 
   hlir::framework::ApplyPass(graph.get(), "InferShape");
   hlir::framework::ApplyPass(graph.get(), "CommonSubexpressionEliminationPass");
+  hlir::framework::ApplyPass(graph.get(), "BuildNonFusedGroupsPass");
   auto scope = BuildScope(target, graph);
 
   hlir::framework::GraphCompiler gc(target, scope, graph);
@@ -169,6 +171,7 @@ TEST(common_subexpression_elimination, common_subexpression_elimination_case3) {
 
   hlir::framework::ApplyPass(graph.get(), "InferShape");
   hlir::framework::ApplyPass(graph.get(), "CommonSubexpressionEliminationPass");
+  hlir::framework::ApplyPass(graph.get(), "BuildNonFusedGroupsPass");
   auto scope = BuildScope(target, graph);
 
   hlir::framework::GraphCompiler gc(target, scope, graph);
