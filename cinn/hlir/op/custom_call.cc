@@ -523,19 +523,7 @@ std::vector<ir::Expr> CustomCallArgsForCudnnPoolForward(const framework::NodeAtt
     LOG(FATAL) << "Unsupported data_format for pool op: " << data_format;
   }
 
-  std::vector<Expr> input = inputs[0]->shape;
-  bool global_pooling =
-      attr_store.count("global_pooling") ? absl::get<bool>(attrs.attr_store.at("global_pooling")) : false;
-  if (global_pooling) {
-    kernel  = {input[height_axis].as_int32(), input[width_axis].as_int32()};
-    padding = {0, 0};
-  }
-
-  bool adaptive = attr_store.count("adaptive") ? absl::get<bool>(attrs.attr_store.at("adaptive")) : false;
-  if (adaptive) {
-    padding = {0, 0};
-  }
-
+  std::vector<Expr> input       = inputs[0]->shape;
   std::string padding_algorithm = attr_store.count("padding_algorithm")
                                       ? absl::get<std::string>(attrs.attr_store.at("padding_algorithm"))
                                       : "EXPLICIT";
@@ -549,6 +537,18 @@ std::vector<ir::Expr> CustomCallArgsForCudnnPoolForward(const framework::NodeAtt
     int pad_w      = pad_sum_h / 2;
     int pad_h      = pad_sum_w / 2;
     padding        = {pad_h, pad_w};
+  }
+
+  bool global_pooling =
+      attr_store.count("global_pooling") ? absl::get<bool>(attrs.attr_store.at("global_pooling")) : false;
+  if (global_pooling) {
+    kernel  = {input[height_axis].as_int32(), input[width_axis].as_int32()};
+    padding = {0, 0};
+  }
+
+  bool adaptive = attr_store.count("adaptive") ? absl::get<bool>(attrs.attr_store.at("adaptive")) : false;
+  if (adaptive) {
+    padding = {0, 0};
   }
 
   auto exclusive             = absl::get<bool>(attrs.attr_store.at("exclusive"));
@@ -613,19 +613,7 @@ std::vector<ir::Expr> CustomCallArgsForCudnnPoolBackward(const framework::NodeAt
     LOG(FATAL) << "Unsupported data_format for pool_grad op: " << data_format;
   }
 
-  std::vector<Expr> input = inputs[0]->shape;  // 'x'
-  bool global_pooling =
-      attr_store.count("global_pooling") ? absl::get<bool>(attrs.attr_store.at("global_pooling")) : false;
-  if (global_pooling) {
-    kernel  = {input[height_axis].as_int32(), input[width_axis].as_int32()};
-    padding = {0, 0};
-  }
-
-  bool adaptive = attr_store.count("adaptive") ? absl::get<bool>(attrs.attr_store.at("adaptive")) : false;
-  if (adaptive) {
-    padding = {0, 0};
-  }
-
+  std::vector<Expr> input       = inputs[0]->shape;  // 'x'
   std::string padding_algorithm = attr_store.count("padding_algorithm")
                                       ? absl::get<std::string>(attrs.attr_store.at("padding_algorithm"))
                                       : "EXPLICIT";
@@ -639,6 +627,18 @@ std::vector<ir::Expr> CustomCallArgsForCudnnPoolBackward(const framework::NodeAt
     int pad_w      = pad_sum_h / 2;
     int pad_h      = pad_sum_w / 2;
     padding        = {pad_h, pad_w};
+  }
+
+  bool global_pooling =
+      attr_store.count("global_pooling") ? absl::get<bool>(attrs.attr_store.at("global_pooling")) : false;
+  if (global_pooling) {
+    kernel  = {input[height_axis].as_int32(), input[width_axis].as_int32()};
+    padding = {0, 0};
+  }
+
+  bool adaptive = attr_store.count("adaptive") ? absl::get<bool>(attrs.attr_store.at("adaptive")) : false;
+  if (adaptive) {
+    padding = {0, 0};
   }
 
   auto exclusive             = absl::get<bool>(attrs.attr_store.at("exclusive"));
