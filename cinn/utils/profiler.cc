@@ -14,6 +14,8 @@
 
 #include "cinn/utils/profiler.h"
 
+#include <gflags/gflags.h>
+
 #ifdef CINN_WITH_NVTX
 #include <nvToolsExt.h>
 #endif
@@ -23,13 +25,35 @@
 
 #include "cinn/backends/cuda_util.h"
 #endif
-
 #include <chrono>
+
+DECLARE_int32(cinn_profiler_state);
 
 namespace cinn {
 namespace utils {
 
 ProfilerState ProfilerHelper::g_state = ProfilerState::kDisabled;
+
+void ProfilerHelper::UpdateState() {
+  if (FLAGS_cinn_profiler_state < 0) return;
+
+  switch (FLAGS_cinn_profiler_state) {
+    case 0:
+      g_state = ProfilerState::kDisabled;
+      break;
+    case 1:
+      g_state = ProfilerState::kCPU;
+      break;
+    case 2:
+      g_state = ProfilerState::kCUDA;
+      break;
+    case 3:
+      g_state = ProfilerState::kAll;
+      break;
+    default:
+      LOG(WARNING) << "Unsupport FLAGS_cinn_profiler_state = " << FLAGS_cinn_profiler_state << ", and will do nothing.";
+  }
+}
 
 RecordEvent::RecordEvent(const std::string& name, EventType type) {
   if (!ProfilerHelper::IsEnable()) return;
