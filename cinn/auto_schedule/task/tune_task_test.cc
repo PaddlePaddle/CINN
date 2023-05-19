@@ -118,7 +118,7 @@ TEST(TuneTask, GraphToUnoptLoweredFunc_NoPass) {
       {
         ScheduleBlock(var_2)
         {
-          i0, i1 = axis.bind(i, j)
+          i0_0, i1_0 = axis.bind(i, j)
           var_2[i, j] = (A[i, j] + var_1[i, j])
         }
       }
@@ -225,7 +225,7 @@ TEST(TuneTask, GraphToUnoptLoweredFunc_ApplyPass) {
         {
           ScheduleBlock(var_2)
           {
-            i0, i1 = axis.bind(i, j)
+            i0_0, i1_0 = axis.bind(i, j)
             var_2[i, j] = (A[i, j] + var_1[i, j])
           }
         }
