@@ -285,7 +285,7 @@ class OpMapperTest(OpTest):
         # output 0D-Tensor, hence we need to reshape them into 1D-Tensor temporarily.
         # After corresponding CINN op supports 0D-Tensor, this trick can be removed safely.
         for i in range(len(results)):
-            if len(results[i].shape) == 0:
+            if results[i] is not None and len(results[i].shape) == 0:
                 results[i] = results[i].reshape(1)
 
         logger.debug(msg="Paddle result:")
