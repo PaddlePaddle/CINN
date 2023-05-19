@@ -474,12 +474,28 @@ class ResizeBufferSizeVisitor : public ir::IRMutator<> {
     auto &shape   = store_tensor->shape;
     auto &buffer  = store_tensor->buffer->shape;
 
+    int cnt = buffer.size() - indices.size();
+    // for(int i =0 ;i<cnt ;i++){
+    //   indices.insert(indices.begin(), 0);
+    // }
+    VLOG(-1) << store_tensor;
+    for (auto x : shape) VLOG(-1) << x;
+    for (auto x : buffer) VLOG(-1) << x;
+    for (auto id : indices) VLOG(-1) << id;
+
     shape.clear();
     buffer.clear();
     for (int idx = 0; idx < indices.size(); ++idx) {
       shape.push_back(ir::Expr(BufferSize(indices[idx])));
       buffer.push_back(shape.back());
     }
+    // for(int i =0 ;i<cnt ;i++){
+    //   indices.insert(indices.begin(), 0);
+    //   shape.insert(shape.begin(), Expr(1));
+    //   buffer.insert(buffer.begin(), Expr(1));
+    // }
+    // for(auto x:shape) VLOG(-1) << x;
+    // for(auto x:buffer) VLOG(-1) << x;
     ir::IRMutator<>::Visit(op, expr);
   }
 
@@ -494,7 +510,32 @@ class ResizeBufferSizeVisitor : public ir::IRMutator<> {
       return;
     }
 
+    VLOG(-1) << load->tensor;
+    VLOG(-1) << load->tensor.as_tensor_ref()->shape;
+    VLOG(-1) << load->tensor.as_tensor_ref()->buffer->shape;
+    VLOG(-1) << load->indices.size();
+    bool tmp_flag  = false;
+    auto org_shape = load->tensor.as_tensor_ref()->shape;
+    if (load->tensor.as_tensor_ref()->shape != load->tensor.as_tensor_ref()->buffer->shape) {
+      tmp_flag = true;
+    }
+
     load->tensor.as_tensor_ref()->shape = load->tensor.as_tensor_ref()->buffer->shape;
+
+    if (tmp_flag) {
+      int cnt = load->indices.size() - load->tensor.as_tensor_ref()->shape.size();
+      for (int i = 0; i < cnt; i++) {
+        auto &xx = load->tensor.as_tensor_ref()->shape;
+        xx.insert(xx.begin(), Expr(1));
+        auto &yy = load->tensor.as_tensor_ref()->buffer->shape;
+        yy.insert(yy.begin(), Expr(1));
+      }
+    }
+    VLOG(-1) << load->indices.size();
+    for (auto t : load->indices) VLOG(-1) << t;
+    VLOG(-1) << load->tensor.as_tensor_ref()->shape;
+    VLOG(-1) << load->tensor.as_tensor_ref()->buffer->shape;
+    VLOG(-1) << load->tensor;
     ir::IRMutator<>::Visit(op, expr);
   }
 
