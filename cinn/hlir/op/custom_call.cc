@@ -507,56 +507,58 @@ std::vector<ir::Expr> CustomCallArgsForCudnnPoolForward(const framework::NodeAtt
   auto stride = absl::get<std::vector<int>>(attr_store.at("stride_size"));
   CHECK(attr_store.count("pool_type"));
   auto pool_type = absl::get<std::string>(attrs.attr_store.at("pool_type"));
+  CHECK(attr_store.count("data_format"));
+  auto data_format = absl::get<std::string>(attrs.attr_store.at("data_format"));
 
-  int height_axis = -1;
-  int width_axis  = -1;
-  std::string data_format =
-      attr_store.count("data_format") ? absl::get<std::string>(attrs.attr_store.at("data_format")) : "NCHW";
-  if (data_format == "AnyLayout" || data_format == "NCHW") {
-    data_format = "NCHW";
-    height_axis = 2;
-    width_axis  = 3;
-  } else if (data_format == "NHWC") {
-    height_axis = 1;
-    width_axis  = 2;
-  } else {
-    LOG(FATAL) << "Unsupported data_format for pool op: " << data_format;
-  }
+  // int height_axis = -1;
+  // int width_axis  = -1;
+  // std::string data_format =
+  //     attr_store.count("data_format") ? absl::get<std::string>(attrs.attr_store.at("data_format")) : "NCHW";
+  // if (data_format == "AnyLayout" || data_format == "NCHW") {
+  //   data_format = "NCHW";
+  //   height_axis = 2;
+  //   width_axis  = 3;
+  // } else if (data_format == "NHWC") {
+  //   height_axis = 1;
+  //   width_axis  = 2;
+  // } else {
+  //   LOG(FATAL) << "Unsupported data_format for pool op: " << data_format;
+  // }
 
-  std::vector<Expr> input       = inputs[0]->shape;
-  std::string padding_algorithm = attr_store.count("padding_algorithm")
-                                      ? absl::get<std::string>(attrs.attr_store.at("padding_algorithm"))
-                                      : "EXPLICIT";
-  if (padding_algorithm == "VALID") {
-    padding = {0, 0};
-  } else if (padding_algorithm == "SAME") {
-    int out_size_h = (input[height_axis].as_int32() + stride[0] - 1) / stride[0];
-    int out_size_w = (input[width_axis].as_int32() + stride[1] - 1) / stride[1];
-    int pad_sum_h  = std::max((out_size_h - 1) * stride[0] + kernel[0] - input[height_axis].as_int32(), 0);
-    int pad_sum_w  = std::max((out_size_w - 1) * stride[1] + kernel[1] - input[width_axis].as_int32(), 0);
-    int pad_w      = pad_sum_h / 2;
-    int pad_h      = pad_sum_w / 2;
-    padding        = {pad_h, pad_w};
-  }
+  // std::vector<Expr> input       = inputs[0]->shape;
+  // std::string padding_algorithm = attr_store.count("padding_algorithm")
+  //                                     ? absl::get<std::string>(attrs.attr_store.at("padding_algorithm"))
+  //                                     : "EXPLICIT";
+  // if (padding_algorithm == "VALID") {
+  //   padding = {0, 0};
+  // } else if (padding_algorithm == "SAME") {
+  //   int out_size_h = (input[height_axis].as_int32() + stride[0] - 1) / stride[0];
+  //   int out_size_w = (input[width_axis].as_int32() + stride[1] - 1) / stride[1];
+  //   int pad_sum_h  = std::max((out_size_h - 1) * stride[0] + kernel[0] - input[height_axis].as_int32(), 0);
+  //   int pad_sum_w  = std::max((out_size_w - 1) * stride[1] + kernel[1] - input[width_axis].as_int32(), 0);
+  //   int pad_w      = pad_sum_h / 2;
+  //   int pad_h      = pad_sum_w / 2;
+  //   padding        = {pad_h, pad_w};
+  // }
 
-  bool global_pooling =
-      attr_store.count("global_pooling") ? absl::get<bool>(attrs.attr_store.at("global_pooling")) : false;
-  if (global_pooling) {
-    kernel  = {input[height_axis].as_int32(), input[width_axis].as_int32()};
-    padding = {0, 0};
-  }
+  // bool global_pooling =
+  //     attr_store.count("global_pooling") ? absl::get<bool>(attrs.attr_store.at("global_pooling")) : false;
+  // if (global_pooling) {
+  //   kernel  = {input[height_axis].as_int32(), input[width_axis].as_int32()};
+  //   padding = {0, 0};
+  // }
 
-  bool adaptive = attr_store.count("adaptive") ? absl::get<bool>(attrs.attr_store.at("adaptive")) : false;
-  if (adaptive) {
-    padding = {0, 0};
-  }
+  // bool adaptive = attr_store.count("adaptive") ? absl::get<bool>(attrs.attr_store.at("adaptive")) : false;
+  // if (adaptive) {
+  //   padding = {0, 0};
+  // }
 
   auto exclusive             = absl::get<bool>(attrs.attr_store.at("exclusive"));
   cudnnPoolingMode_t mode    = pool_type == "max" ? CUDNN_POOLING_MAX
                                                   : (exclusive ? CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING
                                                                : CUDNN_POOLING_AVERAGE_COUNT_INCLUDE_PADDING);
   cudnnTensorFormat_t format = data_format == "NCHW" ? CUDNN_TENSOR_NCHW : CUDNN_TENSOR_NHWC;
-
+  std::vector<Expr> input    = inputs[0]->shape;
   std::vector<Expr> output;
   std::transform(output_shapes[0].begin(), output_shapes[0].end(), std::back_inserter(output), [](const int dim) {
     return ir::Expr(dim);
@@ -597,57 +599,59 @@ std::vector<ir::Expr> CustomCallArgsForCudnnPoolBackward(const framework::NodeAt
   auto stride = absl::get<std::vector<int>>(attr_store.at("stride_size"));
   CHECK(attr_store.count("pool_type"));
   auto pool_type = absl::get<std::string>(attrs.attr_store.at("pool_type"));
+  CHECK(attr_store.count("data_format"));
+  auto data_format = absl::get<std::string>(attrs.attr_store.at("data_format"));
 
-  int height_axis = -1;
-  int width_axis  = -1;
-  std::string data_format =
-      attr_store.count("data_format") ? absl::get<std::string>(attrs.attr_store.at("data_format")) : "NCHW";
-  if (data_format == "AnyLayout" || data_format == "NCHW") {
-    data_format = "NCHW";
-    height_axis = 2;
-    width_axis  = 3;
-  } else if (data_format == "NHWC") {
-    height_axis = 1;
-    width_axis  = 2;
-  } else {
-    LOG(FATAL) << "Unsupported data_format for pool_grad op: " << data_format;
-  }
+  // int height_axis = -1;
+  // int width_axis  = -1;
+  // std::string data_format =
+  //     attr_store.count("data_format") ? absl::get<std::string>(attrs.attr_store.at("data_format")) : "NCHW";
+  // if (data_format == "AnyLayout" || data_format == "NCHW") {
+  //   data_format = "NCHW";
+  //   height_axis = 2;
+  //   width_axis  = 3;
+  // } else if (data_format == "NHWC") {
+  //   height_axis = 1;
+  //   width_axis  = 2;
+  // } else {
+  //   LOG(FATAL) << "Unsupported data_format for pool_grad op: " << data_format;
+  // }
 
-  std::vector<Expr> input       = inputs[0]->shape;  // 'x'
-  std::string padding_algorithm = attr_store.count("padding_algorithm")
-                                      ? absl::get<std::string>(attrs.attr_store.at("padding_algorithm"))
-                                      : "EXPLICIT";
-  if (padding_algorithm == "VALID") {
-    padding = {0, 0};
-  } else if (padding_algorithm == "SAME") {
-    int out_size_h = (input[height_axis].as_int32() + stride[0] - 1) / stride[0];
-    int out_size_w = (input[width_axis].as_int32() + stride[1] - 1) / stride[1];
-    int pad_sum_h  = std::max((out_size_h - 1) * stride[0] + kernel[0] - input[height_axis].as_int32(), 0);
-    int pad_sum_w  = std::max((out_size_w - 1) * stride[1] + kernel[1] - input[width_axis].as_int32(), 0);
-    int pad_w      = pad_sum_h / 2;
-    int pad_h      = pad_sum_w / 2;
-    padding        = {pad_h, pad_w};
-  }
+  // std::vector<Expr> input       = inputs[0]->shape;  // 'x'
+  // std::string padding_algorithm = attr_store.count("padding_algorithm")
+  //                                     ? absl::get<std::string>(attrs.attr_store.at("padding_algorithm"))
+  //                                     : "EXPLICIT";
+  // if (padding_algorithm == "VALID") {
+  //   padding = {0, 0};
+  // } else if (padding_algorithm == "SAME") {
+  //   int out_size_h = (input[height_axis].as_int32() + stride[0] - 1) / stride[0];
+  //   int out_size_w = (input[width_axis].as_int32() + stride[1] - 1) / stride[1];
+  //   int pad_sum_h  = std::max((out_size_h - 1) * stride[0] + kernel[0] - input[height_axis].as_int32(), 0);
+  //   int pad_sum_w  = std::max((out_size_w - 1) * stride[1] + kernel[1] - input[width_axis].as_int32(), 0);
+  //   int pad_w      = pad_sum_h / 2;
+  //   int pad_h      = pad_sum_w / 2;
+  //   padding        = {pad_h, pad_w};
+  // }
 
-  bool global_pooling =
-      attr_store.count("global_pooling") ? absl::get<bool>(attrs.attr_store.at("global_pooling")) : false;
-  if (global_pooling) {
-    kernel  = {input[height_axis].as_int32(), input[width_axis].as_int32()};
-    padding = {0, 0};
-  }
+  // bool global_pooling =
+  //     attr_store.count("global_pooling") ? absl::get<bool>(attrs.attr_store.at("global_pooling")) : false;
+  // if (global_pooling) {
+  //   kernel  = {input[height_axis].as_int32(), input[width_axis].as_int32()};
+  //   padding = {0, 0};
+  // }
 
-  bool adaptive = attr_store.count("adaptive") ? absl::get<bool>(attrs.attr_store.at("adaptive")) : false;
-  if (adaptive) {
-    padding = {0, 0};
-  }
+  // bool adaptive = attr_store.count("adaptive") ? absl::get<bool>(attrs.attr_store.at("adaptive")) : false;
+  // if (adaptive) {
+  //   padding = {0, 0};
+  // }
 
   auto exclusive             = absl::get<bool>(attrs.attr_store.at("exclusive"));
   cudnnPoolingMode_t mode    = pool_type == "max" ? CUDNN_POOLING_MAX
                                                   : (exclusive ? CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING
                                                                : CUDNN_POOLING_AVERAGE_COUNT_INCLUDE_PADDING);
   cudnnTensorFormat_t format = data_format == "NCHW" ? CUDNN_TENSOR_NCHW : CUDNN_TENSOR_NHWC;
-
-  std::vector<Expr> output = inputs[1]->shape;  // 'y'
+  std::vector<Expr> input    = inputs[0]->shape;  // 'x'
+  std::vector<Expr> output   = inputs[1]->shape;  // 'y'
   // if format is nhwc
   if (format == CUDNN_TENSOR_NHWC) {
     input  = {input[0], input[3], input[1], input[2]};
