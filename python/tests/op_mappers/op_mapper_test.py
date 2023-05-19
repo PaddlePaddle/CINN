@@ -26,6 +26,8 @@ from cinn.frontend import NetBuilder, PaddleModelConvertor
 from cinn.common import is_compiled_with_cuda
 from cinn.framework import Scope
 
+import sys
+sys.path.append("/work/dev_CINN/build/python/tests")
 from tests.ops.op_test import OpTest, OpTestTool
 
 logging.basicConfig(level=os.environ.get('LOG_LEVEL', 'INFO').upper())
@@ -278,6 +280,13 @@ class OpMapperTest(OpTest):
             self.feed_data,
             fetch_list=self.fetch_targets,
             return_numpy=True)
+
+        # NOTE: The unittest of `test_reduce_op`, `test_argmax_op`, `test_argmin_op` will
+        # output 0D-Tensor, hence we need to reshape them into 1D-Tensor temporarily.
+        # After corresponding CINN op supports 0D-Tensor, this trick can be removed safely.
+        for i in range(len(results)):
+            if len(results[i].shape) == 0:
+                results[i] = results[i].reshape(1)
 
         logger.debug(msg="Paddle result:")
         self.paddle_outputs = self.__remove_skip_outputs(results)
