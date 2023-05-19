@@ -212,7 +212,7 @@ struct CINN_ALIGN(2) bfloat16 {
 };
 
 __host__ __device__ inline bfloat16 operator+(const bfloat16& a, const bfloat16& b) {
-#if defined(CINN_CUDA_BF16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1100
+#if defined(CINN_CUDA_BF16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
   return bfloat16(__hadd(a.to_nv_bfloat16(), b.to_nv_bfloat16()));
 #else
   return bfloat16(static_cast<float>(a) + static_cast<float>(b));
@@ -220,7 +220,7 @@ __host__ __device__ inline bfloat16 operator+(const bfloat16& a, const bfloat16&
 }
 
 __host__ __device__ inline bfloat16 operator-(const bfloat16& a, const bfloat16& b) {
-#if defined(CINN_CUDA_BF16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1100
+#if defined(CINN_CUDA_BF16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
   return bfloat16(__hsub(a.to_nv_bfloat16(), b.to_nv_bfloat16()));
 #else
   return bfloat16(static_cast<float>(a) - static_cast<float>(b));
@@ -228,7 +228,7 @@ __host__ __device__ inline bfloat16 operator-(const bfloat16& a, const bfloat16&
 }
 
 __host__ __device__ inline bfloat16 operator*(const bfloat16& a, const bfloat16& b) {
-#if defined(CINN_CUDA_BF16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1100
+#if defined(CINN_CUDA_BF16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
   return bfloat16(__hmul(a.to_nv_bfloat16(), b.to_nv_bfloat16()));
 #else
   return bfloat16(static_cast<float>(a) * static_cast<float>(b));
@@ -236,7 +236,7 @@ __host__ __device__ inline bfloat16 operator*(const bfloat16& a, const bfloat16&
 }
 
 __host__ __device__ inline bfloat16 operator/(const bfloat16& a, const bfloat16& b) {
-#if defined(CINN_CUDA_BF16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1100
+#if defined(CINN_CUDA_BF16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
   return bfloat16(__hdiv(a.to_nv_bfloat16(), b.to_nv_bfloat16()));
 #else
   return bfloat16(static_cast<float>(a) / static_cast<float>(b));
@@ -281,7 +281,7 @@ __host__ __device__ inline bfloat16 raw_uint16_to_bfloat16(uint16_t a) {
 
 // Comparison operators
 __host__ __device__ inline bool operator==(const bfloat16& a, const bfloat16& b) {
-#if defined(CINN_CUDA_BF16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1100
+#if defined(CINN_CUDA_BF16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
   return __heq(a.to_nv_bfloat16(), b.to_nv_bfloat16());
 #else
   return static_cast<float>(a) == static_cast<float>(b);
@@ -289,7 +289,7 @@ __host__ __device__ inline bool operator==(const bfloat16& a, const bfloat16& b)
 }
 
 __host__ __device__ inline bool operator!=(const bfloat16& a, const bfloat16& b) {
-#if defined(CINN_CUDA_BF16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1100
+#if defined(CINN_CUDA_BF16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
   return __hne(a.to_nv_bfloat16(), b.to_nv_bfloat16());
 #else
   return static_cast<float>(a) != static_cast<float>(b);
@@ -297,7 +297,7 @@ __host__ __device__ inline bool operator!=(const bfloat16& a, const bfloat16& b)
 }
 
 __host__ __device__ inline bool operator<(const bfloat16& a, const bfloat16& b) {
-#if defined(CINN_CUDA_BF16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1100
+#if defined(CINN_CUDA_BF16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
   return __hlt(a.to_nv_bfloat16(), b.to_nv_bfloat16());
 #else
   return static_cast<float>(a) < static_cast<float>(b);
@@ -305,7 +305,7 @@ __host__ __device__ inline bool operator<(const bfloat16& a, const bfloat16& b) 
 }
 
 __host__ __device__ inline bool operator<=(const bfloat16& a, const bfloat16& b) {
-#if defined(CINN_CUDA_BF16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1100
+#if defined(CINN_CUDA_BF16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
   return __hle(a.to_nv_bfloat16(), b.to_nv_bfloat16());
 #else
   return static_cast<float>(a) <= static_cast<float>(b);
@@ -313,7 +313,7 @@ __host__ __device__ inline bool operator<=(const bfloat16& a, const bfloat16& b)
 }
 
 __host__ __device__ inline bool operator>(const bfloat16& a, const bfloat16& b) {
-#if defined(CINN_CUDA_BF16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1100
+#if defined(CINN_CUDA_BF16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
   return __hgt(a.to_nv_bfloat16(), b.to_nv_bfloat16());
 #else
   return static_cast<float>(a) > static_cast<float>(b);
@@ -321,21 +321,15 @@ __host__ __device__ inline bool operator>(const bfloat16& a, const bfloat16& b) 
 }
 
 __host__ __device__ inline bool operator>=(const bfloat16& a, const bfloat16& b) {
-#if defined(CINN_CUDA_BF16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1100
+#if defined(CINN_CUDA_BF16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
   return __hge(a.to_nv_bfloat16(), b.to_nv_bfloat16());
 #else
   return static_cast<float>(a) >= static_cast<float>(b);
 #endif
 }
 
-// #if defined(CINN_CUDA_BF16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1100
-//   return bfloat16( (a.to_nv_bfloat16(), b.to_nv_bfloat16()));
-// #else
-
-// #endif
-
 __host__ __device__ inline bool(isnan)(const bfloat16& a) {
-#if defined(CINN_CUDA_BF16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1100
+#if defined(CINN_CUDA_BF16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
   return __hisnan(a.to_nv_bfloat16());
 #else
   return (a.x & 0x7FFF) > 0x7F80;
@@ -343,7 +337,7 @@ __host__ __device__ inline bool(isnan)(const bfloat16& a) {
 }
 
 __host__ __device__ inline bool(isinf)(const bfloat16& a) {
-#if defined(CINN_CUDA_BF16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1100
+#if defined(CINN_CUDA_BF16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
   return __hisinf(a.to_nv_bfloat16());
 #else
   return (a.x & 0x7F80) == 0x7F80;
@@ -353,7 +347,7 @@ __host__ __device__ inline bool(isinf)(const bfloat16& a) {
 __host__ __device__ inline bool(isfinite)(const bfloat16& a) { return !((isnan)(a)) && !((isinf)(a)); }
 
 __host__ __device__ inline bfloat16(abs)(const bfloat16& a) {
-#if defined(CINN_CUDA_BF16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1100
+#if defined(CINN_CUDA_BF16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
   return __habs(a.to_nv_bfloat16());
 #else
   return bfloat16(std::abs(static_cast<float>(a)));
