@@ -17,7 +17,6 @@
 import unittest
 import numpy as np
 from op_test import OpTest, OpTestTool
-from op_test_helper import TestCaseHelper
 import paddle
 import cinn
 from cinn.frontend import *
@@ -28,12 +27,10 @@ from cinn.common import *
                     "x86 test will be skipped due to timeout.")
 class TestUnaryOp(OpTest):
     def setUp(self):
-        print(f"\nRunning {self.__class__.__name__}: {self.case}")
-        self.prepare_inputs()
+        self.init_case()
 
-    def prepare_inputs(self):
-        self.x_np = self.random(
-            shape=self.case["x_shape"], dtype=self.case["x_dtype"])
+    def init_case(self):
+        self.inputs = {"x": self.random([32, 64], 'float32', -10.0, 10.0)}
 
     def paddle_func(self, x):
         return paddle.abs(x)
@@ -42,7 +39,7 @@ class TestUnaryOp(OpTest):
         return builder.abs(x)
 
     def build_paddle_program(self, target):
-        x = paddle.to_tensor(self.x_np, stop_gradient=True)
+        x = paddle.to_tensor(self.inputs["x"], stop_gradient=True)
         out = self.paddle_func(x)
 
         self.paddle_outputs = [out]
@@ -50,389 +47,363 @@ class TestUnaryOp(OpTest):
     def build_cinn_program(self, target):
         builder = NetBuilder("unary_elementwise_test")
         x = builder.create_input(
-            self.nptype2cinntype(self.case["x_dtype"]), self.case["x_shape"],
-            "x")
+            self.nptype2cinntype(self.inputs["x"].dtype),
+            self.inputs["x"].shape, "x")
         out = self.cinn_func(builder, x)
 
         prog = builder.build()
-        res = self.get_cinn_output(prog, target, [x], [self.x_np], [out])
+        res = self.get_cinn_output(prog, target, [x], [self.inputs["x"]],
+                                   [out])
 
-        self.cinn_outputs = [res[0]]
+        self.cinn_outputs = res
 
     def test_check_results(self):
         self.check_outputs_and_grads()
 
 
-class TestTrigon(TestUnaryOp):
-    def paddle_func(self, x):
-        op_type = self.case["op_type"]
-        if op_type == "sin":
-            return paddle.sin(x)
-        elif op_type == "cos":
-            return paddle.cos(x)
-        elif op_type == "tan":
-            return paddle.tan(x)
-        elif op_type == "sinh":
-            return paddle.sinh(x)
-        elif op_type == "cosh":
-            return paddle.cosh(x)
-        elif op_type == "tanh":
-            return paddle.tanh(x)
-
-    def cinn_func(self, builder, x):
-        op_type = self.case["op_type"]
-        if op_type == "sin":
-            return builder.sin(x)
-        elif op_type == "cos":
-            return builder.cos(x)
-        elif op_type == "tan":
-            return builder.tan(x)
-        elif op_type == "sinh":
-            return builder.sinh(x)
-        elif op_type == "cosh":
-            return builder.cosh(x)
-        elif op_type == "tanh":
-            return builder.tanh(x)
-
-
-class TestUnaryTrigon(TestCaseHelper):
-    def init_attrs(self):
-        self.class_name = "TestUnaryOpCase"
-        self.cls = TestTrigon
-        self.inputs = [
-            {
-                "x_shape": [1],
-            },
-            {
-                "x_shape": [1024],
-            },
-            {
-                "x_shape": [32, 64],
-            },
-            {
-                "x_shape": [16, 8, 4, 2],
-            },
-        ]
-        self.dtypes = [
-            {
-                "x_dtype": "float16",
-                "max_relative_error": 1e-3
-            },
-            {
-                "x_dtype": "float32",
-            },
-            {
-                "x_dtype": "float64",
-            },
-        ]
-        self.attrs = [{
-            "op_type": "sin"
-        }, {
-            "op_type": "cos"
-        }, {
-            "op_type": "tan"
-        }, {
-            "op_type": "sinh"
-        }, {
-            "op_type": "cosh"
-        }, {
-            "op_type": "tanh"
-        }]
-
-
-class TestArcTrigon(TestUnaryOp):
-    def prepare_inputs(self):
-        if self.case["op_type"] == 'acosh':
-            self.x_np = self.random(
-                shape=self.case["x_shape"],
-                dtype=self.case["x_dtype"],
-                low=1.0,
-                high=100.0)
-        else:
-            self.x_np = self.random(
-                shape=self.case["x_shape"],
-                dtype=self.case["x_dtype"],
-                low=-1.0,
-                high=1.0)
+class TestSqrtOp(TestUnaryOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([32, 64], 'float32', 1.0, 1000.0)}
 
     def paddle_func(self, x):
-        op_type = self.case["op_type"]
-        if op_type == "asin":
-            return paddle.asin(x)
-        elif op_type == "acos":
-            return paddle.acos(x)
-        elif op_type == "atan":
-            return paddle.atan(x)
-        elif op_type == "asinh":
-            return paddle.asinh(x)
-        elif op_type == "acosh":
-            return paddle.acosh(x)
-        elif op_type == "atanh":
-            return paddle.atanh(x)
+        return paddle.sqrt(x)
 
     def cinn_func(self, builder, x):
-        op_type = self.case["op_type"]
-        if op_type == "asin":
-            return builder.asin(x)
-        elif op_type == "acos":
-            return builder.acos(x)
-        elif op_type == "atan":
-            return builder.atan(x)
-        elif op_type == "asinh":
-            return builder.asinh(x)
-        elif op_type == "acosh":
-            return builder.acosh(x)
-        elif op_type == "atanh":
-            return builder.atanh(x)
+        return builder.sqrt(x)
 
 
-class TestUnaryArcTrigon(TestCaseHelper):
-    def init_attrs(self):
-        self.class_name = "TestUnaryOpCase"
-        self.cls = TestArcTrigon
-        self.inputs = [
-            {
-                "x_shape": [1],
-            },
-            {
-                "x_shape": [1024],
-            },
-            {
-                "x_shape": [32, 64],
-            },
-            {
-                "x_shape": [16, 8, 4, 2],
-            },
-        ]
-        self.dtypes = [
-            {
-                "x_dtype": "float16",
-                "max_relative_error": 1e-3
-            },
-            {
-                "x_dtype": "float32",
-            },
-            {
-                "x_dtype": "float64",
-            },
-        ]
-        self.attrs = [{
-            "op_type": "asin"
-        }, {
-            "op_type": "acos"
-        }, {
-            "op_type": "atan"
-        }, {
-            "op_type": "asinh"
-        }, {
-            "op_type": "acosh"
-        }, {
-            "op_type": "atanh"
-        }]
+class TestSqrtOpFP64(TestSqrtOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([32, 64], 'float64', 1.0, 1000.0)}
 
 
-# class TestSqrtOp(TestUnaryOp):
-#     def init_case(self):
-#         self.inputs = {"x": self.random([32, 64], 'float32', 1.0, 1000.0)}
+class TestReluOp(TestUnaryOp):
+    def paddle_func(self, x):
+        return paddle.nn.functional.relu(x)
 
-#     def paddle_func(self, x):
-#         return paddle.sqrt(x)
+    def cinn_func(self, builder, x):
+        return builder.relu(x)
 
-#     def cinn_func(self, builder, x):
-#         return builder.sqrt(x)
 
-# class TestSqrtOpFP64(TestSqrtOp):
-#     def init_case(self):
-#         self.inputs = {"x": self.random([32, 64], 'float64', 1.0, 1000.0)}
+class TestSigmoidOp(TestUnaryOp):
+    def paddle_func(self, x):
+        return paddle.nn.functional.sigmoid(x)
 
-# class TestReluOp(TestUnaryOp):
-#     def paddle_func(self, x):
-#         return paddle.nn.functional.relu(x)
+    def cinn_func(self, builder, x):
+        return builder.sigmoid(x)
 
-#     def cinn_func(self, builder, x):
-#         return builder.relu(x)
 
-# class TestSigmoidOp(TestUnaryOp):
-#     def paddle_func(self, x):
-#         return paddle.nn.functional.sigmoid(x)
+class TestIdentityOp(TestUnaryOp):
+    def paddle_func(self, x):
+        return paddle.assign(x)
 
-#     def cinn_func(self, builder, x):
-#         return builder.sigmoid(x)
+    def cinn_func(self, builder, x):
+        return builder.identity(x)
 
-# class TestIdentityOp(TestUnaryOp):
-#     def paddle_func(self, x):
-#         return paddle.assign(x)
 
-#     def cinn_func(self, builder, x):
-#         return builder.identity(x)
+class TestExpOp(TestUnaryOp):
+    def paddle_func(self, x):
+        return paddle.exp(x)
 
-# class TestExpOp(TestUnaryOp):
-#     def paddle_func(self, x):
-#         return paddle.exp(x)
+    def cinn_func(self, builder, x):
+        return builder.exp(x)
 
-#     def cinn_func(self, builder, x):
-#         return builder.exp(x)
 
-# class TestExpOpFP64(TestExpOp):
-#     def init_case(self):
-#         self.inputs = {"x": self.random([32, 64], 'float64', -10.0, 10.0)}
+class TestExpOpFP64(TestExpOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([32, 64], 'float64', -10.0, 10.0)}
 
-# class TestErfOp(TestUnaryOp):
-#     def paddle_func(self, x):
-#         return paddle.erf(x)
 
-#     def cinn_func(self, builder, x):
-#         return builder.erf(x)
+class TestErfOp(TestUnaryOp):
+    def paddle_func(self, x):
+        return paddle.erf(x)
 
-# class TestRsqrtOp(TestUnaryOp):
-#     def init_case(self):
-#         self.inputs = {"x": self.random([32, 64], 'float32', 0.00001, 1.0)}
+    def cinn_func(self, builder, x):
+        return builder.erf(x)
 
-#     def paddle_func(self, x):
-#         return paddle.rsqrt(x)
 
-#     def cinn_func(self, builder, x):
-#         return builder.rsqrt(x)
+class TestRsqrtOp(TestUnaryOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([32, 64], 'float32', 0.00001, 1.0)}
 
-# class TestLogOp(TestUnaryOp):
-#     def init_case(self):
-#         self.inputs = {"x": self.random([32, 64], 'float32', 1.0, 10.0)}
+    def paddle_func(self, x):
+        return paddle.rsqrt(x)
 
-#     def paddle_func(self, x):
-#         return paddle.log(x)
+    def cinn_func(self, builder, x):
+        return builder.rsqrt(x)
 
-#     def cinn_func(self, builder, x):
-#         return builder.log(x)
 
-# class TestLog2Op(TestUnaryOp):
-#     def init_case(self):
-#         self.inputs = {"x": self.random([32, 64], 'float32', 1.0, 10.0)}
+class TestLogOp(TestUnaryOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([32, 64], 'float32', 1.0, 10.0)}
 
-#     def paddle_func(self, x):
-#         return paddle.log2(x)
+    def paddle_func(self, x):
+        return paddle.log(x)
 
-#     def cinn_func(self, builder, x):
-#         return builder.log2(x)
+    def cinn_func(self, builder, x):
+        return builder.log(x)
 
-# class TestLog10Op(TestUnaryOp):
-#     def init_case(self):
-#         self.inputs = {"x": self.random([32, 64], 'float32', 1.0, 10.0)}
 
-#     def paddle_func(self, x):
-#         return paddle.log10(x)
+class TestLog2Op(TestUnaryOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([32, 64], 'float32', 1.0, 10.0)}
 
-#     def cinn_func(self, builder, x):
-#         return builder.log10(x)
+    def paddle_func(self, x):
+        return paddle.log2(x)
 
-# class TestFloorOp(TestUnaryOp):
-#     def paddle_func(self, x):
-#         return paddle.floor(x)
+    def cinn_func(self, builder, x):
+        return builder.log2(x)
 
-#     def cinn_func(self, builder, x):
-#         return builder.floor(x)
 
-# class TestCeilOp(TestUnaryOp):
-#     def paddle_func(self, x):
-#         return paddle.ceil(x)
+class TestLog10Op(TestUnaryOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([32, 64], 'float32', 1.0, 10.0)}
 
-#     def cinn_func(self, builder, x):
-#         return builder.ceil(x)
+    def paddle_func(self, x):
+        return paddle.log10(x)
 
-# class TestRoundOp(TestUnaryOp):
-#     def paddle_func(self, x):
-#         return paddle.round(x)
+    def cinn_func(self, builder, x):
+        return builder.log10(x)
 
-#     def cinn_func(self, builder, x):
-#         return builder.round(x)
 
-# class TestTruncOp(TestUnaryOp):
-#     def paddle_func(self, x):
-#         return paddle.trunc(x)
+class TestFloorOp(TestUnaryOp):
+    def paddle_func(self, x):
+        return paddle.floor(x)
 
-#     def cinn_func(self, builder, x):
-#         return builder.trunc(x)
+    def cinn_func(self, builder, x):
+        return builder.floor(x)
 
-# class TestLogicalNotOp(TestUnaryOp):
-#     def init_case(self):
-#         self.inputs = {"x": self.random([32, 64], 'bool')}
 
-#     def paddle_func(self, x):
-#         return paddle.logical_not(x)
+class TestCeilOp(TestUnaryOp):
+    def paddle_func(self, x):
+        return paddle.ceil(x)
 
-#     def cinn_func(self, builder, x):
-#         return builder.logical_not(x)
+    def cinn_func(self, builder, x):
+        return builder.ceil(x)
 
-# class TestBitwiseNotOp(TestUnaryOp):
-#     def init_case(self):
-#         self.inputs = {"x": self.random([32, 64], 'int32', 1, 10000)}
 
-#     def paddle_func(self, x):
-#         return paddle.bitwise_not(x)
+class TestRoundOp(TestUnaryOp):
+    def paddle_func(self, x):
+        return paddle.round(x)
 
-#     def cinn_func(self, builder, x):
-#         return builder.bitwise_not(x)
+    def cinn_func(self, builder, x):
+        return builder.round(x)
 
-# class TestSignOp(TestUnaryOp):
-#     def paddle_func(self, x):
-#         return paddle.sign(x)
 
-#     def cinn_func(self, builder, x):
-#         return builder.sign(x)
+class TestTruncOp(TestUnaryOp):
+    def paddle_func(self, x):
+        return paddle.trunc(x)
 
-# class TestAbsOp(TestUnaryOp):
-#     def paddle_func(self, x):
-#         return paddle.abs(x)
+    def cinn_func(self, builder, x):
+        return builder.trunc(x)
 
-#     def cinn_func(self, builder, x):
-#         return builder.abs(x)
 
-# class TestIsNanOp(TestUnaryOp):
-#     def paddle_func(self, x):
-#         return paddle.isnan(x)
+class TestSinOp(TestUnaryOp):
+    def paddle_func(self, x):
+        return paddle.sin(x)
 
-#     def cinn_func(self, builder, x):
-#         return builder.is_nan(x)
+    def cinn_func(self, builder, x):
+        return builder.sin(x)
 
-# class TestIsNanCase1(TestIsNanOp):
-#     def init_case(self):
-#         self.inputs = {"x": self.random([32, 64])}
-#         self.inputs["x"][0] = [np.nan] * 64
 
-# class TestIsFiniteOp(TestUnaryOp):
-#     def paddle_func(self, x):
-#         return paddle.isfinite(x)
+class TestCosOp(TestUnaryOp):
+    def paddle_func(self, x):
+        return paddle.cos(x)
 
-#     def cinn_func(self, builder, x):
-#         return builder.is_finite(x)
+    def cinn_func(self, builder, x):
+        return builder.cos(x)
 
-# class TestIsFiniteCase1(TestIsFiniteOp):
-#     def init_case(self):
-#         self.inputs = {"x": self.random([32, 64])}
-#         self.inputs["x"][0] = [np.inf] * 64
 
-# class TestIsInfOp(TestUnaryOp):
-#     def paddle_func(self, x):
-#         return paddle.isinf(x)
+class TestTanOp(TestUnaryOp):
+    def paddle_func(self, x):
+        return paddle.tan(x)
 
-#     def cinn_func(self, builder, x):
-#         return builder.is_inf(x)
+    def cinn_func(self, builder, x):
+        return builder.tan(x)
 
-# class TestIsInfCase1(TestIsInfOp):
-#     def init_case(self):
-#         self.inputs = {"x": self.random([32, 64])}
-#         self.inputs["x"][0] = [np.inf] * 64
 
-# class TestNegOp(TestUnaryOp):
-#     def paddle_func(self, x):
-#         return paddle.neg(x)
+class TestSinhOp(TestUnaryOp):
+    def paddle_func(self, x):
+        return paddle.sinh(x)
 
-#     def cinn_func(self, builder, x):
-#         return builder.negative(x)
+    def cinn_func(self, builder, x):
+        return builder.sinh(x)
 
-# class TestNegCase1(TestNegOp):
-#     def init_case(self):
-#         self.inputs = {"x": self.random([32, 64], low=-1.0, high=1.0)}
+
+class TestCoshOp(TestUnaryOp):
+    def paddle_func(self, x):
+        return paddle.cosh(x)
+
+    def cinn_func(self, builder, x):
+        return builder.cosh(x)
+
+
+class TestTanhOp(TestUnaryOp):
+    def paddle_func(self, x):
+        return paddle.tanh(x)
+
+    def cinn_func(self, builder, x):
+        return builder.tanh(x)
+
+
+class TestAsinOp(TestUnaryOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([32, 64], 'float32', -1.0, 1.0)}
+
+    def paddle_func(self, x):
+        return paddle.asin(x)
+
+    def cinn_func(self, builder, x):
+        return builder.asin(x)
+
+
+class TestAcosOp(TestUnaryOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([32, 64], 'float32', -1.0, 1.0)}
+
+    def paddle_func(self, x):
+        return paddle.acos(x)
+
+    def cinn_func(self, builder, x):
+        return builder.acos(x)
+
+
+class TestAtanOp(TestUnaryOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([32, 64], 'float32', -1.0, 1.0)}
+
+    def paddle_func(self, x):
+        return paddle.atan(x)
+
+    def cinn_func(self, builder, x):
+        return builder.atan(x)
+
+
+class TestAsinhOp(TestUnaryOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([32, 64], 'float32', -1.0, 1.0)}
+
+    def paddle_func(self, x):
+        return paddle.asinh(x)
+
+    def cinn_func(self, builder, x):
+        return builder.asinh(x)
+
+
+class TestAcoshOp(TestUnaryOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([32, 64], 'float32', 1.0, 100.0)}
+
+    def paddle_func(self, x):
+        return paddle.acosh(x)
+
+    def cinn_func(self, builder, x):
+        return builder.acosh(x)
+
+
+class TestAtanhOp(TestUnaryOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([32, 64], 'float32', -1.0, 1.0)}
+
+    def paddle_func(self, x):
+        return paddle.atanh(x)
+
+    def cinn_func(self, builder, x):
+        return builder.atanh(x)
+
+
+class TestLogicalNotOp(TestUnaryOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([32, 64], 'bool')}
+
+    def paddle_func(self, x):
+        return paddle.logical_not(x)
+
+    def cinn_func(self, builder, x):
+        return builder.logical_not(x)
+
+
+class TestBitwiseNotOp(TestUnaryOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([32, 64], 'int32', 1, 10000)}
+
+    def paddle_func(self, x):
+        return paddle.bitwise_not(x)
+
+    def cinn_func(self, builder, x):
+        return builder.bitwise_not(x)
+
+
+class TestSignOp(TestUnaryOp):
+    def paddle_func(self, x):
+        return paddle.sign(x)
+
+    def cinn_func(self, builder, x):
+        return builder.sign(x)
+
+
+class TestAbsOp(TestUnaryOp):
+    def paddle_func(self, x):
+        return paddle.abs(x)
+
+    def cinn_func(self, builder, x):
+        return builder.abs(x)
+
+
+class TestIsNanOp(TestUnaryOp):
+    def paddle_func(self, x):
+        return paddle.isnan(x)
+
+    def cinn_func(self, builder, x):
+        return builder.is_nan(x)
+
+
+class TestIsNanCase1(TestIsNanOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([32, 64])}
+        self.inputs["x"][0] = [np.nan] * 64
+
+
+class TestIsFiniteOp(TestUnaryOp):
+    def paddle_func(self, x):
+        return paddle.isfinite(x)
+
+    def cinn_func(self, builder, x):
+        return builder.is_finite(x)
+
+
+class TestIsFiniteCase1(TestIsFiniteOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([32, 64])}
+        self.inputs["x"][0] = [np.inf] * 64
+
+
+class TestIsInfOp(TestUnaryOp):
+    def paddle_func(self, x):
+        return paddle.isinf(x)
+
+    def cinn_func(self, builder, x):
+        return builder.is_inf(x)
+
+
+class TestIsInfCase1(TestIsInfOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([32, 64])}
+        self.inputs["x"][0] = [np.inf] * 64
+
+
+class TestNegOp(TestUnaryOp):
+    def paddle_func(self, x):
+        return paddle.neg(x)
+
+    def cinn_func(self, builder, x):
+        return builder.negative(x)
+
+
+class TestNegCase1(TestNegOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([32, 64], low=-1.0, high=1.0)}
+
 
 if __name__ == "__main__":
-    TestUnaryTrigon().run()
-    TestUnaryArcTrigon().run()
+    unittest.main()
