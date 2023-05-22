@@ -26,7 +26,6 @@ from cinn import ir
 from cinn import lang
 from cinn.common import *
 import numpy as np
-import paddle.fluid as fluid
 import sys
 
 assert len(sys.argv) == 1 + 2 + 1  # model and enable_gpu count
@@ -43,13 +42,13 @@ naive_model_dir = sys.argv.pop()
     def paddle_verify(self, result):
         paddle.enable_static()
 
-        a = fluid.layers.data(name='A', shape=[24, 56, 56], dtype='float32')
-        b = fluid.layers.data(name='B', shape=[24, 56, 56], dtype='float32')
-        c = fluid.layers.elementwise_add(a, b)
-        d = fluid.layers.relu(c)
-        e = fluid.initializer.NumpyArrayInitializer(
+        a = static.data(name='A', shape=[24, 56, 56], dtype='float32')
+        b = static.data(name='B', shape=[24, 56, 56], dtype='float32')
+        c = paddle.add(a, b)
+        d = paddle.nn.functional.relu(c)
+        e = paddle.nn.initializer.NumpyArrayInitializer(
             np.array(result[2]).reshape((144, 24, 1, 1)).astype("float32"))
-        f = fluid.layers.conv2d(
+        f = static.nn.conv2d(
             input=d,
             num_filters=144,
             filter_size=1,
@@ -57,11 +56,11 @@ naive_model_dir = sys.argv.pop()
             padding=0,
             dilation=1,
             param_attr=e)
-        g = fluid.layers.scale(f, scale=2.0, bias=0.5)
-        res = fluid.layers.softmax(g, axis=1)
+        g = paddle.scale(f, scale=2.0, bias=0.5)
+        res = paddle.nn.functional.softmax(g, axis=1)
 
-        exe = fluid.Executor(fluid.CPUPlace())
-        exe.run(fluid.default_startup_program())
+        exe = static.Executor(paddle.CPUPlace())
+        exe.run(static.default_startup_program())
 
         x = np.array(result[0]).reshape((1, 24, 56, 56)).astype("float32")
         y = np.array(result[1]).reshape((1, 24, 56, 56)).astype("float32")

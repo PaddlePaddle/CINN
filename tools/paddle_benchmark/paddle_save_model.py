@@ -17,21 +17,22 @@ import sys, os
 import numpy as np
 import paddle
 import paddle.fluid as fluid
+import paddle.static as static
 
 #For paddlepaddle version >=2.0rc, we need to set paddle.enable_static()
 paddle.enable_static()
 
-a = fluid.data(name="A", shape=[512, 512], dtype='float32')
-b = fluid.data(name="B", shape=[512, 512], dtype='float32')
+a = static.data(name="A", shape=[512, 512], dtype='float32')
+b = static.data(name="B", shape=[512, 512], dtype='float32')
 
-label = fluid.layers.data(name="label", shape=[512, 512], dtype='float32')
+label = static.data(name="label", shape=[512, 512], dtype='float32')
 
-a1 = fluid.layers.mul(a, b)
+a1 = paddle.matmul(a, b)
 
-cpu = fluid.core.CPUPlace()
-loss = exe = fluid.Executor(cpu)
+cpu = paddle.CPUPlace()
+loss = exe = static.Executor(cpu)
 
-exe.run(fluid.default_startup_program())
+exe.run(static.default_startup_program())
 
 fluid.io.save_inference_model("./elementwise_add_model", [a.name, b.name],
                               [a1], exe)
