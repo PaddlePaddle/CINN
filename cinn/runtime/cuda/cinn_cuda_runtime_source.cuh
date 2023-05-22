@@ -185,21 +185,93 @@ __device__ inline long long int FN_INT64(pow)(long long int a, long long int b) 
 
 #define FN_BF16(func) cinn_nvgpu_##func##_bf16
 
-__device__ inline bfloat16 FN_BF16(ceil)(bfloat16 x) { return bfloat16(hceil(x.to_nv_bfloat16())); }
-__device__ inline bfloat16 FN_BF16(floor)(bfloat16 x) { return bfloat16(hfloor(x.to_nv_bfloat16())); }
-__device__ inline bfloat16 FN_BF16(round)(bfloat16 x) { return bfloat16(hrint(x.to_nv_bfloat16())); }
-__device__ inline bfloat16 FN_BF16(trunc)(bfloat16 x) { return bfloat16(htrunc(x.to_nv_bfloat16())); }
+__device__ inline bfloat16 FN_BF16(ceil)(bfloat16 x) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
+  return bfloat16(hceil(x.to_nv_bfloat16()));
+#else
+  return bfloat16(FN_FP32(ceil)(static_cast<float>(x)));
+#endif
+}
+__device__ inline bfloat16 FN_BF16(floor)(bfloat16 x) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
+  return bfloat16(hfloor(x.to_nv_bfloat16()));
+#else
+  return bfloat16(FN_FP32(floor)(static_cast<float>(x)));
+#endif
+}
+__device__ inline bfloat16 FN_BF16(round)(bfloat16 x) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
+  return bfloat16(hrint(x.to_nv_bfloat16()));
+#else
+  return bfloat16(FN_FP32(round)(static_cast<float>(x)));
+#endif
+}
+__device__ inline bfloat16 FN_BF16(trunc)(bfloat16 x) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
+  return bfloat16(htrunc(x.to_nv_bfloat16()));
+#else
+  return bfloat16(FN_FP32(trunc)(static_cast<float>(x)));
+#endif
+}
 
-__device__ inline bfloat16 FN_BF16(sin)(bfloat16 x) { return bfloat16(hsin(x.to_nv_bfloat16())); }
-__device__ inline bfloat16 FN_BF16(cos)(bfloat16 x) { return bfloat16(hcos(x.to_nv_bfloat16())); }
+__device__ inline bfloat16 FN_BF16(sin)(bfloat16 x) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
+  return bfloat16(hsin(x.to_nv_bfloat16()));
+#else
+  return bfloat16(FN_FP32(sin)(static_cast<float>(x)));
+#endif
+}
+__device__ inline bfloat16 FN_BF16(cos)(bfloat16 x) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
+  return bfloat16(hcos(x.to_nv_bfloat16()));
+#else
+  return bfloat16(FN_FP32(cos)(static_cast<float>(x)));
+#endif
+}
 
-__device__ inline bfloat16 FN_BF16(exp)(bfloat16 x) { return bfloat16(hexp(x.to_nv_bfloat16())); }
-__device__ inline bfloat16 FN_BF16(log)(bfloat16 x) { return bfloat16(hlog(x.to_nv_bfloat16())); }
-__device__ inline bfloat16 FN_BF16(log2)(bfloat16 x) { return bfloat16(hlog2(x.to_nv_bfloat16())); }
-__device__ inline bfloat16 FN_BF16(log10)(bfloat16 x) { return bfloat16(hlog10(x.to_nv_bfloat16())); }
+__device__ inline bfloat16 FN_BF16(exp)(bfloat16 x) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
+  return bfloat16(hexp(x.to_nv_bfloat16()));
+#else
+  return bfloat16(FN_FP32(exp)(static_cast<float>(x)));
+#endif
+}
+__device__ inline bfloat16 FN_BF16(log)(bfloat16 x) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
+  return bfloat16(hlog(x.to_nv_bfloat16()));
+#else
+  return bfloat16(FN_FP32(log)(static_cast<float>(x)));
+#endif
+}
+__device__ inline bfloat16 FN_BF16(log2)(bfloat16 x) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
+  return bfloat16(hlog2(x.to_nv_bfloat16()));
+#else
+  return bfloat16(FN_FP32(log2)(static_cast<float>(x)));
+#endif
+}
+__device__ inline bfloat16 FN_BF16(log10)(bfloat16 x) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
+  return bfloat16(hlog10(x.to_nv_bfloat16()));
+#else
+  return bfloat16(FN_FP32(log10)(static_cast<float>(x)));
+#endif
+}
 
-__device__ inline bfloat16 FN_BF16(sqrt)(bfloat16 x) { return bfloat16(hsqrt(x.to_nv_bfloat16())); }
-__device__ inline bfloat16 FN_BF16(rsqrt)(bfloat16 x) { return bfloat16(hrsqrt(x.to_nv_bfloat16())); }
+__device__ inline bfloat16 FN_BF16(sqrt)(bfloat16 x) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
+  return bfloat16(hsqrt(x.to_nv_bfloat16()));
+#else
+  return bfloat16(FN_FP32(sqrt)(static_cast<float>(x)));
+#endif
+}
+__device__ inline bfloat16 FN_BF16(rsqrt)(bfloat16 x) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
+  return bfloat16(hrsqrt(x.to_nv_bfloat16()));
+#else
+  return bfloat16(FN_FP32(rsqrt)(static_cast<float>(x)));
+#endif
+}
 
 __device__ inline bfloat16 FN_BF16(cbrt)(bfloat16 x) { return bfloat16(FN_FP32(cbrt)(static_cast<float>(x))); }
 
@@ -332,7 +404,7 @@ __device__ inline float cinn_min_fp32(const float left, const float right) { ret
 
 #ifdef CINN_CUDA_BF16
 
-#define EXPAND_REDUCE_BFP16_MACRO(MACRO, ...)                                           \
+#define EXPAND_REDUCE_BF16_MACRO(MACRO, ...)                                             \
   MACRO(sum_bf16, bfloat16(0.0), bfloat16, ##__VA_ARGS__)                                \
   MACRO(prod_bf16, bfloat16(1.0), bfloat16, ##__VA_ARGS__)                               \
   MACRO(max_bf16, cinn::common::raw_uint16_to_bfloat16(0xfbff), bfloat16, ##__VA_ARGS__) \
@@ -409,6 +481,10 @@ EXPAND_REDUCE_FP32_MACRO(CINN_WARP_SHUFFLE_INTERNAL_IMPL)
 EXPAND_REDUCE_FP64_MACRO(CINN_WARP_SHUFFLE_INTERNAL_IMPL)
 EXPAND_REDUCE_BOOL_MACRO(CINN_WARP_SHUFFLE_INTERNAL_IMPL)
 
+#ifdef CINN_CUDA_BF16
+EXPAND_REDUCE_BF16_MACRO(CINN_WARP_SHUFFLE_INTERNAL_IMPL)
+#endif
+
 #ifdef CINN_CUDA_FP16
 EXPAND_REDUCE_FP16_MACRO(CINN_WARP_SHUFFLE_INTERNAL_IMPL)
 #endif
@@ -429,6 +505,10 @@ EXPAND_REDUCE_INT64_MARCO(CINN_WARP_REDUCE_IMPL)
 EXPAND_REDUCE_FP32_MACRO(CINN_WARP_REDUCE_IMPL)
 EXPAND_REDUCE_FP64_MACRO(CINN_WARP_REDUCE_IMPL)
 EXPAND_REDUCE_BOOL_MACRO(CINN_WARP_REDUCE_IMPL)
+
+#ifdef CINN_CUDA_BF16
+EXPAND_REDUCE_BF16_MACRO(CINN_WARP_REDUCE_IMPL)
+#endif
 
 #ifdef CINN_CUDA_FP16
 EXPAND_REDUCE_FP16_MACRO(CINN_WARP_REDUCE_IMPL)
@@ -476,6 +556,10 @@ EXPAND_REDUCE_FP32_MACRO(CINN_BLOCK_REDUCE_INTERNAL_MACRO)
 EXPAND_REDUCE_FP64_MACRO(CINN_BLOCK_REDUCE_INTERNAL_MACRO)
 EXPAND_REDUCE_BOOL_MACRO(CINN_BLOCK_REDUCE_INTERNAL_MACRO)
 
+#ifdef CINN_CUDA_BF16
+EXPAND_REDUCE_BF16_MACRO(CINN_BLOCK_REDUCE_INTERNAL_MACRO)
+#endif
+
 #ifdef CINN_CUDA_FP16
 EXPAND_REDUCE_FP16_MACRO(CINN_BLOCK_REDUCE_INTERNAL_MACRO)
 #endif
@@ -498,6 +582,10 @@ EXPAND_REDUCE_FP32_MACRO(CINN_BLOCK_REDUCE_IMPL)
 EXPAND_REDUCE_FP64_MACRO(CINN_BLOCK_REDUCE_IMPL)
 EXPAND_REDUCE_BOOL_MACRO(CINN_BLOCK_REDUCE_IMPL)
 
+#ifdef CINN_CUDA_BF16
+EXPAND_REDUCE_BF16_MACRO(CINN_BLOCK_REDUCE_IMPL)
+#endif
+
 #ifdef CINN_CUDA_FP16
 EXPAND_REDUCE_FP16_MACRO(CINN_BLOCK_REDUCE_IMPL)
 #endif
@@ -509,6 +597,10 @@ EXPAND_REDUCE_FP16_MACRO(CINN_BLOCK_REDUCE_IMPL)
 #undef EXPAND_REDUCE_FP32_MACRO
 #undef EXPAND_REDUCE_FP64_MACRO
 #undef EXPAND_REDUCE_BOOL_MACRO
+
+#ifdef CINN_CUDA_BF16
+#undef EXPAND_REDUCE_BF16_MACRO
+#endif
 
 #ifdef CINN_CUDA_FP16
 #undef EXPAND_REDUCE_FP16_MACRO
@@ -728,6 +820,10 @@ __device__ int cinn_cuda_resize_bicubic(const int *buf,
 #undef FN_FP64
 #undef FN_INT32
 #undef FN_INT64
+
+#ifdef CINN_CUDA_BF16
+#undef FN_BF16
+#endif
 
 #ifdef CINN_CUDA_FP16
 #undef FN_FP16
