@@ -13,11 +13,13 @@
 # limitations under the License.
 
 import unittest
-import numpy as np
-from op_mapper_test import OpMapperTest, logger
 import paddle
+from op_mapper_test import OpMapperTest
+from cinn.common import *
 
 
+@unittest.skipIf(not is_compiled_with_cudnn(),
+                 "x86 test will be skipped due to timeout.")
 class TestPool2dOp(OpMapperTest):
     def init_input_data(self):
         self.feed_data = {"x": self.random([2, 3, 7, 7], "float64")}
