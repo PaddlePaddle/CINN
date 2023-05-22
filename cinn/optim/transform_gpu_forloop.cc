@@ -179,7 +179,8 @@ class ReplaceIndexToBindExpr : public ir::IRMutator<> {
     auto *schedule_block_realize = expr->As<ir::ScheduleBlockRealize>();
     CHECK(schedule_block_realize->schedule_block.As<ir::ScheduleBlock>());
     auto iter_values = schedule_block_realize->iter_values;
-    auto body_copy   = schedule_block_realize->schedule_block.As<ir::ScheduleBlock>()->body;
+    auto body        = schedule_block_realize->schedule_block.As<ir::ScheduleBlock>()->body;
+    auto body_copy   = IRCopy(body);
     auto iter_vars   = schedule_block_realize->schedule_block.As<ir::ScheduleBlock>()->iter_vars;
 
     CHECK_EQ(iter_values.size(), iter_vars.size());
@@ -187,6 +188,7 @@ class ReplaceIndexToBindExpr : public ir::IRMutator<> {
       ReplaceVarWithExpr(&body_copy, iter_vars[idx], iter_values[idx]);
     }
     ir::IRMutator<>::Visit(&body_copy, &body_copy);
+    schedule_block_realize->schedule_block.As<ir::ScheduleBlock>()->body = body_copy;
   }
 };
 
