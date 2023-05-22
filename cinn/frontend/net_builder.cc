@@ -663,7 +663,7 @@ Variable NetBuilder::Pool2d(const Variable& a,
   if (new_data_format == "AnyLayout") {
     new_data_format.assign("NCHW");
   }
-  CHECK(data_format == "NCHW" || data_format == "NHWC")
+  CHECK(new_data_format == "NCHW" || new_data_format == "NHWC")
       << "Data_format must be AnyLayout/NCHW/NHWC, but got: " << data_format;
   // Check padding_algorithm
   CHECK(padding_algorithm == "EXPLICIT" || padding_algorithm == "SAME" || padding_algorithm == "VALID")
@@ -726,7 +726,7 @@ Variable NetBuilder::Pool2dGrad(const Variable& x,
   if (new_data_format == "AnyLayout") {
     new_data_format.assign("NCHW");
   }
-  CHECK(data_format == "NCHW" || data_format == "NHWC")
+  CHECK(new_data_format == "NCHW" || new_data_format == "NHWC")
       << "Data_format must be AnyLayout/NCHW/NHWC, but got: " << data_format;
   // Check padding_algorithm
   CHECK(padding_algorithm == "EXPLICIT" || padding_algorithm == "SAME" || padding_algorithm == "VALID")
