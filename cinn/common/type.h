@@ -65,7 +65,7 @@ struct Type {
     Const        = 1,       // const.
     Handle       = 1 << 1,  // pointer type, such as `cinn_buffer_t*`.
     HandleHandle = 1 << 2,  // pointer of pointer, such as `cinn_buffer_t**`.
-    Reference    = 1 << 4,  // reference type, such as `&cinn_buffer_t`.
+    Reference    = 1 << 4,  // reference type, such as `cinn_buffer_t&`.
   };
 
   Type();
