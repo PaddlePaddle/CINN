@@ -343,22 +343,22 @@ CINN_REGISTER_HELPER(cuda_intrinsics) {
 
 #undef _REGISTER_CINN_NVGPU_GT_NUM
 
-#define _REGISTER_CINN_CUDA_INDEX_ADD(TYPE_SUFFIX, TYPE)                        \
-  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_cuda_index_add_##TYPE_SUFFIX, target) \
-      .SetRetType<TYPE>()                                                       \
-      .AddInputType<TYPE>()                                                     \
-      .AddInputType<int>()                                                      \
-      .AddInputType<cinn_buffer_t *>()                                          \
-      .AddInputType<int>()                                                      \
-      .AddInputType<int>()                                                      \
-      .AddInputType<cinn_buffer_t *>()                                          \
-      .AddInputType<int>()                                                      \
+#define _REGISTER_CINN_NVGPU_INDEX_ADD(TYPE_SUFFIX, TYPE)                        \
+  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_nvgpu_index_add_##TYPE_SUFFIX, target) \
+      .SetRetType<TYPE>()                                                        \
+      .AddInputType<TYPE>()                                                      \
+      .AddInputType<int>()                                                       \
+      .AddInputType<cinn_buffer_t *>()                                           \
+      .AddInputType<int>()                                                       \
+      .AddInputType<int>()                                                       \
+      .AddInputType<cinn_buffer_t *>()                                           \
+      .AddInputType<int>()                                                       \
       .End();
 
-  _REGISTER_CINN_CUDA_INDEX_ADD(fp32, float);
-  _REGISTER_CINN_CUDA_INDEX_ADD(fp64, double);
+  _REGISTER_CINN_NVGPU_INDEX_ADD(fp32, float);
+  _REGISTER_CINN_NVGPU_INDEX_ADD(fp64, double);
 
-#undef _REGISTER_CINN_CUDA_INDEX_ADD
+#undef _REGISTER_CINN_NVGPU_INDEX_ADD
 
   REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_cuda_resize_bilinear, target)
       .SetRetType<int>()

@@ -215,6 +215,7 @@ __device__ inline bool FN_BF16(isfinite)(bfloat16 x) { return cinn::common::isfi
 
 __device__ inline bfloat16 FN_BF16(erf)(bfloat16 x) { return bfloat16(FN_FP32(erf)(static_cast<float>(x))); }
 
+__device__ inline bfloat16 FN_BF16(tan)(bfloat16 x) { return bfloat16(FN_FP32(tan)(static_cast<float>(x))); }
 __device__ inline bfloat16 FN_BF16(sinh)(bfloat16 x) { return bfloat16(FN_FP32(sinh)(static_cast<float>(x))); }
 __device__ inline bfloat16 FN_BF16(cosh)(bfloat16 x) { return bfloat16(FN_FP32(cosh)(static_cast<float>(x))); }
 __device__ inline bfloat16 FN_BF16(tanh)(bfloat16 x) { return bfloat16(FN_FP32(tanh)(static_cast<float>(x))); }
@@ -268,6 +269,7 @@ __device__ inline bool FN_FP16(isfinite)(float16 x) { return cinn::common::isfin
 
 __device__ inline float16 FN_FP16(erf)(float16 x) { return float16(FN_FP32(erf)(static_cast<float>(x))); }
 
+__device__ inline float16 FN_FP16(tan)(float16 x) { return float16(FN_FP32(tan)(static_cast<float>(x))); }
 __device__ inline float16 FN_FP16(sinh)(float16 x) { return float16(FN_FP32(sinh)(static_cast<float>(x))); }
 __device__ inline float16 FN_FP16(cosh)(float16 x) { return float16(FN_FP32(cosh)(static_cast<float>(x))); }
 __device__ inline float16 FN_FP16(tanh)(float16 x) { return float16(FN_FP32(tanh)(static_cast<float>(x))); }
@@ -610,8 +612,8 @@ CINN_NVGPU_GT_NUM(int64, long long int)
 
 #undef CINN_NVGPU_GT_NUM
 
-#define CINN_CUDA_INDEX_ADD(TYPE_SUFFIX, TYPE)                                \
-  __device__ inline TYPE cinn_cuda_index_add_##TYPE_SUFFIX(const TYPE x,      \
+#define CINN_NVGPU_INDEX_ADD(TYPE_SUFFIX, TYPE)                                \
+  __device__ inline TYPE cinn_nvgpu_index_add_##TYPE_SUFFIX(const TYPE x,      \
                                             const int axis_indice,            \
                                             const TYPE *__restrict__ y,       \
                                             const int offset,                 \
@@ -629,10 +631,10 @@ CINN_NVGPU_GT_NUM(int64, long long int)
     return res;                                                               \
   }
 
-CINN_CUDA_INDEX_ADD(fp32, float)
-CINN_CUDA_INDEX_ADD(fp64, double)
+CINN_NVGPU_INDEX_ADD(fp32, float)
+CINN_NVGPU_INDEX_ADD(fp64, double)
 #ifdef CINN_CUDA_FP16
-CINN_CUDA_INDEX_ADD(fp16, float16)
+CINN_NVGPU_INDEX_ADD(fp16, float16)
 #endif
 
 #undef CINN_CUDA_INDEX_ADD

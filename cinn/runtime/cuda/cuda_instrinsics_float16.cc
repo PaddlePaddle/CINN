@@ -44,6 +44,7 @@ CINN_REGISTER_HELPER(cuda_intrinsics_float16) {
   REGISTER_EXTERN_FUNC_1_IN_1_FP16(trunc)
   REGISTER_EXTERN_FUNC_1_IN_1_FP16(sin)
   REGISTER_EXTERN_FUNC_1_IN_1_FP16(cos)
+  REGISTER_EXTERN_FUNC_1_IN_1_FP16(tan)
   REGISTER_EXTERN_FUNC_1_IN_1_FP16(exp)
   REGISTER_EXTERN_FUNC_1_IN_1_FP16(log)
   REGISTER_EXTERN_FUNC_1_IN_1_FP16(log2)
@@ -75,21 +76,21 @@ CINN_REGISTER_HELPER(cuda_intrinsics_float16) {
 
 #undef REGISTER_EXTERN_FUNC_1_IN_1_FP16_OUT_BOOL
 
-#define _REGISTER_CINN_CUDA_INDEX_ADD(TYPE_SUFFIX, TYPE)                        \
-  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_cuda_index_add_##TYPE_SUFFIX, target) \
-      .SetRetType<TYPE>()                                                       \
-      .AddInputType<TYPE>()                                                     \
-      .AddInputType<int>()                                                      \
-      .AddInputType<cinn_buffer_t *>()                                          \
-      .AddInputType<int>()                                                      \
-      .AddInputType<int>()                                                      \
-      .AddInputType<cinn_buffer_t *>()                                          \
-      .AddInputType<int>()                                                      \
+#define _REGISTER_CINN_NVGPU_INDEX_ADD(TYPE_SUFFIX, TYPE)                        \
+  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_nvgpu_index_add_##TYPE_SUFFIX, target) \
+      .SetRetType<TYPE>()                                                        \
+      .AddInputType<TYPE>()                                                      \
+      .AddInputType<int>()                                                       \
+      .AddInputType<cinn_buffer_t *>()                                           \
+      .AddInputType<int>()                                                       \
+      .AddInputType<int>()                                                       \
+      .AddInputType<cinn_buffer_t *>()                                           \
+      .AddInputType<int>()                                                       \
       .End();
 
-  _REGISTER_CINN_CUDA_INDEX_ADD(fp16, float16);
+  _REGISTER_CINN_NVGPU_INDEX_ADD(fp16, float16);
 
-#undef _REGISTER_CINN_CUDA_INDEX_ADD
+#undef _REGISTER_CINN_NVGPU_INDEX_ADD
 
   return true;
 }

@@ -28,23 +28,24 @@ from cinn.poly import create_stages
 import logging
 from test_utils import SingleOpTester
 import paddle
-import paddle.fluid as fluid
+import paddle.static as static
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 
 def matmul_util(inputs_data, input_shape, trans_a, trans_b, alpha):
-    main_program = fluid.Program()
+    main_program = static.Program()
     paddle.enable_static()
-    with fluid.program_guard(main_program, fluid.Program()):
+    with static.program_guard(main_program, static.Program()):
         [input_x, input_y] = inputs_data
-        x = fluid.layers.data(name='x', shape=input_shape[0], dtype='float32')
-        y = fluid.layers.data(name='y', shape=input_shape[1], dtype='float32')
-        output = fluid.layers.matmul(x, y, trans_a, trans_b, alpha)
-        exe = fluid.Executor(fluid.CPUPlace())
-        exe.run(fluid.default_startup_program())
+        x = static.data(name='x', shape=input_shape[0], dtype='float32')
+        y = static.data(name='y', shape=input_shape[1], dtype='float32')
+        output = paddle.matmul(x, y, trans_a, trans_b)
+        output = paddle.scale(output, scale=alpha)
+        exe = static.Executor(paddle.CPUPlace())
+        exe.run(static.default_startup_program())
         res, = exe.run(
-            fluid.default_main_program(),
+            static.default_main_program(),
             feed={
                 'x': input_x,
                 'y': input_y
