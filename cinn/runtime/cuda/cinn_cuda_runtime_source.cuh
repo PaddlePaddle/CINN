@@ -211,6 +211,7 @@ __device__ inline bool FN_BF16(isfinite)(bfloat16 x) { return cinn::common::isfi
 
 __device__ inline bfloat16 FN_BF16(erf)(bfloat16 x) { return bfloat16(FN_FP32(erf)(static_cast<float>(x))); }
 
+__device__ inline bfloat16 FN_BF16(tan)(bfloat16 x) { return bfloat16(FN_FP32(tan)(static_cast<float>(x))); }
 __device__ inline bfloat16 FN_BF16(sinh)(bfloat16 x) { return bfloat16(FN_FP32(sinh)(static_cast<float>(x))); }
 __device__ inline bfloat16 FN_BF16(cosh)(bfloat16 x) { return bfloat16(FN_FP32(cosh)(static_cast<float>(x))); }
 __device__ inline bfloat16 FN_BF16(tanh)(bfloat16 x) { return bfloat16(FN_FP32(tanh)(static_cast<float>(x))); }
@@ -264,6 +265,7 @@ __device__ inline bool FN_FP16(isfinite)(float16 x) { return cinn::common::isfin
 
 __device__ inline float16 FN_FP16(erf)(float16 x) { return float16(FN_FP32(erf)(static_cast<float>(x))); }
 
+__device__ inline float16 FN_FP16(tan)(float16 x) { return float16(FN_FP32(tan)(static_cast<float>(x))); }
 __device__ inline float16 FN_FP16(sinh)(float16 x) { return float16(FN_FP32(sinh)(static_cast<float>(x))); }
 __device__ inline float16 FN_FP16(cosh)(float16 x) { return float16(FN_FP32(cosh)(static_cast<float>(x))); }
 __device__ inline float16 FN_FP16(tanh)(float16 x) { return float16(FN_FP32(tanh)(static_cast<float>(x))); }
