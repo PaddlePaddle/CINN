@@ -18,6 +18,7 @@
 
 #include <algorithm>
 
+#include "cinn/common/common.h"
 #include "cinn/common/ir_util.h"
 #include "cinn/hlir/pe/broadcast.h"
 #include "cinn/hlir/pe/elementwise.h"
@@ -143,9 +144,11 @@ Tensor DoReduce(const Tensor& tensor,
                 Expr initial,
                 const std::string& output_name) {
   std::vector<Var> reduce_axes;
+  int reduce_k_id = 0;
   for (auto& axis : real_axes) {
-    std::string name = UniqName("kk");
+    std::string name = cinn::UniqName(std::string("reduce_k_") + std::to_string(reduce_k_id));
     reduce_axes.push_back(Var(tensor->shape[axis], name));
+    reduce_k_id++;
   }
   auto compute = [&](const std::vector<Expr>& indices) -> Expr {
     std::vector<Expr> eval_indice;
