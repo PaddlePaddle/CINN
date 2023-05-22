@@ -233,7 +233,7 @@ Placeholder NetBuilder::CreateInput(const Type& type, const std::vector<int>& sh
 }
 
 Placeholder NetBuilder::CreateInput(const Variable& var) {
-  CHECK(!var->shape.empty()) << "The input's shape is not set yet";
+  VLOG_IF(4, var->shape.empty()) << "The input's shape is empty, Create 0D-Tensor for " << var->id;
   CHECK(!var->type.is_unk()) << "The input's type is not set yet";
   inputs_.push_back(var);
   return Placeholder(var);
