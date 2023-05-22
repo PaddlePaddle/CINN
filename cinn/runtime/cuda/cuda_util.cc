@@ -35,6 +35,7 @@
 #include "cinn/runtime/cuda/cublas_util.h"
 #include "cinn/runtime/custom_function.h"
 #include "cinn/runtime/flags.h"
+#include "cinn/utils/profiler.h"
 #include "cinn/utils/timer.h"
 
 namespace cinn {
@@ -88,26 +89,33 @@ void cinn_call_cuda_kernel(void *kernel_fn,
           << block_x << ", " << block_y << ", " << block_z << "}, num_args=" << num_args << ", stream=" << stream;
 
   std::vector<void *> kernel_args;
-  kernel_args.reserve(num_args);
-  cinn_pod_value_t *args = static_cast<cinn_pod_value_t *>(v_args);
-  for (int idx = 0; idx < num_args; ++idx) {
-    if (args[idx].type_code() == ::cinn_type_code<cinn_buffer_t *>()) {
-      kernel_args.emplace_back(&((cinn_buffer_t *)(args[idx]))->memory);
-    } else {
-      kernel_args.emplace_back(args[idx].data_addr());
+  {
+    cinn::utils::RecordEvent record_run("prepare_args", cinn::utils::EventType::kInstruction);
+    kernel_args.reserve(num_args);
+    cinn_pod_value_t *args = static_cast<cinn_pod_value_t *>(v_args);
+    for (int idx = 0; idx < num_args; ++idx) {
+      if (args[idx].type_code() == ::cinn_type_code<cinn_buffer_t *>()) {
+        kernel_args.emplace_back(&((cinn_buffer_t *)(args[idx]))->memory);
+      } else {
+        kernel_args.emplace_back(args[idx].data_addr());
+      }
     }
   }
-  CUDA_DRIVER_CALL(cuLaunchKernel(static_cast<CUfunction>(kernel_fn),
-                                  grid_x,
-                                  grid_y,
-                                  grid_z,
-                                  block_x,
-                                  block_y,
-                                  block_z,
-                                  0,  // share memory
-                                  static_cast<CUstream>(stream),
-                                  kernel_args.data(),
-                                  nullptr))
+
+  {
+    cinn::utils::RecordEvent record_run("cuLaunchKernel", cinn::utils::EventType::kInstruction);
+    CUDA_DRIVER_CALL(cuLaunchKernel(static_cast<CUfunction>(kernel_fn),
+                                    grid_x,
+                                    grid_y,
+                                    grid_z,
+                                    block_x,
+                                    block_y,
+                                    block_z,
+                                    0,  // share memory
+                                    static_cast<CUstream>(stream),
+                                    kernel_args.data(),
+                                    nullptr))
+  }
 }
 
 void cinn_call_cublas(void *v_args,
@@ -126,11 +134,15 @@ void cinn_call_cublas(void *v_args,
                       int b3,
                       int b4,
                       void *stream) {
+  cinn::utils::RecordEvent record_run("cinn_call_cublas", cinn::utils::EventType::kInstruction);
   CHECK_EQ(num_args, 3);
   cublasHandle_t &cuhandle = CublasHandle::GetInstance().GetCublasHandle();
   cinn_pod_value_t *args   = static_cast<cinn_pod_value_t *>(v_args);
   cudaStream_t custream    = static_cast<cudaStream_t>(stream);
   CUBLAS_CALL(cublasSetStream(cuhandle, custream));
+  VLOG(3) << "a1 ~ a4: " << a1 << " " << a2 << " " << a3 << " " << a4;
+  VLOG(3) << "b1 ~ b4: " << b1 << " " << b2 << " " << b3 << " " << b4;
+  VLOG(3) << "trans_a: " << trans_a << ", trans_b: " << trans_b << ", trans_o: " << trans_o;
 
   void *A = args[0].operator cinn_buffer_t *()->memory;
   void *B = args[1].operator cinn_buffer_t *()->memory;
@@ -160,6 +172,8 @@ void cinn_call_cublas(void *v_args,
     cuda_dtype = CUDA_R_16F;
   } else if (is_float && bytes == sizeof(float)) {
     cuda_dtype = CUDA_R_32F;
+  } else if (is_float && bytes == sizeof(double)) {
+    cuda_dtype = CUDA_R_64F;
   } else if (is_bfloat16) {
     cuda_dtype = CUDA_R_16BF;
   } else {
@@ -167,32 +181,45 @@ void cinn_call_cublas(void *v_args,
   }
 
   if (a1 * a2 * b1 * b2 == 1) {
+    VLOG(3) << "call cublasGemm for a1 * a2 * b1 * b2 == 1";
+    cinn::utils::RecordEvent record_run("Call cublasGemm", cinn::utils::EventType::kInstruction);
     CUBLAS_CALL(
         cublasGemm(cuda_dtype, cuhandle, trans_op_l, trans_op_r, m, n, k, alpha, lhs, ldl, rhs, ldr, beta, C, ldc));
   } else if (a1 * b1 == 1) {
     CHECK(a2 == b2 || a2 == 1 || b2 == 1);
-    int stride_l = trans_o ? (a2 > 1 ? a3 * a4 : 0) : (b2 > 1 ? b3 * b4 : 0);
-    int stride_r = trans_o ? (b2 > 1 ? b3 * b4 : 0) : (a2 > 1 ? a3 * a4 : 0);
-    int batch    = std::max(a2, b2);
-    CUBLAS_CALL(cublasGemmStridedBatched(cuda_dtype,
-                                         cuhandle,
-                                         trans_op_l,
-                                         trans_op_r,
-                                         m,
-                                         n,
-                                         k,
-                                         alpha,
-                                         lhs,
-                                         ldl,
-                                         stride_l,
-                                         rhs,
-                                         ldr,
-                                         stride_r,
-                                         beta,
-                                         C,
-                                         ldc,
-                                         m * n,
-                                         batch));
+    if (b2 == 1 && trans_op_r == CUBLAS_OP_N) {
+      // In case of [1, bs, M, K] * [1, 1, K, N]
+      VLOG(3) << "call cublasGemm for a1 * b1 = 1, b2 = 1, trans_op_r:" << trans_op_r;
+      cinn::utils::RecordEvent record_run("Call cublasGemm", cinn::utils::EventType::kInstruction);
+      CUBLAS_CALL(cublasGemm(
+          cuda_dtype, cuhandle, trans_op_l, trans_op_r, m, a2 * n, k, alpha, lhs, ldl, A, ldr, beta, C, ldc));
+    } else {
+      int stride_l = trans_o ? (a2 > 1 ? a3 * a4 : 0) : (b2 > 1 ? b3 * b4 : 0);
+      int stride_r = trans_o ? (b2 > 1 ? b3 * b4 : 0) : (a2 > 1 ? a3 * a4 : 0);
+      int batch    = std::max(a2, b2);
+      VLOG(3) << "call cublasGemmStridedBatched with a1*b1 = 1, stride_l = " << stride_l << ", stride_r = " << stride_r
+              << ", batch = " << batch;
+      cinn::utils::RecordEvent record_run("Call cublasGemmStridedBatched", cinn::utils::EventType::kInstruction);
+      CUBLAS_CALL(cublasGemmStridedBatched(cuda_dtype,
+                                           cuhandle,
+                                           trans_op_l,
+                                           trans_op_r,
+                                           m,
+                                           n,
+                                           k,
+                                           alpha,
+                                           lhs,
+                                           ldl,
+                                           stride_l,
+                                           rhs,
+                                           ldr,
+                                           stride_r,
+                                           beta,
+                                           C,
+                                           ldc,
+                                           m * n,
+                                           batch));
+    }
   } else {
     int l1 = trans_o ? a1 : b1, l2 = trans_o ? a2 : b2, l3 = trans_o ? a3 : b3, l4 = trans_o ? a4 : b4;
     int r1 = trans_o ? b1 : a1, r2 = trans_o ? b2 : a2, r3 = trans_o ? b3 : a3, r4 = trans_o ? b4 : a4;
@@ -204,6 +231,9 @@ void cinn_call_cublas(void *v_args,
       // four types matmul:
       // (N, L) * (N, L) , (N, 1) * (N, 1)
       // (N, L) * (1, 1) , (1, 1) * (N, L)
+      VLOG(3) << "call cublasGemmStridedBatched for stride_l = " << stride_l << ", stride_r = " << stride_r
+              << ", batch = " << std::max(l1, r1) * std::max(l2, r2);
+      cinn::utils::RecordEvent record_run("Call cublasGemmStridedBatched", cinn::utils::EventType::kInstruction);
       CUBLAS_CALL(cublasGemmStridedBatched(cuda_dtype,
                                            cuhandle,
                                            trans_op_l,
@@ -224,6 +254,7 @@ void cinn_call_cublas(void *v_args,
                                            m * n,
                                            std::max(l1, r1) * std::max(l2, r2)));
     } else {
+      cinn::utils::RecordEvent record_run("Call cublasGemmBatched", cinn::utils::EventType::kInstruction);
       // (N, L) / (N, 1) / (1, L)
       int bstride_l = (l1 != 1 && l2 != 1) ? (l2 * m * k) : ((l1 != 1) ? m * k : 0);
       // (N, L) / (N, 1) / (1, L)
@@ -311,6 +342,8 @@ void cinn_call_batched_cublas(void *v_args,
     cuda_dtype = CUDA_R_16F;
   } else if (is_float && bytes == sizeof(float)) {
     cuda_dtype = CUDA_R_32F;
+  } else if (is_float && bytes == sizeof(double)) {
+    cuda_dtype = CUDA_R_64F;
   } else if (is_bfloat16) {
     cuda_dtype = CUDA_R_16BF;
   } else {

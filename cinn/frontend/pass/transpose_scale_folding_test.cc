@@ -25,11 +25,12 @@
 #include "cinn/frontend/net_builder.h"
 #include "cinn/frontend/pass/pass_test_helper.h"
 #include "cinn/hlir/op/use_ops.h"
+#include "cinn/runtime/flags.h"
 
 namespace cinn::frontend {
 
 TEST(ScaleFolding, FoldIntoDotBatchedCase1) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     return;
   }
   NetBuilder builder("net_builder");
@@ -51,7 +52,7 @@ TEST(ScaleFolding, FoldIntoDotBatchedCase1) {
 }
 
 TEST(ScaleFolding, FoldIntoDotBatchedCase2) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     return;
   }
   NetBuilder builder("net_builder");
@@ -73,7 +74,7 @@ TEST(ScaleFolding, FoldIntoDotBatchedCase2) {
 }
 
 TEST(ScaleFolding, FoldIntoDotBatchedCase3) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     return;
   }
   NetBuilder builder("net_builder");
@@ -95,7 +96,7 @@ TEST(ScaleFolding, FoldIntoDotBatchedCase3) {
 }
 
 TEST(ScaleFolding, FoldIntoDotBatchedCase4) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     return;
   }
   NetBuilder builder("net_builder");
@@ -117,7 +118,7 @@ TEST(ScaleFolding, FoldIntoDotBatchedCase4) {
 }
 
 TEST(ScaleFolding, FoldIntoDotBatchedCase5) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     return;
   }
   NetBuilder builder("net_builder");
@@ -140,7 +141,7 @@ TEST(ScaleFolding, FoldIntoDotBatchedCase5) {
 }
 
 TEST(ScaleFolding, FoldIntoDotBatchedCase6) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     return;
   }
   NetBuilder builder("net_builder");
@@ -164,7 +165,7 @@ TEST(ScaleFolding, FoldIntoDotBatchedCase6) {
 }
 
 TEST(TransposeScaleFolding, BatchComplexCase1) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     return;
   }
   NetBuilder builder("net_builder");
@@ -191,7 +192,7 @@ TEST(TransposeScaleFolding, BatchComplexCase1) {
 }
 
 TEST(TransposeScaleFolding, BatchComplexCase2) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     return;
   }
   NetBuilder builder("net_builder");
@@ -218,7 +219,7 @@ TEST(TransposeScaleFolding, BatchComplexCase2) {
 }
 
 TEST(TransposeScaleFolding, BatchComplexCase3) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     return;
   }
   NetBuilder builder("net_builder");
@@ -241,7 +242,7 @@ TEST(TransposeScaleFolding, BatchComplexCase3) {
 }
 
 TEST(TransposeScaleFolding, BatchComplexCase4) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     return;
   }
   NetBuilder builder("net_builder");
@@ -263,7 +264,7 @@ TEST(TransposeScaleFolding, BatchComplexCase4) {
 }
 
 TEST(TransposeScaleFolding, BatchComplexCase5) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     return;
   }
   NetBuilder builder("net_builder");
@@ -289,7 +290,7 @@ TEST(TransposeScaleFolding, BatchComplexCase5) {
 }
 
 TEST(TransposeScaleFolding, BatchComplexCase6) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     return;
   }
   NetBuilder builder("net_builder");
@@ -313,7 +314,7 @@ TEST(TransposeScaleFolding, BatchComplexCase6) {
 }
 
 TEST(TransposeBroadCastFolding, BatchComplexCase1) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     return;
   }
   NetBuilder builder("net_builder");
@@ -339,7 +340,7 @@ TEST(TransposeBroadCastFolding, BatchComplexCase1) {
 }
 
 TEST(TransposeBroadCastFolding, BatchComplexCase2) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     return;
   }
   NetBuilder builder("net_builder");

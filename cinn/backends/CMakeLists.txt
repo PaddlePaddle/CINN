@@ -19,12 +19,13 @@ if (WITH_CUDA)
   list(APPEND srcs cuda_util.cc codegen_cuda_dev.cc codegen_cuda_util.cc)
 endif()
 
+if (WITH_OPENMP)
 cc_library(__x86_source_fake_lib SRCS _x86_builtin_source.cc)
+endif()
 add_subdirectory(llvm)
 
 
 if (WITH_CUDA)
-    
     nv_test(test_raw_cuda_code SRCS raw_cuda_code_test.cu DEPS cinncore)
 endif()
 
@@ -43,7 +44,7 @@ if (WITH_CUDA)
   nv_test(test_codegen_debug SRCS codegen_debug_test.cc DEPS cinncore)
 
   if (WITH_TESTING)
-    cc_library(generated1_cuda SRCS generated1.cu DEPS cinncore)
+    nv_test(generated1_cuda SRCS generated1.cu DEPS cinncore)
     add_run_test_dependency(generated1_cuda test_codegen_cuda_generate)
   endif()
 

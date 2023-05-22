@@ -65,7 +65,7 @@ class CodeGenCUDA_Dev : public CodeGenC {
 
   std::string Compile(const ir::Module& module, OutputKind output_kind);
 
-  const std::string& GetSourceHeader() const;
+  static const std::string& GetSourceHeader();
 
  protected:
   void Visit(const ir::_Var_* op) override;
