@@ -216,8 +216,8 @@ Expr CallExtern(const std::string &func_name,
       auto op                            = ir::CallOp::Make(func_name, call);
       op->as<ir::CallOp>()->value_slot   = i;
       op->as<ir::CallOp>()->is_tuple_get = true;
-      auto name                          = cinn::UniqName("tuple_" + func_name + "_out" + std::to_string(i) + "_");
-      auto ret                           = ir::Tensor(name, proto->mutable_arg_types[i], shape, shape, op, {});
+      auto name = Context::Global().NewName("tuple_" + func_name + "_out" + std::to_string(i) + "_");
+      auto ret  = ir::Tensor(name, proto->mutable_arg_types[i], shape, shape, op, {});
       mutable_args.push_back(ret);
     }
     call.As<ir::Call>()->write_args = mutable_args;

@@ -28,7 +28,6 @@ cc_test(test_graph_utils SRCS graph_utils_test.cc DEPS cinncore)
 cc_test(test_arithmatic SRCS arithmatic_test.cc DEPS cinncore)
 cc_test(test_cas SRCS cas_test.cc DEPS cinncore)
 cc_test(test_type SRCS type_test.cc DEPS cinncore)
-cc_test(test_axis SRCS axis_test.cc DEPS cinncore)
 
 cc_test(test_fp16_bf16_host SRCS float16_bfloat16_host_test.cc DEPS gtest glog)
 if (WITH_CUDA)

@@ -128,57 +128,6 @@ class TestReduceAll(TestCaseHelper):
             },
         ]
         self.dtypes = [
-            {
-                "dtype": "float32",
-            },
-        ]
-        self.attrs = [
-            {
-                "op_type": "sum",
-                "keepdim": True
-            },
-            {
-                "op_type": "sum",
-                "keepdim": False
-            },
-            {
-                "op_type": "prod",
-                "keepdim": True
-            },
-            {
-                "op_type": "prod",
-                "keepdim": False
-            },
-            {
-                "op_type": "max",
-                "keepdim": True
-            },
-            {
-                "op_type": "max",
-                "keepdim": False
-            },
-            {
-                "op_type": "min",
-                "keepdim": True
-            },
-            {
-                "op_type": "min",
-                "keepdim": False
-            },
-        ]
-
-
-class TestReduceDtype(TestCaseHelper):
-    def init_attrs(self):
-        self.class_name = "TestReduceOpCase"
-        self.cls = TestReduceOp
-        self.inputs = [
-            {
-                "shape": [16, 8, 4, 2, 1],
-                "axis": [3],
-            },
-        ]
-        self.dtypes = [
             # Paddle reduce not support
             # {
             #     "dtype": "int16",
@@ -207,6 +156,30 @@ class TestReduceDtype(TestCaseHelper):
             },
             {
                 "op_type": "sum",
+                "keepdim": False
+            },
+            {
+                "op_type": "prod",
+                "keepdim": True
+            },
+            {
+                "op_type": "prod",
+                "keepdim": False
+            },
+            {
+                "op_type": "max",
+                "keepdim": True
+            },
+            {
+                "op_type": "max",
+                "keepdim": False
+            },
+            {
+                "op_type": "min",
+                "keepdim": True
+            },
+            {
+                "op_type": "min",
                 "keepdim": False
             },
         ]

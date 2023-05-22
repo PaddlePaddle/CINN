@@ -745,7 +745,6 @@ void GraphCompiler::CompileOptions::Apply(const auto_schedule::TuningResult& tun
 GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::CompileOptions& options,
                                                       std::unordered_set<std::string>&& fetch_var_ids,
                                                       void* stream) {
-  Context::Global().ResetNameId();
   if (FLAGS_cinn_parallel_compile_size) {
     // write group's information into FLAGS_cinn_fusion_groups_graphviz_dir
     graph_->VisualizeGroupedGraph(fetch_var_ids.empty() ? fetch_var_ids_ : fetch_var_ids);
@@ -791,6 +790,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
     return compilation_result;
   }
 
+  Context::Global().ResetNameId();
   compile_options_ = options;
   fetch_var_ids_   = std::move(fetch_var_ids);
   auto topo_order  = graph_->topological_order();

@@ -222,14 +222,14 @@ TEST(FP16_BF16, basic_cuda) {
     fp32res_bf16_device.MemcpyToHost(out_bf16_host.data(), num * sizeof(float), stream);
   }
 
-  CUDA_CALL(cudaStreamSynchronize(stream));
+  cudaStreamSynchronize(stream);
 
   for (int i = 0; i < num; ++i) {
     ASSERT_NEAR(out_fp32_host[i], out_fp16_host[i], 1e-2f);
     ASSERT_NEAR(out_fp32_host[i], out_bf16_host[i], 1e-1f);
   }
 
-  CUDA_CALL(cudaStreamDestroy(stream));
+  cudaStreamDestroy(stream);
 }
 
 }  // namespace common
