@@ -58,6 +58,9 @@ if (WITH_CUDA)
   include_directories(/usr/lib/x86_64-linux-gnu)
   set(CUDA_SEPARABLE_COMPILATION ON)
 
+  cuda_select_nvcc_arch_flags(ARCH_FLAGS Auto)
+  list(APPEND CUDA_NVCC_FLAGS ${ARCH_FLAGS})
+
   message(STATUS "copy cinn/common/float16.h cinn/common/bfloat16.h to $ENV{runtime_include_dir}")
   file(COPY cinn/common/float16.h cinn/common/bfloat16.h DESTINATION $ENV{runtime_include_dir})
 

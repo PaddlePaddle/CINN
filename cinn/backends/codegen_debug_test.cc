@@ -18,6 +18,7 @@
 #include <iostream>
 #include <vector>
 
+#include "cinn/backends/codegen_cuda_dev.h"
 #include "cinn/backends/nvrtc/nvrtc_util.h"
 #include "cinn/common/context.h"
 #include "cinn/runtime/cuda/cuda_module.h"
@@ -62,15 +63,6 @@ TEST(CodeGenDebug, RunCudaSourceCode) {
   std::string source_code = R"ROC(
 extern "C" {
 
-#include "cinn_cuda_runtime_source.cuh"
-
-#ifdef __CUDACC_RTC__
-typedef int int32_t;
-typedef char int8_t;
-#endif
-
-
-
 __global__
 void __launch_bounds__(512) fn_relu_1_kernel(const float* __restrict__ var_1, float* __restrict__ Relu_output)
 {
@@ -112,7 +104,7 @@ void __launch_bounds__(512) fn_relu_1_kernel(const float* __restrict__ var_1, fl
 
   backends::nvrtc::Compiler compiler;
 
-  std::string ptx = compiler(source_code);
+  std::string ptx = compiler(CodeGenCUDA_Dev::GetSourceHeader() + source_code);
   ASSERT_FALSE(ptx.empty());
 
   CUDAModule cuda_module(ptx, CUDAModule::Kind::PTX);

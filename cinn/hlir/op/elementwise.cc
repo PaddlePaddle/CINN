@@ -715,7 +715,6 @@ std::vector<std::vector<int>> InferShapeForReshape(const std::vector<std::vector
   for (auto i : inputs_shape[0]) {
     tensor_size *= i;
   }
-  CHECK(!output_shape.empty()) << "infer_shape for reshape turns out to be empty. Please check\n";
   int flag_index = -1;
   for (int i = 0; i < output_shape.size(); i++) {
     if (output_shape[i] > 0) {

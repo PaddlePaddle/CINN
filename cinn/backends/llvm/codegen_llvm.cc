@@ -1487,6 +1487,8 @@ llvm::Value *CodeGenLLVM::Visit(const ir::intrinsics::PodValueToX *op) {
     callee = m_->getFunction(runtime::intrinsic::pod_value_to_float);
   } else if (to_type == type_of<double>()) {
     callee = m_->getFunction(runtime::intrinsic::pod_value_to_double);
+  } else if (to_type == type_of<bfloat16>()) {
+    callee = m_->getFunction(runtime::intrinsic::pod_value_to_bfloat16);
   } else if (to_type == type_of<float16>()) {
     callee = m_->getFunction(runtime::intrinsic::pod_value_to_float16);
   } else if (to_type == type_of<bool>()) {

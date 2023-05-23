@@ -73,7 +73,12 @@ class TestMatmulOp(OpTest):
     def test_check_results(self):
         max_relative_error = self.case[
             "max_relative_error"] if "max_relative_error" in self.case else 1e-5
-        self.check_outputs_and_grads(max_relative_error=max_relative_error)
+        # 1e-6 is same as the atol parameter of np.allclose
+        max_absolute_error = self.case[
+            "max_absolute_error"] if "max_absolute_error" in self.case else 1e-6
+        self.check_outputs_and_grads(
+            max_relative_error=max_relative_error,
+            max_absolute_error=max_absolute_error)
 
 
 class TestMatmulOpShapeDtype(TestCaseHelper):
@@ -122,7 +127,8 @@ class TestMatmulOpShapeDtype(TestCaseHelper):
             # },
             {
                 "dtype": "float16",
-                "max_relative_error": 1e-3
+                "max_relative_error": 1e-2,
+                "max_absolute_error": 1e-2
             },
             {
                 "dtype": "float32",

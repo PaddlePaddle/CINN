@@ -129,13 +129,13 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
   VLOG(2) << "Run function " << function_name_;
 
   {
-    utils::RecordEvent record_args("PrepareArgs", cinn::utils::EventType::kInstruction);
+    utils::RecordEvent record_args("UpdateArgsCache", cinn::utils::EventType::kInstruction);
     if (!use_cache || args_cached_.size() != size()) {
       UpdateArgsCache(name2podargs);
     }
   }
 
-  utils::ProfilerRangePush("Compute");
+  utils::RecordEvent record_args("Instruction::Run", cinn::utils::EventType::kInstruction);
 #if defined(CINN_WITH_CUDA) && !defined(CINN_WITH_CUDNN)
   if (function_name_ == "cublas_gemm" && target_.arch == Target::Arch::NVGPU) {
     auto& pod_args = args_cached_[0];
@@ -264,7 +264,6 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
   }
   VLOG(3) << "Done Runing extern function " << function_name_;
 #endif
-  utils::ProfilerRangePop();
 
   if (!cinn::runtime::CheckStringFlagFalse(FLAGS_cinn_self_check_accuracy)) {
     CheckResults(name2podargs, stream);
