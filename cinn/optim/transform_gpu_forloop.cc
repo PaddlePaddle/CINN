@@ -497,6 +497,12 @@ class ResizeBufferSizeVisitor : public ir::IRMutator<> {
     }
 
     load->tensor.as_tensor_ref()->shape = load->tensor.as_tensor_ref()->buffer->shape;
+
+    int cnt = load->indices.size() - load->tensor.as_tensor_ref()->shape.size();
+    for (int i = 0; i < cnt; i++) {
+      auto &xx = load->indices;
+      xx.erase(xx.begin());
+    }
     ir::IRMutator<>::Visit(op, expr);
   }
 

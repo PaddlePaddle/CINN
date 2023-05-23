@@ -852,14 +852,30 @@ void IRCudaTwoStepReduceSchedule(ir::IRSchedule &ir_sch,
   auto tmp_out_block = ir_sch.GetBlock(tmp_out->name);
   ir_sch.SetBuffer(tmp_out_block, "local", true);
 
+  auto internal_loops = ir_sch.GetLoops(internal->name);
+  auto grid_dim_x     = internal_loops[0].As<ir::For>()->extent.as_int32();
+  auto block_dim_x    = internal_loops[1].As<ir::For>()->extent.as_int32();
+  int sm_max_block    = 64;
+  int new_block_dim_x = -1;
+  if (block_dim_x < sm_max_block && block_dim_x * grid_dim_x > 64) {
+    new_block_dim_x = ceil(sm_max_block / float(block_dim_x));
+  }
   for (auto &tensor : {internal, tmp_out, out}) {
     auto loops = ir_sch.GetLoops(tensor->name);
     if (loops.size() == 1) {
       ir_sch.Split(loops[0], {-1, 1});
       loops = ir_sch.GetLoops(tensor->name);
     }
-    ir_sch.Bind(loops[0], "blockIdx.x");
-    ir_sch.Bind(loops[1], "threadIdx.x");
+    if (new_block_dim_x != -1) {
+      ir_sch.Split(loops[0], {-1, new_block_dim_x});
+      loops = ir_sch.GetLoops(tensor->name);
+      ir_sch.Bind(loops[0], "blockIdx.x");
+      ir_sch.Bind(loops[1], "threadIdx.y");
+      ir_sch.Bind(loops[2], "threadIdx.x");
+    } else {
+      ir_sch.Bind(loops[0], "blockIdx.x");
+      ir_sch.Bind(loops[1], "threadIdx.x");
+    }
   }
   VLOG(3) << "After IRCudaTwoStepReduceSchedule : " << ir_sch.GetModule().GetExprs().at(0);
   // ir_sch.SimpleComputeAt(ir_sch.GetBlock(tmp_out->name), ir_sch.GetLoops(out->name)[0]);

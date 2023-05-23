@@ -1262,25 +1262,32 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
       // if node is vertical with reduce, loop assign reducer.
       LoopAssignReduce(ir_sch, node, reducer, this->target_, tensor_map, this->shape_dict_);
     } else if (greducer) {
-      VLOG(3) << "Before assign node " << node->id() << " into horizontal link reducer " << greducer->id()
-              << ", ir is:\n"
-              << ir_sch.GetModule().GetExprs().at(0);
-      // if node is horizontal with reduce or node is reduce, loop assign master.
-      auto loops = ir_sch.GetLoops(GetNodeData(node)->id());
-      if (op_pattern_dict[node->op()] == framework::kElementWise) {
-        ir_sch.FlattenLoops(loops, true);
-      } else if (op_pattern_dict[node->op()] != framework::kReduction) {
-        ir_sch.FlattenLoops(loops, false);
-      }
-
-      if (master && op_pattern_dict[node->op()] != framework::kReduction) {
-        auto master_loops = ir_sch.GetLoops(GetNodeData(master)->id());
-        std::vector<int> splits;
-        for (auto loop : master_loops) {
-          splits.push_back(loop.As<ir::For>()->extent.as_int32());
+      auto greducer_out_shape = this->shape_dict_.at(greducer->outlinks_in_order()[0]->sink()->id());
+      auto node_out_shape     = this->shape_dict_.at(node->outlinks_in_order()[0]->sink()->id());
+      if (std::accumulate(greducer_out_shape.begin(), greducer_out_shape.end(), 1, std::multiplies<int>()) !=
+          std::accumulate(node_out_shape.begin(), node_out_shape.end(), 1, std::multiplies<int>())) {
+        LoopAssignReduce(ir_sch, node, greducer, this->target_, tensor_map, this->shape_dict_);
+      } else {
+        VLOG(3) << "Before assign node " << node->id() << " into horizontal link reducer " << greducer->id()
+                << ", ir is:\n"
+                << ir_sch.GetModule().GetExprs().at(0);
+        // if node is horizontal with reduce or node is reduce, loop assign master.
+        auto loops = ir_sch.GetLoops(GetNodeData(node)->id());
+        if (op_pattern_dict[node->op()] == framework::kElementWise) {
+          ir_sch.FlattenLoops(loops, true);
+        } else if (op_pattern_dict[node->op()] != framework::kReduction) {
+          ir_sch.FlattenLoops(loops, false);
         }
-        loops = ir_sch.GetLoops(GetNodeData(node)->id());
-        ir_sch.Split(loops[0], splits);
+
+        if (master && op_pattern_dict[node->op()] != framework::kReduction) {
+          auto master_loops = ir_sch.GetLoops(GetNodeData(master)->id());
+          std::vector<int> splits;
+          for (auto loop : master_loops) {
+            splits.push_back(loop.As<ir::For>()->extent.as_int32());
+          }
+          loops = ir_sch.GetLoops(GetNodeData(node)->id());
+          ir_sch.Split(loops[0], splits);
+        }
       }
     }
     VLOG(3) << "Before loop fusion, ir is:\n" << ir_sch.GetModule().GetExprs().at(0);
