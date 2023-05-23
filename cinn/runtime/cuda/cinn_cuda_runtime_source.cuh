@@ -705,6 +705,10 @@ CINN_NVGPU_GT_NUM(int64, long long int)
     return res;                                                               \
   }
 
+CINN_NVGPU_INDEX_ADD(bool, bool)
+CINN_NVGPU_INDEX_ADD(int8, int8_t)
+CINN_NVGPU_INDEX_ADD(int32, int32_t)
+CINN_NVGPU_INDEX_ADD(int64, int64_t)
 CINN_NVGPU_INDEX_ADD(fp32, float)
 CINN_NVGPU_INDEX_ADD(fp64, double)
 #ifdef CINN_CUDA_FP16

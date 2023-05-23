@@ -346,6 +346,10 @@ CINN_REGISTER_HELPER(cuda_intrinsics) {
       .AddInputType<int>()                                                       \
       .End();
 
+  _REGISTER_CINN_NVGPU_INDEX_ADD(bool, bool);
+  _REGISTER_CINN_NVGPU_INDEX_ADD(int8, int8_t);
+  _REGISTER_CINN_NVGPU_INDEX_ADD(int32, int32_t);
+  _REGISTER_CINN_NVGPU_INDEX_ADD(int64, int64_t);
   _REGISTER_CINN_NVGPU_INDEX_ADD(fp32, float);
   _REGISTER_CINN_NVGPU_INDEX_ADD(fp64, double);
 
