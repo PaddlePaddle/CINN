@@ -114,10 +114,16 @@ class TestBroadcastToAllTwo(TestCaseHelper):
                 "x_dtype": "bool",
             },
             {
+                "x_dtype": "int8",
+            },
+            {
                 "x_dtype": "int32",
             },
             {
                 "x_dtype": "int64",
+            },
+            {
+                "x_dtype": "float16",
             },
             {
                 "x_dtype": "float32",
@@ -172,6 +178,22 @@ class TestBroadcastToOpNoAxesAllOne(TestCaseHelper):
                 "d_shape": [1, 2],
             },
             {
+                "x_shape": [6],
+                "d_shape": [4, 5, 6],
+            },
+            {
+                "x_shape": [1, 1, 1],
+                "d_shape": [4, 5, 3],
+            },
+            {
+                "x_shape": [1, 1, 3],
+                "d_shape": [4, 5, 3],
+            },
+            {
+                "x_shape": [4, 1, 3],
+                "d_shape": [4, 5, 3],
+            },
+            {
                 "x_shape": [64, 2],
                 "d_shape": [64, 2],
             },
@@ -196,38 +218,7 @@ class TestBroadcastToOpNoAxesAllOne(TestCaseHelper):
         self.attrs = []
 
 
-class TestBroadcastToOpNoAxesAllTwo(TestCaseHelper):
-    def init_attrs(self):
-        self.class_name = "TestBroadcastToOpNoAxesCase"
-        self.cls = TestBroadcastToOpNoAxes
-        self.inputs = [
-            {
-                "x_shape": [5, 3],
-                "d_shape": [4, 5, 3],
-            },
-        ]
-        self.dtypes = [
-            {
-                "x_dtype": "bool",
-            },
-            {
-                "x_dtype": "int32",
-            },
-            {
-                "x_dtype": "int64",
-            },
-            {
-                "x_dtype": "float32",
-            },
-            {
-                "x_dtype": "float64",
-            },
-        ]
-        self.attrs = []
-
-
 if __name__ == "__main__":
     TestBroadcastToAllOne().run()
     TestBroadcastToAllTwo().run()
     TestBroadcastToOpNoAxesAllOne().run()
-    TestBroadcastToOpNoAxesAllTwo().run()
