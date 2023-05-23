@@ -94,8 +94,9 @@ void NormOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
   ctx.AddVarModelToProgram(out_name, y->id);
 
   if (!norm_name.empty()) {
-    ctx.AddVar(norm_name, std_square_sum);
-    ctx.AddVarModelToProgram(norm_name, std_square_sum->id);
+    auto norm_grad = ctx.Builder()->Cast(std_square_sum, common::Type2Str(in_type));
+    ctx.AddVar(norm_name, norm_grad);
+    ctx.AddVarModelToProgram(norm_name, norm_grad->id);
   }
 }
 

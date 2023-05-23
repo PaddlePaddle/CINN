@@ -61,5 +61,10 @@ class TestNormTestMode(TestNormOp):
         return {"Norm"}
 
 
+class TestNormFP16(TestNormOp):
+    def init_input_data(self):
+        self.feed_data = {'x': self.random([32, 64], "float16")}
+
+
 if __name__ == "__main__":
     unittest.main()

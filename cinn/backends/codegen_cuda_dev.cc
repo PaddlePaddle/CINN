@@ -33,7 +33,9 @@ const std::string CodeGenCUDA_Dev::source_header_ =
     R"(#include <cstdint>
 
 #define CINN_WITH_CUDA
+#include "bfloat16.h"
 #include "float16.h"
+using cinn::common::bfloat16;
 using cinn::common::float16;
 using cinn::common::half4;
 using cinn::common::half8;
