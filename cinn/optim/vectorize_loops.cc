@@ -176,7 +176,7 @@ class CudaVectorizer : public IRMutator<Expr *> {
   std::vector<Expr> vectorized_store_exprs_;
 
  public:
-  static constexpr int CudaVectorTypeMaxLanes = 4;
+  static constexpr int CudaVectorTypeMaxLanes = 8;
   CudaVectorizer(const Var &iter_var,
                  const int factor,
                  const absl::flat_hash_map<std::string, common::CasInterval> *var_intervals)
@@ -214,6 +214,51 @@ class CudaVectorizer : public IRMutator<Expr *> {
     }
 
     IRMutator::Visit(&node->value, &node->value);
+  }
+
+  void Visit(const Cast *op, Expr *expr) override {
+    auto *node = expr->As<Cast>();
+    auto &body = node->v();
+    LOG(INFO) << "Cast Begin().";
+    LOG(INFO) << *expr;
+    LOG(INFO) << node;
+    LOG(INFO) << "Cast End().";
+
+    auto tensors = ir::CollectIRNodes(body, [](const Expr *x) { return x->As<ir::_Tensor_>(); });
+
+    // handdle cast op at last.
+    IRMutator::Visit(op, expr);
+
+    int lanes         = 1;
+    bool is_point     = false;
+    bool is_vectorize = true;
+    for (auto &tensor : tensors) {
+      auto tensor_ = tensor.As<ir::_Tensor_>();
+
+      LOG(INFO) << "Loop Begin().";
+      LOG(INFO) << tensor;
+      LOG(INFO) << node->type().is_scalar();
+      LOG(INFO) << tensor2vectorized_vars_.count(tensor_->name);
+      if (node->type().is_scalar() && (tensor2vectorized_vars_.count(tensor_->name) || tensor_->type().is_vector())) {
+        lanes = tensor_->type().lanes();
+        LOG(INFO) << lanes;
+        is_point     = tensor_->type().is_cpp_handle();
+        is_vectorize = true;
+        break;
+      }
+      LOG(INFO) << "Loop End.";
+    }
+
+    if (is_vectorize) {
+      // create new cast type.
+      auto ntype = common::Type(Type::type_t::Customized, node->type().bits(), factor_);
+      // set vector type.
+      ntype.set_customized_type(GetVectorTypeName(node->type().ElementOf()));
+      if (is_point) {
+        ntype.set_cpp_handle();
+      }
+      node->set_type(ntype);
+    }
   }
 
  private:
@@ -722,7 +767,8 @@ struct VectorizeLoops_ : public IRMutator<Expr *> {
         CudaVectorizer cuda_vectorizer(new_forloop->loop_var, factor, &var_intervals);
         cuda_vectorizer.Visit(&new_forloop->body);
         // unroll the new forloop to compute each element of the vector iteratively
-        auto copied_loop = optim::IRCopy(_new_forloop);
+        auto copied_loop                  = optim::IRCopy(_new_forloop);
+        copied_loop.As<ir::For>()->extent = ir::Expr(1);
         copied_loop.As<ir::For>()->set_unrolled();
         optim::UnrollLoop(&copied_loop);
         // add cast exprs of vector type in the front of vectorized forloop,
@@ -862,6 +908,9 @@ struct VectorizeLoops_ : public IRMutator<Expr *> {
         new_index = Expr(forloop->loop_var) * factor + Expr(new_iterator);
       }
       optim::IrReplace(&forloop->body, forloop->loop_var, new_index);
+
+      {}
+
       auto new_forloop = For::Make(new_iterator,
                                    forloop->min,
                                    make_const(factor),
