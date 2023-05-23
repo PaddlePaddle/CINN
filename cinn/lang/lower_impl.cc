@@ -19,6 +19,7 @@
 #include <string>
 #include <unordered_set>
 
+#include "cinn/common/common.h"
 #include "cinn/common/context.h"
 #include "cinn/common/ir_util.h"
 #include "cinn/ir/ir_base.h"
@@ -704,7 +705,7 @@ std::vector<Expr> LowerImpl::GenerateFunctionBody(const poly::Schedule* schedule
         // bind var_values
         axis_vars.insert(axis_vars.end(), tensor->reduce_axis.begin(), tensor->reduce_axis.end());
         for (int i = 0; i < var_counts; i++) {
-          block_vars.push_back(Var(Expr(0), Expr(int_shape[i]), "i" + std::to_string(i), false));
+          block_vars.push_back(Var(Expr(0), Expr(int_shape[i]), cinn::UniqName("i" + std::to_string(i)), false));
           if (i >= tensor->shape.size()) {
             block_vars[i]->is_reduce_axis = true;
             axis_vars[i]->is_reduce_axis  = true;
