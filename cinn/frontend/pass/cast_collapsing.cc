@@ -171,17 +171,17 @@ class CastCollapsingPass : public ProgramPass {
 
     if (CheckCastBorder(cast, in2instr)) {
       if (can_remove) {
-        VLOG(4) << "The op " << cast_info << " is a output op of graph, connot fuse, remove.";
+        VLOG(4) << "The op " << cast_info << " is a output op of graph, cannot fuse, remove.";
         // this cast not used by any other op, remove
         remove_instrs->insert(cast);
       } else {
         if (input_dtype == output_dtype) {
           VLOG(4) << "The cast op " << cast_info << " is fetched but useless, replace with identity.";
-          // cannot remove, however, the transpsoe is useless, we can replace the cast with indentiy for more
+          // cannot remove, however, the transpose is useless, we can replace the cast with identity for more
           // fusion opportunity
           ReplaceWithIdentity(cast);
         }
-        // else the transpsoe is fetched and helpful, ignore
+        // else the transpose is fetched and helpful, ignore
       }
       return;
     }

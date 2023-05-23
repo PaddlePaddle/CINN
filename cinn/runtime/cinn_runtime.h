@@ -62,7 +62,7 @@ typedef enum cinn_type_code_t {
 #endif
 
 /**
- * A tuntime tag for type in CINN system.
+ * A runtime tag for type in CINN system.
  */
 typedef struct cinn_type_t {
 #if __cplusplus >= 201103L
