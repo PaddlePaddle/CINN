@@ -176,12 +176,12 @@ class ReplaceIndexToBindExpr : public ir::IRMutator<> {
 
  private:
   void Visit(const ir::ScheduleBlockRealize *op, Expr *expr) override {
-    auto *schedule_block_realize = expr->As<ir::ScheduleBlockRealize>();
+    ir::ScheduleBlockRealize *schedule_block_realize = expr->As<ir::ScheduleBlockRealize>();
     CHECK(schedule_block_realize->schedule_block.As<ir::ScheduleBlock>());
-    auto iter_values = schedule_block_realize->iter_values;
-    auto body        = schedule_block_realize->schedule_block.As<ir::ScheduleBlock>()->body;
-    auto body_copy   = IRCopy(body);
-    auto iter_vars   = schedule_block_realize->schedule_block.As<ir::ScheduleBlock>()->iter_vars;
+    std::vector<ir::Expr> iter_values = schedule_block_realize->iter_values;
+    ir::Expr body                     = schedule_block_realize->schedule_block.As<ir::ScheduleBlock>()->body;
+    ir::Expr body_copy                = IRCopy(body);
+    std::vector<ir::Var> iter_vars    = schedule_block_realize->schedule_block.As<ir::ScheduleBlock>()->iter_vars;
 
     CHECK_EQ(iter_values.size(), iter_vars.size());
     for (int idx = 0; idx < iter_values.size(); ++idx) {
