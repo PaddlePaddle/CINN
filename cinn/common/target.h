@@ -84,6 +84,8 @@ struct Target {
 
   int get_max_threads_per_sm() const;
 
+  int get_max_blocks_per_sm() const;
+
   int get_target_bits() const;
 
   std::vector<Lib> get_target_libs() const;

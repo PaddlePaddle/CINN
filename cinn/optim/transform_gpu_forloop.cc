@@ -498,10 +498,11 @@ class ResizeBufferSizeVisitor : public ir::IRMutator<> {
 
     load->tensor.as_tensor_ref()->shape = load->tensor.as_tensor_ref()->buffer->shape;
 
+    // For the moment, align the load tensor indices with the tensor shape using the trick method.
+    // A better way would be to modify the FlattenLoop Schedule.
     int cnt = load->indices.size() - load->tensor.as_tensor_ref()->shape.size();
     for (int i = 0; i < cnt; i++) {
-      auto &xx = load->indices;
-      xx.erase(xx.begin());
+      load->indices.erase(load->indices.begin());
     }
     ir::IRMutator<>::Visit(op, expr);
   }

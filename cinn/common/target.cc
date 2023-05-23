@@ -75,6 +75,15 @@ int Target::get_max_threads_per_sm() const {
   return max_thread;
 }
 
+int Target::get_max_blocks_per_sm() const {
+  CHECK(arch == Arch::NVGPU) << "The target is not NVGPU! Cannot get max blocks per stream processor";
+  int max_blocks = 1;
+#ifdef CINN_WITH_CUDA
+  cudaDeviceGetAttribute(&max_blocks, cudaDeviceAttr::cudaDevAttrMaxBlocksPerMultiprocessor, 0);
+#endif
+  return max_blocks;
+}
+
 std::vector<Target::Lib> Target::get_target_libs() const { return libs; }
 
 int Target::get_target_bits() const {

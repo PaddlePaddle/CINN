@@ -530,14 +530,15 @@ void LoopOrderAssignReduce(ir::IRSchedule& ir_sch,
   for (int idx = 0; idx < index - 1; ++idx) {
     ir_sch.Fuse(block_name, {0, 1});
   }
-  loops               = ir_sch.GetLoops(block_name);
-  auto grid_dim_x     = loops[0].As<ir::For>()->extent.as_int32();
-  auto block_dim_x    = loops[1].As<ir::For>()->extent.as_int32();
-  int sm_max_block    = 64;
-  int new_block_dim_x = -1;
-  if (block_dim_x < sm_max_block && block_dim_x * grid_dim_x > 64) {
-    new_block_dim_x = ceil(sm_max_block / float(block_dim_x));
-    ir_sch.Split(loops[0], {-1, new_block_dim_x});
+  loops            = ir_sch.GetLoops(block_name);
+  auto grid_dim_x  = loops[0].As<ir::For>()->extent.as_int32();
+  auto block_dim_x = loops[1].As<ir::For>()->extent.as_int32();
+  int sm_max_block = common::DefaultNVGPUTarget().get_max_blocks_per_sm();
+  // The current one-dimensional reduce does not make full use of SM.
+  // This case is optimized into a two-dimensional.
+  if (block_dim_x < sm_max_block && block_dim_x * grid_dim_x > sm_max_block) {
+    int block_dim_y = ceil(sm_max_block / float(block_dim_x));
+    ir_sch.Split(loops[0], {-1, block_dim_y});
   }
 }
 
