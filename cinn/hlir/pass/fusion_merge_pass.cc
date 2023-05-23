@@ -568,7 +568,10 @@ class FusionMergePassHelper : public FusionHelperBase {
       // sub group
       if (consumer->fused_sub_groups.size()) {
         for (auto& sub_group : consumer->fused_sub_groups) {
-          fused_group->fused_sub_groups.push_back(sub_group);
+          if (std::find(fused_group->fused_sub_groups.begin(), fused_group->fused_sub_groups.end(), sub_group) ==
+              fused_group->fused_sub_groups.end()) {
+            fused_group->fused_sub_groups.push_back(sub_group);
+          }
           // update belong group
           sub_group->belong_groups.erase(consumer);
           sub_group->belong_groups.insert(fused_group);
