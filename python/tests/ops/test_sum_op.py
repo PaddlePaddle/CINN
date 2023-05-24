@@ -47,11 +47,14 @@ class TestSumOp(OpTest):
         builder = NetBuilder("sum")
         cinn_inputs = []
         for id, input in enumerate(self.inputs):
-            cinn_input = builder.create_input(self.nptype2cinntype(input.dtype), input.shape, "input_" + str(id))
+            cinn_input = builder.create_input(
+                self.nptype2cinntype(input.dtype), input.shape,
+                "input_" + str(id))
             cinn_inputs.append(cinn_input)
         out = builder.sum(cinn_inputs)
         prog = builder.build()
-        res = self.get_cinn_output(prog, target, cinn_inputs, self.inputs, [out])
+        res = self.get_cinn_output(prog, target, cinn_inputs, self.inputs,
+                                   [out])
         self.cinn_outputs = res
 
     def test_check_results(self):
@@ -67,7 +70,7 @@ class TestSumOpShapeTest(TestCaseHelper):
                 "shapes": [[64]] * 2,
             },
             {
-                "shapes": [[64, 32]]  * 3,
+                "shapes": [[64, 32]] * 3,
             },
             {
                 "shapes": [[64, 1]] * 4,
