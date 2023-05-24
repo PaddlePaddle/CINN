@@ -701,7 +701,7 @@ struct CINN_ALIGN(16) half8 {
 
   __device__ inline explicit half8(const float8& x) {
 #pragma unroll
-    for (int i = 0; i < 4; ++i) {
+    for (int i = 0; i < 8; ++i) {
       data[i] = static_cast<const float16>(x[i]);
     }
   }
@@ -751,15 +751,15 @@ __device__ inline float8::float8(const half8& x) {
   }
 }
 
-#define BINARY_FUNCTION_FOR_SCALAR_AND_VECTOR(scalar_t, vector_t, op, num)      \
-  __device__ inline vector_t& operator op(const scalar_t x, vector_t& y) {      \
-    _Pragma("unroll") for (int i = 0; i < num; ++i) { y[i] = x op y[i]; }       \
-    return y;                                                                   \
-  }                                                                             \
-  __device__ inline vector_t operator op(const scalar_t x, const vector_t& y) { \
-    vector_t rslt;                                                              \
-    _Pragma("unroll") for (int i = 0; i < num; ++i) { rslt[i] = x * y[i]; }     \
-    return rslt;                                                                \
+#define BINARY_FUNCTION_FOR_SCALAR_AND_VECTOR(scalar_t, vector_t, op, num)       \
+  __device__ inline vector_t& operator op(const scalar_t x, vector_t& y) {       \
+    _Pragma("unroll") for (int i = 0; i < num; ++i) { y[i] = x op y[i]; }        \
+    return y;                                                                    \
+  }                                                                              \
+  __device__ inline vector_t& operator op(const scalar_t x, const vector_t& y) { \
+    vector_t rslt;                                                               \
+    _Pragma("unroll") for (int i = 0; i < num; ++i) { rslt[i] = x * y[i]; }      \
+    return rslt;                                                                 \
   }
 
 #define BINARY_FUNCTIONS_FOR_EACH_IMPL(_) \
@@ -836,11 +836,11 @@ __device__ inline half8& max(half8& x, float16 y) {
   return x;
 }
 
-__device__ inline half8 max(const half8& x, const float16 y) {
+__device__ inline half8& max(const half8& x, const float16 y) {
   half8 rslt;
 #pragma unroll
   for (int i = 0; i < 8; ++i) {
-    rslt[i] = max(rslt[i], y);
+    rslt[i] = max(x[i], y);
   }
   return rslt;
 }
@@ -853,13 +853,13 @@ __device__ inline half8& max(float16 y, half8& x) {
   return x;
 }
 
-__device__ inline half8 max(const float16 y, const half8& x) {
+__device__ inline half8& max(const float16 y, const half8& x) {
   half8 rslt;
 #pragma unroll
   for (int i = 0; i < 8; ++i) {
     rslt[i] = max(x[i], y);
   }
-  return x;
+  return rslt;
 }
 
 #endif  // __cplusplus && CINN_CUDA_FP16

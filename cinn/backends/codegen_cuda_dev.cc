@@ -359,18 +359,13 @@ bool CodeGenCUDA_Dev::PrintBuiltinVectorAccess(const ir::LoadStoreAddrMnger *op,
     return false;
   }
   if (is_store && tensor->type().is_cpp_handle()) {
-    if (tensor->type().is_cpp_handle()) {
-      os() << "(*" << tensor->name << ")";
-    } else {
-      os() << tensor->name;
-    }
+    os() << tensor->name << "[" << index << "]";
   } else {
     if (tensor->type().is_cpp_handle()) {
       // os() << "(*" << tensor->name << ")[" << index << "]";
       os() << "(*" << tensor->name << ")";
     } else {
-      // os() << "(" << tensor->name << ")[" << index << "]";
-      os() << "(" << tensor->name << ")";
+      os() << tensor->name;
     }
   }
   return true;

@@ -217,13 +217,8 @@ class CudaVectorizer : public IRMutator<Expr *> {
   }
 
   void Visit(const Cast *op, Expr *expr) override {
-    auto *node = expr->As<Cast>();
-    auto &body = node->v();
-    // LOG(INFO) << "Cast Begin().";
-    // LOG(INFO) << *expr;
-    // LOG(INFO) << node;
-    // LOG(INFO) << "Cast End().";
-
+    auto *node   = expr->As<Cast>();
+    auto &body   = node->v();
     auto tensors = ir::CollectIRNodes(body, [](const Expr *x) { return x->As<ir::_Tensor_>(); });
 
     // handdle cast op at last.
@@ -234,19 +229,12 @@ class CudaVectorizer : public IRMutator<Expr *> {
     bool is_vectorize = true;
     for (auto &tensor : tensors) {
       auto tensor_ = tensor.As<ir::_Tensor_>();
-
-      // LOG(INFO) << "Loop Begin().";
-      // LOG(INFO) << tensor;
-      // LOG(INFO) << node->type().is_scalar();
-      // LOG(INFO) << tensor2vectorized_vars_.count(tensor_->name);
       if (node->type().is_scalar() && (tensor2vectorized_vars_.count(tensor_->name) || tensor_->type().is_vector())) {
-        lanes = tensor_->type().lanes();
-        // LOG(INFO) << lanes;
+        lanes        = tensor_->type().lanes();
         is_point     = tensor_->type().is_cpp_handle();
         is_vectorize = true;
         break;
       }
-      LOG(INFO) << "Loop End.";
     }
 
     if (is_vectorize) {
