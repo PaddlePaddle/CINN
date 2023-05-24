@@ -175,23 +175,19 @@ bool IsSameSubexpression(Node* op1, Node* op2, shape_dict_t& shape_dict) {
   }
 }
 
-void RemoveNodes(framework::Graph* graph, GraphNode* node) {
-  auto in_edges = node->inlinks();
-  for (auto& edge : in_edges) {
-    auto* in_node = edge->source();
-    in_node->UnLinkSingleTo(node);
-  }
-  auto out_edges = node->outlinks();
-  for (auto& edge : out_edges) {
-    auto* out_node = edge->sink();
-    node->UnLinkSingleTo(out_node);
-  }
-  graph->DropNode(node);
-}
-
 void RemoveNodes(framework::Graph* graph, std::vector<Node*>& nodes) {
   for (auto* node : nodes) {
-    RemoveNodes(graph, node);
+    auto in_edges = node->inlinks();
+    for (auto& edge : in_edges) {
+      auto* in_node = edge->source();
+      in_node->UnLinkSingleTo(node);
+    }
+    auto out_edges = node->outlinks();
+    for (auto& edge : out_edges) {
+      auto* out_node = edge->sink();
+      node->UnLinkSingleTo(out_node);
+    }
+    graph->DropNode(node);
   }
 }
 
@@ -200,7 +196,7 @@ void RemoveNodes(framework::Graph* graph, std::vector<NodeData*>& nodes_data) {
     if (std::find(graph->outputs.begin(), graph->outputs.end(), data) != graph->outputs.end()) {
       return;
     }
-    RemoveNodes(graph, data);
+    graph->DropNode(data);
   }
 }
 
@@ -208,9 +204,11 @@ void ReplaceNode(NodeData* src_new, NodeData* src_old, Node* trt) {
   std::vector<NodeData*> in_nodes;
   for (auto& in_edge : trt->inlinks_in_order()) {
     auto* in_node = in_edge->source()->safe_as<NodeData>();
+    in_node->UnLinkSingleTo(trt);
     if (in_node->id() == src_old->id()) {
-      in_node->UnLinkSingleTo(trt);
       src_new->LinkTo(trt);
+    } else {
+      in_node->LinkTo(trt);
     }
   }
 }
@@ -244,12 +242,15 @@ void CommonSubexpressionElimination(Graph* graph, std::vector<GraphNode*> store_
           auto* candidate_sink_node = candidate_out_links[k]->sink()->safe_as<NodeData>();
           CHECK(sink_node);
           CHECK(candidate_sink_node);
+          remove_nodes_data.push_back(sink_node);
           auto iter_sink_node = std::find(graph->outputs.begin(), graph->outputs.end(), sink_node);
           if (iter_sink_node != graph->outputs.end()) {
             // If sink node in outputs, the node cannot be removed.
-            continue;
+            NodeData new_sink_node(
+                candidate_node, sink_node->output_index, sink_node->version, sink_node->id(), sink_node->is_const());
+            graph->outputs.erase(iter_sink_node);
+            graph->outputs.push_back(&new_sink_node);
           }
-          remove_nodes_data.push_back(sink_node);
           // Replace sink_node with candidate_sink_node in nodes linked by sink_node.
           auto out_nodes = in2node[sink_node->id()];
           for (auto out_node : out_nodes) {

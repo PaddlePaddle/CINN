@@ -248,7 +248,7 @@ std::string Graph::DebugGroupedGraph(const std::vector<std::vector<Node*>>& grou
     fetch_list = fetch_var_ids;
   } else {
     for (auto* var : this->outputs) {
-      if (!var) {
+      if (var) {
         continue;
       }
       fetch_list.insert(var->id());
