@@ -180,8 +180,6 @@ class OpTest(unittest.TestCase):
             else:
                 expect = expect_res[i]
             actual = actual_res[i]
-            # NOTE: Paddle's 0D Tensor will be changed to 1D when calling `expect = expect_res[i].numpy()`, hence we need get expect_shape explicitly.
-            expect_shape = tuple(expect_res[i].shape)
 
             self.assertEqual(
                 expect.dtype,
