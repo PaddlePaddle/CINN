@@ -295,7 +295,7 @@ std::shared_ptr<OpStrategy> StrategyForFillConstant(const framework::NodeAttr &a
 
     if (force_cpu && target != common::DefaultHostTarget()) {
       LOG(WARNING) << "The attribute \"force_cpu\" of \"fill_constant\" not supported in CINN! The \"fill_constant\"'s "
-                      "output tensot will placed on "
+                      "output tensor will placed on "
                    << target;
     }
 
@@ -339,10 +339,10 @@ std::vector<Type> InferDtypeForFillConstant(const std::vector<Type> &inputs_type
     out_type       = common::Str2Type(dtype_str);
     VLOG(3) << "FillConstant output dtype (from [dtype]): " << dtype_str;
   } else {
-    // attribute [dtype] no given, infered by value's type
+    // attribute [dtype] no given, inferred by value's type
     auto scalar = GetScalarExpr(attrs.at("value"));
     out_type    = scalar->type();
-    VLOG(3) << "FillConstant scalar type (from [vaule]): " << common::Type2Str(out_type);
+    VLOG(3) << "FillConstant scalar type (from [value]): " << common::Type2Str(out_type);
   }
   return {out_type};
 }
@@ -715,7 +715,6 @@ std::vector<std::vector<int>> InferShapeForReshape(const std::vector<std::vector
   for (auto i : inputs_shape[0]) {
     tensor_size *= i;
   }
-  CHECK(!output_shape.empty()) << "infer_shape for reshape turns out to be empty. Please check\n";
   int flag_index = -1;
   for (int i = 0; i < output_shape.size(); i++) {
     if (output_shape[i] > 0) {

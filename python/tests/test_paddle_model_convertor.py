@@ -20,7 +20,6 @@ import unittest
 import logging, argparse
 
 import paddle
-from paddle.fluid.framework import core
 
 from cinn.frontend import PaddleModelConvertor
 from cinn.common import is_compiled_with_cuda, DefaultNVGPUTarget

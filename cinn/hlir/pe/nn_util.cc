@@ -15,6 +15,7 @@
 #include "cinn/hlir/pe/nn_util.h"
 
 #include "cinn/common/ir_util.h"
+#include "cinn/common/target.h"
 
 namespace cinn {
 namespace hlir {
@@ -311,6 +312,115 @@ std::vector<ir::Tensor> winograd_transform_matrices(const int& tile_size, const 
   auto tensor_g      = const_matrix(G, name_g);
 
   return {tensor_a, tensor_b, tensor_g};
+}
+
+int GetPostParallelSize(const std::vector<int>& inshape, const std::vector<int>& axes) {
+  int parallel_size = 1;
+  for (int idx = axes.back() + 1; idx < inshape.size(); ++idx) {
+    parallel_size *= inshape[idx];
+  }
+  return parallel_size;
+}
+
+int GetParallelSize(const std::vector<int>& inshape, const std::vector<int>& axes) {
+  int parallel_size = 1;
+  for (int idx = 0; idx < inshape.size(); ++idx) {
+    if (std::find(axes.begin(), axes.end(), idx) != axes.end()) {
+      continue;
+    }
+    parallel_size *= inshape[idx];
+  }
+  return parallel_size;
+}
+
+int GetTailSize(const std::vector<int>& inshape, const std::vector<int>& axes) {
+  int tail_size = 1;
+  for (int idx = axes.back() + 1; idx < inshape.size(); ++idx) {
+    tail_size *= inshape[idx];
+  }
+  return tail_size;
+}
+
+std::vector<int> GetFirstStepReduceShape(const std::vector<int>& shape,
+                                         const std::vector<int>& axes,
+                                         bool& inbound,
+                                         int& tail) {
+  // post parallel size
+  int post_parallel_size = GetPostParallelSize(shape, axes);
+  // the size to unfold las reduce axis
+  int unfold_size = common::GetMaxThreads() / GetParallelSize(shape, axes);
+  CHECK_GT(unfold_size, 1);
+
+  // fuse reduce axis.
+  int insert_zero_num  = 0;
+  int last_axis_index  = axes.size() - 1;
+  int last_reduce_size = shape[axes.back()];
+  for (; last_axis_index >= 1; --last_axis_index) {
+    if (axes[last_axis_index] - 1 != axes[last_axis_index - 1]) {
+      break;
+    }
+    ++insert_zero_num;
+    int index = axes[last_axis_index - 1];
+    last_reduce_size *= shape[index];
+  }
+
+  std::vector<int> reduce_shape;
+  for (int idx = 0; idx < axes[last_axis_index]; ++idx) {
+    reduce_shape.push_back(shape[idx]);
+  }
+
+  // insert 1 to keep dimension size.
+  for (int idx = 0; idx < insert_zero_num; ++idx) {
+    reduce_shape.emplace_back(1);
+  }
+
+  // get tail size.
+  if (last_reduce_size < unfold_size && last_reduce_size < 64) {
+    reduce_shape.emplace_back(1);
+    reduce_shape.emplace_back(last_reduce_size);
+
+    for (int idx = axes.back() + 1; idx < shape.size(); ++idx) {
+      reduce_shape.push_back(shape[idx]);
+    }
+    return reduce_shape;
+  }
+
+  // set loop size set.
+  static std::vector<int> loop_size_set = {64, 48, 32, 24, 16, 12, 8, 4, 2, 1};
+  for (auto loop_size : loop_size_set) {
+    if (last_reduce_size < loop_size || unfold_size < loop_size) {
+      continue;
+    }
+
+    if (last_reduce_size % loop_size != 0) {
+      continue;
+    }
+
+    if (loop_size > 1) {
+      reduce_shape.emplace_back(last_reduce_size / loop_size);
+      reduce_shape.emplace_back(loop_size);
+    } else {
+      for (auto loop_size : loop_size_set) {
+        if (unfold_size < loop_size) {
+          continue;
+        }
+        tail = last_reduce_size - (last_reduce_size / loop_size) * loop_size;
+        // do ceil
+        reduce_shape.emplace_back((last_reduce_size - 1) / loop_size + 1);
+        reduce_shape.emplace_back(loop_size);
+        inbound = false;
+        break;
+      }
+    }
+    break;
+  }
+
+  // std::vector<ir::Expr> tail;
+  for (int idx = axes.back() + 1; idx < shape.size(); ++idx) {
+    reduce_shape.push_back(shape[idx]);
+  }
+
+  return reduce_shape;
 }
 
 }  // namespace pe

@@ -94,7 +94,7 @@ void TestGenerateCodeCpu_Argmax_Keep(void* _args, int32_t num_args)
     for (int32_t j = 0; j < 3; j += 1) {
       for (int32_t k = 0; k < 28; k += 1) {
         for (int32_t a = 0; a < 28; a += 1) {
-          test_argmax_in_index[((2352 * i) + ((784 * j) + ((28 * k) + a)))] = cinn_host_find_int_nd(_test_argmax_in_index_temp, 3, j, ((2352 * i) + ((28 * k) + a)), 784);
+          test_argmax_in_index[((2352 * i) + ((784 * j) + ((28 * k) + a)))] = cinn_host_next_smallest_int32(_test_argmax_in_index_temp, 3, j, ((2352 * i) + ((28 * k) + a)), 784);
         };
       };
     };

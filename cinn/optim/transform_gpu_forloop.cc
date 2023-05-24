@@ -176,17 +176,19 @@ class ReplaceIndexToBindExpr : public ir::IRMutator<> {
 
  private:
   void Visit(const ir::ScheduleBlockRealize *op, Expr *expr) override {
-    auto *schedule_block_realize = expr->As<ir::ScheduleBlockRealize>();
+    ir::ScheduleBlockRealize *schedule_block_realize = expr->As<ir::ScheduleBlockRealize>();
     CHECK(schedule_block_realize->schedule_block.As<ir::ScheduleBlock>());
-    auto iter_values = schedule_block_realize->iter_values;
-    auto body_copy   = schedule_block_realize->schedule_block.As<ir::ScheduleBlock>()->body;
-    auto iter_vars   = schedule_block_realize->schedule_block.As<ir::ScheduleBlock>()->iter_vars;
+    std::vector<ir::Expr> iter_values = schedule_block_realize->iter_values;
+    ir::Expr body                     = schedule_block_realize->schedule_block.As<ir::ScheduleBlock>()->body;
+    ir::Expr body_copy                = IRCopy(body);
+    std::vector<ir::Var> iter_vars    = schedule_block_realize->schedule_block.As<ir::ScheduleBlock>()->iter_vars;
 
     CHECK_EQ(iter_values.size(), iter_vars.size());
     for (int idx = 0; idx < iter_values.size(); ++idx) {
       ReplaceVarWithExpr(&body_copy, iter_vars[idx], iter_values[idx]);
     }
     ir::IRMutator<>::Visit(&body_copy, &body_copy);
+    schedule_block_realize->schedule_block.As<ir::ScheduleBlock>()->body = body_copy;
   }
 };
 
@@ -466,6 +468,7 @@ class ResizeBufferSizeVisitor : public ir::IRMutator<> {
       return;
     }
     if (store_tensor->buffer->memory_type == ir::MemoryType::Heap) {
+      ir::IRMutator<>::Visit(op, expr);
       return;
     }
 
@@ -489,6 +492,7 @@ class ResizeBufferSizeVisitor : public ir::IRMutator<> {
     }
 
     if (load->tensor.as_tensor_ref()->buffer->memory_type == ir::MemoryType::Heap) {
+      ir::IRMutator<>::Visit(op, expr);
       return;
     }
 
@@ -539,6 +543,57 @@ class ResizeBufferSizeVisitor : public ir::IRMutator<> {
   std::unordered_map<std::string, int> loop_2_extent_;
 };
 
+class ReplaceVarToZero : public ir::IRMutator<> {
+ public:
+  void operator()(ir::Expr *expr) { ir::IRMutator<>::Visit(expr, expr); }
+
+ private:
+  void Visit(const ir::Store *op, Expr *expr) override {
+    auto store = expr->As<ir::Store>();
+    if (!store->tensor.as_tensor_ref()->buffer.defined()) {
+      return;
+    }
+
+    auto &indices = store->indices;
+    for (auto &indice : indices) {
+      for (auto var_ : loop_var_) {
+        optim::ReplaceVarWithExpr(&indice, ir::Var(var_), ir::Expr(0));
+      }
+      indice = common::AutoSimplify(indice);
+    }
+    ir::IRMutator<>::Visit(op, expr);
+  }
+
+  void Visit(const ir::Load *op, Expr *expr) override {
+    auto load = expr->As<ir::Load>();
+    if (!load->tensor.as_tensor_ref()->buffer.defined()) {
+      return;
+    }
+
+    auto &indices = load->indices;
+    for (auto &indice : indices) {
+      for (auto var_ : loop_var_) {
+        optim::ReplaceVarWithExpr(&indice, ir::Var(var_), ir::Expr(0));
+      }
+      indice = common::AutoSimplify(indice);
+    }
+
+    ir::IRMutator<>::Visit(op, expr);
+  }
+
+  void Visit(const ir::For *op, Expr *expr) override {
+    CHECK(expr->As<ir::For>());
+    auto for_ir   = expr->As<ir::For>();
+    auto var_name = for_ir->loop_var->name;
+    auto extent_i = for_ir->extent;
+
+    if (extent_i.is_constant() && extent_i.as_int32() == 1) loop_var_.insert(var_name);
+    ir::IRMutator<>::Visit(op, expr);
+    loop_var_.erase(var_name);
+  }
+  std::unordered_set<std::string> loop_var_;
+};
+
 void OptimizeExprGPU(Expr *expr) {
   VLOG(2) << "Before Optimize Expr:\n" << *expr;
   // replace var to bind expr
@@ -562,6 +617,10 @@ void OptimizeExprGPU(Expr *expr) {
 
   ResizeBufferSizeVisitor resize_buffer_size_visitor;
   resize_buffer_size_visitor(expr);
+
+  ReplaceVarToZero replace_var_to_zero;
+  replace_var_to_zero(expr);
+
   VLOG(2) << "After Optimize Expr: \n" << *expr;
 }
 

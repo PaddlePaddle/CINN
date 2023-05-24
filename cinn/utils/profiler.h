@@ -22,6 +22,7 @@
 #endif
 
 #include "cinn/utils/event.h"
+#include "glog/logging.h"
 
 namespace cinn {
 namespace utils {
@@ -41,15 +42,22 @@ class ProfilerHelper {
   static void EnableCPU() { g_state = ProfilerState::kCPU; }
   static void EnableCUDA() { g_state = ProfilerState::kCUDA; }
 
-  static bool IsEnable() { return ProfilerHelper::g_state != ProfilerState::kDisabled; }
+  static bool IsEnable() {
+    UpdateState();
+    return ProfilerHelper::g_state != ProfilerState::kDisabled;
+  }
 
   static bool IsEnableCPU() {
+    UpdateState();
     return ProfilerHelper::g_state == ProfilerState::kAll || ProfilerHelper::g_state == ProfilerState::kCPU;
   }
 
   static bool IsEnableCUDA() {
+    UpdateState();
     return ProfilerHelper::g_state == ProfilerState::kAll || ProfilerHelper::g_state == ProfilerState::kCUDA;
   }
+
+  static void UpdateState();
 };
 
 class RecordEvent {

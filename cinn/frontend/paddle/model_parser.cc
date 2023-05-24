@@ -33,6 +33,7 @@ int SizeOfType(framework_proto::VarType::Type type) {
   case Type::VarType_Type_##desc: \
     return sizeof(type);
     DO(BOOL, bool);
+    DO(BF16, float);
     DO(FP16, float);
     DO(FP32, float);
     DO(INT8, int8_t);
