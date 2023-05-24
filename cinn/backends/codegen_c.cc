@@ -143,7 +143,10 @@ std::string CodeGenC::GetTypeRepr(Type type) {
     str += "*";
   } else if (type.is_cpp_handle2()) {
     str += "**";
+  } else if (type.is_cpp_reference()) {
+    str += "&";
   }
+
   return str;
 }
 void CodeGenC::Visit(const ir::IntImm *op) { IrPrinter::Visit(op); }
