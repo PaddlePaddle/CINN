@@ -572,6 +572,7 @@ __host__ __device__ inline float16(abs)(const float16& a) {
 
 __host__ __device__ inline float16(log)(const float16& a) { return float16(std::log(static_cast<float>(a))); }
 
+// Overload of vectorized types.
 struct half4;
 struct half8;
 
@@ -582,7 +583,7 @@ struct alignas(sizeof(T) * Size) AlignedVector {
   __host__ __device__ inline T& operator[](int i) { return val[i]; }
 };
 
-#define BINARY_FUNC_FOR_VECTORIZED_INPUT(vector_t, op, num)                         \
+#define BINARY_FUNC_FOR_VECTORIZED_INPUT(vector_t, num, op)                         \
   __device__ inline vector_t& operator op(const vector_t& x) {                      \
     _Pragma("unroll") for (int i = 0; i < num; ++i) { data[i] = data[i] op x[i]; }  \
     return *this;                                                                   \
@@ -601,7 +602,7 @@ struct alignas(sizeof(T) * Size) AlignedVector {
     return x;                                                                       \
   }
 
-#define BINARY_FUNC_FOR_SCALARIZED_INPUT(vector_t, scalar_t, cast_t, op, num)                              \
+#define BINARY_FUNC_FOR_SCALARIZED_INPUT(vector_t, scalar_t, cast_t, num, op)                              \
   __device__ inline vector_t& operator op(const scalar_t& x) {                                             \
     _Pragma("unroll") for (int i = 0; i < num; ++i) { data[i] = data[i] op static_cast<const cast_t>(x); } \
     return *this;                                                                                          \
@@ -616,29 +617,22 @@ struct alignas(sizeof(T) * Size) AlignedVector {
     _Pragma("unroll") for (int i = 0; i < num; ++i) { data[i] = static_cast<const cast_t>(x); } \
   }
 
+#define BASIC_BINARY_ARITHMETICS_FOR_EACH(_, ...) \
+  _(__VA_ARGS__, +);                              \
+  _(__VA_ARGS__, -);                              \
+  _(__VA_ARGS__, *);                              \
+  _(__VA_ARGS__, /);
+
 struct CINN_ALIGN(32) float8 {
   AlignedVector<float, 8> data;
   __device__ inline const float& operator[](int i) const { return data[i]; }
   __device__ inline float& operator[](int i) { return data[i]; }
   float8() = default;
 
-  // operate with vec_type: float8
-  BINARY_FUNC_FOR_VECTORIZED_INPUT(float8, +, 8);
-  BINARY_FUNC_FOR_VECTORIZED_INPUT(float8, -, 8);
-  BINARY_FUNC_FOR_VECTORIZED_INPUT(float8, *, 8);
-  BINARY_FUNC_FOR_VECTORIZED_INPUT(float8, /, 8);
-
-  // operate with scalar_type: float16
-  BINARY_FUNC_FOR_SCALARIZED_INPUT(float8, float16, float, +, 8);
-  BINARY_FUNC_FOR_SCALARIZED_INPUT(float8, float16, float, -, 8);
-  BINARY_FUNC_FOR_SCALARIZED_INPUT(float8, float16, float, *, 8);
-  BINARY_FUNC_FOR_SCALARIZED_INPUT(float8, float16, float, /, 8);
-
-  // operate with scalar_type: float
-  BINARY_FUNC_FOR_SCALARIZED_INPUT(float8, float, float, +, 8);
-  BINARY_FUNC_FOR_SCALARIZED_INPUT(float8, float, float, -, 8);
-  BINARY_FUNC_FOR_SCALARIZED_INPUT(float8, float, float, *, 8);
-  BINARY_FUNC_FOR_SCALARIZED_INPUT(float8, float, float, /, 8);
+  // operate with different input types.
+  BASIC_BINARY_ARITHMETICS_FOR_EACH(BINARY_FUNC_FOR_VECTORIZED_INPUT, float8, 8);
+  BASIC_BINARY_ARITHMETICS_FOR_EACH(BINARY_FUNC_FOR_SCALARIZED_INPUT, float8, float16, float, 8);
+  BASIC_BINARY_ARITHMETICS_FOR_EACH(BINARY_FUNC_FOR_SCALARIZED_INPUT, float8, float, float, 8)
 
   VECTORIZED_CAST_SCALAR_FUNC(float8, float, float, 8);
   VECTORIZED_CAST_SCALAR_FUNC(float8, float16, float, 8);
@@ -653,23 +647,10 @@ struct CINN_ALIGN(16) float4 {
 
   float4() = default;
 
-  // operate with vec_type
-  BINARY_FUNC_FOR_VECTORIZED_INPUT(float4, +, 4);
-  BINARY_FUNC_FOR_VECTORIZED_INPUT(float4, -, 4);
-  BINARY_FUNC_FOR_VECTORIZED_INPUT(float4, *, 4);
-  BINARY_FUNC_FOR_VECTORIZED_INPUT(float4, /, 4);
-
-  // operate with scalar_type: float16
-  BINARY_FUNC_FOR_SCALARIZED_INPUT(float4, float16, float, +, 4);
-  BINARY_FUNC_FOR_SCALARIZED_INPUT(float4, float16, float, -, 4);
-  BINARY_FUNC_FOR_SCALARIZED_INPUT(float4, float16, float, *, 4);
-  BINARY_FUNC_FOR_SCALARIZED_INPUT(float4, float16, float, /, 4);
-
-  // operate with scalar_type: float
-  BINARY_FUNC_FOR_SCALARIZED_INPUT(float4, float, float, +, 4);
-  BINARY_FUNC_FOR_SCALARIZED_INPUT(float4, float, float, -, 4);
-  BINARY_FUNC_FOR_SCALARIZED_INPUT(float4, float, float, *, 4);
-  BINARY_FUNC_FOR_SCALARIZED_INPUT(float4, float, float, /, 4);
+  // operate with different input types.
+  BASIC_BINARY_ARITHMETICS_FOR_EACH(BINARY_FUNC_FOR_VECTORIZED_INPUT, float4, 4);
+  BASIC_BINARY_ARITHMETICS_FOR_EACH(BINARY_FUNC_FOR_SCALARIZED_INPUT, float4, float16, float, 4);
+  BASIC_BINARY_ARITHMETICS_FOR_EACH(BINARY_FUNC_FOR_SCALARIZED_INPUT, float4, float, float, 4);
 
   VECTORIZED_CAST_SCALAR_FUNC(float4, float, float, 4);
   VECTORIZED_CAST_SCALAR_FUNC(float4, float16, float, 4);
@@ -682,29 +663,20 @@ struct CINN_ALIGN(16) half8 {
   __device__ inline const float16& operator[](int i) const { return data[i]; }
   __device__ inline float16& operator[](int i) { return data[i]; }
 
+  // construction.
   half8() = default;
 
-  // operate with vec_type
-  BINARY_FUNC_FOR_VECTORIZED_INPUT(half8, +, 8);
-  BINARY_FUNC_FOR_VECTORIZED_INPUT(half8, -, 8);
-  BINARY_FUNC_FOR_VECTORIZED_INPUT(half8, *, 8);
-  BINARY_FUNC_FOR_VECTORIZED_INPUT(half8, /, 8);
+  __device__ explicit half8(const float8& x) {
+    _Pragma("unroll") for (int i = 0; i < 8; ++i) { data[i] = static_cast<const float16>(x[i]); }
+  }
 
-  // operate with scalar_type: float16
-  BINARY_FUNC_FOR_SCALARIZED_INPUT(half8, float16, float16, +, 8);
-  BINARY_FUNC_FOR_SCALARIZED_INPUT(half8, float16, float16, -, 8);
-  BINARY_FUNC_FOR_SCALARIZED_INPUT(half8, float16, float16, *, 8);
-  BINARY_FUNC_FOR_SCALARIZED_INPUT(half8, float16, float16, /, 8);
+  // Operate with different input types.
+  BASIC_BINARY_ARITHMETICS_FOR_EACH(BINARY_FUNC_FOR_VECTORIZED_INPUT, half8, 8);
+  BASIC_BINARY_ARITHMETICS_FOR_EACH(BINARY_FUNC_FOR_SCALARIZED_INPUT, half8, float16, float16, 8);
 
+  // Cast operation overload.
   VECTORIZED_CAST_SCALAR_FUNC(half8, float, float16, 8);
   VECTORIZED_CAST_SCALAR_FUNC(half8, float16, float16, 8);
-
-  __device__ inline explicit half8(const float8& x) {
-#pragma unroll
-    for (int i = 0; i < 8; ++i) {
-      data[i] = static_cast<const float16>(x[i]);
-    }
-  }
 };
 
 struct CINN_ALIGN(8) half4 {
@@ -712,31 +684,22 @@ struct CINN_ALIGN(8) half4 {
   __device__ inline const float16& operator[](int i) const { return data[i]; }
   __device__ inline float16& operator[](int i) { return data[i]; }
 
+  // construction.
   half4() = default;
+  __device__ explicit half4(const float4& x) {
+    _Pragma("unroll") for (int i = 0; i < 4; ++i) { data[i] = static_cast<const float16>(x[i]); }
+  }
 
-  // operate with vec_type
-  BINARY_FUNC_FOR_VECTORIZED_INPUT(half4, +, 4);
-  BINARY_FUNC_FOR_VECTORIZED_INPUT(half4, -, 4);
-  BINARY_FUNC_FOR_VECTORIZED_INPUT(half4, *, 4);
-  BINARY_FUNC_FOR_VECTORIZED_INPUT(half4, /, 4);
+  // Operate with different input types.
+  BASIC_BINARY_ARITHMETICS_FOR_EACH(BINARY_FUNC_FOR_VECTORIZED_INPUT, half4, 4);
+  BASIC_BINARY_ARITHMETICS_FOR_EACH(BINARY_FUNC_FOR_SCALARIZED_INPUT, half4, float16, float16, 4);
 
-  // operate with scalar_type: float16
-  BINARY_FUNC_FOR_SCALARIZED_INPUT(half4, float16, float16, +, 4);
-  BINARY_FUNC_FOR_SCALARIZED_INPUT(half4, float16, float16, -, 4);
-  BINARY_FUNC_FOR_SCALARIZED_INPUT(half4, float16, float16, *, 4);
-  BINARY_FUNC_FOR_SCALARIZED_INPUT(half4, float16, float16, /, 4);
-
+  // Cast operation overload.
   VECTORIZED_CAST_SCALAR_FUNC(half4, float, float16, 4);
   VECTORIZED_CAST_SCALAR_FUNC(half4, float16, float16, 4);
-
-  __device__ inline explicit half4(const float4& x) {
-#pragma unroll
-    for (int i = 0; i < 4; ++i) {
-      data[i] = static_cast<const float16>(x[i]);
-    }
-  }
 };
 
+// Cast operation overload.
 __device__ inline float4::float4(const half4& x) {
 #pragma unroll
   for (int i = 0; i < 4; ++i) {
@@ -744,6 +707,7 @@ __device__ inline float4::float4(const half4& x) {
   }
 }
 
+// Cast operation overload.
 __device__ inline float8::float8(const half8& x) {
 #pragma unroll
   for (int i = 0; i < 8; ++i) {
@@ -751,37 +715,25 @@ __device__ inline float8::float8(const half8& x) {
   }
 }
 
-#define BINARY_FUNCTION_FOR_SCALAR_AND_VECTOR(scalar_t, vector_t, op, num)       \
-  __device__ inline vector_t& operator op(const scalar_t x, vector_t& y) {       \
-    _Pragma("unroll") for (int i = 0; i < num; ++i) { y[i] = x op y[i]; }        \
-    return y;                                                                    \
-  }                                                                              \
-  __device__ inline vector_t& operator op(const scalar_t x, const vector_t& y) { \
-    vector_t rslt;                                                               \
-    _Pragma("unroll") for (int i = 0; i < num; ++i) { rslt[i] = x * y[i]; }      \
-    return rslt;                                                                 \
+#define SCALAR_FIRST_BASIC_BINARY_FUNCTIONS(scalar_t, vector_t, num, op)        \
+  __device__ inline vector_t& operator op(const scalar_t x, vector_t& y) {      \
+    _Pragma("unroll") for (int i = 0; i < num; ++i) { y[i] = x op y[i]; }       \
+    return y;                                                                   \
+  }                                                                             \
+  __device__ inline vector_t operator op(const scalar_t x, const vector_t& y) { \
+    vector_t rslt;                                                              \
+    _Pragma("unroll") for (int i = 0; i < num; ++i) { rslt[i] = x op y[i]; }    \
+    return rslt;                                                                \
   }
 
-#define BINARY_FUNCTIONS_FOR_EACH_IMPL(_) \
-  _(float, float8, +, 8)                  \
-  _(float, float8, -, 8)                  \
-  _(float, float8, *, 8)                  \
-  _(float, float8, /, 8)                  \
-  _(float, float4, +, 4)                  \
-  _(float, float4, -, 4)                  \
-  _(float, float4, *, 4)                  \
-  _(float, float4, /, 4)                  \
-  _(float16, half8, +, 8)                 \
-  _(float16, half8, -, 8)                 \
-  _(float16, half8, *, 8)                 \
-  _(float16, half8, /, 8)                 \
-  _(float16, half4, +, 4)                 \
-  _(float16, half4, -, 4)                 \
-  _(float16, half4, *, 4)                 \
-  _(float16, half4, /, 4)
+#define SCALAR_FIRST_BINARY_FUNCTIONS_FOR_EACH_IMPL(_, IMPL) \
+  _(IMPL, float, float8, 8)                                  \
+  _(IMPL, float, float4, 4)                                  \
+  _(IMPL, float16, half8, 8)                                 \
+  _(IMPL, float16, half4, 4)
 
-BINARY_FUNCTIONS_FOR_EACH_IMPL(BINARY_FUNCTION_FOR_SCALAR_AND_VECTOR);
-#undef BINARY_FUNCTIONS_FOR_SCALAR_AND_REGISTER_IMPL
+SCALAR_FIRST_BINARY_FUNCTIONS_FOR_EACH_IMPL(BASIC_BINARY_ARITHMETICS_FOR_EACH, SCALAR_FIRST_BASIC_BINARY_FUNCTIONS);
+#undef SCALAR_FIRST_BINARY_FUNCTIONS_FOR_EACH_IMPL
 
 #ifdef __cplusplus
 }  // namespace common
@@ -828,39 +780,36 @@ using cinn::common::float16;
 using cinn::common::half4;
 using cinn::common::half8;
 
-__device__ inline half8& max(half8& x, float16 y) {
-#pragma unroll
-  for (int i = 0; i < 8; ++i) {
-    x[i] = max(x[i], y);
+#define BASIC_BINARY_FUNC_FOR_VECTOR_AND_SCALAR_TYPES(vector_t, scalar_t, num, op) \
+  __device__ inline vector_t& op(vector_t& x, scalar_t y) {                        \
+    _Pragma("unroll") for (int i = 0; i < num; ++i) { x[i] = op(x[i], y); }        \
+    return x;                                                                      \
+  }                                                                                \
+  __device__ inline vector_t op(const vector_t& x, const scalar_t y) {             \
+    vector_t rslt;                                                                 \
+    _Pragma("unroll") for (int i = 0; i < num; ++i) { rslt[i] = op(x[i], y); }     \
+    return rslt;                                                                   \
+  }                                                                                \
+  __device__ inline vector_t& op(scalar_t x, vector_t& y) {                        \
+    _Pragma("unroll") for (int i = 0; i < num; ++i) { y[i] = op(x, y[i]); }        \
+    return y;                                                                      \
+  }                                                                                \
+  __device__ inline vector_t op(const scalar_t x, const vector_t& y) {             \
+    vector_t rslt;                                                                 \
+    _Pragma("unroll") for (int i = 0; i < num; ++i) { rslt[i] = op(x, y[i]); }     \
+    return rslt;                                                                   \
   }
-  return x;
-}
 
-__device__ inline half8& max(const half8& x, const float16 y) {
-  half8 rslt;
-#pragma unroll
-  for (int i = 0; i < 8; ++i) {
-    rslt[i] = max(x[i], y);
-  }
-  return rslt;
-}
+#define BASIC_BINARY_FUNC_FOR_EACH(_, ...) \
+  _(__VA_ARGS__, max);                     \
+  _(__VA_ARGS__, min);
 
-__device__ inline half8& max(float16 y, half8& x) {
-#pragma unroll
-  for (int i = 0; i < 8; ++i) {
-    x[i] = max(x[i], y);
-  }
-  return x;
-}
+#define SCALAR_FIRST_BINARY_FUNCTIONS_FOR_EACH_IMPL(_, IMPL) \
+  _(IMPL, half8, float16, 8);                                \
+  _(IMPL, half4, float16, 4);
 
-__device__ inline half8& max(const float16 y, const half8& x) {
-  half8 rslt;
-#pragma unroll
-  for (int i = 0; i < 8; ++i) {
-    rslt[i] = max(x[i], y);
-  }
-  return rslt;
-}
+SCALAR_FIRST_BINARY_FUNCTIONS_FOR_EACH_IMPL(BASIC_BINARY_FUNC_FOR_EACH, BASIC_BINARY_FUNC_FOR_VECTOR_AND_SCALAR_TYPES);
+#undef SCALAR_FIRST_BINARY_FUNCTIONS_FOR_EACH_IMPL
 
 #endif  // __cplusplus && CINN_CUDA_FP16
 
