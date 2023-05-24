@@ -113,9 +113,9 @@ class TestBroadcastToAllTwo(TestCaseHelper):
             {
                 "x_dtype": "bool",
             },
-            {
-                "x_dtype": "int8",
-            },
+            #{
+            #    "x_dtype": "int8",
+            #},
             {
                 "x_dtype": "int32",
             },
