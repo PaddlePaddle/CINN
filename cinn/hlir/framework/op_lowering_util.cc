@@ -707,7 +707,7 @@ bool CanbeInline(Node* node,
       return false;
     }
   }
-  
+
   if (IsConstOp(node)) {
     return true;
   }
