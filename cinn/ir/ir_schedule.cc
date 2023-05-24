@@ -319,7 +319,7 @@ struct RfMutator : public ir::IRMutator<> {
     }
     // create new rfactor block var if not exist
     if (rf_index == -1) {
-      new_rf_itervar_ = Var("i" + std::to_string(block_vars.size()));
+      new_rf_itervar_ = Var(cinn::UniqName("i" + std::to_string(block_vars.size())));
       iter_values.push_back(new_rf_loop_var_);
       block_vars.push_back(new_rf_itervar_);
     }

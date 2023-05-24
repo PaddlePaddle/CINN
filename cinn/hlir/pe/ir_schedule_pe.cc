@@ -25,6 +25,7 @@
 #include <utility>
 
 #include "cinn/common/cas.h"
+#include "cinn/common/common.h"
 #include "cinn/hlir/pe/load_x86_params.h"
 #include "cinn/hlir/pe/schedule.h"
 #include "cinn/ir/ir.h"
@@ -376,7 +377,7 @@ void IRCudaScheduleBlockReduceInternal(ir::IRSchedule &ir_sch,
     CHECK(out_block->as<ir::ScheduleBlockRealize>()->schedule_block->as<ir::ScheduleBlock>());
 
     // create var
-    auto var = ir::Var(ir::Expr(0), ir::Expr(1), common::UniqName("i_0"));
+    auto var = ir::Var(ir::Expr(0), ir::Expr(1), common::UniqName("i"));
     out_block->as<ir::ScheduleBlockRealize>()->iter_values.push_back(var);
     out_block->as<ir::ScheduleBlockRealize>()->schedule_block->as<ir::ScheduleBlock>()->iter_vars.push_back(var);
 
@@ -479,7 +480,7 @@ void IRCudaScheduleBlockReduce(ir::IRSchedule &ir_sch,
     CHECK(out_block->as<ir::ScheduleBlockRealize>()->schedule_block->as<ir::ScheduleBlock>());
 
     // create var
-    auto var = ir::Var(ir::Expr(0), ir::Expr(1), "i_0");
+    auto var = ir::Var(ir::Expr(0), ir::Expr(1), cinn::UniqName("i"));
     out_block->as<ir::ScheduleBlockRealize>()->iter_values.push_back(var);
     out_block->as<ir::ScheduleBlockRealize>()->schedule_block->as<ir::ScheduleBlock>()->iter_vars.push_back(var);
 
@@ -813,7 +814,7 @@ void IRCudaTwoStepReduceSchedule(ir::IRSchedule &ir_sch,
 
     // create var
     // auto var = ir::Var(ir::Expr(0), ir::Expr(1), "i_0");
-    auto var = ir::Var(ir::Expr(0), ir::Expr(1), "i_0");
+    auto var = ir::Var(ir::Expr(0), ir::Expr(1), cinn::UniqName("i"));
     out_block->as<ir::ScheduleBlockRealize>()->iter_values.push_back(var);
     out_block->as<ir::ScheduleBlockRealize>()->schedule_block->as<ir::ScheduleBlock>()->iter_vars.push_back(var);
 

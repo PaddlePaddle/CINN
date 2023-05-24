@@ -81,13 +81,13 @@ TEST(CheckFusionAccuracyPass, ElementWise_Fusion) {
   auto graph = std::make_shared<Graph>(program, target);
   hlir::framework::ApplyPasses(graph.get(), {"OpFusionPass", "FusionMergePass"});
 
-  int group_size_affter = graph->fusion_groups.size() + CountAfterPassNodeSize(graph.get());
+  int group_size_after = graph->fusion_groups.size() + CountAfterPassNodeSize(graph.get());
 
   VLOG(1) << "Before CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
   hlir::framework::ApplyPasses(graph.get(), {"CheckFusionAccuracyPass", "TransToCustomCallPass"});
   VLOG(1) << "After CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
 
-  CHECK_EQ(graph->fusion_groups.size(), group_size_affter);
+  CHECK_EQ(graph->fusion_groups.size(), group_size_after);
 
   RunTest(target, graph, {"A", "B", "C", "D"});
 }
@@ -114,13 +114,13 @@ TEST(CheckFusionAccuracyPass, ElementWise_Fusion_1) {
 
   hlir::framework::ApplyPasses(graph.get(), {"OpFusionPass", "FusionMergePass"});
 
-  int group_size_affter = graph->fusion_groups.size() + CountAfterPassNodeSize(graph.get());
+  int group_size_after = graph->fusion_groups.size() + CountAfterPassNodeSize(graph.get());
 
   VLOG(1) << "Before CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
   hlir::framework::ApplyPasses(graph.get(), {"CheckFusionAccuracyPass", "TransToCustomCallPass"});
   VLOG(1) << "After CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
 
-  CHECK_EQ(graph->fusion_groups.size(), group_size_affter);
+  CHECK_EQ(graph->fusion_groups.size(), group_size_after);
 
   RunTest(target, graph, {"A", "B", "C", "D"});
 }
@@ -150,13 +150,13 @@ TEST(CheckFusionAccuracyPass, ElementWise_Fusion_2) {
 
   hlir::framework::ApplyPasses(graph.get(), {"OpFusionPass", "FusionMergePass"});
 
-  int group_size_affter = graph->fusion_groups.size() + CountAfterPassNodeSize(graph.get());
+  int group_size_after = graph->fusion_groups.size() + CountAfterPassNodeSize(graph.get());
 
   VLOG(1) << "Before CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
   hlir::framework::ApplyPasses(graph.get(), {"CheckFusionAccuracyPass", "TransToCustomCallPass"});
   VLOG(1) << "After CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
 
-  CHECK_EQ(graph->fusion_groups.size(), group_size_affter);
+  CHECK_EQ(graph->fusion_groups.size(), group_size_after);
 
   RunTest(target, graph, {"A", "B", "C", "D", "E", "F"});
 }
@@ -186,13 +186,13 @@ TEST(CheckFusionAccuracyPass, ElementWise_Fusion_3) {
 
   hlir::framework::ApplyPasses(graph.get(), {"OpFusionPass", "FusionMergePass"});
 
-  int group_size_affter = graph->fusion_groups.size() + CountAfterPassNodeSize(graph.get());
+  int group_size_after = graph->fusion_groups.size() + CountAfterPassNodeSize(graph.get());
 
   VLOG(1) << "Before CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
   hlir::framework::ApplyPasses(graph.get(), {"CheckFusionAccuracyPass", "TransToCustomCallPass"});
   VLOG(1) << "After CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
 
-  CHECK_EQ(graph->fusion_groups.size(), group_size_affter);
+  CHECK_EQ(graph->fusion_groups.size(), group_size_after);
 
   RunTest(target, graph, {"A", "B", "C", "D", "E", "F"});
 }
@@ -222,13 +222,13 @@ TEST(CheckFusionAccuracyPass, ElementWise_Fusion_4) {
 
   hlir::framework::ApplyPasses(graph.get(), {"OpFusionPass", "FusionMergePass"});
 
-  int group_size_affter = graph->fusion_groups.size() + CountAfterPassNodeSize(graph.get());
+  int group_size_after = graph->fusion_groups.size() + CountAfterPassNodeSize(graph.get());
 
   VLOG(1) << "Before CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
   hlir::framework::ApplyPasses(graph.get(), {"CheckFusionAccuracyPass", "TransToCustomCallPass"});
   VLOG(1) << "After CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
 
-  CHECK_EQ(graph->fusion_groups.size(), group_size_affter);
+  CHECK_EQ(graph->fusion_groups.size(), group_size_after);
 
   RunTest(target, graph, {"A", "B", "C", "D", "E", "F"});
 }
@@ -251,13 +251,13 @@ TEST(CheckFusionAccuracyPass, ElementWise_Fusion_5) {
 
   hlir::framework::ApplyPasses(graph.get(), {"OpFusionPass", "FusionMergePass"});
 
-  int group_size_affter = graph->fusion_groups.size() + CountAfterPassNodeSize(graph.get());
+  int group_size_after = graph->fusion_groups.size() + CountAfterPassNodeSize(graph.get());
 
   VLOG(1) << "Before CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
   hlir::framework::ApplyPasses(graph.get(), {"CheckFusionAccuracyPass", "TransToCustomCallPass"});
   VLOG(1) << "After CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
 
-  CHECK_EQ(graph->fusion_groups.size(), group_size_affter);
+  CHECK_EQ(graph->fusion_groups.size(), group_size_after);
 
   RunTest(target, graph, {"A", "B"});
 }
@@ -283,13 +283,13 @@ TEST(CheckFusionAccuracyPass, Broadcast_Test_0) {
 
   hlir::framework::ApplyPasses(graph.get(), {"OpFusionPass", "FusionMergePass"});
 
-  int group_size_affter = graph->fusion_groups.size() + CountAfterPassNodeSize(graph.get());
+  int group_size_after = graph->fusion_groups.size() + CountAfterPassNodeSize(graph.get());
 
   VLOG(1) << "Before CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
   hlir::framework::ApplyPasses(graph.get(), {"CheckFusionAccuracyPass", "TransToCustomCallPass"});
   VLOG(1) << "After CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
 
-  CHECK_EQ(graph->fusion_groups.size(), group_size_affter);
+  CHECK_EQ(graph->fusion_groups.size(), group_size_after);
 
   RunTest(target, graph, {"A", "B", "C", "D"});
 }
@@ -315,13 +315,13 @@ TEST(CheckFusionAccuracyPass, Broadcast_Test_2) {
 
   hlir::framework::ApplyPasses(graph.get(), {"OpFusionPass", "FusionMergePass"});
 
-  int group_size_affter = graph->fusion_groups.size() + CountAfterPassNodeSize(graph.get());
+  int group_size_after = graph->fusion_groups.size() + CountAfterPassNodeSize(graph.get());
 
   VLOG(1) << "Before CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
   hlir::framework::ApplyPasses(graph.get(), {"CheckFusionAccuracyPass", "TransToCustomCallPass"});
   VLOG(1) << "After CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
 
-  CHECK_EQ(graph->fusion_groups.size(), group_size_affter);
+  CHECK_EQ(graph->fusion_groups.size(), group_size_after);
 
   RunTest(target, graph, {"A", "B", "C", "D"});
 }
@@ -349,13 +349,13 @@ TEST(CheckFusionAccuracyPass, Broadcast_Test_4) {
 
   hlir::framework::ApplyPasses(graph.get(), {"OpFusionPass", "FusionMergePass"});
 
-  int group_size_affter = graph->fusion_groups.size() + CountAfterPassNodeSize(graph.get());
+  int group_size_after = graph->fusion_groups.size() + CountAfterPassNodeSize(graph.get());
 
   VLOG(1) << "Before CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
   hlir::framework::ApplyPasses(graph.get(), {"CheckFusionAccuracyPass", "TransToCustomCallPass"});
   VLOG(1) << "After CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
 
-  CHECK_EQ(graph->fusion_groups.size(), group_size_affter);
+  CHECK_EQ(graph->fusion_groups.size(), group_size_after);
 
   RunTest(target, graph, {"A", "B", "C", "D", "E"});
 }
@@ -383,13 +383,13 @@ TEST(CheckFusionAccuracyPass, Broadcast_Test_5) {
 
   hlir::framework::ApplyPasses(graph.get(), {"OpFusionPass", "FusionMergePass"});
 
-  int group_size_affter = graph->fusion_groups.size() + CountAfterPassNodeSize(graph.get());
+  int group_size_after = graph->fusion_groups.size() + CountAfterPassNodeSize(graph.get());
 
   VLOG(1) << "Before CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
   hlir::framework::ApplyPasses(graph.get(), {"CheckFusionAccuracyPass", "TransToCustomCallPass"});
   VLOG(1) << "After CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
 
-  CHECK_EQ(graph->fusion_groups.size(), group_size_affter);
+  CHECK_EQ(graph->fusion_groups.size(), group_size_after);
 
   RunTest(target, graph, {"A", "B", "C", "D", "E"});
 }
@@ -414,13 +414,13 @@ TEST(CheckFusionAccuracyPass, Reduce_Test_0) {
 
   hlir::framework::ApplyPasses(graph.get(), {"OpFusionPass", "FusionMergePass"});
 
-  int group_size_affter = graph->fusion_groups.size() + CountAfterPassNodeSize(graph.get());
+  int group_size_after = graph->fusion_groups.size() + CountAfterPassNodeSize(graph.get());
 
   VLOG(1) << "Before CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
   hlir::framework::ApplyPasses(graph.get(), {"CheckFusionAccuracyPass", "TransToCustomCallPass"});
   VLOG(1) << "After CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
 
-  CHECK_EQ(graph->fusion_groups.size(), group_size_affter);
+  CHECK_EQ(graph->fusion_groups.size(), group_size_after);
 
   RunTest(target, graph, {"A", "B"});
 }
@@ -444,13 +444,13 @@ TEST(CheckFusionAccuracyPass, Reduce_Test_1) {
 
   hlir::framework::ApplyPasses(graph.get(), {"OpFusionPass", "FusionMergePass"});
 
-  int group_size_affter = graph->fusion_groups.size() + CountAfterPassNodeSize(graph.get());
+  int group_size_after = graph->fusion_groups.size() + CountAfterPassNodeSize(graph.get());
 
   VLOG(1) << "Before CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
   hlir::framework::ApplyPasses(graph.get(), {"CheckFusionAccuracyPass", "TransToCustomCallPass"});
   VLOG(1) << "After CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
 
-  CHECK_EQ(graph->fusion_groups.size(), group_size_affter);
+  CHECK_EQ(graph->fusion_groups.size(), group_size_after);
 
   RunTest(target, graph, {"A", "B"});
 }
@@ -477,13 +477,13 @@ TEST(CheckFusionAccuracyPass, Reduce_Test_2) {
 
   hlir::framework::ApplyPasses(graph.get(), {"OpFusionPass", "FusionMergePass"});
 
-  int group_size_affter = graph->fusion_groups.size() + CountAfterPassNodeSize(graph.get());
+  int group_size_after = graph->fusion_groups.size() + CountAfterPassNodeSize(graph.get());
 
   VLOG(1) << "Before CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
   hlir::framework::ApplyPasses(graph.get(), {"CheckFusionAccuracyPass", "TransToCustomCallPass"});
   VLOG(1) << "After CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
 
-  CHECK_EQ(graph->fusion_groups.size(), group_size_affter);
+  CHECK_EQ(graph->fusion_groups.size(), group_size_after);
 
   RunTest(target, graph, {"A", "B", "C"});
 }
@@ -510,13 +510,13 @@ TEST(CheckFusionAccuracyPass, Reduce_Test_3) {
 
   hlir::framework::ApplyPasses(graph.get(), {"OpFusionPass", "FusionMergePass"});
 
-  int group_size_affter = graph->fusion_groups.size() + CountAfterPassNodeSize(graph.get());
+  int group_size_after = graph->fusion_groups.size() + CountAfterPassNodeSize(graph.get());
 
   VLOG(1) << "Before CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
   hlir::framework::ApplyPasses(graph.get(), {"CheckFusionAccuracyPass", "TransToCustomCallPass"});
   VLOG(1) << "After CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
 
-  CHECK_EQ(graph->fusion_groups.size(), group_size_affter);
+  CHECK_EQ(graph->fusion_groups.size(), group_size_after);
 
   RunTest(target, graph, {"A", "B", "C", "D"});
 }
@@ -544,13 +544,13 @@ TEST(CheckFusionAccuracyPass, Reduce_Test_4) {
 
   hlir::framework::ApplyPasses(graph.get(), {"OpFusionPass", "FusionMergePass"});
 
-  int group_size_affter = graph->fusion_groups.size() + CountAfterPassNodeSize(graph.get());
+  int group_size_after = graph->fusion_groups.size() + CountAfterPassNodeSize(graph.get());
 
   VLOG(1) << "Before CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
   hlir::framework::ApplyPasses(graph.get(), {"CheckFusionAccuracyPass", "TransToCustomCallPass"});
   VLOG(1) << "After CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
 
-  CHECK_EQ(graph->fusion_groups.size(), group_size_affter);
+  CHECK_EQ(graph->fusion_groups.size(), group_size_after);
 
   RunTest(target, graph, {"A", "B", "C", "D"});
 }
@@ -575,13 +575,13 @@ TEST(CheckFusionAccuracyPass, Reduce_Test_5) {
 
   hlir::framework::ApplyPasses(graph.get(), {"OpFusionPass", "FusionMergePass"});
 
-  int group_size_affter = graph->fusion_groups.size() + CountAfterPassNodeSize(graph.get());
+  int group_size_after = graph->fusion_groups.size() + CountAfterPassNodeSize(graph.get());
 
   VLOG(1) << "Before CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
   hlir::framework::ApplyPasses(graph.get(), {"CheckFusionAccuracyPass", "TransToCustomCallPass"});
   VLOG(1) << "After CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
 
-  CHECK_EQ(graph->fusion_groups.size(), group_size_affter);
+  CHECK_EQ(graph->fusion_groups.size(), group_size_after);
 
   RunTest(target, graph, {"A", "B"});
 }

@@ -540,7 +540,11 @@ void LoopAssignReduceWithoutLast(ir::IRSchedule& ir_sch,
   int tail   = 0;
   bool bound = true;
   auto shape = pe::GetFirstStepReduceShape(inshape, axes, bound, tail);
-  CHECK(bound);
+  CHECK(bound) << std::accumulate(
+      inshape.begin(), inshape.end(), std::string(""), [](const std::string& left, const int right) {
+        return left + std::to_string(right) + " ";
+      });
+
   VLOG(4) << "LoopAssignReduceWithoutLast: THe input shape=[" << cinn::utils::Join(inshape, ", ")
           << "], first step reduce shape=[" << cinn::utils::Join(shape, ", ") << "]"
           << ", axes=[" << cinn::utils::Join(axes, ", ") << "], tail=" << tail;
