@@ -66,7 +66,7 @@ std::string Summary::Format(const std::vector<HostEvent> &events) {
       unique_items[e.annotation_]                    = &items.back();
       unique_items.at(e.annotation_)->info.duration_ = 0.0;
     }
-    // Sum cost for categorey
+    // Sum cost for category
     category_cost[e.type_] += e.duration_;
     total_cost += e.duration_;
     max_annot_size = std::max(max_annot_size, e.annotation_.size());

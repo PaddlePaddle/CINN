@@ -128,7 +128,7 @@ void ComputeBatchNormTrainRef(const std::vector<T>& x,
   };
   Loop(func_y, n, c, h, w);
 
-  // new moving runnning and variance
+  // new moving running and variance
   float factor_0 = momentum;
   float factor_1 = static_cast<float>(1.0f - momentum);
   for (int ic = 0; ic < c; ++ic) {

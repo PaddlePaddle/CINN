@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <set>
 
+#include "cinn/common/common.h"
 #include "cinn/utils/string.h"
 
 namespace cinn {
@@ -133,11 +134,11 @@ isl_set *isl_get_precending_aixs(isl_set *set, int level, bool with_tuple_name) 
   std::vector<std::string> range_iterators;
 
   for (int i = 0; i < n; i++) {
-    domain_iterators.push_back("i" + std::to_string(i));
+    domain_iterators.push_back(cinn::UniqName("i" + std::to_string(i)));
   }
 
   for (int i = 0; i < level; i++) {
-    range_iterators.push_back("i" + std::to_string(i));
+    range_iterators.push_back(cinn::UniqName("i" + std::to_string(i)));
   }
 
   const char *statement = isl_set_get_tuple_name(set);
