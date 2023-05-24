@@ -180,8 +180,6 @@ class OpTest(unittest.TestCase):
             else:
                 expect = expect_res[i]
             actual = actual_res[i]
-            # NOTE: Paddle's 0D Tensor will be changed to 1D when calling `expect = expect_res[i].numpy()`, hence we need get expect_shape explicitly.
-            expect_shape = tuple(expect_res[i].shape)
 
             self.assertEqual(
                 expect.dtype,
@@ -189,12 +187,15 @@ class OpTest(unittest.TestCase):
                 msg=
                 "[{}] The {}-th output dtype different, which expect shape is {} but actual is {}."
                 .format(self._get_device(), i, expect.dtype, actual.dtype))
-            self.assertEqual(
-                expect_shape,
-                actual.shape,
-                msg=
-                "[{}] The {}-th output shape different, which expect shape is {} but actual is {}."
-                .format(self._get_device(), i, expect.shape, actual.shape))
+            # NOTE: Paddle's 0D Tensor will be changed to 1D when calling tensor.numpy(),
+            # only check non-0D Tensor's shape here. 0D-Tensor's shape will be verified by `test_zero_dim_tensor.py`
+            if len(expect.shape) != 0 and len(actual.shape) != 0:
+                self.assertEqual(
+                    expect.shape,
+                    actual.shape,
+                    msg=
+                    "[{}] The {}-th output shape different, which expect shape is {} but actual is {}."
+                    .format(self._get_device(), i, expect.shape, actual.shape))
 
             should_all_equal = all_equal or (actual.dtype in [
                 np.dtype('bool'),
