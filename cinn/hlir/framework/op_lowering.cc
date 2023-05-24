@@ -1216,6 +1216,7 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
 
   // do schedule
   for (auto node : nodes_in_order) {
+    VLOG(4) << "Try FUSION " << node->op()->name;
     // consumers.
     auto consumers      = GetConsumersInSet(node, nodes_set);
     const Node* reducer = greducer ? FindNearestReducer(node, nodes_set) : greducer;
@@ -1229,6 +1230,7 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
     auto masters = GetMasters(node, nodes_inline, nodes_set);
     // node can be inline.
     if (CanbeInline(node, consumers, reducer, masters, group, nodes_set, this->shape_dict_)) {
+      VLOG(3) << "Before compute inline, ir is:\n" << ir_sch.GetModule().GetExprs().at(0);
       auto block = ir_sch.GetBlock(GetNodeData(node)->id());
       ir::ComputeInlineChecker checker(ir_sch, block);
       if (!checker.Check()) {
@@ -1248,15 +1250,21 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
 
       ir_sch.ComputeInline(block);
       nodes_inline.insert(node);
+      VLOG(3) << "After compute inline, ir is:\n" << ir_sch.GetModule().GetExprs().at(0);
       continue;
     }
     // find master to computeat.
     auto master = GetMasterToComputeAt(node, nodes_in_order, nodes_inline, nodes_set, v_consumers, this->shape_dict_);
     // assign to reducer/master loop.
     if (reducer) {
+      VLOG(3) << "Before assign node " << node->id() << " into vertical link reducer " << reducer->id() << ", ir is:\n"
+              << ir_sch.GetModule().GetExprs().at(0);
       // if node is vertical with reduce, loop assign reducer.
       LoopAssignReduce(ir_sch, node, reducer, this->target_, tensor_map, this->shape_dict_);
     } else if (greducer) {
+      VLOG(3) << "Before assign node " << node->id() << " into horizontal link reducer " << greducer->id()
+              << ", ir is:\n"
+              << ir_sch.GetModule().GetExprs().at(0);
       // if node is horizontal with reduce or node is reduce, loop assign master.
       auto loops = ir_sch.GetLoops(GetNodeData(node)->id());
       if (op_pattern_dict[node->op()] == framework::kElementWise) {
@@ -1275,11 +1283,10 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
         ir_sch.Split(loops[0], splits);
       }
     }
-    VLOG(3) << "Before loop fusion, ir is: \n" << ir_sch.GetModule().GetExprs().at(0);
-    VLOG(4) << " FUSION " << node->op()->name;
+    VLOG(3) << "Before loop fusion, ir is:\n" << ir_sch.GetModule().GetExprs().at(0);
     // do loop fuse.
     LoopComputeAt(ir_sch, node, master ? master : nodes_in_order.front(), group, this->shape_dict_, tensor_map);
-    VLOG(3) << "After loop fusion, ir is: \n" << ir_sch.GetModule().GetExprs().at(0);
+    VLOG(3) << "After loop fusion, ir is:\n" << ir_sch.GetModule().GetExprs().at(0);
   }
 
   // do vectorize

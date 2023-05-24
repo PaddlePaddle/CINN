@@ -15,6 +15,7 @@
 #include "cinn/hlir/framework/op_lowering_util.h"
 
 #include "cinn/hlir/pe/nn_util.h"
+#include "cinn/utils/string.h"
 #ifdef CINN_WITH_CUDA
 #include "cinn/common/bfloat16.h"
 #include "cinn/common/float16.h"
@@ -540,22 +541,34 @@ void LoopAssignReduceWithoutLast(ir::IRSchedule& ir_sch,
   bool bound = true;
   auto shape = pe::GetFirstStepReduceShape(inshape, axes, bound, tail);
   CHECK(bound);
+  VLOG(4) << "LoopAssignReduceWithoutLast: THe input shape=[" << cinn::utils::Join(inshape, ", ")
+          << "], first step reduce shape=[" << cinn::utils::Join(shape, ", ") << "]"
+          << ", axes=[" << cinn::utils::Join(axes, ", ") << "], tail=" << tail;
 
   // remove loop size = 1 and remove axis in axes.
-  std::vector<int> nshape, naxes = axes;
+  std::vector<int> nshape, axes_shift_num(axes.size(), 0);
   for (int idx = 0; idx < shape.size(); ++idx) {
     if (shape[idx] == 1 && idx < axes.back()) {
-      auto iter = std::find(naxes.begin(), naxes.end(), idx);
-      if (iter != naxes.end()) {
-        naxes.erase(iter);
-      }
-      for (auto& axis : naxes) {
-        if (axis > idx) {
-          --axis;
+      for (int j = 0; j < axes.size(); ++j) {
+        if (axes[j] == idx) {
+          // the loop size at axis is 1, need remove
+          axes_shift_num[j] = -1;
+        } else if (axes[j] > idx) {
+          // the axies value need left shift
+          axes_shift_num[j]++;
         }
       }
     } else {
       nshape.push_back(shape[idx]);
+    }
+  }
+
+  // remove loop size - 1 axes
+  std::vector<int> naxes;
+  for (int i = 0; i < axes_shift_num.size(); ++i) {
+    if (axes_shift_num[i] != -1) {
+      // the axis do not need remove, but need left shift
+      naxes.emplace_back(axes[i] - axes_shift_num[i]);
     }
   }
 
@@ -911,9 +924,13 @@ void LoopAssignReduce(ir::IRSchedule& ir_sch,
   if (WithoutLastDimInReduce(shape, axes)) {
     // if using two strep reduce.
     if (tensor_map.count(reducer_data->id() + "_1")) {
+      VLOG(4) << "Try assign loop of " << node_data->id() << " into two strep reduce loop of " << reducer_data->id();
       LoopAssignReduceWithoutLast(ir_sch, node_data->id(), shape, axes, target);
       auto nloops = ir_sch.GetLoops(node_data->id());
       auto rloops = ir_sch.GetLoops(tensor_map.find(reducer_data->id() + "_0")->second->name);
+
+      VLOG(4) << node_data->id() << "'s loop level is " << nloops.size() << ", and " << reducer_data->id()
+              << "'s loop level is " << rloops.size();
       if (nloops.size() < rloops.size()) {
         ir_sch.Split(nloops[0], {1, -1});
       }
@@ -922,6 +939,8 @@ void LoopAssignReduce(ir::IRSchedule& ir_sch,
       // copy loop info form rloops.
       copy_loop_info(nloops, rloops);
     } else {
+      VLOG(4) << "Try assign loop of " << node_data->id() << " into reduce loop of " << reducer_data->id();
+
       auto nloops = ir_sch.GetLoops(node_data->id());
       ir_sch.Split(nloops.back(), shape);
       LoopOrderAssignReduce(ir_sch, node_data->id(), axes, target);
