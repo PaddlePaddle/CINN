@@ -27,7 +27,7 @@ namespace auto_schedule {
 AutoGenRule::AutoGenRule(const common::Target& target) : target_(&target) {}
 
 int AutoGenRule::NumberApplicable() const {
-  CHECK_GE(num_applicable_, 0) << "Call " << GetRuleName() << "::NumberApplicable() without initailization.";
+  CHECK_GE(num_applicable_, 0) << "Call " << GetRuleName() << "::NumberApplicable() without initialization.";
   return num_applicable_;
 }
 

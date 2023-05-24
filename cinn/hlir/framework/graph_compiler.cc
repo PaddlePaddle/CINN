@@ -750,7 +750,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
     graph_->VisualizeGroupedGraph(fetch_var_ids.empty() ? fetch_var_ids_ : fetch_var_ids);
 
     if (options.with_instantiate_variables) {
-      VLOG(3) << "Initantiate all variables on compile-time";
+      VLOG(3) << "Instantiate all variables on compile-time";
       utils::RecordEvent("GraphCompiler MutableData", utils::EventType::kOrdinary);
       // All variables reside in scope_, so traverse it to instantiate each one
       for (auto& name : scope_->var_names()) {
@@ -799,7 +799,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   function2input_args_.clear();
   function2output_args_.clear();
   m_builder_.Clear();
-  // if there are no avaiable groups, we will take each node as a group
+  // if there are no available groups, we will take each node as a group
   if (options.groups.empty() && graph_->groups.empty() && graph_->fusion_groups.empty()) {
     VLOG(3) << "not run opfusion pass";
     for (auto& node : nodes) {
@@ -819,12 +819,12 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
     }
   }
 
-  // if the input lowered_funcs is empty, we will use the defalut lowering process to generate
+  // if the input lowered_funcs is empty, we will use the default lowering process to generate
   std::vector<std::vector<ir::LoweredFunc>> local_lowered_funcs;
   if (options.lowered_funcs.empty()) {
     utils::RecordEvent("GraphCompiler LoweredFuncs", utils::EventType::kOrdinary);
     // lowering of new fusion pass is not compatible with the groups from the input options,
-    // thus process it seperately
+    // thus process it separately
     if (!graph_->fusion_groups.empty()) {
       auto& dtype_dict = graph_->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
       auto& shape_dict = graph_->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
@@ -834,7 +834,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
         VLOG(3) << "group_id is : " << group->group_id << ", and its number is : " << group->nodes.size();
         groups.push_back(std::move(group->CollectNodes()));
         local_lowered_funcs.emplace_back(std::move(op_lowerer.Lower(group)));
-        CHECK_EQ(local_lowered_funcs.back().size(), 1) << "Lowerd Function Is Not Equal 1!";
+        CHECK_EQ(local_lowered_funcs.back().size(), 1) << "Lowered Function Is Not Equal 1!";
         VLOG(3) << local_lowered_funcs.back()[0];
       }
     } else {
@@ -866,7 +866,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
 
   // use the input lowered_funcs in options firstly if exists
   const auto& lowered_funcs = options.lowered_funcs.empty() ? local_lowered_funcs : options.lowered_funcs;
-  CHECK_EQ(groups.size(), lowered_funcs.size()) << "The size of groups and lowered_funcs shoule be equal";
+  CHECK_EQ(groups.size(), lowered_funcs.size()) << "The size of groups and lowered_funcs should be equal";
   {
     utils::RecordEvent("GraphCompiler ProcessFunction", utils::EventType::kOrdinary);
     for (auto&& lowered_func : lowered_funcs) {
@@ -876,7 +876,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
 
   // compile the module
   // Need to create a new compiler for every call of Build,
-  // because the underneath jit engine does't support addIRModule repeatedly now.
+  // because the underneath jit engine doesn't support addIRModule repeatedly now.
   compiler_ = backends::Compiler::Create(target_);
 
   auto build_module = m_builder_.Build();
@@ -906,7 +906,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   }
 
   if (options.with_instantiate_variables) {
-    VLOG(3) << "Initantiate all variables on compile-time";
+    VLOG(3) << "Instantiate all variables on compile-time";
     utils::RecordEvent("GraphCompiler MutableData", utils::EventType::kOrdinary);
     // All variables reside in scope_, so traverse it to instantiate each one
     for (auto& name : scope_->var_names()) {
@@ -1180,7 +1180,7 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions(
       instr->SetLoweredFunc(reinterpret_cast<void*>(fn_ptr), op_func_name);
 
       // As some instruction like reduce, will generate more than one kernel.
-      // So try to find the rest kernel, if it exist.
+      // So try to find the rest kernel, if it exists.
       SetSubKernels(instr.get(), op_func_name);
       if (node->attrs.attr_store.count("pre_run")) {
         instr->pre_run = absl::get<bool>(node->attrs.attr_store["pre_run"]);
@@ -1244,7 +1244,7 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions(
       CHECK(fn_ptr);
       instr->SetLoweredFunc(reinterpret_cast<void*>(fn_ptr), fuse_name);
       // As some situation like reduce,will generate more than one kernel.
-      // So try to find the rest kernel, if it exist.
+      // So try to find the rest kernel, if it exists.
       SetSubKernels(instr.get(), fuse_name);
 
       for (int j = 0; j < group.size(); j++) {
@@ -1386,7 +1386,7 @@ void GraphCompiler::InsertBufferHandlers(std::vector<std::unique_ptr<Instruction
       auto function_name         = "free_buffer_instruction_" + std::to_string(step);
       auto free_instr            = std::make_unique<Instruction>(
           common::DefaultHostTarget(), scope_.get(), std::vector<std::string>({}), free_var_names, function_name);
-      VLOG(4) << "seting free function " << function_name << " for var " << cinn::utils::Join(free_var_names, ", ");
+      VLOG(4) << "setting free function " << function_name << " for var " << cinn::utils::Join(free_var_names, ", ");
       free_instr->SetLoweredFunc(reinterpret_cast<void*>(BufferFreeWithCallback), function_name);
       free_instr->Finalize();
       results.emplace_back(std::move(free_instr));

@@ -58,7 +58,7 @@ class LoopBlockFeature {
    * Buffer memory features, which is the number of memory operations.
    * Note that different size of memory operation can have various speed,
    * however the speed difference would be small in OS. A meticulous TODO
-   * may be collect oprand sizes (like alloc size, write size, or so)
+   * may be collect operand sizes (like alloc size, write size, or so)
    */
   int mem_alloc = 0;
   int mem_free  = 0;
@@ -86,7 +86,7 @@ class LoopBlockFeature {
 
   /* Loop type features */
 
-  // A TODO mayby add loop position (Inner, Outer, Middle) feature
+  // A TODO maybe add loop position (Inner, Outer, Middle) feature
 
   ForOptimizeFeatureEnum loop_opt_type = ForOptimizeFeatureEnum::kNone;
 
