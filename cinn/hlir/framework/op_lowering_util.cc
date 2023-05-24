@@ -530,15 +530,6 @@ void LoopOrderAssignReduce(ir::IRSchedule& ir_sch,
   for (int idx = 0; idx < index - 1; ++idx) {
     ir_sch.Fuse(block_name, {0, 1});
   }
-
-  // The current one-dimensional reduce does not make full use of SM.
-  // This case is optimized into a two-dimensional.
-  loops            = ir_sch.GetLoops(block_name);
-  auto block_dim_x = loops[1].As<ir::For>()->extent.as_int32();
-  int block_dim_y  = block_dim_x <= 32 ? 2 : 1;
-  if (block_dim_y != 1) {
-    ir_sch.Split(loops[0], {-1, block_dim_y});
-  }
 }
 
 void LoopAssignReduceWithoutLast(ir::IRSchedule& ir_sch,
@@ -718,6 +709,14 @@ void LoopAssignReduceWithLast(ir::IRSchedule& ir_sch,
       }
     }
     LoopOrderAssignReduce(ir_sch, block_name, first_axes, target);
+    // The current one-dimensional reduce does not make full use of SM.
+    // This case is optimized into a two-dimensional.
+    auto loops       = ir_sch.GetLoops(block_name);
+    auto block_dim_x = loops[1].As<ir::For>()->extent.as_int32();
+    int block_dim_y  = block_dim_x <= 32 ? 2 : 1;
+    if (block_dim_y != 1) {
+      ir_sch.Split(loops[0], {-1, block_dim_y});
+    }
   } else {
     int fuse_times = axes.size() - (index + 1) - 1;
     for (int idx = 0; idx < fuse_times; ++idx) {
