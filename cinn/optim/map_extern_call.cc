@@ -64,9 +64,12 @@ void MapExternCall(Expr *e, Target target) {
     void DealWithCpuintrinsics(ir::Call *node, Expr *expr) {
       if (kExternFp32CallsCPU.count(node->name)) {
         CHECK_GE(node->read_args.size(), 1UL);
-        CHECK_EQ(node->read_args.front().type(), Float(32));
-        auto out_type = node->type();
-        *expr         = lang::CallExtern(node->name + "f", node->read_args);
+        CHECK(node->read_args.front().type().is_float())
+            << "CPU extern call instrinsices only support float now! Please check.";
+        if (node->read_args.front().type().is_float(32)) {
+          auto out_type = node->type();
+          *expr         = lang::CallExtern(node->name + "f", node->read_args);
+        }
       }
     }
 

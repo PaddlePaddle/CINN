@@ -314,7 +314,7 @@ struct RfMutator : public ir::IRMutator<> {
     }
     // create new rfactor block var if not exist
     if (rf_index == -1) {
-      new_rf_itervar_ = Var("i" + std::to_string(block_vars.size()));
+      new_rf_itervar_ = Var(cinn::UniqName("i" + std::to_string(block_vars.size())));
       iter_values.push_back(new_rf_loop_var_);
       block_vars.push_back(new_rf_itervar_);
     }
@@ -1572,7 +1572,6 @@ std::vector<Expr> ScheduleImpl::GetLoops(const Expr& block) const {
   if (result.empty()) {
     result.push_back(AddUnitLoop(block));
   }
-  for (auto& it_for : result) VLOG(3) << "Get Loops :\n" << it_for;
   return result;
 }
 

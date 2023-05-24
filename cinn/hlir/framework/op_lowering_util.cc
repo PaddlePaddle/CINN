@@ -539,7 +539,10 @@ void LoopAssignReduceWithoutLast(ir::IRSchedule& ir_sch,
   int tail   = 0;
   bool bound = true;
   auto shape = pe::GetFirstStepReduceShape(inshape, axes, bound, tail);
-  CHECK(bound);
+  CHECK(bound) << std::accumulate(
+      inshape.begin(), inshape.end(), std::string(""), [](const std::string& left, const int right) {
+        return left + std::to_string(right) + " ";
+      });
 
   // remove loop size = 1 and remove axis in axes.
   std::vector<int> nshape, naxes = axes;

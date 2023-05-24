@@ -61,27 +61,6 @@ target = common.DefaultHostTarget()
 computation = Computation.build_and_compile(target, builder)
 ```
 
-### Build a Network by NetBuilder
-You can also build and run a model by using NetBuilder APIs. Note that NetBuilder's APIs have much finer granularity than NetBuilder's.
-```python
-# Define the NetBuilder.
-builder = frontend.NetBuilder(name="network")
-
-# Define the input variable of the model.
-a = builder.create_input(type=common.Float(32), shape=(1, 24, 56, 56), id_hint="A")
-b = builder.create_input(type=common.Float(32), shape=(1, 24, 56, 56), id_hint="B")
-c = builder.create_input(type=common.Float(32), shape=(144, 24, 1, 1), id_hint="C")
-
-# Build the model by using NetBuilder API
-d = builder.add(a, b)
-e = builder.conv(d, c)
-res = builder.max(e, 0)
-
-# Specify target and generate the computation
-target = common.DefaultHostTarget()
-computation = Computation.build_and_compile(target, builder)
-```
-
 ### Use CINN lower level DSL to define some computation and execute
 
 The following is a naive matrix-multiplication implementation using the CINN DSL

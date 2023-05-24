@@ -129,7 +129,7 @@ Expr ProductGetNonConstantPart(Expr u) {
 
 namespace detail {
 
-// Is a Divisiable to b.
+// Is a Divisible to b.
 // @{
 bool IsDivisible(int64_t a, int64_t b) {
   CHECK_NE(b, 0);
@@ -137,7 +137,7 @@ bool IsDivisible(int64_t a, int64_t b) {
 }
 bool IsDivisible(const Sum* a, int b);
 
-// If int a Divisiable to any operands of product b
+// If int a Divisible to any operands of product b
 bool IsDivisible(int a, const Product* b) {
   if (a < 0) return false;
   for (auto& item : b->operands()) {
@@ -694,7 +694,7 @@ std::vector<Expr> CasSimplifyMutator::SimplifyBinarySum(Expr left, Expr right) {
     if (bi && bi->value == 0) return {a};
     if (bf && bf->value == 0.f) return {a};
 
-    // customied case for Mod
+    // customized case for Mod
     {
       auto* am = a.As<Mod>();
       auto* bm = b.As<Mod>();
@@ -1883,11 +1883,11 @@ Expr CasSimplifyMutator::SimplifyFracOp(Expr expr) {
   }
 
   // case 2
-  // sum/x or product/x is divisiable
+  // sum/x or product/x is divisible
   if (bi) {
     auto* a_sum     = a.As<Sum>();
     auto* a_product = a.As<Product>();
-    // disiviable
+    // divisible
     if (a_sum && IsDivisible(a_sum, bi->value)) return Divide(a_sum, bi->value);
     if (a_product) {
       if (IsDivisible(a_product, bi->value) || IsDivisible(bi->value, a_product)) {
@@ -1919,7 +1919,7 @@ Expr CasSimplifyMutator::SimplifyFracOp(Expr expr) {
       }
     }
 
-    // not divisiable
+    // not divisible
     /*
     if (a_sum) {
       auto expr = DividePartially(a_sum, bi->value);

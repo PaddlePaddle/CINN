@@ -18,6 +18,7 @@
 #include <gtest/gtest.h>
 
 #include "cinn/cinn.h"
+#include "cinn/common/context.h"
 
 namespace cinn {
 namespace auto_schedule {
@@ -34,10 +35,15 @@ TEST(TestSearchState, SearchStateHash_Equal) {
   ir::Tensor C = lang::Compute(
       {M, N}, [&](Var i, Var j) { return A(i, j) + B(i, j); }, "C");
 
+  cinn::common::Context::Global().ResetNameId();
   auto a_plus_const_funcs_1 =
       lang::LowerVec("A_plus_const", poly::CreateStages({A, B}), {A, B}, {}, {}, nullptr, target, true);
+
+  cinn::common::Context::Global().ResetNameId();
   auto a_plus_const_funcs_2 =
       lang::LowerVec("A_plus_const", poly::CreateStages({A, B}), {A, B}, {}, {}, nullptr, target, true);
+
+  cinn::common::Context::Global().ResetNameId();
   auto a_plus_b_funcs = lang::LowerVec("A_plus_B", poly::CreateStages({A, C}), {A, C}, {}, {}, nullptr, target, true);
 
   std::string a_plus_const_funcs_1_str = R"ROC(function A_plus_const (_A, _B)
@@ -60,7 +66,7 @@ TEST(TestSearchState, SearchStateHash_Equal) {
 
   std::string a_plus_const_funcs_2_str = R"ROC(function A_plus_const (_A, _B)
 {
-  ScheduleBlock(root_0)
+  ScheduleBlock(root)
   {
     serial for (i, 0, 32)
     {
@@ -78,7 +84,7 @@ TEST(TestSearchState, SearchStateHash_Equal) {
 
   std::string a_plus_b_funcs_str = R"ROC(function A_plus_B (_A, _C)
 {
-  ScheduleBlock(root_1)
+  ScheduleBlock(root)
   {
     {
       serial for (i, 0, 32)
@@ -98,8 +104,8 @@ TEST(TestSearchState, SearchStateHash_Equal) {
         {
           ScheduleBlock(C)
           {
-            i0, i1 = axis.bind(i, j)
-            C[i0, i1] = (A[i0, i1] + B[i0, i1])
+            i0_0, i1_0 = axis.bind(i, j)
+            C[i0_0, i1_0] = (A[i0_0, i1_0] + B[i0_0, i1_0])
           }
         }
       }

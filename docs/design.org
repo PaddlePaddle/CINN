@@ -315,7 +315,7 @@ It by default can be resized to proper shape by binding to multiple tensors.
 
 All the buffers will be maintained in global scope, and alloc or dealloc in local scopes.
 
-The benefit is buffer is easy to shared accross multiple statements.
+The benefit is buffer is easy to shared across multiple statements.
 ** Module
 Module is the container of LoweredFuncs and Buffers.
 There might be more than one module in an generated execution.
@@ -334,7 +334,7 @@ then replace call with the statement.
 
 There are several steps to vectorize a forloop:
 
-- the foorloop will first been split with a small factor(better to be times of the SIMD width
+- the forloop will first been split with a small factor(better to be times of the SIMD width
 - convert the PolyFor to For
 - Substitute the iterator variable of the forloop to a Ramp node
 - Transform all the operations related to the Ramp
