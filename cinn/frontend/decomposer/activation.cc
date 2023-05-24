@@ -88,6 +88,11 @@ void softmax(const Instruction& instr, const DecomposerContext& context) {
     }
   }
 
+  // When the rank of x is 1, broadcast axes will be empty, so we need to insert last dim as broadcast axis.
+  if (b_axes.empty()) {
+    b_axes.emplace_back(-1);
+  }
+
   auto mode = instr.GetAttrs<std::string>("mode");
   if (mode == "fast") {
     // x_sum = sum(exp(x))
