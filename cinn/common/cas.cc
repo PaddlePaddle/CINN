@@ -1858,10 +1858,6 @@ Expr CasSimplifyMutator::SimplifyFracOp(Expr expr) {
   auto a     = CasSimplify(node->a(), var_intervals);
   auto b     = CasSimplify(node->b(), var_intervals);
 
-  // update frac op node
-  auto simplified_expr = ir::FracOp::Make(a, b);
-  node                 = simplified_expr.As<FracOp>();
-
   auto* ap = a.As<Product>();
   auto* bp = b.As<Product>();
   auto* as = a.As<Sum>();

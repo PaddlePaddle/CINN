@@ -64,10 +64,9 @@ class TestReduceAxis(TestReduceAll):
                 "axis": [1, 2, 3],
             },
             {
-                # No axis, all reduce, will fixed in next PR:
-                # https://github.com/PaddlePaddle/CINN/pull/1424
-                # "shape": [64, 32, 16, 8, 4],
-                # "axis": [],
+                # No axis, all reduce
+                "shape": [64, 32, 16, 8, 4],
+                "axis": [],
             },
         ]
         self.dtypes = [{"dtype": "float32"}]
