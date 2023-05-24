@@ -30,39 +30,28 @@ class TestSumOp(OpTest):
         self.prepare_inputs()
 
     def prepare_inputs(self):
-        if self.case["broadcast"]:
-            self.inputs = {
-                "x": self.random(self.case["x_shape"], self.case["dtype"]),
-                "y": self.random(self.case["y_shape"], self.case["dtype"])
-            }
-        else:
-            self.inputs = {
-                "x": self.random(self.case["shape"], self.case["dtype"]),
-                "y": self.random(self.case["shape"], self.case["dtype"])
-            }
+        shapes = self.case["shapes"]
+        dtype = self.case["dtype"]
+        self.inputs = []
+        for shape in shapes:
+            self.inputs.append(self.random(shape, dtype))
 
     def build_paddle_program(self, target):
-        x = paddle.to_tensor(self.inputs["x"], stop_gradient=True)
-        y = paddle.to_tensor(self.inputs["y"], stop_gradient=True)
-
-        out = paddle.add(x, y)
-
+        inputs = []
+        for input in self.inputs:
+            inputs.append(paddle.to_tensor(input, stop_gradient=True))
+        out = paddle.add_n(inputs)
         self.paddle_outputs = [out]
 
     def build_cinn_program(self, target):
         builder = NetBuilder("sum")
-        x = builder.create_input(
-            self.nptype2cinntype(self.inputs["x"].dtype),
-            self.inputs["x"].shape, "x")
-        y = builder.create_input(
-            self.nptype2cinntype(self.inputs["x"].dtype),
-            self.inputs["y"].shape, "y")
-        out = builder.add(x, y)
-
+        cinn_inputs = []
+        for id, input in enumerate(self.inputs):
+            cinn_input = builder.create_input(self.nptype2cinntype(input.dtype), input.shape, "input_" + str(id))
+            cinn_inputs.append(cinn_input)
+        out = builder.sum(cinn_inputs)
         prog = builder.build()
-        res = self.get_cinn_output(prog, target, [x, y],
-                                   [self.inputs["x"], self.inputs["y"]], [out])
-
+        res = self.get_cinn_output(prog, target, cinn_inputs, self.inputs, [out])
         self.cinn_outputs = res
 
     def test_check_results(self):
@@ -75,62 +64,62 @@ class TestSumOpShapeTest(TestCaseHelper):
         self.cls = TestSumOp
         self.inputs = [
             {
-                "shape": [64],
+                "shapes": [[64]] * 2,
             },
             {
-                "shape": [64, 32],
+                "shapes": [[64, 32]]  * 3,
             },
             {
-                "shape": [64, 1],
+                "shapes": [[64, 1]] * 4,
             },
             {
-                "shape": [64, 32, 128],
+                "shapes": [[64, 32, 128]] * 2,
             },
             {
-                "shape": [1, 32, 128],
+                "shapes": [[1, 32, 128]] * 2,
             },
             {
-                "shape": [64, 32, 16, 32],
+                "shapes": [[64, 32, 16, 32]] * 2,
             },
             {
-                "shape": [64, 32, 1, 32],
+                "shapes": [[64, 32, 1, 32]] * 2,
             },
             {
-                "shape": [64, 32, 16, 1, 128],
+                "shapes": [[64, 32, 16, 1, 128]] * 2,
             },
             {
-                "shape": [1],
+                "shapes": [[1]] * 2,
             },
             {
-                "shape": [1, 1],
+                "shapes": [[1, 1]] * 2,
             },
             {
-                "shape": [1, 1, 1],
+                "shapes": [[1, 1, 1]] * 3,
             },
             {
-                "shape": [1, 1, 1, 1],
+                "shapes": [[1, 1, 1, 1]] * 3,
             },
             {
-                "shape": [1, 1, 1, 1, 1],
+                "shapes": [[1, 1, 1, 1, 1]] * 4,
             },
             {
-                "shape": [1, 1, 1024, 1, 1],
+                "shapes": [[1, 1, 1024, 1, 1]] * 4,
             },
             {
-                "shape": [65536],
+                "shapes": [[65536]] * 1,
             },
             {
-                "shape": [131072],
+                "shapes": [[131072]] * 2,
             },
             {
-                "shape": [1048576]
+                "shapes": [[1048576]] * 3,
             },
             {
-                "shape": [64, 32, 16, 8, 4],
+                "shapes": [[64, 32, 16, 8, 4]] * 4,
             },
         ]
         self.dtypes = [{"dtype": "float32"}]
-        self.attrs = [{"broadcast": False}]
+        self.attrs = []
 
 
 class TestSumOpDtypeTest(TestCaseHelper):
@@ -139,10 +128,10 @@ class TestSumOpDtypeTest(TestCaseHelper):
         self.cls = TestSumOp
         self.inputs = [
             {
-                "shape": [64, 1, 128],
+                "shapes": [[64, 1, 128]] * 2,
             },
             {
-                "shape": [64, 32, 1],
+                "shapes": [[64, 32, 1]] * 2,
             },
         ]
         self.dtypes = [
@@ -163,88 +152,9 @@ class TestSumOpDtypeTest(TestCaseHelper):
             },
         ]
         self.attrs = [{"axes": []}]
-        self.attrs = [{"broadcast": False}]
-
-
-class TestSumOpBroadcastTest(TestCaseHelper):
-    def init_attrs(self):
-        self.class_name = "TestSumOpShapeTest"
-        self.cls = TestSumOp
-        self.inputs = [
-            {
-                "x_shape": [64],
-                "y_shape": [1],
-            },
-            {
-                "x_shape": [1],
-                "y_shape": [64],
-            },
-            {
-                "x_shape": [64, 32],
-                "y_shape": [64, 1],
-            },
-            {
-                "x_shape": [1, 1],
-                "y_shape": [64, 32],
-            },
-            {
-                "x_shape": [64, 1],
-                "y_shape": [1, 32],
-            },
-            {
-                "x_shape": [64, 1, 128],
-                "y_shape": [64, 32, 128],
-            },
-            {
-                "x_shape": [64, 32, 128],
-                "y_shape": [64, 32, 1],
-            },
-            {
-                "x_shape": [64, 1, 128],
-                "y_shape": [1, 32, 128],
-            },
-            {
-                "x_shape": [1, 1, 1],
-                "y_shape": [64, 32, 128],
-            },
-            {
-                "x_shape": [64, 1, 16, 32],
-                "y_shape": [64, 32, 16, 32],
-            },
-            {
-                "x_shape": [64, 32, 16, 32],
-                "y_shape": [64, 32, 1, 32],
-            },
-            {
-                "x_shape": [64, 1, 1, 32],
-                "y_shape": [64, 32, 16, 32],
-            },
-            {
-                "x_shape": [64, 32, 16, 1],
-                "y_shape": [64, 1, 16, 32],
-            },
-            {
-                "x_shape": [1, 1, 1, 1],
-                "y_shape": [64, 32, 16, 32],
-            },
-            {
-                "x_shape": [1, 32, 16, 32],
-                "y_shape": [64, 32, 16, 32],
-            },
-            {
-                "x_shape": [64, 32, 16, 32],
-                "y_shape": [64, 32, 16, 32],
-            },
-            {
-                "x_shape": [65536],
-                "y_shape": [1],
-            },
-        ]
-        self.dtypes = [{"dtype": "float32"}]
-        self.attrs = [{"broadcast": True}]
+        self.attrs = []
 
 
 if __name__ == "__main__":
     TestSumOpShapeTest().run()
     TestSumOpDtypeTest().run()
-    TestSumOpBroadcastTest().run()
