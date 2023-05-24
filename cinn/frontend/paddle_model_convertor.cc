@@ -104,11 +104,24 @@ std::unordered_map<std::string, Variable> PaddleModelConvertor::GetFetchList(
   return fetch_list;
 }
 
-Program PaddleModelConvertor::LoadModel(const std::string& model_dir, bool is_combined) {
+Program PaddleModelConvertor::LoadModel(const std::string& model_dir,
+                                        bool is_combined,
+                                        const std::unordered_map<std::string, std::vector<int64_t>>& feed) {
   paddle::cpp::ProgramDesc program_desc;
   paddle::LoadModelPb(model_dir, "__model__", "", scope_.get(), &program_desc, is_combined, false, target_);
   CHECK_EQ(program_desc.BlocksSize(), 1) << "CINN can only support the model with a single block";
   auto* block_desc = program_desc.GetBlock<paddle::cpp::BlockDesc>(0);
+
+  // Set feeds shape
+  for (int i = 0; i < block_desc->VarsSize(); i++) {
+    auto* var_desc      = block_desc->GetVar<paddle::cpp::VarDesc>(i);
+    const auto var_name = var_desc->Name();
+    if (feed.count(var_name)) {
+      const auto& var_shape = feed.at(var_name);
+      LOG(INFO) << "Update var " << var_name << "'s shape to: " << cinn::utils::Join(var_shape, ", ");
+      var_desc->SetShape(var_shape);
+    }
+  }
 
   OpMapperContext ctx(*scope_, target_, builder_.get(), &var_map_, &var_model_to_program_map_, &fetch_var_names_);
 
