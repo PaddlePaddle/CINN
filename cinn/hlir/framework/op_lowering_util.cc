@@ -703,15 +703,16 @@ bool CanbeInline(Node* node,
   if (group->output_nodes.count(node)) {
     return false;
   }
-  if (IsConstOp(node)) {
-    return true;
-  }
 
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
   for (auto consumer : consumers) {
     if (op_pattern_dict[consumer->op()] == framework::kReduction) {
       return false;
     }
+  }
+
+  if (IsConstOp(node)) {
+    return true;
   }
 
   if (op_pattern_dict[node->op()] == framework::kReduction) {
