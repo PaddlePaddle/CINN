@@ -17,6 +17,7 @@
 import unittest
 import numpy as np
 from op_test import OpTest, OpTestTool
+from op_test_helper import TestCaseHelper
 import paddle
 import paddle.nn.functional as F
 import cinn
@@ -28,15 +29,16 @@ from cinn.common import *
                     "x86 test will be skipped due to timeout.")
 class TestGeluOp(OpTest):
     def setUp(self):
-        self.init_case()
+        print(f"\nRunning {self.__class__.__name__}: {self.case}")
+        self.prepare_inputs()
 
-    def init_case(self):
+    def prepare_inputs(self):
         self.inputs = {
-            "x": np.random.random([
-                32,
-                64,
-            ]).astype("float32"),
-            "dout": np.random.random((32, 64)).astype("float32")
+            "x":
+            self.random(
+                shape=self.case["x_shape"], dtype=self.case["x_dtype"]),
+            "dout":
+            self.random(shape=(32, 64), dtype=self.case["x_dtype"])
         }
 
     def build_paddle_program(self, target):
@@ -47,11 +49,11 @@ class TestGeluOp(OpTest):
         self.paddle_grads = self.get_paddle_grads([out], [x],
                                                   [self.inputs["dout"]])
 
-    # Note: If the forward and backward operators are run in the same program,
-    # the forward result will be incorrect.
     def build_cinn_program(self, target):
         builder = NetBuilder("gelu")
-        x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
+        x = builder.create_input(
+            self.nptype2cinntype(self.case["x_dtype"]), self.case["x_shape"],
+            "x")
         out = builder.gelu(x)
         prog = builder.build()
         forward_res = self.get_cinn_output(prog, target, [x],
@@ -62,9 +64,55 @@ class TestGeluOp(OpTest):
     def test_check_results(self):
         self.build_paddle_program(self.target)
         self.build_cinn_program(self.target)
-        self.check_results(self.paddle_outputs, self.cinn_outputs, 1e-5, False,
-                           False)
+        self.check_outputs_and_grads()
+
+
+class TestGeluShape(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestGeluOp"
+        self.cls = TestGeluOp
+        self.inputs = [{
+            "x_shape": [1024],
+        }, {
+            "x_shape": [512, 256],
+        }, {
+            "x_shape": [128, 64, 32],
+        }, {
+            "x_shape": [16, 8, 4, 2],
+        }, {
+            "x_shape": [16, 8, 4, 2, 1],
+        }, {
+            "x_shape": [1],
+        }, {
+            "x_shape": [1, 1, 1, 1, 1],
+        }]
+        self.dtypes = [{
+            "x_dtype": "float32",
+        }]
+        self.attrs = []
+
+
+class TestGeluDtype(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestGeluOp"
+        self.cls = TestGeluOp
+        self.inputs = [{
+            "x_shape": [32, 64],
+        }]
+        self.dtypes = [
+            {
+                "x_dtype": "float64",
+            },
+            {
+                "x_dtype": "float32",
+            },
+            {
+                "x_dtype": "float16",
+            },
+        ]
+        self.attrs = []
 
 
 if __name__ == "__main__":
-    unittest.main()
+    TestGeluShape().run()
+    TestGeluDtype().run()
