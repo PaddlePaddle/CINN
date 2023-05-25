@@ -551,7 +551,7 @@ cudnnDataType_t get_cudnn_compute_dtype(cudnnDataType_t data_type) {
     case CUDNN_DATA_DOUBLE:
       return CUDNN_DATA_DOUBLE;
     default:
-      LOG(FATAL) << "unsupported cudnn data type, only support float16/bfloat16 and float32 now!";
+      LOG(FATAL) << "unsupported cudnn data type, only support float16/bfloat16/float32/float64 now!";
   }
   return CUDNN_DATA_FLOAT;
 }
