@@ -27,6 +27,7 @@
 #include "cinn/ir/tensor.h"
 #include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
+#include "cinn/utils/string.h"
 
 namespace cinn {
 namespace hlir {
@@ -557,6 +558,10 @@ std::vector<ir::Tensor> ReduceInternal(const ir::Tensor& A,
   auto reduce_shape = GetFirstStepReduceShape(inshape, axes, inbound, tail);
   CHECK_GT(reduce_shape.size(), 0);
 
+  VLOG(4) << "Reduce " << output_name << " on " << reduce_type << " with input shape=["
+          << cinn::utils::Join(inshape, ", ") << "], and first step reduce_shape=["
+          << cinn::utils::Join(reduce_shape, ", ") << "] at axes=[" << cinn::utils::Join(axes, ", ") << "]";
+
   // reshape input
   auto do_reshape_inbound = [&]() {
     int axis = axes.back();
@@ -610,7 +615,7 @@ std::vector<ir::Tensor> ReduceInternal(const ir::Tensor& A,
   if (keep_dim) {
     s_axes = {axes.back() + 1};
   } else {
-    s_axes = {axes.back() + 1 - axes.size()};
+    s_axes = {axes.back() + 1 - static_cast<int>(axes.size())};
   }
   auto reduce_out = reduce_func(internal, s_axes, false, output_name);
 
