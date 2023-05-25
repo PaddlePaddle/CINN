@@ -364,7 +364,7 @@ std::vector<std::vector<int>> InferShapeForTopK(const std::vector<std::vector<in
   }
   CHECK_GE(axis, 0);
   CHECK_LT(axis, res[0].size());
-  res[0][axis] = k;
+  res[0][axis] = std::min(res[0][axis], k);
   return {res[0], res[0]};
 }
 
