@@ -111,6 +111,21 @@ Type &Type::set_cpp_handle2(bool x) {
   return *this;
 }
 
+Type &Type::set_cpp_reference(bool x) {
+  auto &v = (*reinterpret_cast<uint8_t *>(&GetStorage().cpp_type_));
+
+  // unset the other handle-related bits.
+  v &= ~static_cast<uint8_t>(cpp_type_t::Handle);
+  v &= ~static_cast<uint8_t>(cpp_type_t::HandleHandle);
+
+  if (x)
+    v |= static_cast<uint8_t>(cpp_type_t::Reference);
+  else
+    v &= ~static_cast<uint8_t>(cpp_type_t::Reference);
+
+  return *this;
+}
+
 Type Type::VectorOf(int w) const {
   CheckTypeValid();
   return Type(type(), bits(), w, specific_type());
@@ -262,6 +277,9 @@ bool Type::is_cpp_handle() const {
 }
 bool Type::is_cpp_handle2() const {
   return static_cast<uint8_t>(GetStorage().cpp_type_) & static_cast<uint8_t>(cpp_type_t::HandleHandle);
+}
+bool Type::is_cpp_reference() const {
+  return static_cast<uint8_t>(GetStorage().cpp_type_) & static_cast<uint8_t>(cpp_type_t::Reference);
 }
 bool Type::is_cpp_const() const {
   return static_cast<uint8_t>(cpp_type_t::Const) & static_cast<uint8_t>(GetStorage().cpp_type_);

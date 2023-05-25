@@ -150,6 +150,7 @@ VisitForMultiOperandsDtypePattern(Product, mul);
 VisitCountMemberPattern(And, bool_op);
 VisitCountMemberPattern(Or, bool_op);
 VisitCountMemberPattern(Not, bool_op);
+VisitCountMemberPattern(GetReference, mem_read);
 VisitCountMemberPattern(Max, select_op);
 VisitCountMemberPattern(Min, select_op);
 VisitCountMemberPattern(IfThenElse, select_op);
