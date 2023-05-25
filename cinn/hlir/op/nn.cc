@@ -27,6 +27,7 @@
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/layout.h"
 #include "cinn/poly/stage.h"
+#include "cinn/utils/string.h"
 
 DECLARE_bool(cinn_ir_schedule);
 
@@ -1347,29 +1348,6 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
   CHECK(A_tensor->shape.size() == 4U || A_tensor->shape.size() == 5U)
       << "pool2d requires tensor's shape_size to be 4 or 5\n";
 
-  if (global_pooling) {
-    int height_index = -1;
-    int width_index  = -1;
-    if (data_format == "NCHW") {
-      height_index = 2;
-      width_index  = 3;
-    } else if (data_format == "NHWC") {
-      height_index = 1;
-      width_index  = 2;
-    } else if (data_format == "AnyLayout") {
-      height_index = 2;
-      width_index  = 3;
-      data_format  = "NCHW";
-    } else {
-      LOG(FATAL) << "Only support 'NCHW' or 'NHWC' or 'AnyLayout' data_format.\n";
-    }
-    kernel_size  = {A_tensor->shape[height_index].as_int32(), A_tensor->shape[width_index].as_int32()};
-    padding_size = {0, 0, 0, 0};
-  }
-  if (kernel_size.size() == padding_size.size()) {
-    padding_size.insert(padding_size.end(), padding_size.begin(), padding_size.end());
-  }
-
   framework::CINNCompute global_pool2d_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of pool2d compute is empty! Please check.\n";
     CINNValuePack pack_args = args[0];
@@ -1576,12 +1554,6 @@ std::vector<std::vector<int>> InferShapeForPool2d(const std::vector<std::vector<
     }
   }
 
-  CHECK(pool_type == "max" || pool_type == "avg") << "pool_type for pool2d should be max or avg.\n";
-  if (data_format == "AnyLayout") {
-    data_format = "NCHW";
-  }
-  CHECK(data_format == "NCHW" || data_format == "NHWC") << "data_format of pool2d only support NCHW and NHWC.\n";
-
   int height_axis = -1;
   int width_axis  = -1;
   if (data_format == "NCHW") {
@@ -1590,20 +1562,6 @@ std::vector<std::vector<int>> InferShapeForPool2d(const std::vector<std::vector<
   } else {
     height_axis = 1;
     width_axis  = 2;
-  }
-
-  if (global_pooling) {
-    kernel_size  = {inputs_shape[0][height_axis], inputs_shape[0][width_axis]};
-    padding_size = {0, 0, 0, 0};
-  }
-
-  CHECK_EQ(kernel_size.size(), 2U) << "kernel size rank for pool2d should be 2.\n";
-  CHECK(kernel_size[0] > 0 && kernel_size[1] > 0) << "the value of kernel size for pool2d should greater than 0.\n";
-  CHECK_EQ(stride_size.size(), 2U) << "stride_size size for pool2d should be 2.\n";
-  CHECK(stride_size[0] > 0 && stride_size[1] > 0) << "the value of kernel size for pool2d should greater than 0.\n";
-
-  if (padding_size.size() == 2) {
-    padding_size.insert(padding_size.end(), padding_size.begin(), padding_size.end());
   }
 
   std::vector<int> output_shape1 = inputs_shape[0];
