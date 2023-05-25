@@ -90,6 +90,20 @@ void LoopComputeAt(ir::IRSchedule& ir_sch,
                    const absl::flat_hash_map<std::string, shape_t>& shape_dict,
                    const std::unordered_map<std::string, ir::Tensor>& tensor_map);
 
+bool CanFuseReduceByBlockSync(ir::IRSchedule& ir_sch,
+                              Node* node,
+                              const Node* master,
+                              const GroupPtr& group,
+                              const absl::flat_hash_map<std::string, shape_t>& shape_dict,
+                              const std::unordered_map<std::string, ir::Tensor>& tensor_map);
+
+void SyncGpuBlocks(ir::IRSchedule& ir_sch,
+                   Node* node,
+                   const Node* master,
+                   const GroupPtr& group,
+                   const absl::flat_hash_map<std::string, shape_t>& shape_dict,
+                   const std::unordered_map<std::string, ir::Tensor>& tensor_map);
+
 void SyncThreadWithShared(ir::IRSchedule& ir_sch,
                           const GroupPtr& group,
                           const std::unordered_set<Node*>& nodes_inline,

@@ -368,6 +368,10 @@ CINN_BUILD_STEP_KIND(SyncThreads)
     .Attrs({"after_node"})
     .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(&IRSchedule::SyncThreads)));
 
+CINN_BUILD_STEP_KIND(SyncGpuBlocks)
+    .Inputs({"master_block", "sequential_block"})
+    .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(&IRSchedule::SyncGpuBlocks)));
+
 CINN_BUILD_STEP_KIND(SetBuffer)
     .Inputs({"block"})
     .Attrs({"memory_type", "fixed"})

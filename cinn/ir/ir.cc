@@ -185,6 +185,15 @@ void Not::Verify() const { CHECK_EQ(v().type(), type_of<bool>()); }
 
 Type Not::type() const { return type_; }
 
+Expr GetReference::Make(Expr v) {
+  auto node = make_shared<GetReference>(v);
+  return Expr(node);
+}
+
+void GetReference::Verify() const { CHECK(v().defined()); }
+
+Type GetReference::type() const { return type_; }
+
 Expr Let::Make(Expr symbol, Expr body) {
   auto *n = make_shared<Let>();
   CHECK(symbol.type().valid());

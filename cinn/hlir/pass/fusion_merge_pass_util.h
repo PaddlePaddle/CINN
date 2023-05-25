@@ -285,6 +285,20 @@ CONDITION_FUNC(injective_horizontal_with_reduce) {
   return elementwise_fuse_reduce(helper, first, second);
 }
 
+inline bool ReduceSplitCanFuse(const Node* producer, const Node* reducer) {
+  static std::unordered_set<std::string> reduce_op_type = {
+      "reduce_sum", "reduce_mean", "reduce_max", "reduce_min", "reduce_all", "reduce_any"};
+  VLOG(6) << "Checking ReduceSplitCanFuse";
+  VLOG(6) << "producer->id() = " << producer->id();
+  VLOG(6) << "reducer->id() = " << reducer->id();
+  for (const std::string& op_type : reduce_op_type) {
+    if (utils::Startswith(producer->id(), op_type + "_split") && utils::Startswith(reducer->id(), op_type + "_split")) {
+      return true;
+    }
+  }
+  return false;
+}
+
 CONDITION_FUNC(reduce_fuse_broadcast) {
   // if same shape with horizontal relation
   if (is_same_size(helper, first, second)) {
@@ -294,8 +308,8 @@ CONDITION_FUNC(reduce_fuse_broadcast) {
   // Traversing all reducers in all producers requires two types of conditions to be met.
   // The first type is the condition that the reducer itself needs to meet,
   // and the second type is the condition that the relationship between each reducer and its consumers with type of
-  // Broadcast needs to meet. It is required that each consumer of type Broadcast meet the same shape after broadcast as
-  // before reduce.
+  // Broadcast needs to meet. It is required that each consumer of type Broadcast meet the same shape after
+  // broadcast as before reduce.
   for (auto& node_in_master : first->master_nodes) {
     if (helper->GetOpKind(node_in_master) != OpPatternKind::kReduction) {
       continue;
@@ -388,9 +402,7 @@ CONDITION_FUNC(reduce_fuse_broadcast) {
 }
 
 CONDITION_FUNC(reduce_fuse_reduce) {
-  if (!limit_args(helper, first, second)) {
-    return false;
-  }
+  VLOG(6) << "In reduce_fuse_reduce";
   Node* reducer_0 = nullptr;
   for (auto& reducer : first->master_nodes) {
     if (helper->GetOpKind(reducer) == OpPatternKind::kReduction) {
@@ -408,6 +420,15 @@ CONDITION_FUNC(reduce_fuse_reduce) {
     }
   }
   CHECK(reducer_1) << "Can't find reduce op in group " << second->group_id;
+
+  if (!horizontal_relation(helper, first, second, framework::OpPatternKind::kReduction)) {
+    return ReduceSplitCanFuse(reducer_0, reducer_1);
+  }
+
+  // reduce relation is horizontal with reduce.
+  if (!limit_args(helper, first, second)) {
+    return false;
+  }
 
   // check reduce has same input shape and output shape
   auto reducer_0_input_shape  = helper->shape_dict_.at(reducer_0->inlinks_in_order()[0]->source()->id());

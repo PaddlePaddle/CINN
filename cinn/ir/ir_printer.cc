@@ -140,6 +140,10 @@ void IrPrinter::Visit(const Minus *x) {
   Print(x->v());
   os_ << ")";
 }
+void IrPrinter::Visit(const GetReference *x) {
+  os_ << "&";
+  Print(x->v());
+}
 void IrPrinter::Visit(const For *x) {
   if (x->is_parallel()) {
     os() << "parallel for (";
