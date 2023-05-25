@@ -50,7 +50,7 @@ using cinn::hlir::op::ExternalApiRegistry;
 // *** forward declarations of auxiliary functions to be used in this file only ***
 // update a scheduled function with several post-processors
 ir::LoweredFunc FuncWithUpdatedBody(const common::Target& target, const ir::LoweredFunc& old_func, ir::Expr& body);
-// check whther a scheduled lowered function is valid
+// check whether a scheduled lowered function is valid
 bool PruneInvalid(const ir::LoweredFunc& lowered_func, const common::Target& target);
 // exclude some special tasks
 bool IsForbiddenToTune(const TuneTask* task);
@@ -332,7 +332,7 @@ std::vector<SearchState> TaskOptimizer::SearchOneRound(const TuningOptions& opti
   return states;
 }
 
-// detect the limit of avaliable shared memory on the current NVGPU with CUDA runtime
+// detect the limit of available shared memory on the current NVGPU with CUDA runtime
 size_t GetGPUSharedMemoryLimit() {
 #ifdef CINN_WITH_CUDA
   int device_id;
@@ -346,7 +346,7 @@ size_t GetGPUSharedMemoryLimit() {
 #endif
 }
 
-// detect the limit of avaliable local/stack memory on the current NVGPU with CUDA runtime
+// detect the limit of available local/stack memory on the current NVGPU with CUDA runtime
 size_t GetGPULocalStackLimit() {
 #ifdef CINN_WITH_CUDA
   int device_id;

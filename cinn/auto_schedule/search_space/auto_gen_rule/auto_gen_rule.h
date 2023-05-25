@@ -45,7 +45,7 @@ class AutoGenRule {
   AutoGenRule(const common::Target& target);
   ~AutoGenRule() = default;
 
-  // Initailize the AutoGenRule, it must be called before further actions.
+  // Initialize the AutoGenRule, it must be called before further actions.
   // Returns false if the rule cannot be applied on the mod_expr, true otherwise.
   virtual RuleApplyType Init(ir::IRSchedule* ir_schedule) = 0;
 

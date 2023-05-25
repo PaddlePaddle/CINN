@@ -62,7 +62,7 @@ class XgbCostModel : public CostModel {
   pybind11::module xgb_module_;
   // Object points to Python xgb.Booster()
   pybind11::object xgb_booster_;
-  // atomic int to handle python interpreter life time and package dependency
+  // atomic int to handle python interpreter lifetime and package dependency
   static std::atomic<int> xgb_cost_model_count_;
   // Default train rounds
   static constexpr int kTrainRound_ = 10;
