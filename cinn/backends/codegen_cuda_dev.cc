@@ -112,6 +112,12 @@ std::vector<Expr> CodeGenCUDA_Dev::GenerateBufferAliasExprs(const ir::_LoweredFu
 }
 
 void CodeGenCUDA_Dev::Visit(const ir::_LoweredFunc_ *op) {
+  std::set<Expr> device_count_exprs = op->PrepareDeviceCountExprs();
+  for (auto dce : device_count_exprs) {
+    VLOG(6) << "PrepareDeviceCountExprs " << dce;
+    os() << "__device__ int " << dce.As<ir::_Var_>()->name << " = 0;\n";
+  }
+
   // clear names valid within scope when enter a new function
   vectorized_tensor_names_.clear();
   os() << "__global__\n";

@@ -189,6 +189,7 @@ void CodeGenC::Visit(const ir::Not *op) {
   IrPrinter::Print(op->v());
   os() << ")";
 }
+void CodeGenC::Visit(const ir::GetReference *op) { IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::Cast *op) { PrintCastExpr(op->type(), op->v()); }
 void CodeGenC::Visit(const ir::For *op) {
   Expr extent  = op->extent;

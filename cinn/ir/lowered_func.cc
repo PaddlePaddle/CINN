@@ -79,6 +79,18 @@ void _LoweredFunc_::CheckValid() const {
 std::vector<Expr*> _LoweredFunc_::expr_fields() { return {&body}; }
 std::vector<const Expr*> _LoweredFunc_::expr_fields() const { return {&body}; }
 
+std::set<Expr> _LoweredFunc_::PrepareDeviceCountExprs() const {
+  std::set<Expr> device_count_vars = ir::CollectIRNodes(body, [](const Expr* expr) {
+    const ir::_Var_* var = expr->As<ir::_Var_>();
+    if (var != nullptr) {
+      return utils::Startswith(var->name, "device_count");
+    }
+    return false;
+  });
+
+  return device_count_vars;
+}
+
 void _LoweredFunc_::PrepareCudaAxisInfoFromBody() {
   std::set<Expr> bound_for_exprs = ir::CollectIRNodes(body, [](const Expr* expr) {
     const ir::For* for_expr = expr->As<ir::For>();

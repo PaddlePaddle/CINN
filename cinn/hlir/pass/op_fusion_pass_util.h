@@ -51,7 +51,22 @@ CONDITION_FUNC(without_last_dimension_in_reduce) {
   return helper->WithoutLastDimInReduce(in_shape, reduce_axes);
 }
 
+inline bool ReduceSplitCanFuse(const Node* producer, const Node* reducer) {
+  static std::unordered_set<std::string> reduce_op_type = {
+      "reduce_sum", "reduce_mean", "reduce_max", "reduce_min", "reduce_all", "reduce_any"};
+  VLOG(6) << "Checking ReduceSplitCanFuse";
+  VLOG(6) << "producer->id() = " << producer->id();
+  VLOG(6) << "reducer->id() = " << reducer->id();
+  for (const std::string& op_type : reduce_op_type) {
+    if (utils::Startswith(producer->id(), op_type + "_split") && utils::Startswith(reducer->id(), op_type + "_split")) {
+      return true;
+    }
+  }
+  return false;
+}
+
 CONDITION_FUNC(reduce_fuse_reduce) {
+  VLOG(6) << "In reduce_fuse_reduce";
   Node* reducer = NULL;
   for (auto* master : consumer->master_nodes) {
     if (helper->GetOpKind(master) == framework::kReduction) {
@@ -59,6 +74,11 @@ CONDITION_FUNC(reduce_fuse_reduce) {
       break;
     }
   }
+
+  if (ReduceSplitCanFuse(producer, reducer)) {
+    return true;
+  }
+
   // check reduce has same input shape and output shape
   auto producer_input_shape  = helper->shape_dict_.at(producer->inlinks_in_order()[0]->source()->id());
   auto producer_output_shape = helper->shape_dict_.at(producer->outlinks_in_order()[0]->sink()->id());

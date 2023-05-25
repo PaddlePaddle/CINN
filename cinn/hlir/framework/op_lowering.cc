@@ -109,6 +109,7 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOp(IRComputeFunction compute,
     ast_exprs = (this->*compute)(stages, arg_tensors, tensor_map, group, group, /*apply_impl_schedule = */ true);
   } else {
     for (auto& sub_group : group->fused_sub_groups) {
+      VLOG(4) << "sub_group->group_id = " << sub_group->group_id;
       auto exprs = (this->*compute)(stages, arg_tensors, tensor_map, group, sub_group, /*apply_impl_schedule = */ true);
       ast_exprs.insert(ast_exprs.end(), exprs.begin(), exprs.end());
     }
@@ -1277,8 +1278,14 @@ void OpLowerer::IRSchedule(ir::IRSchedule& ir_sch,
     }
     VLOG(3) << "Before loop fusion, ir is: \n" << ir_sch.GetModule().GetExprs().at(0);
     VLOG(4) << " FUSION " << node->op()->name;
+    Node* fusion_master = master ? master : nodes_in_order.front();
+
+    // if (CanFuseReduceByBlockSync(ir_sch, node, fusion_master, group, this->shape_dict_, tensor_map)) {
+    //   SyncGpuBlocks(ir_sch, node, fusion_master, group, this->shape_dict_, tensor_map);
+    // } else {
     // do loop fuse.
     LoopComputeAt(ir_sch, node, master ? master : nodes_in_order.front(), group, this->shape_dict_, tensor_map);
+    //}
     VLOG(3) << "After loop fusion, ir is: \n" << ir_sch.GetModule().GetExprs().at(0);
   }
 
