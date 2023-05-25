@@ -62,8 +62,6 @@ class TestGeluOp(OpTest):
         self.cinn_outputs = forward_res
 
     def test_check_results(self):
-        self.build_paddle_program(self.target)
-        self.build_cinn_program(self.target)
         self.check_outputs_and_grads()
 
 
