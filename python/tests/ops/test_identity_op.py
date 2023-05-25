@@ -58,7 +58,7 @@ class TestIdentityOp(OpTest):
 
 class TestIdentityOpShape(TestCaseHelper):
     def init_attrs(self):
-        self.class_name = "TestIdentityShape"
+        self.class_name = "TestIdentityOpShape"
         self.cls = TestIdentityOp
         self.inputs = [{
             "x_shape": [1],
