@@ -24,6 +24,7 @@
 #include "cinn/common/graph_utils.h"
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/node.h"
+#include "cinn/common/hashable_weak_ptr.h"
 
 namespace cinn {
 namespace hlir {
@@ -55,7 +56,9 @@ class Graph : public cinn::common::Graph {
   absl::flat_hash_map<std::string, std::shared_ptr<absl::any>> attrs;
 
   std::vector<std::vector<Node*>> groups;
-  struct Group {
+
+  struct Group : public std::enable_shared_from_this<Group> {
+   public:
     // distance to last group.
     int depth{0};
     int max_depth{0};
@@ -79,28 +82,54 @@ class Graph : public cinn::common::Graph {
     // master node for schedule
     std::unordered_set<Node*> master_nodes;
 
-    struct SharedGroupHasher {
-      size_t operator()(const std::shared_ptr<Group>& group) const noexcept {
-        return std::hash<uint64_t>()(reinterpret_cast<uint64_t>(group.get()));
-      }
-    };
-    struct SharedGroupComparator {
-      bool operator()(const std::shared_ptr<Group>& first, const std::shared_ptr<Group>& second) const noexcept {
-        return first.get() == second.get();
-      }
-    };
-    // input groups
-    std::unordered_set<std::shared_ptr<Group>, SharedGroupHasher, SharedGroupComparator> producer_groups;
-    // output grous
-    std::unordered_set<std::shared_ptr<Group>, SharedGroupHasher, SharedGroupComparator> consumer_groups;
-    // fused sub-groups, used for fusion merge pass
-    std::vector<std::shared_ptr<Group>> fused_sub_groups;
-    // if as sub-group, used for belong groups.
-    std::unordered_set<std::shared_ptr<Group>, SharedGroupHasher, SharedGroupComparator> belong_groups;
-
     // for op lowering.
     std::vector<std::string> input_names;
     std::vector<std::string> output_names;
+
+    // Getters
+    // input groups
+    const std::unordered_set<HashableWeakPtr<Group>>& producer_groups() const {
+      return producer_groups_;
+    }
+    // output grous
+    const std::unordered_set<HashableWeakPtr<Group>>& consumer_groups() const {
+      return consumer_groups_;
+    }
+    // fused sub-groups, used for fusion merge pass
+    const std::vector<HashableWeakPtr<Group>>& fused_sub_groups() const {
+      return fused_sub_groups_;
+    }
+    // if as sub-group, used for belong groups.
+    const std::unordered_set<HashableWeakPtr<Group>>& belong_groups() const {
+      return belong_groups_;
+    }
+
+    void ConnectTo(const std::weak_ptr<Group>& consumer) {
+      consumer_groups_.insert(consumer);
+      consumer->producer_groups_.insert(shared_from_this());
+    }
+
+    void DisConnectTo(const std::weak_ptr<Group>& consumer) {
+      consumer_groups_.erase(consumer);
+      consumer->producer_groups_.erase(shared_from_this());
+      // TODO: delete `shared_from_this()` or `consumer` from `owner` if they isolated and unused.
+    }
+
+    void AddSubGroup(const std::weak_ptr<Group>& sub_group) {
+      fused_sub_groups_.push_back(sub_group);
+      sub_group.belong_groups_.insert(shared_from_this());
+    }
+
+    void RemoveSubGroup(const std::weak_ptr<Group>& sub_group) {
+      const auto& pos = std::find(fused_sub_groups_.begin(), fused_sub_groups_.end(), sub_group);
+      if (pos == fused_sub_groups_.end()) {
+        CHECK_EQ(sub_group.belong_groups_.count(shared_from_this()), 0);
+      } else {
+        fused_sub_groups_.erase(pos);
+        sub_group.belong_groups_.erase(shared_from_this());
+      }
+      // TODO: delete `shared_from_this()` or `consumer` from `owner` if they isolated and unused.
+    }
 
     std::vector<Node*> CollectNodes() {
       if (fused_sub_groups.size()) {
@@ -126,7 +155,22 @@ class Graph : public cinn::common::Graph {
     std::unordered_set<NodeData*> GetOutputNodeDatas();
 
     std::string GetFuncName() { return "fn_" + group_id + unique_id; }
+
+   private:
+    friend class Graph;
+    Group(const std::weak_ptr<std::unordered_set<std::shared_ptr<Group>>>& owner) : owner_(owner) {}
+
+    // input groups
+    std::unordered_set<HashableWeakPtr<Group>> producer_groups_;
+    // output grous
+    std::unordered_set<HashableWeakPtr<Group>> consumer_groups_;
+    // fused sub-groups, used for fusion merge pass
+    std::vector<std::weak_ptr<Group>> fused_sub_groups_;
+    // if as sub-group, used for belong groups.
+    std::unordered_set<HashableWeakPtr<Group>> belong_groups_;
+    std::weak_ptr<std::unordered_set<std::shared_ptr<Group>>> owner_;
   };
+
   std::vector<std::shared_ptr<Group>> fusion_groups;
 
   void RegisterNode(size_t key, Node* node) { this->common::Graph::RegisterNode(key, node->as<common::GraphNode>()); }
@@ -209,6 +253,8 @@ class Graph : public cinn::common::Graph {
   void SaveSourceCode(const std::string& code);
   void SavePTXCode(const std::string& ptx);
 
+  std::weak_ptr<Group> CreateGroup();
+
  private:
   std::string DebugGroupedGraph(const std::vector<std::vector<Node*>>& groups,
                                 const std::unordered_set<std::string>& fetch_var_ids = {});
@@ -225,6 +271,9 @@ class Graph : public cinn::common::Graph {
   static std::atomic_size_t viz_count_;
 
   CINN_DISALLOW_COPY_AND_ASSIGN(Graph);
+
+  // For groups ownership.
+  std::shared_ptr<std::unordered_set<std::shared_ptr<Group>>> groups_;
 };
 
 }  // namespace framework
