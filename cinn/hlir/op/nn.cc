@@ -27,7 +27,6 @@
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/layout.h"
 #include "cinn/poly/stage.h"
-#include "cinn/utils/string.h"
 
 DECLARE_bool(cinn_ir_schedule);
 
