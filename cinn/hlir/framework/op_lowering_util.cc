@@ -648,10 +648,25 @@ void LoopAssignReduceWithLast(ir::IRSchedule& ir_sch,
                               const std::vector<int>& inshape,
                               const std::vector<int>& axes,
                               const common::Target& target) {
+  // If the number of current device SM is smaller than the number of SM
+  // required by Warp Reduce, the performance of Warp Reduce is better.
+  // Otherwise, use Block Reduce.
+  auto max_num_threads       = common::DefaultNVGPUTarget().max_num_threads();
+  int need_reduce_last_count = 1;
+  for (int i = 0; i < inshape.size(); i++) {
+    if (find(axes.begin(), axes.end(), i) == axes.end()) {
+      need_reduce_last_count *= inshape[i];
+    }
+  }
+  int warp_reduce_need_sm_count = ceil((need_reduce_last_count * 32) / float(target.get_max_threads_per_sm()));
+  // Set Num_max_threads to 32 is Warp Reduce
+  if (target.get_multi_processor_count() < warp_reduce_need_sm_count) {
+    max_num_threads = 32;
+  }
   // find first reduce and second reduce axis.
-  int lane             = 1;
-  int index            = static_cast<int>(axes.size()) - 1;
-  auto max_num_threads = target.max_num_threads();
+  int lane  = 1;
+  int index = static_cast<int>(axes.size()) - 1;
+
   for (; index >= 0; --index) {
     if (index + 1 < axes.size() && axes[index] != axes[index + 1] - 1) {
       break;
@@ -694,6 +709,14 @@ void LoopAssignReduceWithLast(ir::IRSchedule& ir_sch,
       }
     }
     LoopOrderAssignReduce(ir_sch, block_name, first_axes, target);
+    // The current one-dimensional reduce does not make full use of SM.
+    // This case is optimized into a two-dimensional.
+    auto loops       = ir_sch.GetLoops(block_name);
+    auto block_dim_x = loops[1].As<ir::For>()->extent.as_int32();
+    int block_dim_y  = block_dim_x <= 32 ? 2 : 1;
+    if (block_dim_y != 1) {
+      ir_sch.Split(loops[0], {-1, block_dim_y});
+    }
   } else {
     int fuse_times = axes.size() - (index + 1) - 1;
     for (int idx = 0; idx < fuse_times; ++idx) {
