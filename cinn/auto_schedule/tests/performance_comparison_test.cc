@@ -298,12 +298,14 @@ TEST_F(PerformanceTester, Gather) {
 }
 
 // paddle model test
+#ifdef CINN_WITH_CUDNN
 TEST_F(PerformanceTester, ResNet50) {
   CHECK_NE(FLAGS_resnet50_model_dir, "");
 
   Evaluate(tests::PaddleModelBuilder(FLAGS_resnet50_model_dir, common::DefaultNVGPUTarget())
                .Build({{"inputs", {batch_size, 3, 224, 224}}}));
 }
+#endif
 
 }  // namespace auto_schedule
 }  // namespace cinn
