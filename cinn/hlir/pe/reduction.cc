@@ -18,6 +18,7 @@
 
 #include <algorithm>
 
+#include "cinn/common/common.h"
 #include "cinn/common/ir_util.h"
 #include "cinn/hlir/pe/broadcast.h"
 #include "cinn/hlir/pe/elementwise.h"
@@ -26,6 +27,7 @@
 #include "cinn/ir/tensor.h"
 #include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
+#include "cinn/utils/string.h"
 
 namespace cinn {
 namespace hlir {
@@ -143,9 +145,11 @@ Tensor DoReduce(const Tensor& tensor,
                 Expr initial,
                 const std::string& output_name) {
   std::vector<Var> reduce_axes;
+  int reduce_k_id = 0;
   for (auto& axis : real_axes) {
-    std::string name = UniqName("kk");
+    std::string name = cinn::UniqName(std::string("reduce_k_") + std::to_string(reduce_k_id));
     reduce_axes.push_back(Var(tensor->shape[axis], name));
+    reduce_k_id++;
   }
   auto compute = [&](const std::vector<Expr>& indices) -> Expr {
     std::vector<Expr> eval_indice;
@@ -554,6 +558,10 @@ std::vector<ir::Tensor> ReduceInternal(const ir::Tensor& A,
   auto reduce_shape = GetFirstStepReduceShape(inshape, axes, inbound, tail);
   CHECK_GT(reduce_shape.size(), 0);
 
+  VLOG(4) << "Reduce " << output_name << " on " << reduce_type << " with input shape=["
+          << cinn::utils::Join(inshape, ", ") << "], and first step reduce_shape=["
+          << cinn::utils::Join(reduce_shape, ", ") << "] at axes=[" << cinn::utils::Join(axes, ", ") << "]";
+
   // reshape input
   auto do_reshape_inbound = [&]() {
     int axis = axes.back();
@@ -607,7 +615,7 @@ std::vector<ir::Tensor> ReduceInternal(const ir::Tensor& A,
   if (keep_dim) {
     s_axes = {axes.back() + 1};
   } else {
-    s_axes = {axes.back() + 1 - axes.size()};
+    s_axes = {axes.back() + 1 - static_cast<int>(axes.size())};
   }
   auto reduce_out = reduce_func(internal, s_axes, false, output_name);
 

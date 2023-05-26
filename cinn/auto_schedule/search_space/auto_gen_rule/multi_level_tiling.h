@@ -58,7 +58,7 @@ class MultiLevelTiling : public AutoGenRule {
   MultiLevelTiling(const common::Target& target, const Config& config);
   ~MultiLevelTiling() = default;
 
-  // initailize the AutoGenRule, it must be called before further actions.
+  // initialize the AutoGenRule, it must be called before further actions.
   // Returns false if the rule cannot be applied on the mod_expr, true otherwise
   RuleApplyType Init(ir::IRSchedule* init_schedule) override;
 

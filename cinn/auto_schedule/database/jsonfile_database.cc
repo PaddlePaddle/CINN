@@ -53,7 +53,7 @@ std::vector<std::string> ReadLinesFromFile(const std::string& file_path, bool al
 
 JSONFileDatabase::JSONFileDatabase(int capacity_per_task, const std::string& record_file_path, bool allow_new_file)
     : Database(capacity_per_task), record_file_path_(record_file_path) {
-  VLOG(3) << "Auto schdule will save/load tuning records on file:" << record_file_path;
+  VLOG(3) << "Auto schedule will save/load tuning records on file:" << record_file_path;
   auto json_lines = ReadLinesFromFile(record_file_path_, allow_new_file);
   std::vector<cinn::auto_schedule::proto::TuningRecord> all_records_proto(json_lines.size());
 

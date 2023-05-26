@@ -215,7 +215,7 @@ class CodeGenLLVM : public LLVMIRVisitor, public IrBuilderMixin<CodeGenLLVM> {
 
   /**
    * Mark a load or store with type-based-alias-analysis metadata so that LLVM can optimize by reordering loads and
-   * stores accross different buffers.
+   * stores across different buffers.
    */
   void AddTbaaMetadata(llvm::Instruction *inst, absl::string_view buffer, Expr index);
 

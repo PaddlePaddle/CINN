@@ -21,7 +21,7 @@ from cinn.common import *
 import numpy as np
 
 
-class TestAutoCastPass(PassTest):
+class TestExpandZeroDimPass(PassTest):
     def init_input_data(self):
         self.feed_data = {
             'x': np.random.randint(-10, 10, []).astype("float32")
