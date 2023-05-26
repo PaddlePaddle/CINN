@@ -23,7 +23,7 @@ from cinn.common import *
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
                     "x86 test will be skipped due to timeout.")
-class TestMaxMaximumOp(OpTest):
+class TestMaxMinimumOp(OpTest):
     def setUp(self):
         print(f"\nRunning {self.__class__.__name__}: {self.case}")
         self.prepare_inputs()
@@ -37,7 +37,7 @@ class TestMaxMaximumOp(OpTest):
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.x_np, stop_gradient=False)
         y = paddle.to_tensor(self.y_np, stop_gradient=False)
-        out = paddle.maximum(x, y)
+        out = paddle.minimum(x, y)
         self.paddle_outputs = [out]
 
     def build_cinn_program(self, target):
@@ -46,7 +46,7 @@ class TestMaxMaximumOp(OpTest):
             self.nptype2cinntype(self.x_np.dtype), self.x_np.shape, "x")
         y = builder.create_input(
             self.nptype2cinntype(self.y_np.dtype), self.y_np.shape, "y")
-        out = builder.max(x, y)
+        out = builder.min(x, y)
 
         prog = builder.build()
         res = self.get_cinn_output(prog, target, [x, y],
@@ -60,10 +60,10 @@ class TestMaxMaximumOp(OpTest):
         self.check_outputs_and_grads(max_relative_error=max_relative_error)
 
 
-class TestMaxMaximumOpShapeTest(TestCaseHelper):
+class TestMaxMinimumOpShapeTest(TestCaseHelper):
     def init_attrs(self):
-        self.class_name = "TestMaxMaximumOpShapeTest"
-        self.cls = TestMaxMaximumOp
+        self.class_name = "TestMaxMinimumOpShapeTest"
+        self.cls = TestMaxMinimumOp
         self.inputs = [{
             "x_shape": [1],
             "y_shape": [1],
@@ -96,10 +96,10 @@ class TestMaxMaximumOpShapeTest(TestCaseHelper):
         self.attrs = []
 
 
-class TestMaxMaximumOpDtypeTest(TestCaseHelper):
+class TestMaxMinimumOpDtypeTest(TestCaseHelper):
     def init_attrs(self):
-        self.class_name = "TestMaxMaximumOpDtypeTest"
-        self.cls = TestMaxMaximumOp
+        self.class_name = "TestMaxMinimumOpDtypeTest"
+        self.cls = TestMaxMinimumOp
         self.inputs = [{
             "x_shape": [1],
             "y_shape": [1],
@@ -132,10 +132,10 @@ class TestMaxMaximumOpDtypeTest(TestCaseHelper):
         self.attrs = []
 
 
-class TestMaxMaximumOpBroadcastTest(TestCaseHelper):
+class TestMaxMinimumOpBroadcastTest(TestCaseHelper):
     def init_attrs(self):
-        self.class_name = "TestMaxMaximumOpBroadcastTest"
-        self.cls = TestMaxMaximumOp
+        self.class_name = "TestMaxMinimumOpBroadcastTest"
+        self.cls = TestMaxMinimumOp
         self.inputs = [{
             "x_shape": [32],
             "y_shape": [1],
@@ -208,6 +208,6 @@ class TestMaxMaximumOpBroadcastTest(TestCaseHelper):
 
 
 if __name__ == "__main__":
-    TestMaxMaximumOpShapeTest().run()
-    TestMaxMaximumOpDtypeTest().run()
-    TestMaxMaximumOpBroadcastTest().run()
+    TestMaxMinimumOpShapeTest().run()
+    TestMaxMinimumOpDtypeTest().run()
+    TestMaxMinimumOpBroadcastTest().run()
