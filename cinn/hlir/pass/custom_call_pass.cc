@@ -44,7 +44,7 @@ class GraphAlterHelper {
         auto&& op_name = node->op()->name;
         // a op with external_api registered and not excluded explicitly will be selected
         if (!IsExcluded(op_name) && ExternalApiRegistry::Global()->Has(op_name, target)) {
-          VLOG(4) << "Op:" << op_name << " will not use custom_call";
+          VLOG(4) << "Op:" << op_name << " will use custom_call";
           return true;
         }
       }
