@@ -292,19 +292,42 @@ create_unit_test(
     "builder.logical_xor",
     dtype="bool")
 
-# # Some error with bitwise Nd-0D, debug later, why CINN unsupport bitwise?
-# create_unit_test(TestElementwiseBinaryOp_0DTo0D, "bitwise_and", paddle.bitwise_and,
-#                  "builder.bitwise_and", dtype="int64")
-# create_unit_test(TestElementwiseBinaryOp_NdTo0d, "bitwise_and", paddle.bitwise_and,
-#                  "builder.bitwise_and", dtype="int64")
-# create_unit_test(TestElementwiseBinaryOp_0DTo0D, "bitwise_or", paddle.bitwise_or,
-#                  "builder.bitwise_or", dtype="int64")
-# create_unit_test(TestElementwiseBinaryOp_NdTo0d, "bitwise_or", paddle.bitwise_or,
-#                  "builder.bitwise_or", dtype="int64")
-# create_unit_test(TestElementwiseBinaryOp_0DTo0D, "bitwise_xor", paddle.bitwise_xor,
-#                  "builder.bitwise_xor", dtype="int64")
-# create_unit_test(TestElementwiseBinaryOp_NdTo0d, "bitwise_xor", paddle.bitwise_xor,
-#                  "builder.bitwise_xor", dtype="int64")
+create_unit_test(
+    TestElementwiseBinaryOp_0DTo0D,
+    "bitwise_and",
+    paddle.bitwise_and,
+    "builder.bitwise_and",
+    dtype="int64")
+create_unit_test(
+    TestElementwiseBinaryOp_NdTo0d,
+    "bitwise_and",
+    paddle.bitwise_and,
+    "builder.bitwise_and",
+    dtype="int64")
+create_unit_test(
+    TestElementwiseBinaryOp_0DTo0D,
+    "bitwise_or",
+    paddle.bitwise_or,
+    "builder.bitwise_or",
+    dtype="int64")
+create_unit_test(
+    TestElementwiseBinaryOp_NdTo0d,
+    "bitwise_or",
+    paddle.bitwise_or,
+    "builder.bitwise_or",
+    dtype="int64")
+create_unit_test(
+    TestElementwiseBinaryOp_0DTo0D,
+    "bitwise_xor",
+    paddle.bitwise_xor,
+    "builder.bitwise_xor",
+    dtype="int64")
+create_unit_test(
+    TestElementwiseBinaryOp_NdTo0d,
+    "bitwise_xor",
+    paddle.bitwise_xor,
+    "builder.bitwise_xor",
+    dtype="int64")
 
 create_unit_test(
     TestElementwiseBinaryOp_0DTo0D,
