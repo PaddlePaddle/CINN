@@ -28,6 +28,7 @@
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
+#include "cinn/hlir/op/op_util.h"
 #include "cinn/hlir/pe/elementwise.h"
 #include "cinn/hlir/pe/ir_schedule_pe.h"
 #include "cinn/hlir/pe/nn.h"
@@ -82,7 +83,7 @@ ir::Tensor Scatter(const ir::Tensor &A,
       }
     }
     new_axes.push_back(pos_axis);
-    transpose_B = pe::Transpose(B, new_axes, B->name + "_index_transpose");
+    transpose_B = pe::Transpose(B, new_axes, B->name + "_transpose");
   }
   auto res = Compute(
       C->shape,
@@ -176,8 +177,8 @@ std::shared_ptr<framework::OpStrategy> StrategyForScatter(const framework::NodeA
                                                           const Target &target) {
   auto attr_store = attrs.attr_store;
   CHECK(attr_store.count("axis")) << "find no attr of axis";
-  int axis = absl::get<int>(attr_store.at("axis"));
-  std::string op_name("scatter");
+  const int axis = absl::get<int>(attr_store.at("axis"));
+  const std::string op_name("scatter");
 
   framework::CINNCompute scatter_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input arguments of " << op_name << " compute is empty! Please check.\n";
@@ -186,62 +187,20 @@ std::shared_ptr<framework::OpStrategy> StrategyForScatter(const framework::NodeA
     Expr A = pack_args[0];
     Expr B = pack_args[1];
     Expr C = pack_args[2];
-    CHECK(A.as_tensor());
-    CHECK(B.as_tensor());
-    CHECK(C.as_tensor());
-    CHECK(!output_shapes.empty());
-    auto tensor_A = A.as_tensor_ref();
-    auto tensor_B = B.as_tensor_ref();
-    auto tensor_C = C.as_tensor_ref();
-    auto stages   = CreateStages({tensor_A, tensor_B, tensor_C});
-    VLOG(3) << "A shape: " << utils::Join(tensor_A->shape, ", ") << ", B shape: " << utils::Join(tensor_B->shape, ", ")
-            << ", output_shapes: " << utils::Join(output_shapes[0], ", ");
     std::string tensor_name = UniqName("Scatter_out");
     if (FLAGS_cinn_ir_schedule) {
       CHECK_EQ(pack_args.size(), 4U);
       tensor_name = pack_args[3].operator std::string();
+      VLOG(4) << A.as_tensor_ref()->name << " " << B.as_tensor_ref()->name << " " << C.as_tensor_ref()->name << " " << tensor_name;
+      tensor_name = "test_scatter_out";
     }
-    ir::Tensor out = Scatter(tensor_A, tensor_B, tensor_C, target, axis, tensor_name);
-    std::vector<CINNValue> res;
-    stages->InsertLazily(out);
-    res.push_back(CINNValue(out));
-    CHECK(!out_type.empty()) << "Output type of " << op_name << " is empty! Please check.\n";
-    res.push_back(CINNValue(stages));
-    *ret = CINNValuePack{res};
-  });
-
-  framework::CINNSchedule scatter_schedule([=](lang::Args args, lang::RetValue *ret) {
-    if (FLAGS_cinn_ir_schedule) {
-      CHECK(!args.empty()) << "The input argument of scatter_schedule is empty! Please check.\n";
-      common::CINNValuePack arg_pack = args[0];
-      std::vector<Expr> vec_ast;
-      for (int i = 0; i < arg_pack.size(); i++) {
-        if (arg_pack[i].is_expr()) {
-          Expr temp = arg_pack[i];
-          vec_ast.emplace_back(temp);
-        }
-      }
-      CHECK(!vec_ast.empty());
-      ir::ModuleExpr mod_expr(vec_ast);
-      ir::IRSchedule ir_sch(mod_expr);
-      ir_sch.MergeExprs();
-      long prod_size = std::accumulate(output_shapes[0].begin(), output_shapes[0].end(), 1, std::multiplies<int>());
-      if (prod_size > 1) {
-        pe::IRInjectiveSchedule(ir_sch, output_shapes.front(), target);
-      }
-      std::vector<common::CINNValue> res{common::CINNValue(ir_sch.GetModule().GetExprs().at(0))};
-      *ret = common::CINNValuePack{res};
-    } else {
-      CHECK(!args.empty()) << "The input argument of scatter_schedule is empty! Please check.\n";
-      CINNValuePack arg_pack = args[0];
-      Expr out               = arg_pack[0];
-      CHECK(out.as_tensor());
-      *ret = arg_pack;
-    }
+    ir::Tensor out = Scatter(A.as_tensor_ref(), B.as_tensor_ref(), C.as_tensor_ref(), target, axis, tensor_name);
+    auto stages    = CreateStages({out});
+    *ret           = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(scatter_compute, scatter_schedule, "strategy.scatter.x86", 1);
+  strategy->AddImpl(scatter_compute, GetInjectiveScheduleFunc(output_shapes, target), "strategy.scatter.x86", 1);
   return strategy;
 }
 
@@ -269,7 +228,6 @@ std::shared_ptr<framework::OpStrategy> StrategyForScatterNd(const framework::Nod
     auto tensor_A = A.as_tensor_ref();
     auto tensor_B = B.as_tensor_ref();
     auto tensor_C = C.as_tensor_ref();
-    auto stages   = CreateStages({tensor_A, tensor_B, tensor_C});
     VLOG(3) << "A shape: " << utils::Join(tensor_A->shape, ", ") << ", B shape: " << utils::Join(tensor_B->shape, ", ")
             << ", output_shapes: " << utils::Join(output_shapes[0], ", ");
     std::string tensor_name = UniqName("ScatterNd_out");
@@ -278,46 +236,12 @@ std::shared_ptr<framework::OpStrategy> StrategyForScatterNd(const framework::Nod
       tensor_name = pack_args[3].operator std::string();
     }
     ir::Tensor out = ScatterNd(tensor_A, tensor_B, tensor_C, target, axes, tensor_name);
-    std::vector<CINNValue> res;
-    stages->InsertLazily(out);
-    res.push_back(CINNValue(out));
-    CHECK(!out_type.empty()) << "Output type of " << op_name << " is empty! Please check.\n";
-    res.push_back(CINNValue(stages));
-    *ret = CINNValuePack{res};
-  });
-
-  framework::CINNSchedule scatter_nd_schedule([=](lang::Args args, lang::RetValue *ret) {
-    if (FLAGS_cinn_ir_schedule) {
-      CHECK(!args.empty()) << "The input argument of scatter_nd_schedule is empty! Please check.\n";
-      common::CINNValuePack arg_pack = args[0];
-      std::vector<Expr> vec_ast;
-      for (int i = 0; i < arg_pack.size(); i++) {
-        if (arg_pack[i].is_expr()) {
-          Expr temp = arg_pack[i];
-          vec_ast.emplace_back(temp);
-        }
-      }
-      CHECK(!vec_ast.empty());
-      ir::ModuleExpr mod_expr(vec_ast);
-      ir::IRSchedule ir_sch(mod_expr);
-      ir_sch.MergeExprs();
-      long prod_size = std::accumulate(output_shapes[0].begin(), output_shapes[0].end(), 1, std::multiplies<int>());
-      if (prod_size > 1) {
-        pe::IRInjectiveSchedule(ir_sch, output_shapes.front(), target);
-      }
-      std::vector<common::CINNValue> res{common::CINNValue(ir_sch.GetModule().GetExprs().at(0))};
-      *ret = common::CINNValuePack{res};
-    } else {
-      CHECK(!args.empty()) << "The input argument of scatter_nd_schedule is empty! Please check.\n";
-      CINNValuePack arg_pack = args[0];
-      Expr out               = arg_pack[0];
-      CHECK(out.as_tensor());
-      *ret = arg_pack;
-    }
+    auto stages    = CreateStages({out});
+    *ret           = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(scatter_nd_compute, scatter_nd_schedule, "strategy.scatter_nd.x86", 1);
+  strategy->AddImpl(scatter_nd_compute, GetInjectiveScheduleFunc(output_shapes, target), "strategy.scatter_nd.x86", 1);
   return strategy;
 }
 
@@ -357,6 +281,7 @@ CINN_REGISTER_HELPER(scatter_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForScatterNd)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForScatter))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForScatter))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kInjective)
       .set_support_level(4);
 
   return true;
