@@ -249,7 +249,7 @@ HLIR_IMP_BC_PE(Subtract, return a - b;);
 HLIR_IMP_BC_PE(Multiply, return a * b;);
 HLIR_IMP_BC_PE(Divide, return a / b;);
 HLIR_IMP_BC_PE(FloorDivide, return lang::FloorDivide(a, b););
-HLIR_IMP_BC_PE(Remainder, return a.type().is_int() ? a % b : lang::Remainder(a, b););
+HLIR_IMP_BC_PE(Remainder, return lang::Remainder(a, b););
 HLIR_IMP_BC_PE(Mod, return lang::Mod(a, b););
 HLIR_IMP_BC_PE(Maximum, return ir::Max::Make(a, b););
 HLIR_IMP_BC_PE(Minimum, return ir::Min::Make(a, b););
