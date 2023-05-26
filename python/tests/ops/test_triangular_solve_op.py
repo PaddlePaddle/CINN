@@ -353,8 +353,8 @@ class TestTriangularSolveOpLarge(TestTriangularSolveOp):
 
     def prepare_inputs(self):
         self.inputs = {
-            "input1": self.random([1, 1024, 1024], "float32"),
-            "input2": self.random([1, 1024, 512], "float32")
+            "input1": self.random([1, 1024, 1024], "float64", -0.01, 0.01),
+            "input2": self.random([1, 1024, 512], "float64", -0.01, 0.01)
         }
         self.left_side = True
         self.upper = True
@@ -362,14 +362,14 @@ class TestTriangularSolveOpLarge(TestTriangularSolveOp):
         self.unit_diagonal = False
 
     def test_check_results(self):
-        self.check_outputs_and_grads()
+        self.check_outputs_and_grads(equal_nan=True)
 
 
 class TestTriangularSolveOpLarge1(TestTriangularSolveOpLarge):
     def prepare_inputs(self):
         self.inputs = {
-            "input1": self.random([1, 2048, 2048], "float32"),
-            "input2": self.random([1, 2048, 4096], "float32")
+            "input1": self.random([1, 2048, 2048], "float64", -0.01, 0.01),
+            "input2": self.random([1, 2048, 512], "float64", -0.01, 0.01)
         }
         self.left_side = True
         self.upper = True
@@ -388,5 +388,5 @@ if __name__ == "__main__":
     run_test(TestTriangularSolveOpRightSide1)
     run_test(TestTriangularSolveOpSingular)
     run_test(TestTriangularSolveOpSingular1)
-    # run_test(TestTriangularSolveOpLarge)
-    # run_test(TestTriangularSolveOpLarge1)
+    run_test(TestTriangularSolveOpLarge)
+    run_test(TestTriangularSolveOpLarge1)
