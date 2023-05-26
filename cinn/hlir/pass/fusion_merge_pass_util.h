@@ -101,6 +101,34 @@ CONDITION_FUNC(elementwise_fuse_broadcast) {
   return true;
 }
 
+CONDITION_FUNC(honrizontal_elementwise_fuse_reduce) {
+  std::shared_ptr<Graph::Group> ele_group, reduce_group;
+  if (first->op_pattern_kind == framework::kReduction) {
+    ele_group    = second;
+    reduce_group = first;
+  } else {
+    ele_group    = first;
+    reduce_group = second;
+  }
+  // if same shape with horizontal relation
+  if (is_same_size(helper, first, second)) {
+    return true;
+  }
+
+  shape_t ele_node_shape = helper->GetNodeDataShape(*ele_group->master_nodes.begin());
+  int32_t size_ele       = std::accumulate(ele_node_shape.begin(), ele_node_shape.end(), 1, std::multiplies<int>());
+  for (Node* master : reduce_group->master_nodes) {
+    shape_t master_node_shape = helper->GetNodeDataShape(master);
+    int32_t size_master =
+        std::accumulate(master_node_shape.begin(), master_node_shape.end(), 1, std::multiplies<int>());
+    if (size_ele == size_master) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 CONDITION_FUNC(elementwise_fuse_reduce) {
   if (helper->target_ == common::DefaultHostTarget()) {
     return true;
@@ -109,6 +137,55 @@ CONDITION_FUNC(elementwise_fuse_reduce) {
   if (is_same_size(helper, first, second)) {
     return true;
   }
+
+  // if reduce nodes not in consumers of first group
+  std::queue<Node*> candidates;
+  std::unordered_set<Node*> first_node_set  = first->NodeSet();
+  std::unordered_set<Node*> second_node_set = second->NodeSet();
+  for (const auto& pair : second->input_nodes) {
+    if (first_node_set.find(pair.first) != first_node_set.end()) {
+      candidates.push(pair.first);
+    }
+  }
+  std::unordered_set<Node*> visited;
+  std::unordered_set<Node*> masters_in_consumers;
+
+  while (!candidates.empty()) {
+    Node* candidate = candidates.front();
+    candidates.pop();
+
+    std::vector<Node*> consumers = helper->GetConsumerNode(candidate);
+    for (auto consumer : consumers) {
+      if (visited.count(consumer)) {
+        continue;
+      }
+      if (second_node_set.find(consumer) != second_node_set.end()) {
+        visited.insert(consumer);
+        candidates.push(consumer);
+      }
+      if (second->master_nodes.count(consumer)) {
+        masters_in_consumers.insert(consumer);
+      }
+    }
+  }
+  if (!masters_in_consumers.empty()) {
+    bool flag                = true;
+    shape_t first_node_shape = helper->GetNodeDataShape(*first->master_nodes.begin());
+    int32_t size_first = std::accumulate(first_node_shape.begin(), first_node_shape.end(), 1, std::multiplies<int>());
+    for (Node* master : masters_in_consumers) {
+      shape_t second_node_shape = helper->GetNodeDataShape(master);
+      int32_t size_second =
+          std::accumulate(second_node_shape.begin(), second_node_shape.end(), 1, std::multiplies<int>());
+      if (size_first != size_second) {
+        flag = false;
+        break;
+      }
+    }
+    if (flag) {
+      return true;
+    }
+  }
+
   // if reduce using block_reduce, can't fuse producer.
   Node* reducer = nullptr;
   for (auto& node : second->master_nodes) {
