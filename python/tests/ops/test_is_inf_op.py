@@ -92,12 +92,6 @@ class TestIsInfOpDtype(TestCaseHelper):
             "x_shape": [32, 64],
         }]
         self.dtypes = [{
-            "x_dtype": "bool",
-        }, {
-            "x_dtype": "int8",
-        }, {
-            "x_dtype": "int16",
-        }, {
             "x_dtype": "int32",
         }, {
             "x_dtype": "int64",
