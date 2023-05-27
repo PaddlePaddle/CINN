@@ -43,9 +43,11 @@ class TestMaxMaximumOp(OpTest):
     def build_cinn_program(self, target):
         builder = NetBuilder("pow")
         x = builder.create_input(
-            self.nptype2cinntype(self.x_np.dtype), self.x_np.shape, "x")
+            self.nptype2cinntype(self.case["x_dtype"]), self.case["x_shape"],
+            "x")
         y = builder.create_input(
-            self.nptype2cinntype(self.y_np.dtype), self.y_np.shape, "y")
+            self.nptype2cinntype(self.case["y_dtype"]), self.case["y_shape"],
+            "y")
         out = builder.max(x, y)
 
         prog = builder.build()
