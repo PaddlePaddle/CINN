@@ -35,8 +35,8 @@ class TestMaxMaximumOp(OpTest):
             shape=self.case["y_shape"], dtype=self.case["y_dtype"])
 
     def build_paddle_program(self, target):
-        x = paddle.to_tensor(self.x_np, stop_gradient=False)
-        y = paddle.to_tensor(self.y_np, stop_gradient=False)
+        x = paddle.to_tensor(self.x_np, stop_gradient=True)
+        y = paddle.to_tensor(self.y_np, stop_gradient=True)
         out = paddle.maximum(x, y)
         self.paddle_outputs = [out]
 
