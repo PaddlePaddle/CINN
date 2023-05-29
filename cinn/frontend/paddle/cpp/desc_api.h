@@ -120,7 +120,9 @@ class OpDescAPI {
     FLOAT64S = 12,
     VAR      = 13,
     VARS     = 14,
-    FLOAT64  = 15
+    FLOAT64  = 15,
+    SCALAR   = 16,
+    SCALARS  = 17
   };
 
   virtual ~OpDescAPI() = default;

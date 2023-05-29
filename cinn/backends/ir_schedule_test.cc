@@ -426,6 +426,7 @@ void test_reorder4(void* _args, int32_t num_args)
   ASSERT_EQ(utils::Trim(target_code), utils::Trim(source_code));
 }
 
+#ifdef CINN_USE_OPENMP
 TEST(IrSchedule, parallel) {
   Context::Global().ResetNameId();
   Expr M(32);
@@ -489,6 +490,7 @@ void test_parallel(void* _args, int32_t num_args)
 )ROC";
   ASSERT_EQ(utils::Trim(target_code), utils::Trim(source_code));
 }
+#endif  // CINN_USE_OPENMP
 
 TEST(IrSchedule, vectorize) {
   Context::Global().ResetNameId();
@@ -1892,15 +1894,15 @@ function test_rfactor (_A, _B)
         {
           ScheduleBlock(rf_B__reduce_init)
           {
-            i0, i1 = axis.bind(i, rf_k0)
-            rf_B__reduce_init[i1, i0] = 0.00000000f
+            i0, i1_0 = axis.bind(i, rf_k0)
+            rf_B__reduce_init[i1_0, i0] = 0.00000000f
           }
           serial for (j0, 0, 2)
           {
             ScheduleBlock(rf_B)
             {
-              i0, i1, i2 = axis.bind(i, j0, rf_k0)
-              rf_B[i2, i0] = (rf_B[i2, i0] + A[i0, i1, i2])
+              i0_0, i1, i2 = axis.bind(i, j0, rf_k0)
+              rf_B[i2, i0_0] = (rf_B[i2, i0_0] + A[i0_0, i1, i2])
             }
           }
         }
@@ -1916,8 +1918,8 @@ function test_rfactor (_A, _B)
         {
           ScheduleBlock(B)
           {
-            i0, i2 = axis.bind(i, k0)
-            B[i0] = (B[i0] + rf_B[i2, i0])
+            i0_0, i2 = axis.bind(i, k0)
+            B[i0_0] = (B[i0_0] + rf_B[i2, i0_0])
           }
         }
       }
@@ -2019,15 +2021,15 @@ function test_rfactor (_A, _B)
         {
           ScheduleBlock(rf_B__reduce_init)
           {
-            i0, i1 = axis.bind(i, rf_j0)
-            rf_B__reduce_init[i0, i1] = 0.00000000f
+            i0, i1_0 = axis.bind(i, rf_j0)
+            rf_B__reduce_init[i0, i1_0] = 0.00000000f
           }
           serial for (k0, 0, 16)
           {
             ScheduleBlock(rf_B)
             {
-              i0, i1, i2 = axis.bind(i, rf_j0, k0)
-              rf_B[i0, i1] = (rf_B[i0, i1] + A[i0, i1, i2])
+              i0_0, i1, i2 = axis.bind(i, rf_j0, k0)
+              rf_B[i0_0, i1] = (rf_B[i0_0, i1] + A[i0_0, i1, i2])
             }
           }
         }
@@ -2043,8 +2045,8 @@ function test_rfactor (_A, _B)
         {
           ScheduleBlock(B)
           {
-            i0, i1 = axis.bind(i, j0)
-            B[i0] = (B[i0] + rf_B[i0, i1])
+            i0_0, i1 = axis.bind(i, j0)
+            B[i0_0] = (B[i0_0] + rf_B[i0_0, i1])
           }
         }
       }
@@ -2144,13 +2146,13 @@ function test_rfactor (_A, _B, _C)
           {
             ScheduleBlock(rf_C__reduce_init)
             {
-              i0, i1, i2 = axis.bind(i, j, rf_k0)
-              rf_C__reduce_init[i2, i0, i1] = 0.00000000f
+              i0, i1, i2_0 = axis.bind(i, j, rf_k0)
+              rf_C__reduce_init[i2_0, i0, i1] = 0.00000000f
             }
             ScheduleBlock(rf_C)
             {
-              i0, i1, i2 = axis.bind(i, j, rf_k0)
-              rf_C[i2, i0, i1] = (rf_C[i2, i0, i1] + (A[i0, i2] * B[i2, i1]))
+              i0_0, i1_0, i2 = axis.bind(i, j, rf_k0)
+              rf_C[i2, i0_0, i1_0] = (rf_C[i2, i0_0, i1_0] + (A[i0_0, i2] * B[i2, i1_0]))
             }
           }
         }
@@ -2168,8 +2170,8 @@ function test_rfactor (_A, _B, _C)
           {
             ScheduleBlock(C)
             {
-              i0, i1, i2 = axis.bind(i, j, k0)
-              C[i0, i1] = (C[i0, i1] + rf_C[i2, i0, i1])
+              i0_0, i1_0, i2 = axis.bind(i, j, k0)
+              C[i0_0, i1_0] = (C[i0_0, i1_0] + rf_C[i2, i0_0, i1_0])
             }
           }
         }
@@ -2989,8 +2991,8 @@ TEST(IrSchedule, GetChildBlocks) {
   B[i0, i1, i2] = A[i0, i1, i2]
 }, ScheduleBlock(C)
 {
-  i0, i1, i2 = axis.bind(i, j, k)
-  C[i0, i1, i2] = B[i0, i1, i2]
+  i0_0, i1_0, i2_0 = axis.bind(i, j, k)
+  C[i0_0, i1_0, i2_0] = B[i0_0, i1_0, i2_0]
 })ROC";
   ASSERT_EQ(utils::GetStreamCnt(ir_sch.GetChildBlocks(root_block)), expected_expr);
 }

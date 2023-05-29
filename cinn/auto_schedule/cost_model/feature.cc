@@ -38,13 +38,13 @@ namespace auto_schedule {
 
 Feature::Feature()
     : target_(common::UnkTarget()),
-      stack_encoded_feature_(1),  // initialze a LoopBlockFeature as root block
+      stack_encoded_feature_(1),  // initialize a LoopBlockFeature as root block
       current_loop_block_index_(0),
       parent_indices_(1, -1) {}
 
 Feature::Feature(const common::Target& target)
     : target_(target),
-      stack_encoded_feature_(1),  // initialze a LoopBlockFeature as root block
+      stack_encoded_feature_(1),  // initialize a LoopBlockFeature as root block
       current_loop_block_index_(0),
       parent_indices_(1, -1) {}
 

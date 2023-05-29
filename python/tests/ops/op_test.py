@@ -101,6 +101,7 @@ class OpTest(unittest.TestCase):
 
     def check_outputs_and_grads(self,
                                 max_relative_error=1e-5,
+                                max_absolute_error=1e-6,
                                 all_equal=False,
                                 equal_nan=False):
         self.build_paddle_program(self.target)
@@ -108,40 +109,45 @@ class OpTest(unittest.TestCase):
 
         logger.debug("============ Check Outputs ============")
         self.check_results(self.paddle_outputs, self.cinn_outputs,
-                           max_relative_error, all_equal, equal_nan, "Outputs")
+                           max_relative_error, max_absolute_error, all_equal,
+                           equal_nan, "Outputs")
 
         if len(self.cinn_grads) != 0:
             logger.debug("============ Check Grads ============")
             self.check_results(self.paddle_grads, self.cinn_grads,
-                               max_relative_error, all_equal, equal_nan,
-                               "Grads")
+                               max_relative_error, max_absolute_error,
+                               all_equal, equal_nan, "Grads")
 
     def check_results(self,
                       expect_res,
                       actual_res,
                       max_relative_error,
+                      max_absolute_error,
                       all_equal=False,
                       equal_nan=False,
                       name="Outputs"):
-        def _compute_max_relative_error(output_id, expect, actual):
+        def _compute_error_message(output_id, expect, actual):
             absolute_diff = np.abs(expect - actual).flatten()
             relative_diff = absolute_diff / np.abs(expect).flatten()
-            max_diff = 0
-            min_diff = max_relative_error
-            offset = 0
+            max_relative_diff = 0
+            max_absolute_diff = 0
+            offset = -1
             num_diffs = 0
             for i in range(len(relative_diff)):
-                if relative_diff[i] > max_diff:
-                    max_diff = relative_diff[i]
-                    offset = i
-                if relative_diff[i] > max_relative_error:
+                if relative_diff[i] > max_relative_diff:
+                    max_relative_diff = relative_diff[i]
+                if absolute_diff[i] > max_absolute_diff:
+                    max_absolute_diff = absolute_diff[i]
+                if relative_diff[i] > max_relative_error or absolute_diff[
+                        i] > max_absolute_error:
                     num_diffs = num_diffs + 1
+                    offset = i if offset == -1 else offset
                     # The following print can be used to debug.
                     # print("i=%d, %e vs %e, relative_diff=%e, absolute_diff=%e" % (i, expect.flatten()[i], actual.flatten()[i], relative_diff[i], absolute_diff[i]))
-            error_message = "[%s] The %d-th output: total %d different results, offset=%d, shape=%s, %e vs %e, maximum_relative_diff=%e (absolute_diff=%e)." % (
+            error_message = "[%s] The %d-th output: total %d different results, offset=%d, shape=%s, %e vs %e. Maximum diff of the whole array: maximum_relative_diff=%e, maximum_absolute_diff=%e." % (
                 self._get_device(), output_id, num_diffs, offset,
                 str(expect.shape), expect.flatten()[offset],
-                actual.flatten()[offset], max_diff, absolute_diff[offset])
+                actual.flatten()[offset], max_relative_diff, max_absolute_diff)
             return error_message
 
         def _check_error_message(output_id, expect, actual):
@@ -181,12 +187,15 @@ class OpTest(unittest.TestCase):
                 msg=
                 "[{}] The {}-th output dtype different, which expect shape is {} but actual is {}."
                 .format(self._get_device(), i, expect.dtype, actual.dtype))
-            self.assertEqual(
-                expect.shape,
-                actual.shape,
-                msg=
-                "[{}] The {}-th output shape different, which expect shape is {} but actual is {}."
-                .format(self._get_device(), i, expect.shape, actual.shape))
+            # NOTE: Paddle's 0D Tensor will be changed to 1D when calling tensor.numpy(),
+            # only check non-0D Tensor's shape here. 0D-Tensor's shape will be verified by `test_zero_dim_tensor.py`
+            if len(expect.shape) != 0 and len(actual.shape) != 0:
+                self.assertEqual(
+                    expect.shape,
+                    actual.shape,
+                    msg=
+                    "[{}] The {}-th output shape different, which expect shape is {} but actual is {}."
+                    .format(self._get_device(), i, expect.shape, actual.shape))
 
             should_all_equal = all_equal or (actual.dtype in [
                 np.dtype('bool'),
@@ -200,15 +209,17 @@ class OpTest(unittest.TestCase):
                 is_allclose = np.allclose(
                     expect,
                     actual,
-                    atol=1e-6,
+                    atol=max_absolute_error,
                     rtol=max_relative_error,
                     equal_nan=equal_nan)
-                error_message = "np.allclose(expect, actual, atol=1e-6, rtol={}) checks succeed!".format(
-                    max_relative_error
-                ) if is_allclose else _compute_max_relative_error(
+                # _compute_error_message checks which values have absolute or relative error
+                error_message = "np.allclose(expect, actual, atol={}, rtol={}) checks succeed!".format(
+                    max_absolute_error, max_relative_error
+                ) if is_allclose else _compute_error_message(
                     i, expect, actual)
             else:
                 is_allclose = np.all(expect == actual)
+                # _check_error_message checks which values are not equal
                 error_message = "(expect == actual) checks succeed!" if is_allclose else _check_error_message(
                     i, expect, actual)
 

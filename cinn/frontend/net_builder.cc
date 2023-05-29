@@ -117,7 +117,14 @@ Variable NetBuilder::Reduce(const std::string& op_type, const Variable& x, const
       return Reshape(x, new_shape);
     }
   }
-  return CustomInstr(op_type, {x}, {{"dim", dim}, {"keep_dim", keep_dim}}).front();
+  // Convert the negative dim to a positive number
+  std::vector<int> reduce_dim(dim.begin(), dim.end());
+  for (int i = 0; i < dim.size(); i++) {
+    if (reduce_dim[i] < 0) {
+      reduce_dim[i] = x->shape.size() + reduce_dim[i];
+    }
+  }
+  return CustomInstr(op_type, {x}, {{"dim", reduce_dim}, {"keep_dim", keep_dim}}).front();
 }
 
 #define NETBUILDER_UNARY_OP_DEF(func_name__, op_type__) \
@@ -233,7 +240,7 @@ Placeholder NetBuilder::CreateInput(const Type& type, const std::vector<int>& sh
 }
 
 Placeholder NetBuilder::CreateInput(const Variable& var) {
-  CHECK(!var->shape.empty()) << "The input's shape is not set yet";
+  VLOG_IF(4, var->shape.empty()) << "The input's shape is empty, Create 0D-Tensor for " << var->id;
   CHECK(!var->type.is_unk()) << "The input's type is not set yet";
   inputs_.push_back(var);
   return Placeholder(var);

@@ -127,7 +127,7 @@ std::string CodeGenC::GetTypeName(Type type) {
     return customized_name;
   }
 
-  // other types are not implementd yet
+  // other types are not implemented yet
   CINN_NOT_IMPLEMENTED
   return "";
 }

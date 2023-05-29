@@ -20,7 +20,6 @@ import unittest
 import logging, argparse
 
 import paddle
-from paddle.fluid.framework import core
 
 from cinn.frontend import PaddleModelConvertor
 from cinn.common import is_compiled_with_cuda, DefaultNVGPUTarget
@@ -193,7 +192,7 @@ class TestPaddleModel(OpMapperTest):
         for i in range(len(self.feed_names)):
             convertor.create_input(
                 dtype=self.paddleddtype2nptype(self.feed_dtypes[i]),
-                shape=self.feed_shapes[i],
+                shape=self.feed_data[self.feed_names[i]].shape,
                 name=self.feed_names[i])
             feed_with_param.append(self.feed_names[i])
 

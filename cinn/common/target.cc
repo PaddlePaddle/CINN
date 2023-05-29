@@ -11,13 +11,16 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-#include "cinn/common/target.h"
+#ifdef CINN_WITH_CUDA
+#include <cuda_runtime_api.h>
+#include <driver_types.h>
+#endif
 
 #include <glog/logging.h>
 
 #include <sstream>
 
+#include "cinn/common/target.h"
 #include "cinn/runtime/cinn_runtime.h"
 
 #ifdef CINN_WITH_CUDA
@@ -52,6 +55,33 @@ int Target::runtime_arch() const {
 int Target::max_num_threads() const {
   CHECK(arch == Arch::NVGPU) << "The target is not NVGPU! Cannot get max number of threads.";
   return 1024;
+}
+
+int Target::get_multi_processor_count() const {
+  CHECK(arch == Arch::NVGPU) << "The target is not NVGPU! Cannot get multi processor count";
+  int num_sm = 0;
+#ifdef CINN_WITH_CUDA
+  cudaDeviceGetAttribute(&num_sm, cudaDeviceAttr::cudaDevAttrMultiProcessorCount, 0);
+#endif
+  return num_sm;
+}
+
+int Target::get_max_threads_per_sm() const {
+  CHECK(arch == Arch::NVGPU) << "The target is not NVGPU! Cannot get max threads per stream processor";
+  int max_thread = 0;
+#ifdef CINN_WITH_CUDA
+  cudaDeviceGetAttribute(&max_thread, cudaDeviceAttr::cudaDevAttrMaxThreadsPerMultiProcessor, 0);
+#endif
+  return max_thread;
+}
+
+int Target::get_max_blocks_per_sm() const {
+  CHECK(arch == Arch::NVGPU) << "The target is not NVGPU! Cannot get max blocks per stream processor";
+  int max_blocks = 1;
+#ifdef CINN_WITH_CUDA
+  cudaDeviceGetAttribute(&max_blocks, cudaDeviceAttr::cudaDevAttrMaxBlocksPerMultiprocessor, 0);
+#endif
+  return max_blocks;
 }
 
 std::vector<Target::Lib> Target::get_target_libs() const { return libs; }

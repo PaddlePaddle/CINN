@@ -16,6 +16,7 @@
 
 import unittest
 from op_test import OpTest, OpTestTool
+from op_test_helper import TestCaseHelper
 import paddle
 from cinn.frontend import *
 from cinn.common import *
@@ -25,21 +26,15 @@ from cinn.common import *
                     "x86 test will be skipped due to timeout.")
 class TestIdentityOp(OpTest):
     def setUp(self):
-        self.init_case()
+        print(f"\nRunning {self.__class__.__name__}: {self.case}")
+        self.prepare_inputs()
 
-    def init_case(self):
-        self.inputs = {
-            "x": self.random(self.init_shape(), self.init_dtype()),
-        }
-
-    def init_dtype(self):
-        return 'float32'
-
-    def init_shape(self):
-        return [100, 100]
+    def prepare_inputs(self):
+        self.x_np = self.random(
+            shape=self.case["x_shape"], dtype=self.case["x_dtype"])
 
     def build_paddle_program(self, target):
-        x = paddle.to_tensor(self.inputs['x'], stop_gradient=True)
+        x = paddle.to_tensor(self.x_np, stop_gradient=True)
         out = paddle.assign(x)
 
         self.paddle_outputs = [out]
@@ -47,55 +42,73 @@ class TestIdentityOp(OpTest):
     def build_cinn_program(self, target):
         builder = NetBuilder("identity")
         x = builder.create_input(
-            self.nptype2cinntype(self.inputs["x"].dtype),
-            self.inputs["x"].shape, "x")
+            self.nptype2cinntype(self.case["x_dtype"]), self.case["x_shape"],
+            "x")
         out = builder.identity(x)
 
         prog = builder.build()
 
-        res = self.get_cinn_output(
-            prog, target, [x], [self.inputs["x"]], [out], passes=[])
+        res = self.get_cinn_output(prog, target, [x], [self.x_np], [out])
 
-        self.cinn_outputs = res
+        self.cinn_outputs = [res[0]]
 
     def test_check_results(self):
         self.check_outputs_and_grads(all_equal=True)
 
 
-class TestIdentityFP64(TestIdentityOp):
-    def init_dtype(self):
-        return 'float32'
+class TestIdentityOpShape(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestIdentityOpShape"
+        self.cls = TestIdentityOp
+        self.inputs = [{
+            "x_shape": [1],
+        }, {
+            "x_shape": [1024],
+        }, {
+            "x_shape": [1, 2048],
+        }, {
+            "x_shape": [1, 1, 1],
+        }, {
+            "x_shape": [32, 64],
+        }, {
+            "x_shape": [16, 8, 4, 2],
+        }, {
+            "x_shape": [16, 8, 4, 2, 1],
+        }]
+        self.dtypes = [{
+            "x_dtype": "float32",
+        }]
+        self.attrs = []
 
 
-class TestIdentityFP16(TestIdentityOp):
-    def init_dtype(self):
-        return 'float16'
-
-
-class TestIdentityInt32(TestIdentityOp):
-    def init_dtype(self):
-        return 'int32'
-
-
-class TestIdentityInt64(TestIdentityOp):
-    def init_dtype(self):
-        return 'int64'
-
-
-class TestIdentityInt8(TestIdentityOp):
-    def init_dtype(self):
-        return 'int8'
-
-
-class TestIdentityInt16(TestIdentityOp):
-    def init_dtype(self):
-        return 'int16'
-
-
-class TestIdentityBool(TestIdentityOp):
-    def init_dtype(self):
-        return 'bool'
+class TestIdentityOpDtype(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestIdentityOpDtype"
+        self.cls = TestIdentityOp
+        self.inputs = [{
+            "x_shape": [32, 64],
+        }]
+        self.dtypes = [{
+            "x_dtype": "bool",
+        }, {
+            "x_dtype": "int8",
+        }, {
+            "x_dtype": "int16",
+        }, {
+            "x_dtype": "int32",
+        }, {
+            "x_dtype": "int64",
+        }, {
+            "x_dtype": "float16",
+            "max_relative_error": 1e-3
+        }, {
+            "x_dtype": "float32",
+        }, {
+            "x_dtype": "float64",
+        }]
+        self.attrs = []
 
 
 if __name__ == "__main__":
-    unittest.main()
+    TestIdentityOpShape().run()
+    TestIdentityOpDtype().run()

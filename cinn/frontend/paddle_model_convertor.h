@@ -66,7 +66,9 @@ class PaddleModelConvertor {
   Program operator()();
 
   // operator() accept the modle's directory, and return the fronted::Program object.
-  Program LoadModel(const std::string& model_dir, bool is_combined = false);
+  Program LoadModel(const std::string& model_dir,
+                    bool is_combined                                                  = false,
+                    const std::unordered_map<std::string, std::vector<int64_t>>& feed = {});
 
   // return the internal variable map
   const std::unordered_map<std::string, Variable>& var_map() const { return var_map_; }

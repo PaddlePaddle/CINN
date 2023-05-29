@@ -169,6 +169,15 @@ void BindFrontend(pybind11::module *m) {
             for (const auto &out : tensor_outputs) {
               fetch_ids.insert(out->id);
             }
+            // Acquire all 0D outputs from frontend::Program
+            std::unordered_set<std::string> zero_dim_outputs;
+            for (std::size_t i = 0; i < self.size(); i++) {
+              for (auto &output : self[i].GetOutputs()) {
+                if (output->shape.empty()) {
+                  zero_dim_outputs.insert(output->id);
+                }
+              }
+            }
 
             auto graph = Optimize(&self, fetch_ids, target, passes);
 
@@ -210,6 +219,11 @@ void BindFrontend(pybind11::module *m) {
             for (size_t i = 0; i < tensor_outputs.size(); i++) {
               outputs.push_back(scope->GetTensor(tensor_outputs[i]->id));
               outputs.back()->set_type(tensor_outputs[i]->type);
+              // Change Tensor from 1D to 0D
+              if (outputs.back()->shape().numel() == 1 &&
+                  zero_dim_outputs.find(tensor_outputs[i]->id) != zero_dim_outputs.end()) {
+                outputs.back()->Resize({});
+              }
             }
 
             return outputs;
@@ -659,7 +673,7 @@ void BindFrontend(pybind11::module *m) {
            py::arg("output_shape")      = std::vector<int>{})
       .def("cast", &NetBuilder::Cast, py::arg("x"), py::arg("dtype"))
       .def("bitcast_convert", &NetBuilder::BitcastConvert, py::arg("x"), py::arg("dtype"))
-      .def("arange", &NetBuilder::Arange, py::arg("start"), py::arg("end"), py::arg("step"), py::arg("dtype"))
+      .def("arange", &NetBuilder::Arange, py::arg("start"), py::arg("stop"), py::arg("step"), py::arg("dtype"))
       .def("gather_nd", &NetBuilder::GatherNd, py::arg("x"), py::arg("index"))
       .def("cbrt", &NetBuilder::Cbrt, py::arg("x"))
       .def("clz", &NetBuilder::Clz, py::arg("x"))
@@ -753,7 +767,11 @@ void BindFrontend(pybind11::module *m) {
            py::arg("builder") = nullptr,
            py::arg("scope")   = nullptr)
       .def("__call__", &PaddleModelConvertor::operator())
-      .def("load_model", &PaddleModelConvertor::LoadModel, py::arg("model_dir"), py::arg("is_combined") = false)
+      .def("load_model",
+           &PaddleModelConvertor::LoadModel,
+           py::arg("model_dir"),
+           py::arg("is_combined") = false,
+           py::arg("feed")        = std::unordered_map<std::string, std::vector<int64_t>>())
       .def("create_input", &PaddleModelConvertor::CreateInput, py::arg("dtype"), py::arg("shape"), py::arg("name"))
       .def("append_op",
            static_cast<void (PaddleModelConvertor::*)(const std::string &,
