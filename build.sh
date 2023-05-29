@@ -118,7 +118,8 @@ function prepare_ci {
   python${py_version} -m pip install clang-format==13.0.0
   python${py_version} -m pip install wheel
   python${py_version} -m pip install sphinx==3.3.1 sphinx_gallery==0.8.1 recommonmark==0.6.0 exhale scipy breathe==4.24.0 matplotlib sphinx_rtd_theme
-  python${py_version} -m pip install paddlepaddle-gpu==0.0.0.post112 -f https://www.paddlepaddle.org.cn/whl/linux/gpu/develop.html
+  wget  https://paddle-qa.bj.bcebos.com/paddle-pipeline/Develop-GpuAll-LinuxCentos-Gcc82-Cuda112-Trtoff-Py38-Compile/latest/paddlepaddle_gpu-0.0.0-cp38-cp38-linux_x86_64.whl
+  python${py_version} -m pip install paddlepaddle_gpu-0.0.0-cp38-cp38-linux_x86_64.whl
 }
 
 function prepare_doc_model_file {
