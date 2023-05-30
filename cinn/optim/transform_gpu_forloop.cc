@@ -175,7 +175,21 @@ class RestructureVarNodes : public ir::IRMutator<> {
   void operator()(ir::Expr *expr) { ir::IRMutator<>::Visit(expr, expr); }
 
  private:
-  void Visit(const ir::_Var_ *var, Expr *op) override { *op = IRCopy(*op); }
+  void Visit(const ir::Load *load, Expr *op) override {
+    std::vector<ir::Expr> indices_copied;
+    for (const ir::Expr &indice : load->indices) {
+      indices_copied.push_back(IRCopy(indice));
+    }
+    op->As<ir::Load>()->indices = indices_copied;
+  }
+
+  void Visit(const ir::Store *store, Expr *op) override {
+    std::vector<ir::Expr> indices_copied;
+    for (const ir::Expr &indice : store->indices) {
+      indices_copied.push_back(IRCopy(indice));
+    }
+    op->As<ir::Store>()->indices = indices_copied;
+  }
 };
 
 class ReplaceIndexToBindExpr : public ir::IRMutator<> {
