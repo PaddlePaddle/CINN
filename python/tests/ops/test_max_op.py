@@ -14,12 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
-import numpy as np
 from op_test import OpTest, OpTestTool
 from op_test_helper import TestCaseHelper
 import paddle
-import cinn
 from cinn.frontend import *
 from cinn.common import *
 
@@ -52,7 +49,6 @@ class TestMaxMaximumOp(OpTest):
             self.nptype2cinntype(self.case["y_dtype"]), self.case["y_shape"],
             "y")
         out = builder.max(x, y)
-
         prog = builder.build()
         res = self.get_cinn_output(prog, target, [x, y],
                                    [self.x_np, self.y_np], [out])
