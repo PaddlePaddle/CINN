@@ -118,7 +118,7 @@ function prepare_ci {
   python${py_version} -m pip install clang-format==13.0.0
   python${py_version} -m pip install wheel
   python${py_version} -m pip install sphinx==3.3.1 sphinx_gallery==0.8.1 recommonmark==0.6.0 exhale scipy breathe==4.24.0 matplotlib sphinx_rtd_theme
-  python${py_version} -m pip install paddlepaddle-gpu==0.0.0.post112 -f https://www.paddlepaddle.org.cn/whl/linux/gpu/develop.html --force-reinstall
+  python${py_version} -m pip install paddlepaddle-gpu==0.0.0.post117 -f https://www.paddlepaddle.org.cn/whl/linux/gpu/develop.html
 }
 
 function prepare_doc_model_file {
