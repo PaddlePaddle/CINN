@@ -64,7 +64,7 @@ class TestAtan2Op(OpTest):
         self.check_outputs_and_grads(max_relative_error=max_relative_error)
 
 
-class TestAtan2OpAll(TestCaseHelper):
+class TestAtan2OpShapes(TestCaseHelper):
     def init_attrs(self):
         self.class_name = "TestAtan2OpCase"
         self.cls = TestAtan2Op
@@ -96,6 +96,29 @@ class TestAtan2OpAll(TestCaseHelper):
         ]
         self.dtypes = [
             {
+                "x_dtype": "float32",
+                "y_dtype": "float32",
+            },
+        ]
+        self.attrs = [{
+            "x_low": -10,
+            "x_high": 10,
+            "y_low": -10,
+            "y_high": 10,
+        }]
+
+
+class TestAtan2OpDtypes(TestAtan2OpShapes):
+    def init_attrs(self):
+        super().init_attrs()
+        self.inputs = [
+            {
+                "x_shape": [128],
+                "y_shape": [128],
+            },
+        ]
+        self.dtypes = [
+            {
                 "x_dtype": "float16",
                 "y_dtype": "float16",
                 "max_relative_error": 1e-2,
@@ -109,13 +132,8 @@ class TestAtan2OpAll(TestCaseHelper):
                 "y_dtype": "float64",
             },
         ]
-        self.attrs = [{
-            "x_low": -10,
-            "x_high": 10,
-            "y_low": -10,
-            "y_high": 10,
-        }]
 
 
 if __name__ == "__main__":
-    TestAtan2OpAll().run()
+    TestAtan2OpShapes().run()
+    TestAtan2OpDtypes().run()
