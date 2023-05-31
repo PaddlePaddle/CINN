@@ -17,6 +17,7 @@ gather_srcs(cinnapi_src SRCS
     dense_merge_pass.cc
     reduce_split_pass.cc
     single_group_optimize_pass.cc
+    constant_folding_pass_util.cc
     )
 
 #cc_test(test_opfusion SRCS opfusion_test.cc DEPS cinncore)
