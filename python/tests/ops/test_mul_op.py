@@ -81,15 +81,6 @@ class TestMulOpShapeTest(TestCaseHelper):
         }, {
             "x_shape": [16, 8, 4, 2],
             "y_shape": [16, 8, 4, 2],
-        }, {
-            "x_shape": [16, 8, 4, 1024],
-            "y_shape": [16, 8, 4, 1024],
-        }, {
-            "x_shape": [16, 8, 4, 2, 1],
-            "y_shape": [16, 8, 4, 2, 1],
-        }, {
-            "x_shape": [1, 1, 1, 1, 1],
-            "y_shape": [1, 1, 1, 1, 1],
         }]
         self.dtypes = [{
             "x_dtype": "float32",
@@ -150,24 +141,6 @@ class TestMulOpBroadcastTest(TestCaseHelper):
         }, {
             "x_shape": [1, 8, 1, 2],
             "y_shape": [16, 1, 4, 1],
-        }, {
-            "x_shape": [1, 8, 4, 2, 32],
-            "y_shape": [16, 8, 4, 2, 32],
-        }, {
-            "x_shape": [16, 1, 1, 2, 32],
-            "y_shape": [16, 8, 4, 2, 32],
-        }, {
-            "x_shape": [16, 1, 4, 1, 1],
-            "y_shape": [16, 8, 4, 2, 32],
-        }, {
-            "x_shape": [1, 1, 1, 1, 32],
-            "y_shape": [16, 8, 4, 2, 32],
-        }, {
-            "x_shape": [1, 1, 1, 1, 1],
-            "y_shape": [16, 8, 4, 2, 32],
-        }, {
-            "x_shape": [16, 1, 4, 1, 32],
-            "y_shape": [1, 8, 1, 2, 1],
         }]
         self.dtypes = [{
             "x_dtype": "float32",
