@@ -240,8 +240,12 @@ create_unit_test(
     paddle.remainder,
     "builder.remainder",
     dtype="int64")
-# Some error with remainder Nd-0D, debug later
-# create_unit_test(TestElementwiseBinaryOp_NdTo0d, "remainder", paddle.remainder, "builder.remainder", dtype="int64")
+create_unit_test(
+    TestElementwiseBinaryOp_NdTo0d,
+    "remainder",
+    paddle.remainder,
+    "builder.remainder",
+    dtype="int64")
 create_unit_test(TestElementwiseBinaryOp_0DTo0D, "max", paddle.maximum,
                  "builder.max")
 create_unit_test(TestElementwiseBinaryOp_NdTo0d, "max", paddle.maximum,
