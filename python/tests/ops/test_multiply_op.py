@@ -67,7 +67,8 @@ class TestElementwiseMulOp(OpTest):
         out = builder.multiply(x, y, axis=self.case["axis"])
 
         prog = builder.build()
-        res = self.get_cinn_output(prog, target, [x, y], [out])
+        res = self.get_cinn_output(prog, target, [x, y],
+                                   [self.x_np, self.y_np], [out])
 
         self.cinn_outputs = [res[0]]
 
