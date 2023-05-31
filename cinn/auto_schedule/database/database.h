@@ -63,7 +63,7 @@ struct DatabaseConfig {
   std::string record_file_path = "/tmp/tuning_record.json";
 };
 
-// A database supports insert or lookup historial tuning result with sepecified traits.
+// A database supports insert or lookup historial tuning result with specified traits.
 // It can be implemented with a concrete storage to save/load underlying data,
 // such as memory, file, database server and so on, this base class can be regarded as
 // one using memory as its underlying storage medium.

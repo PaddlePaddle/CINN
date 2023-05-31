@@ -89,7 +89,7 @@ class TraversalRuleSampler : public RuleSampler {
 };
 
 // Sample rules with probabilistic strategy,
-// witch means randomly picking rules according to the given distribution.
+// which means randomly picking rules according to the given distribution.
 class ProbabilisticRuleSampler : public RuleSampler {
  public:
   ProbabilisticRuleSampler(const std::vector<AutoGenRule*>& potential_rules,

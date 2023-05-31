@@ -31,10 +31,10 @@
 #include "cinn/utils/data_util.h"
 #include "tests/program_builder.h"
 
-/* This test is used as a tool to evalute or compare performance of 3 schedules(no scheudle, manual schedule,
+/* This test is used as a tool to evaluate or compare performance of 3 schedules(no schedule, manual schedule,
  * auto-schedule). One can specify which schedules to be evaluated through `FLAGS_evaluate_knobs` and specify which
  * operator or model through `--gtest_filter=PerformanceTester.xx`, for example, `FLAGS_evaluate_knobs=4
- * --gtest_filter=PerformanceTester.Matmul` means it will evalute auto-schedule on Matmul operator. You can refer to
+ * --gtest_filter=PerformanceTester.Matmul` means it will evaluate auto-schedule on Matmul operator. You can refer to
  * explanation of following flags or parameters for more detail.
  */
 

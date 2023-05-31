@@ -128,25 +128,8 @@ class TestReduceAll(TestCaseHelper):
             },
         ]
         self.dtypes = [
-            # Paddle reduce not support
-            # {
-            #     "dtype": "int16",
-            # },
-            {
-                "dtype": "int32",
-            },
-            {
-                "dtype": "int64",
-            },
-            # Paddle reduce not support
-            # {
-            #     "dtype": "float16",
-            # },
             {
                 "dtype": "float32",
-            },
-            {
-                "dtype": "float64",
             },
         ]
         self.attrs = [
@@ -180,6 +163,50 @@ class TestReduceAll(TestCaseHelper):
             },
             {
                 "op_type": "min",
+                "keepdim": False
+            },
+        ]
+
+
+class TestReduceDtype(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestReduceOpCase"
+        self.cls = TestReduceOp
+        self.inputs = [
+            {
+                "shape": [16, 8, 4, 2, 1],
+                "axis": [3],
+            },
+        ]
+        self.dtypes = [
+            # Paddle reduce not support
+            # {
+            #     "dtype": "int16",
+            # },
+            {
+                "dtype": "int32",
+            },
+            {
+                "dtype": "int64",
+            },
+            # Paddle reduce not support
+            # {
+            #     "dtype": "float16",
+            # },
+            {
+                "dtype": "float32",
+            },
+            {
+                "dtype": "float64",
+            },
+        ]
+        self.attrs = [
+            {
+                "op_type": "sum",
+                "keepdim": True
+            },
+            {
+                "op_type": "sum",
                 "keepdim": False
             },
         ]

@@ -673,7 +673,7 @@ void BindFrontend(pybind11::module *m) {
            py::arg("output_shape")      = std::vector<int>{})
       .def("cast", &NetBuilder::Cast, py::arg("x"), py::arg("dtype"))
       .def("bitcast_convert", &NetBuilder::BitcastConvert, py::arg("x"), py::arg("dtype"))
-      .def("arange", &NetBuilder::Arange, py::arg("start"), py::arg("end"), py::arg("step"), py::arg("dtype"))
+      .def("arange", &NetBuilder::Arange, py::arg("start"), py::arg("stop"), py::arg("step"), py::arg("dtype"))
       .def("gather_nd", &NetBuilder::GatherNd, py::arg("x"), py::arg("index"))
       .def("cbrt", &NetBuilder::Cbrt, py::arg("x"))
       .def("clz", &NetBuilder::Clz, py::arg("x"))
@@ -767,7 +767,11 @@ void BindFrontend(pybind11::module *m) {
            py::arg("builder") = nullptr,
            py::arg("scope")   = nullptr)
       .def("__call__", &PaddleModelConvertor::operator())
-      .def("load_model", &PaddleModelConvertor::LoadModel, py::arg("model_dir"), py::arg("is_combined") = false)
+      .def("load_model",
+           &PaddleModelConvertor::LoadModel,
+           py::arg("model_dir"),
+           py::arg("is_combined") = false,
+           py::arg("feed")        = std::unordered_map<std::string, std::vector<int64_t>>())
       .def("create_input", &PaddleModelConvertor::CreateInput, py::arg("dtype"), py::arg("shape"), py::arg("name"))
       .def("append_op",
            static_cast<void (PaddleModelConvertor::*)(const std::string &,

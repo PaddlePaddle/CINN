@@ -26,6 +26,7 @@
 
 #include "cinn/common/cas.h"
 #include "cinn/common/common.h"
+#include "cinn/common/target.h"
 #include "cinn/hlir/pe/load_x86_params.h"
 #include "cinn/hlir/pe/schedule.h"
 #include "cinn/ir/ir.h"
@@ -852,14 +853,28 @@ void IRCudaTwoStepReduceSchedule(ir::IRSchedule &ir_sch,
   auto tmp_out_block = ir_sch.GetBlock(tmp_out->name);
   ir_sch.SetBuffer(tmp_out_block, "local", true);
 
+  // The current one-dimensional reduce does not make full use of SM.
+  // This case is optimized into a two-dimensional.
+  auto internal_loops = ir_sch.GetLoops(internal->name);
+  auto block_dim_x    = internal_loops[1].As<ir::For>()->extent.as_int32();
+  int block_dim_y     = block_dim_x <= 32 ? 2 : 1;
+
   for (auto &tensor : {internal, tmp_out, out}) {
     auto loops = ir_sch.GetLoops(tensor->name);
     if (loops.size() == 1) {
       ir_sch.Split(loops[0], {-1, 1});
       loops = ir_sch.GetLoops(tensor->name);
     }
-    ir_sch.Bind(loops[0], "blockIdx.x");
-    ir_sch.Bind(loops[1], "threadIdx.x");
+    if (block_dim_y != 1) {
+      ir_sch.Split(loops[0], {-1, block_dim_y});
+      loops = ir_sch.GetLoops(tensor->name);
+      ir_sch.Bind(loops[0], "blockIdx.x");
+      ir_sch.Bind(loops[1], "threadIdx.y");
+      ir_sch.Bind(loops[2], "threadIdx.x");
+    } else {
+      ir_sch.Bind(loops[0], "blockIdx.x");
+      ir_sch.Bind(loops[1], "threadIdx.x");
+    }
   }
   VLOG(3) << "After IRCudaTwoStepReduceSchedule : " << ir_sch.GetModule().GetExprs().at(0);
   // ir_sch.SimpleComputeAt(ir_sch.GetBlock(tmp_out->name), ir_sch.GetLoops(out->name)[0]);
