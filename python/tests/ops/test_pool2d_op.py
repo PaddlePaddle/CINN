@@ -47,7 +47,6 @@ class TestPool2dOp(OpTest):
             self.case["global_pooling"],
             self.case["adaptive"],
             self.case["padding_algorithm"],
-            True,  # Need in paddlepaddle-2.4.2, will be removed in paddlepaddle-2.5
         )
         self.paddle_outputs = [out]
 

@@ -571,7 +571,7 @@ std::vector<int> UpdatePool2dKernelSize(const std::vector<int>& x_shape,
     new_ksize[0] = x_shape[height_axis];
     new_ksize[1] = x_shape[width_axis];
   }
-  return std::move(new_ksize);
+  return new_ksize;
 }
 
 std::vector<int> UpdatePool2dPaddings(const std::vector<int>& paddings,
@@ -622,7 +622,7 @@ std::vector<int> UpdatePool2dPaddings(const std::vector<int>& paddings,
   if (global_pooling || adaptive) {
     new_paddings = {0, 0, 0, 0};
   }
-  return std::move(new_paddings);
+  return new_paddings;
 }
 
 Variable NetBuilder::Pool2d(const Variable& a,
@@ -637,7 +637,8 @@ Variable NetBuilder::Pool2d(const Variable& a,
                             bool adaptive,
                             const std::string& padding_algorithm) {
   // Check input dim
-  CHECK_EQ(a->shape.size(), 4) << "Input's dim must be 4, but got: " << a->shape.size();
+  CHECK_EQ(a->shape.size(), 4) << "Input's dim must be 4, but " << a->id << "'s shape is ["
+                               << cinn::utils::Join(a->shape, ", ") << "].";
   // Transform pool_type
   std::string pool_type;
   std::transform(pooling_type.begin(), pooling_type.end(), std::back_inserter(pool_type), [](unsigned char c) {
