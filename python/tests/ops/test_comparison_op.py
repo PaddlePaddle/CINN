@@ -83,8 +83,8 @@ class TestComparisonOp(OpTest):
         else:
             raise NotImplementedError
         prog = builder.build()
-        res = self.get_cinn_output(
-            prog, target, [x, y], [self.inputs["x"], self.inputs["y"]], [out])
+        res = self.get_cinn_output(prog, target, [x, y],
+                                   [self.inputs["x"], self.inputs["y"]], [out])
         self.cinn_outputs = res
 
     def test_check_results(self):
