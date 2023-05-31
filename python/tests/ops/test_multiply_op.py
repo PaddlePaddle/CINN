@@ -175,5 +175,5 @@ class TestMulAllWithBroadcast(TestCaseHelper):
 
 
 if __name__ == "__main__":
-    TestMulAllOPCase.run()
-    TestMulAllWithBroadcast.run()
+    TestMulAllOPCase().run()
+    TestMulAllWithBroadcast().run()

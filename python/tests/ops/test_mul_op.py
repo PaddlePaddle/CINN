@@ -36,8 +36,8 @@ class TestMulOp(OpTest):
             shape=self.case["y_shape"], dtype=self.case["y_dtype"])
 
     def build_paddle_program(self, target):
-        x = paddle.to_tensor(self.x_np, stop_gradient=True)
-        y = paddle.to_tensor(self.y_np, stop_gradient=True)
+        x = paddle.to_tensor(self.x_np, stop_gradient=False)
+        y = paddle.to_tensor(self.y_np, stop_gradient=False)
         out = paddle.matmul(x, y)
         self.paddle_outputs = [out]
 

@@ -43,10 +43,11 @@ class TestModOp(OpTest):
             low=self.case["y_low"],
             high=self.case["y_high"])
 
-    if self.case["y_dtype"] is "int32" or self.case[
-            "y_dtype"] is "int64" or self.case[
-                "y_dtype"] is "float32" or self.case["y_dtype"] is "float64":
-        self.y_np[self.y_np == 0] = 1
+        if self.case["y_dtype"] is "int32" or self.case[
+                "y_dtype"] is "int64" or self.case[
+                    "y_dtype"] is "float32" or self.case[
+                        "y_dtype"] is "float64":
+            self.y_np[self.y_np == 0] = 1
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.x_np, stop_gradient=True)
@@ -176,13 +177,18 @@ class TestModOpDtypeTest(TestModOpBase):
         }, {
             "x_dtype": "int64",
             "y_dtype": "int64",
-        }, {
-            "x_dtype": "float32",
-            "y_dtype": "float32",
-        }, {
-            "x_dtype": "float64",
-            "y_dtype": "float64",
-        }]
+        },
+                       {
+                           "x_dtype": "float16",
+                           "y_dtype": "float16",
+                           "max_relative_error": 1e-3,
+                       }, {
+                           "x_dtype": "float32",
+                           "y_dtype": "float32",
+                       }, {
+                           "x_dtype": "float64",
+                           "y_dtype": "float64",
+                       }]
 
 
 class TestModOpPolarityTest(TestModOpBase):
