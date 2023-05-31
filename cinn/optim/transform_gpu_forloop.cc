@@ -181,6 +181,8 @@ class RestructureVarNodes : public ir::IRMutator<> {
       indices_copied.push_back(IRCopy(indice));
     }
     op->As<ir::Load>()->indices = indices_copied;
+
+    IRMutator::Visit(load, op);
   }
 
   void Visit(const ir::Store *store, Expr *op) override {
@@ -189,6 +191,8 @@ class RestructureVarNodes : public ir::IRMutator<> {
       indices_copied.push_back(IRCopy(indice));
     }
     op->As<ir::Store>()->indices = indices_copied;
+
+    IRMutator::Visit(store, op);
   }
 };
 
