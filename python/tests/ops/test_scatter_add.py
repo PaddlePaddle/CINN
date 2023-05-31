@@ -18,7 +18,7 @@ import paddle
 from cinn.frontend import *
 from cinn.common import *
 from op_test import OpTest, OpTestTool
-from op_test_helper import TestCaseHelper
+from op_test_helper import TestCaseHelper, run_test
 
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
@@ -37,7 +37,7 @@ class TestScatterAddOp(OpTest):
         self.inputs = {
             "x": self.random(x_shape, dtype),
             "y": self.random(y_shape, dtype),
-            "index": self.random([y_shape[axis]], "int32", 0, x_shape[0])
+            "index": self.random([y_shape[axis]], "int32", 0, x_shape[axis])
         }
         self.axis = axis
 
@@ -100,7 +100,7 @@ class TestScatterAddOp(OpTest):
             prog, target, [x, y, index],
             [self.inputs["x"], self.inputs["y"], self.inputs["index"]], [out])
 
-        self.cinn_outputs = [res[0]]
+        self.cinn_outputs = res
 
     def test_check_results(self):
         if self.case["dtype"] == "float16":
@@ -114,51 +114,63 @@ class TestScatterAddOpShapeTest(TestCaseHelper):
     def init_attrs(self):
         self.class_name = "TestScatterAddOpShapeTest"
         self.cls = TestScatterAddOp
-        self.inputs = [{
-            "x_shape": [10],
-            "y_shape": [5],
-            "axis": 0
-        }, {
-            "x_shape": [10, 8],
-            "y_shape": [8, 8],
-            "axis": 0
-        }, {
-            "x_shape": [10, 8, 16],
-            "y_shape": [10, 4, 16],
-            "axis": 1
-        }, {
-            "x_shape": [10, 8, 16, 32],
-            "y_shape": [10, 8, 20, 32],
-            "axis": -2
-        }, {
-            "x_shape": [10, 8, 16, 32],
-            "y_shape": [10, 8, 1, 32],
-            "axis": -2
-        }, {
-            "x_shape": [10, 1, 16, 32],
-            "y_shape": [10, 1, 8, 32],
-            "axis": -2
-        }, {
-            "x_shape": [1024, 8, 16, 4],
-            "y_shape": [512, 8, 16, 4],
-            "axis": 0
-        }, {
-            "x_shape": [2048, 8, 16, 4],
-            "y_shape": [1024, 8, 16, 4],
-            "axis": 0
-        }, {
-            "x_shape": [1024, 8, 16, 4],
-            "y_shape": [2048, 8, 16, 4],
-            "axis": 0
-        }, {
-            "x_shape": [1, 1, 1, 1],
-            "y_shape": [1, 1, 1, 1],
-            "axis": 0
-        }, {
-            "x_shape": [1],
-            "y_shape": [8],
-            "axis": 0
-        }]
+        self.inputs = [
+            {
+                "x_shape": [10],
+                "y_shape": [5],
+                "axis": 0
+            },
+            {
+                "x_shape": [10, 8],
+                "y_shape": [8, 8],
+                "axis": 0
+            },
+            {
+                "x_shape": [10, 8, 16],
+                "y_shape": [10, 4, 16],
+                "axis": 1
+            },
+            {
+                "x_shape": [10, 8, 16, 32],
+                "y_shape": [10, 8, 20, 32],
+                "axis": -2
+            },
+            {
+                "x_shape": [10, 8, 16, 32],
+                "y_shape": [10, 8, 1, 32],
+                "axis": -2
+            },
+            {
+                "x_shape": [10, 1, 16, 32],
+                "y_shape": [10, 1, 8, 32],
+                "axis": -2
+            },
+            {
+                "x_shape": [1024, 8, 16, 4],
+                "y_shape": [512, 8, 16, 4],
+                "axis": 0
+            },
+            {
+                "x_shape": [2048, 8, 16, 4],
+                "y_shape": [1024, 8, 16, 4],
+                "axis": 0
+            },
+            {
+                "x_shape": [1024, 8, 16, 4],
+                "y_shape": [2048, 8, 16, 4],
+                "axis": 0
+            },
+            {
+                "x_shape": [1, 1, 1, 1],
+                "y_shape": [1, 1, 1, 1],
+                "axis": 0
+            },
+            {
+                "x_shape": [1],
+                "y_shape": [8],
+                "axis": 0
+            },
+        ]
         self.dtypes = [{"dtype": "float32"}]
         self.attrs = []
 
@@ -167,19 +179,23 @@ class TestScatterAddOpDtypeTest(TestCaseHelper):
     def init_attrs(self):
         self.class_name = "TestScatterAddOpDtypeTest"
         self.cls = TestScatterAddOp
-        self.inputs = [{
-            "x_shape": [10],
-            "y_shape": [5],
-            "axis": 0
-        }, {
-            "x_shape": [10, 8],
-            "y_shape": [8, 8],
-            "axis": 0
-        }, {
-            "x_shape": [1024, 8, 16, 4],
-            "y_shape": [512, 8, 16, 4],
-            "axis": 0
-        }]
+        self.inputs = [
+            {
+                "x_shape": [10],
+                "y_shape": [5],
+                "axis": 0
+            },
+            {
+                "x_shape": [10, 8],
+                "y_shape": [8, 8],
+                "axis": 0
+            },
+            {
+                "x_shape": [1024, 8, 16, 4],
+                "y_shape": [512, 8, 16, 4],
+                "axis": 0
+            },
+        ]
         self.dtypes = [
             {
                 "dtype": "float16"
@@ -260,18 +276,16 @@ class TestScatterAddOpAttributeAxis(TestCaseHelper):
                 "y_shape": [1, 8, 16, 32],
                 "axis": -4
             },
-            # core dumped: cuda_module.cc:118] RAW: The error `CUDA_ERROR_LAUNCH_FAILED` occurs
-            # while compiling the ptx! And its message is `unspecified launch failure`.
-            # {
-            #     "x_shape": [10, 8, 16, 32],
-            #     "y_shape": [10, 4, 16, 32],
-            #     "axis": 1
-            # },
-            # {
-            #     "x_shape": [10, 8, 16, 32],
-            #     "y_shape": [10, 2, 16, 32],
-            #     "axis": -3
-            # },
+            {
+                "x_shape": [10, 8, 16, 32],
+                "y_shape": [10, 4, 16, 32],
+                "axis": 1
+            },
+            {
+                "x_shape": [10, 8, 16, 32],
+                "y_shape": [10, 2, 16, 32],
+                "axis": -3
+            },
         ]
         self.dtypes = [{"dtype": "float32"}]
         self.attrs = []
@@ -333,3 +347,5 @@ if __name__ == "__main__":
     TestScatterAddOpShapeTest().run()
     TestScatterAddOpDtypeTest().run()
     TestScatterAddOpAttributeAxis().run()
+    run_test(TestScatterAddCaseInline1)
+    run_test(TestScatterAddCaseInline2)
