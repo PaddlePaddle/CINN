@@ -1318,11 +1318,19 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
   std::string data_format = "NCHW";
   for (auto &iter : attrs.attr_store) {
     if (iter.first == "kernel_size") {
-      kernel_size = absl::get<std::vector<int>>(iter.second);
+      if (attr_store.count("origin_ksize")) {
+        kernel_size = absl::get<std::vector<int>>(attr_store.at("origin_ksize"));
+      } else {
+        kernel_size = absl::get<std::vector<int>>(iter.second);
+      }
     } else if (iter.first == "stride_size") {
       stride_size = absl::get<std::vector<int>>(iter.second);
     } else if (iter.first == "padding_size") {
-      padding_size = absl::get<std::vector<int>>(iter.second);
+      if (attr_store.count("origin_padding")) {
+        padding_size = absl::get<std::vector<int>>(attr_store.at("origin_padding"));
+      } else {
+        padding_size = absl::get<std::vector<int>>(iter.second);
+      }
     } else if (iter.first == "pool_type") {
       pool_type = absl::get<std::string>(iter.second);
     } else if (iter.first == "ceil_mode") {
@@ -1332,11 +1340,20 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
     } else if (iter.first == "data_format") {
       data_format = absl::get<std::string>(iter.second);
     } else if (iter.first == "global_pooling") {
-      global_pooling = absl::get<bool>(iter.second);
+      if (attr_store.count("origin_global_pooling")) {
+        global_pooling = absl::get<bool>(attr_store.at("origin_global_pooling"));
+      } else {
+        global_pooling = absl::get<bool>(iter.second);
+      }
     } else if (iter.first == "adaptive") {
-      adaptive = absl::get<bool>(iter.second);
+      if (attr_store.count("origin_adaptive")) {
+        adaptive = absl::get<bool>(attr_store.at("origin_adaptive"));
+      } else {
+        adaptive = absl::get<bool>(iter.second);
+      }
     }
   }
+
   CHECK(!kernel_size.empty()) << "kernel_size for pool2d is empty. Please check.\n";
   CHECK(!stride_size.empty()) << "stride_size for pool2d is empty. Please check.\n";
   CHECK(!padding_size.empty()) << "padding_size for pool2d is empty. Please check.\n";
@@ -1346,6 +1363,29 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
   const ir::Tensor &A_tensor = inputs[0];
   CHECK(A_tensor->shape.size() == 4U || A_tensor->shape.size() == 5U)
       << "pool2d requires tensor's shape_size to be 4 or 5\n";
+
+  if (global_pooling) {
+    int height_index = -1;
+    int width_index  = -1;
+    if (data_format == "NCHW") {
+      height_index = 2;
+      width_index  = 3;
+    } else if (data_format == "NHWC") {
+      height_index = 1;
+      width_index  = 2;
+    } else if (data_format == "AnyLayout") {
+      height_index = 2;
+      width_index  = 3;
+      data_format  = "NCHW";
+    } else {
+      LOG(FATAL) << "Only support 'NCHW' or 'NHWC' or 'AnyLayout' data_format.\n";
+    }
+    kernel_size  = {A_tensor->shape[height_index].as_int32(), A_tensor->shape[width_index].as_int32()};
+    padding_size = {0, 0, 0, 0};
+  }
+  if (kernel_size.size() == padding_size.size()) {
+    padding_size.insert(padding_size.end(), padding_size.begin(), padding_size.end());
+  }
 
   framework::CINNCompute global_pool2d_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of pool2d compute is empty! Please check.\n";
