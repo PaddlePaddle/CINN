@@ -107,7 +107,7 @@ class TestMulOpBroadcastTest(TestCaseHelper):
             "y_shape": [1, 3, 4, 2],
         }, {
             "x_shape": [12, 1, 4, 2],
-            "y_shape": [1, 1, 2, 2, 2],
+            "y_shape": [12, 1, 4, 2],
         }]
         self.dtypes = [{
             "x_dtype": "float32",
