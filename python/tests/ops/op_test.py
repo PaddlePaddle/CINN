@@ -23,8 +23,36 @@ import logging
 from contextlib import contextmanager
 import os
 
+import struct
+
 logging.basicConfig(level=os.environ.get('LOG_LEVEL', 'INFO').upper())
 logger = logging.getLogger(name="op_test")
+
+
+def convert_float_to_uint16(data, data_format="NCHW"):
+    if data.size == 0:
+        return data.view(np.uint16)
+
+    if data_format == "NHWC":
+        data = np.transpose(data, [0, 3, 1, 2])
+
+    new_data = np.vectorize(
+        lambda x: struct.unpack('<I', struct.pack('<f', x))[0] >> 16,
+        otypes=[np.uint16],
+    )(data.flat)
+    new_data = np.reshape(new_data, data.shape)
+
+    if data_format == "NHWC":
+        new_data = np.transpose(new_data, [0, 2, 3, 1])
+    return new_data
+
+
+def convert_uint16_to_float(data):
+    new_data = np.vectorize(
+        lambda x: struct.unpack('<f', struct.pack('<I', x << 16))[0],
+        otypes=[np.float32],
+    )(data.flat)
+    return np.reshape(new_data, data.shape)
 
 
 class OpTest(unittest.TestCase):
@@ -181,6 +209,12 @@ class OpTest(unittest.TestCase):
                 expect = expect_res[i]
             actual = actual_res[i]
 
+            # data conversion for bfloat16 (uint16 in numpy)
+            if actual.dtype == np.uint16:
+                max_relative_error = 1e-2
+                if expect.dtype == np.float32 or expect.dtype == np.float64:
+                    actual = convert_uint16_to_float(actual)
+
             self.assertEqual(
                 expect.dtype,
                 actual.dtype,
@@ -199,6 +233,11 @@ class OpTest(unittest.TestCase):
                 np.dtype('int32'),
                 np.dtype('int64')
             ])
+
+            if expect.dtype == np.uint16:
+                expect_float = convert_uint16_to_float(expect)
+            if actual.dtype == np.uint16:
+                actual_float = convert_uint16_to_float(actual)
 
             is_allclose = True
             error_message = ""
@@ -228,6 +267,8 @@ class OpTest(unittest.TestCase):
     @staticmethod
     def nptype2cinntype(dtype):
         switch_map = {
+            # numpy has no 'bfloat16', we use uint16 to hold bfloat16 data, same to Paddle
+            "uint16": BFloat16(),
             "bfloat16": BFloat16(),
             "float16": Float16(),
             "float32": Float(32),
@@ -237,7 +278,8 @@ class OpTest(unittest.TestCase):
             "int32": Int(32),
             "int64": Int(64),
             "uint8": UInt(8),
-            "uint16": UInt(16),
+            # numpy has no 'bfloat16', we use uint16 to hold bfloat16 data, same to Paddle
+            # "uint16": UInt(16), 
             "uint32": UInt(32),
             "uint64": UInt(64),
             "bool": Bool()
@@ -253,8 +295,10 @@ class OpTest(unittest.TestCase):
     def random(shape, dtype="float32", low=0.0, high=1.0):
         assert bool(shape), "Shape should not empty!"
         assert -1 not in shape, "Shape should not -1!"
-        if dtype in ["float16", "bfloat16", "float32", "float64"]:
+        if dtype in ["float16", "float32", "float64"]:
             return np.random.uniform(low, high, shape).astype(dtype)
+        elif dtype == "bfloat16":
+            return convert_float_to_uint16(np.random.uniform(low, high, shape).astype("float32")) 
         elif dtype == "bool":
             return np.random.choice(a=[False, True], size=shape).astype(dtype)
         elif dtype in [
