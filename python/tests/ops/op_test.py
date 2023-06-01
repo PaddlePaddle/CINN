@@ -282,7 +282,7 @@ class OpTest(unittest.TestCase):
             "int64": Int(64),
             "uint8": UInt(8),
             # numpy has no 'bfloat16', we use uint16 to hold bfloat16 data, same to Paddle
-            # "uint16": UInt(16), 
+            # "uint16": UInt(16),
             "uint32": UInt(32),
             "uint64": UInt(64),
             "bool": Bool()
@@ -301,7 +301,8 @@ class OpTest(unittest.TestCase):
         if dtype in ["float16", "float32", "float64"]:
             return np.random.uniform(low, high, shape).astype(dtype)
         elif dtype == "bfloat16":
-            return convert_float_to_uint16(np.random.uniform(low, high, shape).astype("float32")) 
+            return convert_float_to_uint16(
+                np.random.uniform(low, high, shape).astype("float32"))
         elif dtype == "bool":
             return np.random.choice(a=[False, True], size=shape).astype(dtype)
         elif dtype in [
