@@ -915,10 +915,11 @@ ir::Tensor Slice(const ir::Tensor& A,
   }
   std::vector<int> new_starts(starts);
   for (int i = 0; i < axes.size(); i++) {
-    if (new_starts[i] < 0) {
+    if (new_starts[i] < -input_shape[axes[i]]) {
+      new_starts[i] = 0;
+    } else if (new_starts[i] < 0) {
       new_starts[i] = input_shape[axes[i]] + new_starts[i];
-    }
-    if (new_starts[i] > input_shape[axes[i]]) {
+    } else if (new_starts[i] > input_shape[axes[i]]) {
       new_starts[i] = input_shape[axes[i]] - 1;
     }
   }

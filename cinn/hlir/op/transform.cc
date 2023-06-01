@@ -1446,14 +1446,14 @@ std::vector<std::vector<int>> InferShapeForSlice(const std::vector<std::vector<i
   for (int i = 0; i < axes.size(); i++) {
     if (ends[i] < 0) {
       ends[i] = output_shape[axes[i]] + ends[i];
-    }
-    if (starts[i] < 0) {
-      starts[i] = output_shape[axes[i]] + starts[i];
-    }
-    if (ends[i] > output_shape[axes[i]]) {
+    } else if (ends[i] > output_shape[axes[i]]) {
       ends[i] = output_shape[axes[i]];
     }
-    if (starts[i] > output_shape[axes[i]]) {
+    if (starts[i] < -output_shape[axes[i]]) {
+      starts[i] = 0;
+    } else if (starts[i] < 0) {
+      starts[i] = output_shape[axes[i]] + starts[i];
+    } else if (starts[i] > output_shape[axes[i]]) {
       starts[i] = output_shape[axes[i]] - 1;
     }
 
