@@ -72,19 +72,19 @@ ir::Tensor Scatter(const ir::Tensor &A,
     pos_axis += C->shape.size();
   }
 
-  ir::Tensor transpose_B;
-  if (pos_axis == A->shape.size() - 1) {
-    transpose_B = B;
-  } else {
-    std::vector<int> new_axes;
-    for (int i = 0; i < A->shape.size(); ++i) {
-      if (i != pos_axis) {
-        new_axes.push_back(i);
-      }
-    }
-    new_axes.push_back(pos_axis);
-    transpose_B = pe::Transpose(B, new_axes, B->name + "_transpose");
-  }
+  ir::Tensor transpose_B = B;
+  // if (pos_axis == A->shape.size() - 1) {
+  //   transpose_B = B;
+  // } else {
+  //   std::vector<int> new_axes;
+  //   for (int i = 0; i < A->shape.size(); ++i) {
+  //     if (i != pos_axis) {
+  //       new_axes.push_back(i);
+  //     }
+  //   }
+  //   new_axes.push_back(pos_axis);
+  //   transpose_B = pe::Transpose(B, new_axes, B->name + "_transpose");
+  // }
   auto res = Compute(
       C->shape,
       [=](const std::vector<Expr> &indices) {
@@ -184,19 +184,25 @@ std::shared_ptr<framework::OpStrategy> StrategyForScatter(const framework::NodeA
     CHECK(!args.empty()) << "The input arguments of " << op_name << " compute is empty! Please check.\n";
     CINNValuePack pack_args = args[0];
     CHECK_GE(pack_args.size(), 3U) << "3 input tensors for " << op_name << " compute\n";
-    Expr A = pack_args[0];
-    Expr B = pack_args[1];
-    Expr C = pack_args[2];
+    Expr A                  = pack_args[0];
+    Expr B                  = pack_args[1];
+    Expr C                  = pack_args[2];
     std::string tensor_name = UniqName("Scatter_out");
+    auto stages    = CreateStages({A.as_tensor_ref(), B.as_tensor_ref(), C.as_tensor_ref()});
     if (FLAGS_cinn_ir_schedule) {
       CHECK_EQ(pack_args.size(), 4U);
       tensor_name = pack_args[3].operator std::string();
-      VLOG(4) << A.as_tensor_ref()->name << " " << B.as_tensor_ref()->name << " " << C.as_tensor_ref()->name << " " << tensor_name;
+      VLOG(4) << A.as_tensor_ref()->name << " " << B.as_tensor_ref()->name << " " << C.as_tensor_ref()->name << " "
+              << tensor_name;
       tensor_name = "test_scatter_out";
     }
     ir::Tensor out = Scatter(A.as_tensor_ref(), B.as_tensor_ref(), C.as_tensor_ref(), target, axis, tensor_name);
-    auto stages    = CreateStages({out});
-    *ret           = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
+    std::vector<CINNValue> res;
+    stages->InsertLazily(out);
+    res.push_back(CINNValue(out));
+    CHECK(!out_type.empty()) << "Output type of Scatter is empty! Please check.\n";
+    res.push_back(CINNValue(stages));
+    *ret = CINNValuePack{res};
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
