@@ -34,8 +34,9 @@ class TestIsNanOp(OpTest):
         self.x_np = self.random(
             shape=self.case["x_shape"], dtype=self.case["x_dtype"])
 
-        nan_data = np.zeros(self.x_np[0].shape, dtype="float") + np.nan
-        self.x_np[0] = nan_data.astype(self.case["x_dtype"])
+        index = np.random.randint(0, len(self.x_np))
+        nan_data = np.zeros(self.x_np[index].shape, dtype="float") + np.nan
+        self.x_np[index] = nan_data.astype(self.case["x_dtype"])
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.x_np, stop_gradient=True)
