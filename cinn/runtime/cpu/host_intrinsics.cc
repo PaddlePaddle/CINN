@@ -64,6 +64,20 @@ inline int cinn_host_find_float_nd(const cinn_buffer_t* buf, int size, float num
 
 #undef __cinn_host_find_kernel
 
+inline int cinn_host_next_smallest_int32(cinn_buffer_t* buf, int size, int num, int begin, int stride) {
+  int id = -1;
+  for (int i = begin; i < begin + size * stride; i += stride) {
+    if (id == -1 || reinterpret_cast<int*>(buf->memory)[i] < reinterpret_cast<int*>(buf->memory)[id]) {
+      id = i;
+    }
+  }
+  if (id != -1) {
+    reinterpret_cast<int*>(buf->memory)[id] = 2147483647;
+    return (id - begin) / stride;
+  }
+  return -1;
+}
+
 #define CINN_HOST_LT_NUM(TYPE_SUFFIX, TYPE)                                                           \
   inline int cinn_host_lt_num_##TYPE_SUFFIX(                                                          \
       const cinn_buffer_t* buf, const int size, const TYPE num, const int offset, const int stride) { \
@@ -345,6 +359,15 @@ CINN_REGISTER_HELPER(host_intrinsics) {
       .AddInputType<cinn_buffer_t*>()
       .AddInputType<int>()
       .AddInputType<float>()
+      .AddInputType<int>()
+      .AddInputType<int>()
+      .End();
+
+  REGISTER_EXTERN_FUNC_HELPER(cinn_host_next_smallest_int32, host_target)
+      .SetRetType<int>()
+      .AddInputType<cinn_buffer_t*>()
+      .AddInputType<int>()
+      .AddInputType<int>()
       .AddInputType<int>()
       .AddInputType<int>()
       .End();

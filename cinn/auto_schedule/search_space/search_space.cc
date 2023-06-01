@@ -207,7 +207,7 @@ std::vector<SearchState> SearchSpace::InitSketchWithRulePrunedStrategy() {
     std::swap(p_states_cur, p_states_next);
   }
   VLOG(5) << JoinStatesDebugString(
-      "SearchSpace::InitiSketchWithRulePrunedStrategy", *p_states_cur, /*verbose=*/VLOG_IS_ON(6));
+      "SearchSpace::InitSketchWithRulePrunedStrategy", *p_states_cur, /*verbose=*/VLOG_IS_ON(6));
   return *p_states_cur;
 }
 
@@ -275,7 +275,7 @@ std::vector<SearchState> SearchSpace::ApplySketchRule(const SearchState& state,
         ++iter;
         continue;
       }
-      // if can apply the rule, apply it and determine whether to prune the branche that do not apply
+      // if can apply the rule, apply it and determine whether to prune the branch that do not apply
       std::vector<SearchState> tmp_states = rule->ApplyOnBlock(*iter, block_name);
       new_states.insert(new_states.end(), tmp_states.begin(), tmp_states.end());
       bool need_prune = false;

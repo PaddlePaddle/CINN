@@ -18,6 +18,7 @@
 
 #include <algorithm>
 
+#include "cinn/common/common.h"
 #include "cinn/common/ir_util.h"
 #include "cinn/hlir/pe/broadcast.h"
 #include "cinn/hlir/pe/elementwise.h"
@@ -26,6 +27,7 @@
 #include "cinn/ir/tensor.h"
 #include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
+#include "cinn/utils/string.h"
 
 namespace cinn {
 namespace hlir {
@@ -143,9 +145,11 @@ Tensor DoReduce(const Tensor& tensor,
                 Expr initial,
                 const std::string& output_name) {
   std::vector<Var> reduce_axes;
+  int reduce_k_id = 0;
   for (auto& axis : real_axes) {
-    std::string name = UniqName("kk");
+    std::string name = cinn::UniqName(std::string("reduce_k_") + std::to_string(reduce_k_id));
     reduce_axes.push_back(Var(tensor->shape[axis], name));
+    reduce_k_id++;
   }
   auto compute = [&](const std::vector<Expr>& indices) -> Expr {
     std::vector<Expr> eval_indice;
@@ -554,6 +558,10 @@ std::vector<ir::Tensor> ReduceInternal(const ir::Tensor& A,
   auto reduce_shape = GetFirstStepReduceShape(inshape, axes, inbound, tail);
   CHECK_GT(reduce_shape.size(), 0);
 
+  VLOG(4) << "Reduce " << output_name << " on " << reduce_type << " with input shape=["
+          << cinn::utils::Join(inshape, ", ") << "], and first step reduce_shape=["
+          << cinn::utils::Join(reduce_shape, ", ") << "] at axes=[" << cinn::utils::Join(axes, ", ") << "]";
+
   // reshape input
   auto do_reshape_inbound = [&]() {
     int axis = axes.back();
@@ -607,7 +615,7 @@ std::vector<ir::Tensor> ReduceInternal(const ir::Tensor& A,
   if (keep_dim) {
     s_axes = {axes.back() + 1};
   } else {
-    s_axes = {axes.back() + 1 - axes.size()};
+    s_axes = {axes.back() + 1 - static_cast<int>(axes.size())};
   }
   auto reduce_out = reduce_func(internal, s_axes, false, output_name);
 
@@ -665,10 +673,25 @@ std::vector<ir::Tensor> TwoStepBlockReduceInternal(const ir::Tensor& A,
                                                    BlockReduceFunc block_reduce_func,
                                                    ir::Expr initial) {
   CHECK(!WithoutLastDimInReduce(A->shape, axes)) << "Can't find last axis in reduce!";
+  // If the number of current device SM is smaller than the number of SM
+  // required by Warp Reduce, the performance of Warp Reduce is better.
+  // Otherwise, use Block Reduce.
+  auto max_num_threads       = common::DefaultNVGPUTarget().max_num_threads();
+  int need_reduce_last_count = 1;
+  for (int i = 0; i < A->shape.size(); i++) {
+    if (find(axes.begin(), axes.end(), i) == axes.end()) {
+      need_reduce_last_count *= A->shape[i].as_int32();
+    }
+  }
+  int warp_reduce_need_sm_count =
+      ceil((need_reduce_last_count * 32) / float(common::DefaultNVGPUTarget().get_max_threads_per_sm()));
+  // Set Num_max_threads to 32 is Warp Reduce
+  if (common::DefaultNVGPUTarget().get_multi_processor_count() < warp_reduce_need_sm_count) {
+    max_num_threads = 32;
+  }
 
-  int lane             = A->shape[axes.back()].as_int32();
-  int index            = static_cast<int>(axes.size()) - 2;
-  auto max_num_threads = common::DefaultNVGPUTarget().max_num_threads();
+  int lane  = A->shape[axes.back()].as_int32();
+  int index = static_cast<int>(axes.size()) - 2;
   for (; index >= 0; --index) {
     if (lane >= max_num_threads / 2) {
       break;

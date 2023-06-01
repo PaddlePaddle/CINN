@@ -44,7 +44,7 @@ void ArgOpMapperHelper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
   auto out_name = op_desc.Output("Out").front();
 
   auto x    = ctx.GetVar(x_name);
-  auto axis = utils::GetAttrOrDefault<int32_t>(op_desc, "axis", -1);
+  auto axis = utils::GetAttrOrDefault<int64_t>(op_desc, "axis", -1);
   CHECK(op_desc.HasAttr("axis")) << "Argmax/Argmin op should has attribute \"axis\"! Please check.";
 
   auto keepdims = utils::GetAttrOrDefault<bool>(op_desc, "keepdims", false);

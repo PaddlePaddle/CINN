@@ -55,7 +55,7 @@ class TestAutoGenRuleBase : public ::testing::Test {
   // Get the IR of bodies in IRSchedule
   std::string GetIR(const ir::IRSchedule& schedule);
 
-  // build ir::Module from the original lowered funcs with their bodys updated by the schedule
+  // build ir::Module from the original lowered funcs with their bodies updated by the schedule
   ir::Module BuildIRModule(const ir::IRSchedule& schedule);
 
   // generate source code with the built ir module

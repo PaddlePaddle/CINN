@@ -12,22 +12,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cinn
-import numpy as np
-import paddle
 import unittest
-
+import numpy as np
+from op_test import OpTest, OpTestTool
+from op_test_helper import TestCaseHelper
+import paddle
+import cinn
 from cinn.frontend import *
 from cinn.common import *
-from op_test import OpTest, OpTestTool
 
 
 class TestReciprocalOp(OpTest):
     def setUp(self):
-        self.init_case()
+        self.prepare_inputs()
 
-    def init_case(self):
-        self.inputs = {"x": np.random.random([32]).astype("float32")}
+    def prepare_inputs(self):
+        self.inputs = {
+            "x":
+            np.random.random(self.case["x_shape"]).astype(self.case["x_dtype"])
+        }
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.inputs["x"], stop_gradient=True)
@@ -36,7 +39,9 @@ class TestReciprocalOp(OpTest):
 
     def build_cinn_program(self, target):
         builder = NetBuilder("reciprocal_test")
-        x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
+        x = builder.create_input(
+            self.nptype2cinntype(self.case["x_dtype"]), self.case["x_shape"],
+            "x")
         out = builder.reciprocal(x)
 
         prog = builder.build()
@@ -48,20 +53,46 @@ class TestReciprocalOp(OpTest):
         self.check_outputs_and_grads()
 
 
-class TestReciprocalCase1(TestReciprocalOp):
-    def init_case(self):
-        self.inputs = {"x": np.random.random([32]).astype("float32")}
-
-
-class TestReciprocalCase2(TestReciprocalOp):
-    def init_case(self):
-        self.inputs = {"x": np.random.random([10]).astype("float32")}
-
-
-class TestReciprocalCase3(TestReciprocalOp):
-    def init_case(self):
-        self.inputs = {"x": np.random.random([1, 10]).astype("float32")}
+class TestReciprocalShape(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestReciprocalOp"
+        self.cls = TestReciprocalOp
+        self.inputs = [
+            {
+                "x_shape": [1024]
+            },
+            {
+                "x_shape": [512, 256]
+            },
+            {
+                "x_shape": [128, 64, 32]
+            },
+            {
+                "x_shape": [16, 8, 4, 2]
+            },
+            {
+                "x_shape": [16, 8, 4, 2, 1]
+            },
+            {
+                "x_shape": [1]
+            },
+            {
+                "x_shape": [1, 1, 1, 1, 1]
+            },
+        ]
+        self.dtypes = [
+            {
+                "x_dtype": "float64"
+            },
+            {
+                "x_dtype": "float32"
+            },
+            {
+                "x_dtype": "float16"
+            },
+        ]
+        self.attrs = []
 
 
 if __name__ == "__main__":
-    unittest.main()
+    TestReciprocalShape().run()
