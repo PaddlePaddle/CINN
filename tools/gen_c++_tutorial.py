@@ -15,7 +15,7 @@
 This script helps to extract the tutorial content from a C++ source file.
 '''
 
-# syntax defintion
+# syntax definition
 # The text content locates in the comments with `//!` prefix.
 # Some predefined marks:
 #  - @h1, @h2, @h3, the nth headline

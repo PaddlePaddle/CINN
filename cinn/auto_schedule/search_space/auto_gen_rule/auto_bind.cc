@@ -70,7 +70,7 @@ int CountLoopCanBinded(const ir::For* for_node) {
 
     CHECK(for_node->body.defined() && for_node->body.As<ir::Block>()) << "Body is not defined";
     const ir::Block* body = for_node->body.As<ir::Block>();
-    // terminate when body of this loop has more than one statements or the body is not a ir::For node
+    // terminate when body of this loop has more than one statement or the body is not a ir::For node
     for_node = body->stmts.size() == 1 ? body->stmts[0].As<ir::For>() : nullptr;
   }
   return cnt;

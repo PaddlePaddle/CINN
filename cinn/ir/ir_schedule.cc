@@ -121,7 +121,12 @@ std::vector<Expr> ScheduleImpl::Split(const Expr& loop, const std::vector<int>& 
   auto* for_node = loop.As<ir::For>();
   CHECK(common::is_zero(for_node->min)) << "The For node must start with 0! Please check.";
   CHECK(for_node->extent.is_constant()) << "The For node's extent must be constant! Please check.";
-  int tot_extent         = for_node->extent.get_constant();
+  int tot_extent = for_node->extent.get_constant();
+
+  VLOG(3) << "Try Split loop from (" << for_node->loop_var->name << ", 0, " << tot_extent << ") to ("
+          << cinn::utils::Join(factors, ", ") << ") at loop:\n"
+          << loop;
+
   auto processed_factors = ValidateFactors(factors, tot_extent);
   int prod_size = std::accumulate(processed_factors.begin(), processed_factors.end(), 1, std::multiplies<int>());
   std::vector<Var> new_loop_vars;
@@ -147,14 +152,12 @@ std::vector<Expr> ScheduleImpl::Split(const Expr& loop, const std::vector<int>& 
   }
 
   this->Replace(loop, new_node);
+  VLOG(3) << "After Split, ir is:\n" << splited_loops.at(0);
   return splited_loops;
 }
 
 Expr ScheduleImpl::Fuse(const std::vector<Expr>& loops) {
-  VLOG(3) << "Tring to fuse : ";
-  for (auto& loop : loops) {
-    VLOG(3) << loop;
-  }
+  VLOG(3) << "Tring to fuse:\n" << cinn::utils::Join(loops, "\n");
   std::vector<const ir::For*> for_nodes;
   std::vector<Var> loop_vars;
   CHECK(!loops.empty()) << "The loops param of Fuse should not be empty! Please check.";
@@ -200,6 +203,8 @@ Expr ScheduleImpl::Fuse(const std::vector<Expr>& loops) {
   Expr new_stmt =
       For::Make(fused_var, Expr(0), fused_extent, for_nodes[0]->for_type(), for_nodes[0]->device_api, fused_body);
   this->Replace(loops[0], new_stmt);
+
+  VLOG(3) << "After fuse, ir is:\n" << new_stmt;
   return new_stmt;
 }
 
@@ -863,7 +868,6 @@ void ScheduleImpl::Replace(const Expr& src_sref, const Expr& tgt_stmt) {
   CHECK(src_sref.As<ir::For>() || src_sref.As<ir::Block>() || src_sref.As<ir::ScheduleBlockRealize>());
   CHECK(tgt_stmt.As<ir::For>() || tgt_stmt.As<ir::Block>() || tgt_stmt.As<ir::ScheduleBlockRealize>());
   if (src_sref == tgt_stmt) {
-    VLOG(3) << "two exprs are the same, no need to replace";
     return;
   }
   struct ForLoopMutator : public ir::IRMutator<> {
@@ -901,7 +905,6 @@ void ScheduleImpl::Replace(const Expr& src_sref, const Expr& tgt_stmt) {
   auto exprs = module_expr_.GetExprs();
   ForLoopMutator mutator(src_sref, tgt_stmt);
   for (auto& i : exprs) {
-    VLOG(3) << "Origin Expr is: \n" << i;
     mutator(&i);
   }
 }
@@ -910,6 +913,7 @@ Expr ScheduleImpl::Reorder(const std::vector<Expr>& loops) {
   if (loops.size() <= 1) {
     return Expr{nullptr};
   }
+  VLOG(4) << "Before Reorder, ir is:\n" << loops[0];
 
   std::set<Expr, CompExpr> loop_set = CollectLoopsToSet(loops);
   auto boundary                     = GetBoundaryOfReorderRange(loop_set);
@@ -919,6 +923,8 @@ Expr ScheduleImpl::Reorder(const std::vector<Expr>& loops) {
   std::vector<Expr> if_nodes        = GetIfThenElseInRange(top, bottom);
   Expr new_loop                     = ConstructNewLoopChain(chain, loops, loop_set, if_nodes);
   this->Replace(top, new_loop);
+
+  VLOG(4) << "After Reorder, ir is:\n" << new_loop;
   return new_loop;
 }
 
@@ -1143,7 +1149,10 @@ void ScheduleImpl::MergeExprs() {
 void ScheduleImpl::ComputeAt(const Expr& block, const Expr& loop, bool keep_unit_loops) {
   CHECK(block.As<ir::ScheduleBlockRealize>());
   CHECK(loop.As<ir::For>());
-  Expr root      = this->GetRootBlock(block);
+  Expr root = this->GetRootBlock(block);
+
+  VLOG(3) << "Begin ComputeAt of loop:\n" << loop << "\nat block:\n" << root;
+
   auto producers = GetProducers(block, root);
   auto consumers = GetConsumers(block, root);
   CheckComputeAtValidation(block, loop, root);
@@ -1156,19 +1165,22 @@ void ScheduleImpl::ComputeAt(const Expr& block, const Expr& loop, bool keep_unit
   sch_block_expr.As<ir::ScheduleBlock>()->attrs.emplace(ir::attr::compute_at_extra_var, new_var_names);
   this->Replace(reconstructor.source_expr, reconstructor.target_expr);
   this->Replace(reconstructor.loop_, reconstructor.new_loop_);
-  return;
+
+  VLOG(3) << "After SimpleComputeAt, ir is:\n" << reconstructor.new_loop_;
 }
 
 void ScheduleImpl::SimpleComputeAt(const Expr& block, const Expr& loop) {
-  VLOG(3) << "Begin SimpleComputeAt of block:\n" << block << " and loop:\n" << loop;
   CHECK(block.As<ir::ScheduleBlockRealize>());
   CHECK(loop.As<ir::For>());
   std::vector<Expr> block_loops = this->GetLoops(block);
   Expr root                     = this->GetRootBlock(block);
   auto loops                    = GetLoopsOfExpr(loop, root);
-  auto this_loop                = loop;
-  auto block_name               = GetTensor(block)->name;
-  auto this_block               = block;
+
+  VLOG(3) << "Begin SimpleComputeAt of loop:\n" << loop << "\nat block:\n" << root;
+
+  auto this_loop  = loop;
+  auto block_name = GetTensor(block)->name;
+  auto this_block = block;
   if (GetLoopExtent(loops[0]) == 1 && GetLoopExtent(block_loops[0]) != 1) {
     this->Split(block_loops[0], {1, -1});
     this_block = this->GetBlock(block_name);
@@ -1243,7 +1255,8 @@ void ScheduleImpl::SimpleComputeAt(const Expr& block, const Expr& loop) {
 
   this->Replace(source_expr, target_expr);
   this->Replace(this_loop, new_loop);
-  return;
+
+  VLOG(3) << "After SimpleComputeAt, ir is:\n" << new_loop;
 }
 
 void ScheduleImpl::ReverseComputeAt(const Expr& block, const Expr& loop, bool keep_unit_loops) {
@@ -1654,6 +1667,7 @@ void ScheduleImpl::Unannotate(Expr& block, const std::string& ann_key) {
 
 void ScheduleImpl::FlattenLoops(const std::vector<Expr>& loops, const bool flat_tensor) {
   CHECK_GT(loops.size(), 0) << "Loops can't be empty!";
+  VLOG(4) << "Before FlattenLoops, ir is:\n" << loops[0];
   // compute loop
   int extent = 1;
   std::vector<int> strides;
@@ -1808,6 +1822,7 @@ void ScheduleImpl::FlattenLoops(const std::vector<Expr>& loops, const bool flat_
   }
 
   this->Replace(loops[0], loop);
+  VLOG(4) << "After FlattenLoops, ir is:\n" << loop;
 }
 
 void ScheduleImpl::CopyTransformAndLoopInfo(const std::string& block_name, const std::string& block_target_name) {

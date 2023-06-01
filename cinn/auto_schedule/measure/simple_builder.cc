@@ -22,7 +22,7 @@ using hlir::framework::GraphCompiler;
 SimpleBuilder::SimpleBuilder(hlir::framework::GraphCompiler* graph_compiler) : graph_compiler_(graph_compiler) {}
 
 BuildResult SimpleBuilder::Build(const MeasureInput& input) {
-  CHECK_NE(graph_compiler_, static_cast<GraphCompiler*>(nullptr)) << "empty hanlde to GraphCompiler";
+  CHECK_NE(graph_compiler_, static_cast<GraphCompiler*>(nullptr)) << "empty handle to GraphCompiler";
   GraphCompiler::CompileOptions compile_options;
   compile_options.groups.emplace_back(input.task->subgraph);
   compile_options.lowered_funcs.emplace_back(input.lowered_funcs);

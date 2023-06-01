@@ -14,56 +14,150 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
-import numpy as np
-from op_test import OpTest, OpTestTool
 import paddle
-import paddle.nn.functional as F
-import cinn
 from cinn.frontend import *
 from cinn.common import *
+from op_test import OpTest, OpTestTool
+from op_test_helper import TestCaseHelper
 
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
                     "x86 test will be skipped due to timeout.")
 class TestSumOp(OpTest):
     def setUp(self):
-        self.init_case()
+        print(f"\nRunning {self.__class__.__name__}: {self.case}")
+        self.inputs = {}
+        self.prepare_inputs()
 
-    def init_case(self):
-        self.inputs = {
-            "x1": np.random.random([
-                32,
-                64,
-            ]).astype("float32"),
-            "x2": np.random.random([
-                32,
-                64,
-            ]).astype("float32")
-        }
+    def prepare_inputs(self):
+        shapes = self.case["shapes"]
+        dtype = self.case["dtype"]
+        self.inputs = []
+        for shape in shapes:
+            self.inputs.append(self.random(shape, dtype))
 
     def build_paddle_program(self, target):
-        x1 = paddle.to_tensor(self.inputs["x1"], stop_gradient=True)
-        x2 = paddle.to_tensor(self.inputs["x2"], stop_gradient=True)
-        out = paddle.add(x1, x2)
-
+        inputs = []
+        for input in self.inputs:
+            inputs.append(paddle.to_tensor(input, stop_gradient=True))
+        out = paddle.add_n(inputs)
         self.paddle_outputs = [out]
 
     def build_cinn_program(self, target):
         builder = NetBuilder("sum")
-        x1 = builder.create_input(Float(32), self.inputs["x1"].shape, "x1")
-        x2 = builder.create_input(Float(32), self.inputs["x2"].shape, "x2")
-        out = builder.sum([x1, x2])
+        cinn_inputs = []
+        for id, input in enumerate(self.inputs):
+            cinn_input = builder.create_input(
+                self.nptype2cinntype(input.dtype), input.shape,
+                "input_" + str(id))
+            cinn_inputs.append(cinn_input)
+        out = builder.sum(cinn_inputs)
         prog = builder.build()
-        forward_res = self.get_cinn_output(
-            prog, target, [x1, x2], [self.inputs["x1"], self.inputs["x2"]],
-            [out])
-
-        self.cinn_outputs = forward_res
+        res = self.get_cinn_output(prog, target, cinn_inputs, self.inputs,
+                                   [out])
+        self.cinn_outputs = res
 
     def test_check_results(self):
         self.check_outputs_and_grads()
 
 
+class TestSumOpShapeTest(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestSumOpShapeTest"
+        self.cls = TestSumOp
+        self.inputs = [
+            {
+                "shapes": [[64]] * 2,
+            },
+            {
+                "shapes": [[64, 32]] * 3,
+            },
+            {
+                "shapes": [[64, 1]] * 4,
+            },
+            {
+                "shapes": [[64, 32, 128]] * 2,
+            },
+            {
+                "shapes": [[1, 32, 128]] * 2,
+            },
+            {
+                "shapes": [[64, 32, 16, 32]] * 2,
+            },
+            {
+                "shapes": [[64, 32, 1, 32]] * 2,
+            },
+            {
+                "shapes": [[64, 32, 16, 1, 128]] * 2,
+            },
+            {
+                "shapes": [[1]] * 2,
+            },
+            {
+                "shapes": [[1, 1]] * 2,
+            },
+            {
+                "shapes": [[1, 1, 1]] * 3,
+            },
+            {
+                "shapes": [[1, 1, 1, 1]] * 3,
+            },
+            {
+                "shapes": [[1, 1, 1, 1, 1]] * 4,
+            },
+            {
+                "shapes": [[1, 1, 1024, 1, 1]] * 4,
+            },
+            {
+                "shapes": [[65536]] * 1,
+            },
+            {
+                "shapes": [[131072]] * 2,
+            },
+            {
+                "shapes": [[1048576]] * 3,
+            },
+            {
+                "shapes": [[64, 32, 16, 8, 4]] * 4,
+            },
+        ]
+        self.dtypes = [{"dtype": "float32"}]
+        self.attrs = []
+
+
+class TestSumOpDtypeTest(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestSumOpDtypeTest"
+        self.cls = TestSumOp
+        self.inputs = [
+            {
+                "shapes": [[64, 1, 128]] * 2,
+            },
+            {
+                "shapes": [[64, 32, 1]] * 2,
+            },
+        ]
+        self.dtypes = [
+            {
+                "dtype": "float16"
+            },
+            {
+                "dtype": "float32"
+            },
+            {
+                "dtype": "float64"
+            },
+            {
+                "dtype": "int32"
+            },
+            {
+                "dtype": "int64"
+            },
+        ]
+        self.attrs = [{"axes": []}]
+        self.attrs = []
+
+
 if __name__ == "__main__":
-    unittest.main()
+    TestSumOpShapeTest().run()
+    TestSumOpDtypeTest().run()
