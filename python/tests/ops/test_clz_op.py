@@ -54,17 +54,15 @@ class TestClzOp(OpTest):
         self.prepare_inputs()
 
     def prepare_inputs(self):
-        low = INT32_MIN if self.case["dtype"] == "int32" else INT64_MIN
-        high = INT32_MAX if self.case["dtype"] == "int32" else INT64_MAX
-        x = self.random(
-            self.case["shape"], self.case["dtype"], low=low, high=high)
+        dtype = self.case["dtype"]
+        low = INT32_MIN if dtype == "int32" else INT64_MIN
+        high = INT32_MAX if dtype == "int32" else INT64_MAX
+        x = self.random(self.case["shape"], dtype, low=low, high=high)
         y = list(
-            map(lambda num: count_leading_zeros(num, self.case["dtype"]),
+            map(lambda num: count_leading_zeros(num, dtype),
                 x.reshape(-1).tolist()))
         self.inputs = {"x": x}
-        self.outputs = {
-            "y": np.array(y).reshape(x.shape).astype(self.case["dtype"])
-        }
+        self.outputs = {"y": np.array(y).reshape(x.shape).astype(dtype)}
 
     def build_paddle_program(self, target):
         y = paddle.to_tensor(self.outputs["y"], stop_gradient=False)
