@@ -34,8 +34,8 @@ class TestNegativeOp(OpTest):
         self.x_np = self.random(
             shape=self.case["x_shape"],
             dtype=self.case["x_dtype"],
-            min=-100,
-            max=100)
+            low=-100,
+            high=100)
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.x_np, stop_gradient=True)
