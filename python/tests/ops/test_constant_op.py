@@ -78,6 +78,9 @@ class TestConstantOpShape(TestCaseHelper):
             {
                 "shape": [10, 3, 5],
             },
+            {
+                "shape": [1, 2, 4, 8],
+            },
             # known issue: https://github.com/PaddlePaddle/CINN/pull/1453
             # The compilation time is particularly long for AssignValue op.
             # {
