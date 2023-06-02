@@ -35,7 +35,7 @@ class TestIsFiniteOp(OpTest):
             shape=self.case["x_shape"], dtype=self.case["x_dtype"])
 
         index = np.random.randint(0, len(self.x_np))
-        inf_data = np.zeros(self.x_np[index].shape, dtype="float") + np.inf
+        inf_data = np.where(self.x_np[index] > 0.5, np.inf, np.nan)
         self.x_np[index] = inf_data.astype(self.case["x_dtype"])
 
     def build_paddle_program(self, target):
