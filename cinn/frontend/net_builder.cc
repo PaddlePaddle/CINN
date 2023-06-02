@@ -676,26 +676,22 @@ Variable NetBuilder::Pool2d(const Variable& a,
   CHECK(padding_algorithm == "EXPLICIT" || padding_algorithm == "SAME" || padding_algorithm == "VALID")
       << "Padding_algorithm must be EXPLICIT/SAME/VALID, but got: " << padding_algorithm;
   utils::AttributeMap attrs = {{"pool_type", pool_type},
-                               {"kernel_size", input_ksize},
+                               {"origin_kernel_size", input_ksize},
                                {"stride_size", new_strides},
-                               {"padding_size", paddings},
+                               {"origin_padding_size", paddings},
                                {"ceil_mode", ceil_mode},
                                {"exclusive", exclusive},
-                               {"global_pooling", global_pooling},
+                               {"origin_global_pooling", global_pooling},
                                {"data_format", new_data_format},
-                               {"adaptive", adaptive},
+                               {"origin_adaptive", adaptive},
                                {"padding_algorithm", padding_algorithm}};
   // In avg_pool2d, if global_pooling = false, adaptive = true and ksize is [1, 1], we turn off adaptive and use global
   // pooling instead
   if (pooling_type == "avg" && !global_pooling && adaptive && input_ksize[0] == 1 && input_ksize[1] == 1) {
     VLOG(4) << "In avg_pool2d, got global_pooling = false, adaptive = true, ksize = [1, 1], turn off adaptive and "
                "trans to global_pooling";
-    attrs["origin_ksize"]          = input_ksize;
-    attrs["origin_padding"]        = paddings;
-    attrs["origin_adaptive"]       = adaptive;
-    attrs["origin_global_pooling"] = global_pooling;
-    adaptive                       = false;
-    global_pooling                 = true;
+    adaptive       = false;
+    global_pooling = true;
   }
   // Transform paddings
   auto new_paddings = UpdatePool2dPaddings(

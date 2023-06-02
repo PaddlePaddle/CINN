@@ -1317,20 +1317,12 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
   bool adaptive           = false;
   std::string data_format = "NCHW";
   for (auto &iter : attrs.attr_store) {
-    if (iter.first == "kernel_size") {
-      if (attr_store.count("origin_ksize")) {
-        kernel_size = absl::get<std::vector<int>>(attr_store.at("origin_ksize"));
-      } else {
-        kernel_size = absl::get<std::vector<int>>(iter.second);
-      }
+    if (iter.first == "origin_kernel_size") {
+      kernel_size = absl::get<std::vector<int>>(iter.second);
     } else if (iter.first == "stride_size") {
       stride_size = absl::get<std::vector<int>>(iter.second);
-    } else if (iter.first == "padding_size") {
-      if (attr_store.count("origin_padding")) {
-        padding_size = absl::get<std::vector<int>>(attr_store.at("origin_padding"));
-      } else {
-        padding_size = absl::get<std::vector<int>>(iter.second);
-      }
+    } else if (iter.first == "origin_padding_size") {
+      padding_size = absl::get<std::vector<int>>(iter.second);
     } else if (iter.first == "pool_type") {
       pool_type = absl::get<std::string>(iter.second);
     } else if (iter.first == "ceil_mode") {
@@ -1339,21 +1331,12 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
       exclusive = absl::get<bool>(iter.second);
     } else if (iter.first == "data_format") {
       data_format = absl::get<std::string>(iter.second);
-    } else if (iter.first == "global_pooling") {
-      if (attr_store.count("origin_global_pooling")) {
-        global_pooling = absl::get<bool>(attr_store.at("origin_global_pooling"));
-      } else {
-        global_pooling = absl::get<bool>(iter.second);
-      }
-    } else if (iter.first == "adaptive") {
-      if (attr_store.count("origin_adaptive")) {
-        adaptive = absl::get<bool>(attr_store.at("origin_adaptive"));
-      } else {
-        adaptive = absl::get<bool>(iter.second);
-      }
+    } else if (iter.first == "origin_global_pooling") {
+      global_pooling = absl::get<bool>(iter.second);
+    } else if (iter.first == "origin_adaptive") {
+      adaptive = absl::get<bool>(iter.second);
     }
   }
-
   CHECK(!kernel_size.empty()) << "kernel_size for pool2d is empty. Please check.\n";
   CHECK(!stride_size.empty()) << "stride_size for pool2d is empty. Please check.\n";
   CHECK(!padding_size.empty()) << "padding_size for pool2d is empty. Please check.\n";
