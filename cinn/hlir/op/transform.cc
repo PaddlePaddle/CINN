@@ -28,7 +28,6 @@
 #include "cinn/hlir/pe/transform.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/utils/string.h"
-#include "glog/logging.h"
 
 DECLARE_bool(cinn_ir_schedule);
 

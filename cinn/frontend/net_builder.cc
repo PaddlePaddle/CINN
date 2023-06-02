@@ -14,7 +14,6 @@
 
 #include "cinn/frontend/net_builder.h"
 
-#include <cstddef>
 #include <string>
 #include <utility>
 #include <vector>
