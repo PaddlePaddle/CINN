@@ -28,6 +28,7 @@
 #include "cinn/hlir/pe/transform.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/utils/string.h"
+#include "glog/logging.h"
 
 DECLARE_bool(cinn_ir_schedule);
 
@@ -1088,24 +1089,17 @@ std::shared_ptr<OpStrategy> StrategyForGather(const framework::NodeAttr &attrs,
 std::vector<std::vector<int>> InferShapeForGather(const std::vector<std::vector<int>> &inputs_shape,
                                                   const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 2U) << "The inputs' shape size should be equal to 2! Please check again.";
-  int axis = 0;
-  if (attrs.contains("axis")) {
-    axis = absl::get<int>(attrs.at("axis"));
-  }
-  if (axis < 0) {
-    axis += static_cast<int>(inputs_shape[0].size());
-  }
+  std::vector<int> x_shape     = inputs_shape[0];
+  std::vector<int> index_shape = inputs_shape[1];
+  int axis                     = absl::get<int>(attrs.at("axis"));
   VLOG(4) << "The axis value used in Gather: " << axis;
 
-  CHECK(axis >= 0 && axis < static_cast<int>(inputs_shape[0].size()))
-      << "The attribute `axis` in Gather should be >= 0 and < the size of the first input shape! Please check "
-         "again.";
+  CHECK(axis >= 0 && axis < static_cast<int>(x_shape.size()))
+      << "The attribute `axis` in Gather should be >= 0 and < the size of the first input shape! Please check again.";
 
-  std::vector<int> output_shape = inputs_shape[0];
-  CHECK_EQ(inputs_shape[1].size(), 1U) << "The index should be a 1-D Tensor.";
-  CHECK_GT(inputs_shape[1][0], 0) << "The length of the index should be greater than 0.";
-  output_shape[axis] = inputs_shape[1][0];
-  VLOG(4) << "The output calculated in InferShapeForGather: " << utils::Join(output_shape, ", ");
+  std::vector<int> output_shape = x_shape;
+  output_shape[axis]            = index_shape[axis];
+  VLOG(4) << "The output shape of gather: " << utils::Join(output_shape, ", ");
 
   return {std::move(output_shape)};
 }
