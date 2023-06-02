@@ -118,7 +118,7 @@ class TestFillConstantByValueOp(OpTest):
     def init_case(self):
         self.shape = [32]
         self.value = float(1.0)
-        self.dtype = "float32"
+        self.dtype = "float64"
 
     def build_paddle_program(self, target):
         x = paddle.full(self.shape, self.value, dtype=self.dtype)
@@ -143,7 +143,7 @@ class TestFillConstantByValueCase1(TestFillConstantByValueOp):
         self.shape = [32]
         self.value = int(1)
         # only for paddle.full
-        self.dtype = "int32"
+        self.dtype = "int64"
 
 
 class TestFillConstantByValueCase2(TestFillConstantByValueOp):

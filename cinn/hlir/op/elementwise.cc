@@ -235,16 +235,18 @@ std::vector<shape_t> InferShapeForConstScalar(const std::vector<shape_t> &inputs
 }
 
 std::vector<Type> InferDtypeForConstScalar(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
-  Type scalar_type;
+  Type out_type;
   if (attrs.find("dtype") != attrs.end()) {
     auto dtype_str = absl::get<std::string>(attrs.at("dtype"));
     if (!dtype_str.empty()) {
-      scalar_type = common::Str2Type(dtype_str);
+      out_type = common::Str2Type(dtype_str);
     }
+  } else {
+    auto scalar = GetScalarExpr(attrs.at("value"));
+    out_type    = scalar->type();
   }
-  CHECK(!scalar_type.is_unk());
-  VLOG(3) << "scalar type: " << scalar_type;
-  return {scalar_type};
+  VLOG(3) << "scalar type: " << out_type;
+  return {out_type};
 }
 
 std::vector<std::vector<std::string>> InferLayoutForConstScalar(const std::vector<framework::shape_t> &input_shapes,
