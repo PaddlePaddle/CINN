@@ -46,7 +46,8 @@ class TestModOp(OpTest):
         if self.case["y_dtype"] is "int32" or self.case[
                 "y_dtype"] is "int64" or self.case[
                     "y_dtype"] is "float32" or self.case[
-                        "y_dtype"] is "float64":
+                        "y_dtype"] is "float64" or self.case[
+                            "y_dtype"] is "float16":
             self.y_np[self.y_np == 0] = 1
 
     def build_paddle_program(self, target):
@@ -109,10 +110,10 @@ class TestModOpBase(TestCaseHelper):
 
     attrs = [
         {
-            "x_low": -10,
-            "x_high": 10,
-            "y_low": -10,
-            "y_high": 10
+            "x_low": -100,
+            "x_high": 100,
+            "y_low": -100,
+            "y_high": 100
         },
     ]
 
@@ -197,16 +198,16 @@ class TestModOpPolarityTest(TestModOpBase):
         self.cls = TestModOp
         self.attrs = [
             {
-                "x_low": -10,
-                "x_high": 10,
-                "y_low": -10,
+                "x_low": -100,
+                "x_high": 100,
+                "y_low": -100,
                 "y_high": -1
             },
             {
-                "x_low": -10,
-                "x_high": 10,
+                "x_low": -100,
+                "x_high": 100,
                 "y_low": 1,
-                "y_high": 10
+                "y_high": 100
             },
         ]
 

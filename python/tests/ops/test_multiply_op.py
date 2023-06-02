@@ -31,9 +31,15 @@ class TestElementwiseMulOp(OpTest):
 
     def prepare_inputs(self):
         self.x_np = self.random(
-            shape=self.case["x_shape"], dtype=self.case["x_dtype"])
+            shape=self.case["x_shape"],
+            dtype=self.case["x_dtype"],
+            low=self.case["x_low"],
+            high=self.case["x_high"])
         self.y_np = self.random(
-            shape=self.case["y_shape"], dtype=self.case["y_dtype"])
+            shape=self.case["y_shape"],
+            dtype=self.case["y_dtype"],
+            low=self.case["y_low"],
+            high=self.case["y_high"])
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.x_np, stop_gradient=False)
@@ -78,9 +84,64 @@ class TestElementwiseMulOp(OpTest):
         self.check_outputs_and_grads(max_relative_error=max_relative_error)
 
 
-class TestMulAllOPCase(TestCaseHelper):
+class TestElementwiseMulOpBase(TestCaseHelper):
+    inputs = [
+        {
+            "x_shape": [1],
+            "y_shape": [1],
+            "axis": 0,
+        },
+        {
+            "x_shape": [1024],
+            "y_shape": [1024],
+            "axis": 0,
+        },
+        {
+            "x_shape": [512, 256],
+            "y_shape": [512, 256],
+            "axis": 0,
+        },
+        {
+            "x_shape": [128, 64, 32],
+            "y_shape": [128, 64, 32],
+            "axis": 0,
+        },
+        {
+            "x_shape": [16, 8, 4, 2],
+            "y_shape": [16, 8, 4, 2],
+            "axis": 0,
+        },
+        {
+            "x_shape": [16, 8, 4, 2, 1],
+            "y_shape": [16, 8, 4, 2, 1],
+            "axis": 0,
+        },
+    ]
+
+    dtypes = [
+        {
+            "x_dtype": "float32",
+            "y_dtype": "float32",
+        },
+    ]
+
+    attrs = [
+        {
+            "x_low": -100,
+            "x_high": 100,
+            "y_low": -100,
+            "y_high": 100
+        },
+    ]
+
     def init_attrs(self):
-        self.class_name = "TestElementwiseMulOpCase"
+        self.class_name = "TestElementwiseMulOpBase"
+        self.cls = TestElementwiseMulOp
+
+
+class TestElementwiseMulOpShapeTest(TestElementwiseMulOpBase):
+    def init_attrs(self):
+        self.class_name = "TestElementwiseMulOpShapeTest"
         self.cls = TestElementwiseMulOp
         self.inputs = [
             {
@@ -92,6 +153,11 @@ class TestMulAllOPCase(TestCaseHelper):
                 "x_shape": [1024],
                 "y_shape": [1024],
                 "axis": -1,
+            },
+            {
+                "x_shape": [2048],
+                "y_shape": [2048],
+                "axis": 0,
             },
             {
                 "x_shape": [512, 256],
@@ -113,8 +179,31 @@ class TestMulAllOPCase(TestCaseHelper):
                 "y_shape": [16, 8, 4, 2, 1],
                 "axis": -1,
             },
+            {
+                "x_shape": [1, 1, 1, 1, 1],
+                "y_shape": [1, 1, 1, 1, 1],
+                "axis": 0,
+            },
         ]
+
+
+class TestElementwiseMulOpDtypeTest(TestElementwiseMulOpBase):
+    def init_attrs(self):
+        self.class_name = "TestElementwiseMulOpDtypeTest"
+        self.cls = TestElementwiseMulOp
         self.dtypes = [
+            {
+                "x_dtype": "bool",
+                "y_dtype": "bool",
+            },
+            {
+                "x_dtype": "int32",
+                "y_dtype": "int32",
+            },
+            {
+                "x_dtype": "int64",
+                "y_dtype": "int64",
+            },
             {
                 "x_dtype": "float32",
                 "y_dtype": "float32",
@@ -124,12 +213,23 @@ class TestMulAllOPCase(TestCaseHelper):
                 "y_dtype": "float64",
             },
         ]
-        self.attrs = []
 
 
-class TestMulAllWithBroadcast(TestCaseHelper):
+class TestElementwiseMulOpPolarityTest(TestElementwiseMulOpBase):
     def init_attrs(self):
-        self.class_name = "TestElementwiseMulOpCase"
+        self.class_name = "TestElementwiseMulOpPolarityTest"
+        self.cls = TestElementwiseMulOp
+        self.attrs = [{
+            "x_low": -100,
+            "x_high": 100,
+            "y_low": -100,
+            "y_high": 100,
+        }]
+
+
+class TestElementwiseMulOpBroadcast(TestElementwiseMulOpBase):
+    def init_attrs(self):
+        self.class_name = "TestElementwiseMulOpBroadcast"
         self.cls = TestElementwiseMulOp
         self.inputs = [
             {
@@ -163,19 +263,10 @@ class TestMulAllWithBroadcast(TestCaseHelper):
                 "axis": -1,
             },
         ]
-        self.dtypes = [
-            {
-                "x_dtype": "float32",
-                "y_dtype": "float32",
-            },
-            {
-                "x_dtype": "float64",
-                "y_dtype": "float64",
-            },
-        ]
-        self.attrs = []
 
 
 if __name__ == "__main__":
-    TestMulAllOPCase().run()
-    TestMulAllWithBroadcast().run()
+    TestElementwiseMulOpShapeTest().run()
+    TestElementwiseMulOpDtypeTest().run()
+    TestElementwiseMulOpPolarityTest().run()
+    TestElementwiseMulOpBroadcast().run()

@@ -31,9 +31,15 @@ class TestMulOp(OpTest):
 
     def prepare_inputs(self):
         self.x_np = self.random(
-            shape=self.case["x_shape"], dtype=self.case["x_dtype"])
+            shape=self.case["x_shape"],
+            dtype=self.case["x_dtype"],
+            low=self.case["x_low"],
+            high=self.case["x_high"])
         self.y_np = self.random(
-            shape=self.case["y_shape"], dtype=self.case["y_dtype"])
+            shape=self.case["y_shape"],
+            dtype=self.case["y_dtype"],
+            low=self.case["y_low"],
+            high=self.case["y_high"])
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.x_np, stop_gradient=False)
@@ -62,7 +68,46 @@ class TestMulOp(OpTest):
         self.check_outputs_and_grads(max_relative_error=max_relative_error)
 
 
-class TestMulOpShapeTest(TestCaseHelper):
+class TestMulOpBase(TestCaseHelper):
+    inputs = [{
+        "x_shape": [1],
+        "y_shape": [1],
+    }, {
+        "x_shape": [1024],
+        "y_shape": [1024],
+    }, {
+        "x_shape": [32, 64],
+        "y_shape": [64, 32],
+    }, {
+        "x_shape": [2, 3, 4],
+        "y_shape": [2, 4, 3],
+    }, {
+        "x_shape": [16, 8, 4, 2],
+        "y_shape": [16, 8, 2, 4],
+    }]
+
+    dtypes = [
+        {
+            "x_dtype": "float32",
+            "y_dtype": "float32",
+        },
+    ]
+
+    attrs = [
+        {
+            "x_low": -100,
+            "x_high": 100,
+            "y_low": -100,
+            "y_high": 100
+        },
+    ]
+
+    def init_attrs(self):
+        self.class_name = "TestMulOpBase"
+        self.cls = TestMulOp
+
+
+class TestMulOpShapeTest(TestMulOpBase):
     def init_attrs(self):
         self.class_name = "TestMulOpShapeTest"
         self.cls = TestMulOp
@@ -73,6 +118,9 @@ class TestMulOpShapeTest(TestCaseHelper):
             "x_shape": [1024],
             "y_shape": [1024],
         }, {
+            "x_shape": [2048],
+            "y_shape": [2048],
+        }, {
             "x_shape": [32, 64],
             "y_shape": [64, 32],
         }, {
@@ -82,17 +130,40 @@ class TestMulOpShapeTest(TestCaseHelper):
             "x_shape": [16, 8, 4, 2],
             "y_shape": [16, 8, 2, 4],
         }]
+
+
+class TestMulOpDtypeTest(TestMulOpBase):
+    def init_attrs(self):
+        self.class_name = "TestMulOpDtypeTest"
+        self.cls = TestMulOp
         self.dtypes = [{
+            "x_dtype": "float16",
+            "y_dtype": "float16",
+            "max_relative_error": 1e-3,
+        }, {
             "x_dtype": "float32",
             "y_dtype": "float32",
         }, {
             "x_dtype": "float64",
             "y_dtype": "float64",
         }]
-        self.attrs = []
 
 
-class TestMulOpBroadcastTest(TestCaseHelper):
+class TestMulOpPolarityTest(TestMulOpBase):
+    def init_attrs(self):
+        self.class_name = "TestMulOpPolarityTest"
+        self.cls = TestMulOp
+        self.attrs = [
+            {
+                "x_low": -100,
+                "x_high": 100,
+                "y_low": -100,
+                "y_high": 100,
+            },
+        ]
+
+
+class TestMulOpBroadcastTest(TestMulOpBase):
     def init_attrs(self):
         self.class_name = "TestMulOpBroadcastTest"
         self.cls = TestMulOp
@@ -109,13 +180,10 @@ class TestMulOpBroadcastTest(TestCaseHelper):
             "x_shape": [12, 1, 4, 2],
             "y_shape": [12, 1, 2, 4],
         }]
-        self.dtypes = [{
-            "x_dtype": "float32",
-            "y_dtype": "float32",
-        }]
-        self.attrs = []
 
 
 if __name__ == "__main__":
     TestMulOpShapeTest().run()
+    TestMulOpDtypeTest().run()
+    TestMulOpPolarityTest().run()
     TestMulOpBroadcastTest().run()

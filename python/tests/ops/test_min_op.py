@@ -23,16 +23,22 @@ from cinn.common import *
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
                     "x86 test will be skipped due to timeout.")
-class TestMaxMinimumOp(OpTest):
+class TestMinOp(OpTest):
     def setUp(self):
         print(f"\nRunning {self.__class__.__name__}: {self.case}")
         self.prepare_inputs()
 
     def prepare_inputs(self):
         self.x_np = self.random(
-            shape=self.case["x_shape"], dtype=self.case["x_dtype"])
+            shape=self.case["x_shape"],
+            dtype=self.case["x_dtype"],
+            low=self.case["x_low"],
+            high=self.case["x_high"])
         self.y_np = self.random(
-            shape=self.case["y_shape"], dtype=self.case["y_dtype"])
+            shape=self.case["y_shape"],
+            dtype=self.case["y_dtype"],
+            low=self.case["y_low"],
+            high=self.case["y_high"])
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.x_np, stop_gradient=True)
@@ -49,7 +55,6 @@ class TestMaxMinimumOp(OpTest):
             self.nptype2cinntype(self.case["y_dtype"]), self.case["y_shape"],
             "y")
         out = builder.min(x, y)
-
         prog = builder.build()
         res = self.get_cinn_output(prog, target, [x, y],
                                    [self.x_np, self.y_np], [out])
@@ -62,16 +67,65 @@ class TestMaxMinimumOp(OpTest):
         self.check_outputs_and_grads(max_relative_error=max_relative_error)
 
 
-class TestMaxMinimumOpShapeTest(TestCaseHelper):
+class TestMinOpBase(TestCaseHelper):
+
+    inputs = [
+        {
+            "x_shape": [1],
+            "y_shape": [1],
+        },
+        {
+            "x_shape": [32, 64],
+            "y_shape": [32, 64],
+        },
+        {
+            "x_shape": [2, 3, 4],
+            "y_shape": [2, 3, 4],
+        },
+        {
+            "x_shape": [16, 8, 4, 2],
+            "y_shape": [16, 8, 4, 2],
+        },
+        {
+            "x_shape": [16, 8, 4, 2, 1],
+            "y_shape": [16, 8, 4, 2, 1],
+        },
+    ]
+
+    dtypes = [
+        {
+            "x_dtype": "float32",
+            "y_dtype": "float32",
+        },
+    ]
+
+    attrs = [
+        {
+            "x_low": -100,
+            "x_high": 100,
+            "y_low": -100,
+            "y_high": 100
+        },
+    ]
+
     def init_attrs(self):
-        self.class_name = "TestMaxMinimumOpShapeTest"
-        self.cls = TestMaxMinimumOp
+        self.class_name = "TestMinOpBase"
+        self.cls = TestMinOp
+
+
+class TestMinOpShapeTest(TestMinOpBase):
+    def init_attrs(self):
+        self.class_name = "TestMinOpShapeTest"
+        self.cls = TestMinOp
         self.inputs = [{
             "x_shape": [1],
             "y_shape": [1],
         }, {
             "x_shape": [1024],
             "y_shape": [1024],
+        }, {
+            "x_shape": [2048],
+            "y_shape": [2048],
         }, {
             "x_shape": [32, 64],
             "y_shape": [32, 64],
@@ -91,53 +145,68 @@ class TestMaxMinimumOpShapeTest(TestCaseHelper):
             "x_shape": [1, 1, 1, 1, 1],
             "y_shape": [1, 1, 1, 1, 1],
         }]
-        self.dtypes = [{
-            "x_dtype": "float32",
-            "y_dtype": "float32",
-        }]
-        self.attrs = []
 
 
-class TestMaxMinimumOpDtypeTest(TestCaseHelper):
+class TestMinOpDtypeTest(TestMinOpBase):
     def init_attrs(self):
-        self.class_name = "TestMaxMinimumOpDtypeTest"
-        self.cls = TestMaxMinimumOp
-        self.inputs = [{
-            "x_shape": [1],
-            "y_shape": [1],
-        }, {
-            "x_shape": [32, 64],
-            "y_shape": [32, 64],
-        }, {
-            "x_shape": [2, 3, 4],
-            "y_shape": [2, 3, 4],
-        }, {
-            "x_shape": [16, 8, 4, 2],
-            "y_shape": [16, 8, 4, 2],
-        }, {
-            "x_shape": [16, 8, 4, 2, 1],
-            "y_shape": [16, 8, 4, 2, 1],
-        }]
-        self.dtypes = [{
-            "x_dtype": "int32",
-            "y_dtype": "int32",
-        }, {
-            "x_dtype": "int64",
-            "y_dtype": "int64",
-        }, {
-            "x_dtype": "float32",
-            "y_dtype": "float32",
-        }, {
-            "x_dtype": "float64",
-            "y_dtype": "float64",
-        }]
-        self.attrs = []
+        self.class_name = "TestMinOpDtypeTest"
+        self.cls = TestMinOp
+        self.dtypes = [
+            #{
+            #"x_dtype": "int8",
+            #"y_dtype": "int8",
+            #}, {
+            #"x_dtype": "int16",
+            #"y_dtype": "int16",
+            #}, {
+            #"x_dtype": "uint8",
+            #"y_dtype": "uint8",
+            #}, {
+            #"x_dtype": "uint16",
+            #"y_dtype": "uint16",
+            #},
+            {
+                "x_dtype": "int32",
+                "y_dtype": "int32",
+            },
+            {
+                "x_dtype": "int64",
+                "y_dtype": "int64",
+            },
+            #{
+            #    "x_dtype": "float16",
+            #    "y_dtype": "float16",
+            #    "max_relative_error": 1e-3,
+            #},
+            {
+                "x_dtype": "float32",
+                "y_dtype": "float32",
+            },
+            {
+                "x_dtype": "float64",
+                "y_dtype": "float64",
+            }
+        ]
 
 
-class TestMaxMinimumOpBroadcastTest(TestCaseHelper):
+class TestMinOpPolarityTest(TestMinOpBase):
     def init_attrs(self):
-        self.class_name = "TestMaxMinimumOpBroadcastTest"
-        self.cls = TestMaxMinimumOp
+        self.class_name = "TestMinOpPolarityTest"
+        self.cls = TestMinOp
+        self.attrs = [
+            {
+                "x_low": -100,
+                "x_high": 100,
+                "y_low": -100,
+                "y_high": 100,
+            },
+        ]
+
+
+class TestMinOpBroadcastTest(TestMinOpBase):
+    def init_attrs(self):
+        self.class_name = "TestMinOpBroadcastTest"
+        self.cls = TestMinOp
         self.inputs = [{
             "x_shape": [32],
             "y_shape": [1],
@@ -202,14 +271,10 @@ class TestMaxMinimumOpBroadcastTest(TestCaseHelper):
             "x_shape": [16, 1, 4, 1, 32],
             "y_shape": [1, 8, 1, 2, 1],
         }]
-        self.dtypes = [{
-            "x_dtype": "float32",
-            "y_dtype": "float32",
-        }]
-        self.attrs = []
 
 
 if __name__ == "__main__":
-    TestMaxMinimumOpShapeTest().run()
-    TestMaxMinimumOpDtypeTest().run()
-    TestMaxMinimumOpBroadcastTest().run()
+    TestMinOpShapeTest().run()
+    TestMinOpDtypeTest().run()
+    TestMinOpPolarityTest().run()
+    TestMinOpBroadcastTest().run()
