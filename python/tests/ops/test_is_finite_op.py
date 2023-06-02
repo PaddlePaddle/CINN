@@ -32,10 +32,13 @@ class TestIsFiniteOp(OpTest):
 
     def prepare_inputs(self):
         self.x_np = self.random(
-            shape=self.case["x_shape"], dtype=self.case["x_dtype"])
+            shape=self.case["x_shape"],
+            dtype=self.case["x_dtype"],
+            low=-100,
+            high=100)
 
         index = np.random.randint(0, len(self.x_np))
-        inf_data = np.where(self.x_np[index] > 0.5, np.inf, np.nan)
+        inf_data = np.where(self.x_np[index] > 0, np.inf, np.nan)
         self.x_np[index] = inf_data.astype(self.case["x_dtype"])
 
     def build_paddle_program(self, target):

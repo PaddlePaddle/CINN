@@ -32,7 +32,10 @@ class TestIsInfOp(OpTest):
 
     def prepare_inputs(self):
         self.x_np = self.random(
-            shape=self.case["x_shape"], dtype=self.case["x_dtype"])
+            shape=self.case["x_shape"],
+            dtype=self.case["x_dtype"],
+            low=-100,
+            high=100)
 
         index = np.random.randint(0, len(self.x_np))
         inf_data = np.zeros(self.x_np[index].shape, dtype="float") + np.inf
