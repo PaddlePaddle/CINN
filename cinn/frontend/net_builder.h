@@ -350,7 +350,7 @@ class NetBuilder {
                           const std::string& id_hint = "");
 
   /**
-   * @brief Create constant tensor with the specific value/vector and type, the type is infered from value.
+   * @brief Create constant tensor with the specific value/vector and type
    * @param value The constant value to be set.
    * @param name The name of output variable.
    * @return The result variable.

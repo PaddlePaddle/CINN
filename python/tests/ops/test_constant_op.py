@@ -14,99 +14,147 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
-import numpy as np
-from op_test import OpTest, OpTestTool
 import paddle
-import paddle.nn.functional as F
-import cinn
-from cinn.frontend import *
 from cinn.common import *
+from cinn.frontend import *
+from op_test import OpTest, OpTestTool
+from op_test_helper import TestCaseHelper
 
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
                     "x86 test will be skipped due to timeout.")
 class TestConstantOp(OpTest):
     def setUp(self):
-        self.init_case()
+        print(f"\nRunning {self.__class__.__name__}: {self.case}")
+        self.inputs = {}
+        self.prepare_inputs()
 
-    def init_case(self):
-        self.value = 1.0
-        self.name = 'x'
-        self.dtype = "float32"
+    def prepare_inputs(self):
+        self.name = "x"
+        dtype = self.case["dtype"]
+        if "constant_value" in self.case:
+            if "bool" in dtype:
+                self.value = bool(self.case["constant_value"])
+            elif "int" in dtype:
+                self.value = int(self.case["constant_value"])
+            elif "float" in dtype:
+                self.value = float(self.case["constant_value"])
+        else:
+            self.value = self.random(self.case["shape"], dtype).tolist()
+        self.dtype = dtype
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.value, dtype=self.dtype)
-
         self.paddle_outputs = [x]
 
     def build_cinn_program(self, target):
         builder = NetBuilder("constant")
         x = builder.constant(self.value, self.name, self.dtype)
-
         prog = builder.build()
         res = self.get_cinn_output(prog, target, [], [], [x])
-        self.cinn_outputs = [res[0]]
+        self.cinn_outputs = res
 
     def test_check_results(self):
         self.check_outputs_and_grads(all_equal=True)
 
 
-class TestConstantCase1(TestConstantOp):
-    def init_case(self):
-        self.value = [1.0]
-        self.name = 'x'
-        self.dtype = "float32"
+class TestConstantOpShape(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestConstantOpShape"
+        self.cls = TestConstantOp
+        self.inputs = [
+            {
+                "constant_value": 10,
+            },
+            {
+                "constant_value": -5,
+            },
+            {
+                "shape": [10],
+            },
+            {
+                "shape": [8, 5],
+            },
+            {
+                "shape": [10, 3, 5],
+            },
+            # known issue: https://github.com/PaddlePaddle/CINN/pull/1453
+            # The compilation time is particularly long for AssignValue op.
+            # {
+            #     "shape": [16, 4, 8, 32],
+            # },
+            {
+                "shape": [1],
+            },
+            {
+                "shape": [512],
+            },
+            {
+                "shape": [1024],
+            },
+            # very slow for the shape 2048
+            {
+                "shape": [2048],
+            },
+            {
+                "shape": [1, 1, 1, 1],
+            },
+        ]
+        self.dtypes = [
+            {
+                "dtype": "float32"
+            },
+        ]
+        self.attrs = []
 
 
-class TestConstantCase2(TestConstantOp):
-    def init_case(self):
-        self.value = [1.0, 2.0, 3.0, 4.0, 5.0]
-        self.name = 'x'
-        self.dtype = "float32"
-
-
-class TestConstantCase3(TestConstantOp):
-    def init_case(self):
-        self.value = [[1.0, 2.0], [3.0, 4.0]]
-        self.name = 'x'
-        self.dtype = "float32"
-
-
-class TestConstantCase4(TestConstantOp):
-    def init_case(self):
-        self.value = [[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]]
-        self.name = 'x'
-        self.dtype = "float32"
-
-
-class TestConstantCase5(TestConstantOp):
-    def init_case(self):
-        self.value = [[[1.0], [3.0]], [[5.0], [7.0]]]
-        self.name = 'x'
-        self.dtype = "float32"
-
-
-class TestConstantCase6(TestConstantOp):
-    def init_case(self):
-        self.value = [[[1.0]]]
-        self.name = 'x'
-        self.dtype = "float32"
-
-
-class TestConstantCase7(TestConstantOp):
-    def init_case(self):
-        self.value = self.random([200], "int32", 1, 1000).tolist()
-        self.name = 'x'
-        self.dtype = "int32"
-
-
-class TestConstantCase8(TestConstantOp):
-    def init_case(self):
-        self.value = self.random([10], "int64", 1, 1000).tolist()
-        self.name = 'x'
-        self.dtype = "int64"
+class TestConstantOpDtype(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestConstantOpDtype"
+        self.cls = TestConstantOp
+        self.inputs = [
+            {
+                "constant_value": 1,
+            },
+            {
+                "shape": [10],
+            },
+            {
+                "shape": [8, 5],
+            },
+            {
+                "shape": [10, 3, 5],
+            },
+        ]
+        self.dtypes = [
+            {
+                "dtype": "float16"
+            },
+            {
+                "dtype": "float32"
+            },
+            {
+                "dtype": "float64"
+            },
+            {
+                "dtype": "bool"
+            },
+            {
+                "dtype": "uint8"
+            },
+            {
+                "dtype": "int8"
+            },
+            {
+                "dtype": "int32"
+            },
+            {
+                "dtype": "int64"
+            },
+        ]
+        self.attrs = []
 
 
 if __name__ == "__main__":
-    unittest.main()
+    TestConstantOpShape().run()
+    TestConstantOpDtype().run()
