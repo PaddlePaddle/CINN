@@ -14,64 +14,184 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
-import numpy as np
-from op_test import OpTest, OpTestTool
+import random
 import paddle
-import paddle.nn.functional as F
-import cinn
-from cinn.frontend import *
+import numpy as np
 from cinn.common import *
+from cinn.frontend import *
+from op_test import OpTest, OpTestTool
+from op_test_helper import TestCaseHelper
 
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
                     "x86 test will be skipped due to timeout.")
 class TestFillConstantOp(OpTest):
     def setUp(self):
-        self.init_case()
+        print(f"\nRunning {self.__class__.__name__}: {self.case}")
+        self.inputs = {}
+        self.prepare_inputs()
 
-    def init_case(self):
-        self.shape = [32]
-        self.value = 1.0
-        self.dtype = "float32"
+    def prepare_inputs(self):
+        self.shape = self.case["shape"]
+        self.value = self.case["value"]
+        self.dtype = self.case["dtype"]
 
     def build_paddle_program(self, target):
-        x = paddle.full(self.shape, self.value, dtype=self.dtype)
+        if self.dtype == None:
+            x = np.full(self.shape, self.value)
+            x = paddle.to_tensor(x)
+        else:
+            x = paddle.full(self.shape, self.value, dtype=self.dtype)
 
         self.paddle_outputs = [x]
 
     def build_cinn_program(self, target):
         builder = NetBuilder("fill_constant")
-        x = builder.fill_constant(self.shape, self.value, "out", self.dtype)
+        if self.dtype == None:
+            x = builder.fill_constant(self.shape, self.value, "out")
+        else:
+            x = builder.fill_constant(self.shape, self.value, "out",
+                                      self.dtype)
 
         prog = builder.build()
         res = self.get_cinn_output(prog, target, [], [], [x])
 
-        self.cinn_outputs = [res[0]]
+        self.cinn_outputs = res
 
     def test_check_results(self):
         self.check_outputs_and_grads(all_equal=True)
 
 
-class TestFillConstantCase1(TestFillConstantOp):
-    def init_case(self):
-        self.shape = [10, 32, 4]
-        self.value = 1.0
-        self.dtype = "float32"
+class TestFillConstantOpShape(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestFillConstantOpShape"
+        self.cls = TestFillConstantOp
+        self.inputs = [
+            {
+                "shape": [10],
+            },
+            {
+                "shape": [8, 5],
+            },
+            {
+                "shape": [10, 3, 5],
+            },
+            {
+                "shape": [1, 2, 4, 8],
+            },
+            {
+                "shape": [16, 4, 8, 32],
+            },
+            {
+                "shape": [1],
+            },
+            {
+                "shape": [512],
+            },
+            {
+                "shape": [1024],
+            },
+            {
+                "shape": [2048],
+            },
+            {
+                "shape": [1, 1, 1, 1],
+            },
+        ]
+        self.dtypes = [
+            {
+                "dtype": "float32"
+            },
+        ]
+        self.attrs = [
+            {
+                "value": 123.456
+            },
+        ]
 
 
-class TestFillConstantCase2(TestFillConstantOp):
-    def init_case(self):
-        self.shape = [32]
-        self.value = 1
-        self.dtype = "int32"
+class TestFillConstantOpDtype(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestFillConstantOpDtype"
+        self.cls = TestFillConstantOp
+        self.inputs = [
+            {
+                "shape": [10],
+            },
+            {
+                "shape": [8, 5],
+            },
+            {
+                "shape": [10, 3, 5],
+            },
+            {
+                "shape": [1, 2, 4, 8],
+            },
+        ]
+        self.dtypes = [
+            {
+                "dtype": "float16"
+            },
+            {
+                "dtype": "float32"
+            },
+            {
+                "dtype": "float64"
+            },
+            {
+                "dtype": "bool"
+            },
+            {
+                "dtype": "uint8"
+            },
+            {
+                "dtype": "int32"
+            },
+            {
+                "dtype": "int64"
+            },
+        ]
+        self.attrs = [
+            {
+                "value": 123.456
+            },
+        ]
 
 
-class TestFillConstantCase3(TestFillConstantOp):
-    def init_case(self):
-        self.shape = [32]
-        self.value = True
-        self.dtype = "bool"
+class TestFillConstantOpValue(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestFillConstantOpValue"
+        self.cls = TestFillConstantOp
+        self.inputs = [
+            {
+                "shape": [10],
+            },
+            {
+                "shape": [8, 5],
+            },
+            {
+                "shape": [10, 3, 5],
+            },
+            {
+                "shape": [1, 2, 4, 8],
+            },
+        ]
+        self.dtypes = [
+            {
+                "dtype": None
+            },
+        ]
+        self.attrs = [
+            {
+                "value": bool(True)
+            },
+            {
+                "value": int(123)
+            },
+            {
+                "value": float(123.456)
+            },
+        ]
 
 
 class TestFillConstantCase4(TestFillConstantOp):
@@ -118,7 +238,7 @@ class TestFillConstantByValueOp(OpTest):
     def init_case(self):
         self.shape = [32]
         self.value = float(1.0)
-        self.dtype = "float64"
+        self.dtype = "float32"
 
     def build_paddle_program(self, target):
         x = paddle.full(self.shape, self.value, dtype=self.dtype)
@@ -143,7 +263,7 @@ class TestFillConstantByValueCase1(TestFillConstantByValueOp):
         self.shape = [32]
         self.value = int(1)
         # only for paddle.full
-        self.dtype = "int64"
+        self.dtype = "int32"
 
 
 class TestFillConstantByValueCase2(TestFillConstantByValueOp):
@@ -155,4 +275,7 @@ class TestFillConstantByValueCase2(TestFillConstantByValueOp):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    TestFillConstantOpShape().run()
+    TestFillConstantOpDtype().run()
+    TestFillConstantOpValue().run()
+    TestFillConstantOpStrValue().run()

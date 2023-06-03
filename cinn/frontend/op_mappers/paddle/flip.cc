@@ -28,7 +28,13 @@ void FlipOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
   auto axes = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "axis", std::vector<int>{});
   VLOG(4) << "out_name = flip(" << x_name << ", axis=[" << cinn::utils::Join(axes, ", ") << "])";
 
-  auto x   = ctx.GetVar(x_name);
+  auto x           = ctx.GetVar(x_name);
+  const auto& ndim = x->shape.size();
+  for (auto& axis : axes) {
+    if (axis < 0) {
+      axis += ndim;
+    }
+  }
   auto out = ctx.Builder()->Flip(x, axes);
 
   ctx.AddVar(out_name, out);

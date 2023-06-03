@@ -408,11 +408,21 @@ class NetBuilder {
    * @param force_cpu Whether the variable should force placed in cpu, default in device memory. Default is false.
    * @return The result variable.
    */
+  template <typename T = float>
   Variable FillConstant(const cinn::utils::ShapeType& shape,
-                        float value,
+                        T value,
                         const std::string& name,
                         const std::string& dtype,
-                        bool force_cpu = false);
+                        bool force_cpu = false) {
+    auto out =
+        CustomInstr(
+            "fill_constant", {}, {{"shape", shape}, {"value", value}, {"dtype", dtype}, {"force_cpu", force_cpu}})
+            .front();
+    if (!name.empty()) {
+      out.set_id(cinn::utils::TransValidVarName(name));
+    }
+    return out;
+  }
 
   /**
    * @brief The op return a variable with the specific string value, shape and type.
@@ -442,7 +452,7 @@ class NetBuilder {
                         T value,
                         const std::string& name = "",
                         bool force_cpu          = false) {
-    return FillConstant(shape, static_cast<float>(value), name, common::Type2Str(common::type_of<T>()), force_cpu);
+    return FillConstant<T>(shape, value, name, common::Type2Str(common::type_of<T>()), force_cpu);
   }
 
   /**
