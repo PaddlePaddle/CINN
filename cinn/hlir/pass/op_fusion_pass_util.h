@@ -309,11 +309,11 @@ CONDITION_FUNC(reduce_fuse_broadcast) {
     }
     // if keep dim = true.
     if (keep_dim) {
-      return true;
+      continue;
     } else {
       // if routput_shape = [1]
       if (routput_shape.size() == 1 && routput_shape[0] == 1) {
-        return true;
+        continue;
       }
       // check [reduce_axes, axes] = {0, 1, 2, 3, 4, 5, 6, ...}
       for (int idx = 0; idx < rinput_shape.size(); ++idx) {
@@ -323,11 +323,11 @@ CONDITION_FUNC(reduce_fuse_broadcast) {
           return false;
         }
       }
-      return true;
+      continue;
     }
     return false;
   }
-  return false;
+  return true;
 }
 
 #undef CONDITION_FUNC

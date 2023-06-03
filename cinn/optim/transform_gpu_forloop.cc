@@ -170,6 +170,32 @@ void CudaSyncThreadsDropIfThenElse(Expr *expr) {
   Mutator()(expr);
 }
 
+class RestructureVarNodes : public ir::IRMutator<> {
+ public:
+  void operator()(ir::Expr *expr) { ir::IRMutator<>::Visit(expr, expr); }
+
+ private:
+  void Visit(const ir::Load *load, Expr *op) override {
+    std::vector<ir::Expr> indices_copied;
+    for (const ir::Expr &indice : load->indices) {
+      indices_copied.push_back(IRCopy(indice));
+    }
+    op->As<ir::Load>()->indices = indices_copied;
+
+    IRMutator::Visit(load, op);
+  }
+
+  void Visit(const ir::Store *store, Expr *op) override {
+    std::vector<ir::Expr> indices_copied;
+    for (const ir::Expr &indice : store->indices) {
+      indices_copied.push_back(IRCopy(indice));
+    }
+    op->As<ir::Store>()->indices = indices_copied;
+
+    IRMutator::Visit(store, op);
+  }
+};
+
 class ReplaceIndexToBindExpr : public ir::IRMutator<> {
  public:
   void operator()(ir::Expr *expr) { ir::IRMutator<>::Visit(expr, expr); }
@@ -180,15 +206,13 @@ class ReplaceIndexToBindExpr : public ir::IRMutator<> {
     CHECK(schedule_block_realize->schedule_block.As<ir::ScheduleBlock>());
     std::vector<ir::Expr> iter_values = schedule_block_realize->iter_values;
     ir::Expr body                     = schedule_block_realize->schedule_block.As<ir::ScheduleBlock>()->body;
-    ir::Expr body_copy                = IRCopy(body);
     std::vector<ir::Var> iter_vars    = schedule_block_realize->schedule_block.As<ir::ScheduleBlock>()->iter_vars;
 
     CHECK_EQ(iter_values.size(), iter_vars.size());
     for (int idx = 0; idx < iter_values.size(); ++idx) {
-      ReplaceVarWithExpr(&body_copy, iter_vars[idx], iter_values[idx]);
+      ReplaceVarWithExpr(&body, iter_vars[idx], iter_values[idx]);
     }
-    ir::IRMutator<>::Visit(&body_copy, &body_copy);
-    schedule_block_realize->schedule_block.As<ir::ScheduleBlock>()->body = body_copy;
+    ir::IRMutator<>::Visit(&body, &body);
   }
 };
 
@@ -497,6 +521,13 @@ class ResizeBufferSizeVisitor : public ir::IRMutator<> {
     }
 
     load->tensor.as_tensor_ref()->shape = load->tensor.as_tensor_ref()->buffer->shape;
+
+    // For the moment, align the load tensor indices with the tensor shape using the trick method.
+    // A better way would be to modify the FlattenLoop Schedule.
+    int cnt = load->indices.size() - load->tensor.as_tensor_ref()->shape.size();
+    for (int i = 0; i < cnt; i++) {
+      load->indices.erase(load->indices.begin());
+    }
     ir::IRMutator<>::Visit(op, expr);
   }
 
@@ -596,6 +627,11 @@ class ReplaceVarToZero : public ir::IRMutator<> {
 
 void OptimizeExprGPU(Expr *expr) {
   VLOG(2) << "Before Optimize Expr:\n" << *expr;
+
+  // copy var nodes to prevent one modification leading to multiple changes
+  RestructureVarNodes restructure_var_nodes;
+  restructure_var_nodes(expr);
+
   // replace var to bind expr
   ReplaceIndexToBindExpr replace_index_to_bind_expr;
   replace_index_to_bind_expr(expr);

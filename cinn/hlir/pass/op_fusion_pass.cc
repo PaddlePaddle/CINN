@@ -246,13 +246,7 @@ class OpFusionPassHelper : public FusionHelperBase {
           // horizontal or vertical relation(Broadcast + *Elementwise*), check with same output shape.
           {framework::kElementWise, is_same_size},
           // must be horizontal, as Broadcast + Broadcast is not allowed.
-          {framework::kBroadcast,
-           [](const FusionHelperBase* helper, const Node* producer, const GroupPtr& consumer) -> bool {
-             if (is_same_size(helper, producer, consumer)) {
-               return true;
-             }
-             return !helper->output_nodes_set_.count(producer);
-           }},
+          {framework::kBroadcast, is_same_size},
           // horizontal or vertical relation(Broadcast + Reduce).
           {framework::kReduction, horizontal_or_vertical_reduce_relation},
           // can be horizontal or can compute inline, check with same output shape or just one consumer.

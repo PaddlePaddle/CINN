@@ -70,6 +70,19 @@ class Compiler {
    * whether to compile the source code into cubin, only works with cuda version > 11.1
    */
   bool compile_to_cubin_{false};
+
+  // compile with nvcc
+  std::string CompileWithNvcc(const std::string&);
+
+  // compile to ptx
+  void CompileToPtx();
+  // compile to cubin
+  void CompileToCubin();
+  std::string GetDeviceArch();
+
+  std::string ReadFile(const std::string&, std::ios_base::openmode);
+
+  std::string prefix_name_{""};
 };
 
 }  // namespace nvrtc
