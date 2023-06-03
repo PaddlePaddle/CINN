@@ -413,13 +413,13 @@ void BindFrontend(pybind11::module *m) {
            py::arg("name") = "",                                                                   \
            py::arg("dtype"),                                                                       \
            py::arg("force_cpu") = false)                                                           \
-     .def("fill_constant",                                                    \
-          static_cast<Variable (NetBuilder::*)(                               \
-               const std::vector<int> &, TYPE__, const std::string &, bool)>( \
-               &NetBuilder::template FillConstant<TYPE__>),                   \
-          py::arg("shape"),                                                   \
-          py::arg("value"),                                                   \
-          py::arg("name") = "",                                               \
+     .def("fill_constant",                                                                         \
+          static_cast<Variable (NetBuilder::*)(                                                    \
+               const std::vector<int> &, TYPE__, const std::string &, bool)>(                      \
+               &NetBuilder::template FillConstant<TYPE__>),                                        \
+          py::arg("shape"),                                                                        \
+          py::arg("value"),                                                                        \
+          py::arg("name") = "",                                                                    \
           py::arg("force_cpu") = false)
           EXPAND_CINN_SUPPORT_TYPE(PY_REGISTER_FILLCONSTANT_OP)
 #undef PY_REGISTER_FILLCONSTANT_OP

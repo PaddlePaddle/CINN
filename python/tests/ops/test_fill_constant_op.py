@@ -194,84 +194,52 @@ class TestFillConstantOpValue(TestCaseHelper):
         ]
 
 
-class TestFillConstantCase4(TestFillConstantOp):
-    def init_case(self):
-        self.shape = [32]
-        self.value = int(1)
-        self.dtype = "uint8"
-
-
-class TestFillConstantCase5(TestFillConstantOp):
-    def init_case(self):
-        self.shape = [32]
-        self.value = int(1)
-        self.dtype = "int16"
-
-
-class TestFillConstantStringValue(TestFillConstantOp):
-    def init_case(self):
-        self.shape = [32]
-        self.value = "0.12345678987654321"
-        self.dtype = "float64"
-
-
-class TestFillConstantStringValueCase1(TestFillConstantStringValue):
-    def init_case(self):
-        self.shape = [32]
-        self.value = "0.12345678987654321"
-        self.dtype = "float16"
-
-
-class TestFillConstantStringValueCase2(TestFillConstantStringValue):
-    def init_case(self):
-        self.shape = [32]
-        self.value = "123456789"
-        self.dtype = "int64"
-
-
-@OpTestTool.skip_if(not is_compiled_with_cuda(),
-                    "x86 test will be skipped due to timeout.")
-class TestFillConstantByValueOp(OpTest):
-    def setUp(self):
-        self.init_case()
-
-    def init_case(self):
-        self.shape = [32]
-        self.value = float(1.0)
-        self.dtype = "float32"
-
-    def build_paddle_program(self, target):
-        x = paddle.full(self.shape, self.value, dtype=self.dtype)
-
-        self.paddle_outputs = [x]
-
-    def build_cinn_program(self, target):
-        builder = NetBuilder("fill_constant")
-        x = builder.fill_constant(self.shape, self.value, "out")
-
-        prog = builder.build()
-        res = self.get_cinn_output(prog, target, [], [], [x])
-
-        self.cinn_outputs = [res[0]]
-
-    def test_check_results(self):
-        self.check_outputs_and_grads(all_equal=True)
-
-
-class TestFillConstantByValueCase1(TestFillConstantByValueOp):
-    def init_case(self):
-        self.shape = [32]
-        self.value = int(1)
-        # only for paddle.full
-        self.dtype = "int32"
-
-
-class TestFillConstantByValueCase2(TestFillConstantByValueOp):
-    def init_case(self):
-        self.shape = [32]
-        self.value = bool(True)
-        # only for paddle.full
-        self.dtype = "bool"
+class TestFillConstantOpStrValue(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestFillConstantOpStrValue"
+        self.cls = TestFillConstantOp
+        self.inputs = [
+            {
+                "shape": [10],
+            },
+            {
+                "shape": [8, 5],
+            },
+            {
+                "shape": [10, 3, 5],
+            },
+            {
+                "shape": [1, 2, 4, 8],
+            },
+        ]
+        self.dtypes = [
+            {
+                "dtype": "float16"
+            },
+            {
+                "dtype": "float32"
+            },
+            {
+                "dtype": "float64"
+            },
+            {
+                "dtype": "bool"
+            },
+            {
+                "dtype": "uint8"
+            },
+            {
+                "dtype": "int32"
+            },
+            {
+                "dtype": "int64"
+            },
+        ]
+        self.attrs = [
+            {
+                "value": "1024"
+            },
+        ]
 
 
 if __name__ == "__main__":
