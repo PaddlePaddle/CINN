@@ -530,38 +530,6 @@ void BindFrontend(pybind11::module *m) {
            py::arg("updates"),
            py::arg("index"),
            py::arg("axis") = 0)
-      .def("scatter",
-           static_cast<Variable (NetBuilder::*)(const Variable &, const Variable &, const Variable &, const int &)>(
-               &NetBuilder::Scatter),
-           py::arg("src"),
-           py::arg("index"),
-           py::arg("out"),
-           py::arg("axis"))
-      .def("scatter",
-           static_cast<Variable (NetBuilder::*)(
-               const Variable &, const Variable &, const std::vector<int> &, const float &, const int &)>(
-               &NetBuilder::Scatter),
-           py::arg("src"),
-           py::arg("index"),
-           py::arg("shape"),
-           py::arg("default_value") = 0,
-           py::arg("axis")          = 0)
-      .def("scatter_nd",
-           static_cast<Variable (NetBuilder::*)(
-               const Variable &, const Variable &, const Variable &, const std::vector<int> &)>(&NetBuilder::ScatterNd),
-           py::arg("src"),
-           py::arg("index"),
-           py::arg("out"),
-           py::arg("axis"))
-      .def("scatter_nd",
-           static_cast<Variable (NetBuilder::*)(
-               const Variable &, const Variable &, const std::vector<int> &, const float &, const std::vector<int> &)>(
-               &NetBuilder::ScatterNd),
-           py::arg("src"),
-           py::arg("index"),
-           py::arg("shape"),
-           py::arg("default_value") = 0,
-           py::arg("axis")          = 0)
       .def("isclose",
            &NetBuilder::IsClose,
            py::arg("x"),
