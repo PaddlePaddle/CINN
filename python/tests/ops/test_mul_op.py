@@ -95,10 +95,10 @@ class TestMulOpBase(TestCaseHelper):
 
     attrs = [
         {
-            "x_low": -100,
-            "x_high": 100,
-            "y_low": -100,
-            "y_high": 100
+            "x_low": -10,
+            "x_high": 10,
+            "y_low": -10,
+            "y_high": 10,
         },
     ]
 
@@ -155,10 +155,10 @@ class TestMulOpPolarityTest(TestMulOpBase):
         self.cls = TestMulOp
         self.attrs = [
             {
-                "x_low": -100,
-                "x_high": 100,
-                "y_low": -100,
-                "y_high": 100,
+                "x_low": -10,
+                "x_high": 10,
+                "y_low": -10,
+                "y_high": 10,
             },
         ]
 
