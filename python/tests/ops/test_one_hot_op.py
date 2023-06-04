@@ -63,7 +63,7 @@ class TestOneHotOp(OpTest):
                                           0,
                                           'off_value',
                                           dtype=self.case["x_dtype"])
-        out = builder.broadcast_to(
+        out = builder.one_hot(
             x,
             on_value,
             off_value,
