@@ -31,59 +31,49 @@ class TestBatchNormTrainOp(OpTest):
 
     def init_case(self):
         self.num_channels = 16
-        self.inputs = {
+        self.inputs = [{
             "x":
             self.random([2, self.num_channels, 8, 8], "float32", 0.0, 1.0),
             "dout":
             self.random([2, self.num_channels, 8, 8], "float32", 1e-7, 1e-6),
-        }
+        }]
 
     def build_paddle_program(self, target):
-        x = paddle.to_tensor(self.inputs["x"])
-        batch_norm = paddle.nn.BatchNorm(
-            self.num_channels, act=None, is_test=False)
-        out = batch_norm(x)
+        for inputs in self.inputs:
+            x = paddle.to_tensor(inputs["x"])
+            batch_norm = paddle.nn.BatchNorm(
+                self.num_channels, act=None, is_test=False)
+            out = batch_norm(x)
 
-        self.paddle_outputs = [out]
+            self.paddle_outputs = [out]
 
     # Note: If the forward and backward operators are run in the same program,
     # the forward result will be incorrect.
     def build_cinn_program(self, target):
-        builder = NetBuilder("batch_norm")
-        x = builder.create_input(
-            self.nptype2cinntype(self.inputs["x"].dtype),
-            self.inputs["x"].shape, "x")
-        scale = builder.fill_constant([self.num_channels], 1.0, 'scale',
-                                      'float32')
-        bias = builder.fill_constant([self.num_channels], 0.0, 'bias',
-                                     'float32')
-        mean = builder.fill_constant([self.num_channels], 0.0, 'mean',
-                                     'float32')
-        variance = builder.fill_constant([self.num_channels], 1.0, 'variance',
+        for inputs in self.inputs:
+            builder = NetBuilder("batch_norm")
+            x = builder.create_input(
+                self.nptype2cinntype(inputs["x"].dtype), inputs["x"].shape,
+                "x")
+            scale = builder.fill_constant([self.num_channels], 1.0, 'scale',
+                                          'float32')
+            bias = builder.fill_constant([self.num_channels], 0.0, 'bias',
                                          'float32')
+            mean = builder.fill_constant([self.num_channels], 0.0, 'mean',
+                                         'float32')
+            variance = builder.fill_constant([self.num_channels], 1.0,
+                                             'variance', 'float32')
 
-        out = builder.batchnorm(x, scale, bias, mean, variance, is_test=False)
+            out = builder.batchnorm(
+                x, scale, bias, mean, variance, is_test=False)
 
-        prog = builder.build()
-        forward_res = self.get_cinn_output(
-            prog, target, [x], [self.inputs["x"]], out, passes=[])
-        self.cinn_outputs = [forward_res[0]]
+            prog = builder.build()
+            forward_res = self.get_cinn_output(
+                prog, target, [x], [inputs["x"]], out, passes=[])
+            self.cinn_outputs.extend(forward_res)
 
     def test_check_results(self):
         self.check_outputs_and_grads()
-
-
-# Reopen after decomposer infer dtype fixed
-class TestBatchNormTrainFP16(TestBatchNormTrainOp):
-    def init_case(self):
-        self.num_channels = 16
-        self.inputs = {
-            "x": self.random([2, self.num_channels, 8, 8], "float16"),
-            "dout": self.random([2, self.num_channels, 8, 8], "float16"),
-        }
-
-    def test_check_results(self):
-        self.check_outputs_and_grads(max_relative_error=1e-3)
 
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
@@ -225,6 +215,20 @@ class TestBatchNormInferOp(OpTest):
 
     def test_check_results(self):
         self.check_outputs_and_grads()
+
+
+class TestBatchNormTrainOpAll(TestBatchNormTrainOp):
+    def init_case(self):
+        for x_shape in [
+            [2, 16, 8, 8],
+        ]:
+            for x_type in ["float16", "float32", "float64"]:
+                self.inputs.append({
+                    "x":
+                    self.random(x_shape, x_type, 0.0, 1.0),
+                    "dout":
+                    self.random(x_shape, x_type, 1e-7, 1e-6),
+                })
 
 
 if __name__ == "__main__":
