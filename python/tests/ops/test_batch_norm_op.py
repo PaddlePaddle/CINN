@@ -45,7 +45,7 @@ class TestBatchNormTrainOp(OpTest):
                 self.num_channels, act=None, is_test=False)
             out = batch_norm(x)
 
-            self.paddle_outputs = [out]
+            self.paddle_outputs.append(out)
 
     # Note: If the forward and backward operators are run in the same program,
     # the forward result will be incorrect.
@@ -219,6 +219,7 @@ class TestBatchNormInferOp(OpTest):
 
 class TestBatchNormTrainOpAll(TestBatchNormTrainOp):
     def init_case(self):
+        self.inputs = []
         for x_shape in [
             [2, 16, 8, 8],
         ]:
