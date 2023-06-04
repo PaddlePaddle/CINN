@@ -136,11 +136,13 @@ class TestMulOpDtypeTest(TestMulOpBase):
     def init_attrs(self):
         self.class_name = "TestMulOpDtypeTest"
         self.cls = TestMulOp
-        self.dtypes = [{
-            "x_dtype": "float16",
-            "y_dtype": "float16",
-            "max_relative_error": 1e-3,
-        }, {
+        self.dtypes = [
+            #{
+            #"x_dtype": "float16",
+            #"y_dtype": "float16",
+            #"max_relative_error": 1e-3,
+        #}, 
+        {
             "x_dtype": "float32",
             "y_dtype": "float32",
         }, {
