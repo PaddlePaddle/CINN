@@ -219,9 +219,10 @@ class TestBatchNormInferOp(OpTest):
 
 class TestBatchNormTrainOpAll(TestBatchNormTrainOp):
     def init_case(self):
+        self.num_channels = 16
         self.inputs = []
         for x_shape in [
-            [2, 16, 8, 8],
+            [2, self.num_channels, 8, 8],
         ]:
             for x_type in ["float16", "float32", "float64"]:
                 self.inputs.append({
