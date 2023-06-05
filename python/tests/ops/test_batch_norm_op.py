@@ -86,19 +86,19 @@ class TestBatchNormTrainFP16(TestBatchNormTrainOp):
         self.check_outputs_and_grads(max_relative_error=1e-3)
 
 
-# CINN ci uses paddle2.4.2 which doesn't soppurt BatchNorm BF16, skip this test until we fix the ci problem
-# class TestBatchNormTrainBF16(TestBatchNormTrainOp):
-#     def init_case(self):
-#         self.num_channels = 16
-#         x = self.random([2, self.num_channels, 8, 8], "bfloat16")
-#         dout = self.random([2, self.num_channels, 8, 8], "bfloat16")
-#         self.inputs = {
-#             "x": x,
-#             "dout": dout_float,
-#         }
+CINN ci uses paddle2.4.2 which doesn't soppurt BatchNorm BF16, skip this test until we fix the ci problem
+class TestBatchNormTrainBF16(TestBatchNormTrainOp):
+    def init_case(self):
+        self.num_channels = 16
+        x = self.random([2, self.num_channels, 8, 8], "bfloat16")
+        dout = self.random([2, self.num_channels, 8, 8], "bfloat16")
+        self.inputs = {
+            "x": x,
+            "dout": dout_float,
+        }
 
-#     def test_check_results(self):
-#         self.check_outputs_and_grads(max_relative_error=1e-2)
+    def test_check_results(self):
+        self.check_outputs_and_grads(max_relative_error=1e-2)
 
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
