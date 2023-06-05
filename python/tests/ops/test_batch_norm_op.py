@@ -86,7 +86,6 @@ class TestBatchNormTrainFP16(TestBatchNormTrainOp):
         self.check_outputs_and_grads(max_relative_error=1e-3)
 
 
-CINN ci uses paddle2.4.2 which doesn't soppurt BatchNorm BF16, skip this test until we fix the ci problem
 class TestBatchNormTrainBF16(TestBatchNormTrainOp):
     def init_case(self):
         self.num_channels = 16
