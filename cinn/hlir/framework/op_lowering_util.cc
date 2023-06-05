@@ -686,6 +686,18 @@ void LoopAssignReduceWithLast(ir::IRSchedule& ir_sch,
   if (lane > max_num_threads) {
     // last reduce axis size > 1024
     if (index == static_cast<int>(axes.size()) - 1) {
+      int tail         = max_num_threads;
+      bool check_bound = true;
+      for (; tail >= max_num_threads / 2; --tail) {
+        if (lane % tail == 0) {
+          check_bound = false;
+          break;
+        }
+      }
+      if (check_bound) {
+        lane = ((lane + max_num_threads - 1) / max_num_threads) * max_num_threads;
+        ir_sch.Split(block_name, axes[index], {lane});
+      }
       int idx = max_num_threads;
       do {
         if (lane % idx == 0) {
