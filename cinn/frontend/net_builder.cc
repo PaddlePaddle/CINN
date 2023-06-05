@@ -112,7 +112,7 @@ Variable NetBuilder::Reduce(const std::string& op_type, const Variable& x, const
       return Identity(x);
     } else {
       CHECK_GE(x->shape.size(), dim.size()) << "The inputs rank should be greater than or equal to axes.";
-      int new_rank = x->shape.size() == dim.size() ? 1 : x->shape.size() - dim.size();
+      int new_rank = x->shape.size() - dim.size();
       std::vector<int> new_shape(new_rank, 1);
       return Reshape(x, new_shape);
     }
