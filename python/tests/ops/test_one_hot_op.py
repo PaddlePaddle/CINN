@@ -36,15 +36,12 @@ class TestOneHotOp(OpTest):
         self.inputs = {
             "X": np.random.random_integers(0, 9, (10)).astype("int64")
         }
-        self.depth = 10
-        self.axis = -1
-        self.dtype = "float32"
         self.x_np = self.random(
             shape=self.case["x_shape"], dtype=self.case["x_dtype"])
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.x_np, stop_gradient=True)
-        out = F.one_hot(x, depth=self.case["depth"])
+        out = F.one_hot(x, num_classes=self.case["num_classes"])
 
         self.paddle_outputs = [out]
 
@@ -89,33 +86,39 @@ class TestOneHotOpTest(TestCaseHelper):
         self.inputs = [
             {
                 "x_shape": [1],
+                "num_classes": 10,
                 "depth": 10,
-                "broadcast_axes": -1,
+                "axis": -1,
             },
             {
                 "x_shape": [1024],
+                "num_classes": 10,
                 "depth": 10,
-                "broadcast_axes": -1,
+                "axis": -1,
             },
             {
                 "x_shape": [32, 64],
+                "num_classes": 10,
                 "depth": 10,
-                "broadcast_axes": -1,
+                "axis": -1,
             },
             {
                 "x_shape": [16, 8, 4],
+                "num_classes": 10,
                 "depth": 10,
                 "broadcast_axes": -1,
             },
             {
                 "x_shape": [16, 8, 4, 2],
+                "num_classes": 10,
                 "depth": 10,
-                "broadcast_axes": -1,
+                "axis": -1,
             },
             {
                 "x_shape": [16, 8, 4, 2, 1],
+                "num_classes": 10,
                 "depth": 10,
-                "broadcast_axes": -1,
+                "axis": -1,
             },
         ]
         self.dtypes = [{
