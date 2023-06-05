@@ -45,7 +45,8 @@ class TestRepeatOp(OpTest):
         }
 
     def build_paddle_program(self, target):
-        x = np.repeat(self.inputs["x"], self.inputs["repeats"], self.inputs["axis"])
+        x = np.repeat(self.inputs["x"], self.inputs["repeats"],
+                      self.inputs["axis"])
         out = paddle.to_tensor(x, stop_gradient=True)
         self.paddle_outputs = [out]
 
