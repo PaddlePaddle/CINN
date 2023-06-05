@@ -130,5 +130,6 @@ class TestNormOpCase(TestCaseHelper):
 
         self.attrs = []
 
+
 if __name__ == "__main__":
     TestNormOpCase().run()
