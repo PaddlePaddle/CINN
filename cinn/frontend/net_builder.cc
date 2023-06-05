@@ -430,33 +430,6 @@ Variable NetBuilder::GatherNd(const Variable& x, const Variable& index) {
   return CustomInstr("gather_nd", {x, index}, {}).front();
 }
 
-Variable NetBuilder::Scatter(const Variable& src, const Variable& index, const Variable& out, const int& axis) {
-  return CustomInstr("scatter", {src, index, out}, {{"axis", axis}}).front();
-}
-Variable NetBuilder::Scatter(const Variable& src,
-                             const Variable& index,
-                             const std::vector<int>& shape,
-                             const float& default_value,
-                             const int& axis) {
-  auto out = FillConstant(shape, default_value, UniqName("fill_constant"), "float", false);
-  return Scatter(src, index, out, axis);
-}
-
-Variable NetBuilder::ScatterNd(const Variable& src,
-                               const Variable& index,
-                               const Variable& out,
-                               const std::vector<int>& axes) {
-  return CustomInstr("scatter_nd", {src, index, out}, {{"axes", axes}}).front();
-}
-Variable NetBuilder::ScatterNd(const Variable& src,
-                               const Variable& index,
-                               const std::vector<int>& shape,
-                               const float& default_value,
-                               const std::vector<int>& axes) {
-  auto out = FillConstant(shape, default_value, UniqName("fill_constant"), "float", false);
-  return ScatterNd(src, index, out, axes);
-}
-
 Variable NetBuilder::Cast(const Variable& operand, const std::string& dtype) {
   return CustomInstr("cast", {operand}, {{"dtype", dtype}}).front();
 }
