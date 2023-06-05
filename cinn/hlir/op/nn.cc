@@ -1317,11 +1317,11 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
   bool adaptive           = false;
   std::string data_format = "NCHW";
   for (auto &iter : attrs.attr_store) {
-    if (iter.first == "origin_kernel_size") {
+    if (iter.first == "kernel_size") {
       kernel_size = absl::get<std::vector<int>>(iter.second);
     } else if (iter.first == "stride_size") {
       stride_size = absl::get<std::vector<int>>(iter.second);
-    } else if (iter.first == "origin_padding_size") {
+    } else if (iter.first == "padding_size") {
       padding_size = absl::get<std::vector<int>>(iter.second);
     } else if (iter.first == "pool_type") {
       pool_type = absl::get<std::string>(iter.second);
@@ -1331,12 +1331,26 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
       exclusive = absl::get<bool>(iter.second);
     } else if (iter.first == "data_format") {
       data_format = absl::get<std::string>(iter.second);
-    } else if (iter.first == "origin_global_pooling") {
+    } else if (iter.first == "global_pooling") {
       global_pooling = absl::get<bool>(iter.second);
-    } else if (iter.first == "origin_adaptive") {
+    } else if (iter.first == "adaptive") {
       adaptive = absl::get<bool>(iter.second);
     }
   }
+  // It can be removed after fixing the global_pool2d problem
+  if (attr_store.count("origin_kernel_size")) {
+    kernel_size = absl::get<std::vector<int>>(attr_store.at("origin_kernel_size"));
+  }
+  if (attr_store.count("origin_padding_size")) {
+    padding_size = absl::get<std::vector<int>>(attr_store.at("origin_padding_size"));
+  }
+  if (attr_store.count("origin_global_pooling")) {
+    global_pooling = absl::get<bool>(attr_store.at("origin_global_pooling"));
+  }
+  if (attr_store.count("origin_adaptive")) {
+    adaptive = absl::get<bool>(attr_store.at("origin_adaptive"));
+  }
+
   CHECK(!kernel_size.empty()) << "kernel_size for pool2d is empty. Please check.\n";
   CHECK(!stride_size.empty()) << "stride_size for pool2d is empty. Please check.\n";
   CHECK(!padding_size.empty()) << "padding_size for pool2d is empty. Please check.\n";
