@@ -141,14 +141,16 @@ class TestMulOpDtypeTest(TestMulOpBase):
             #"x_dtype": "float16",
             #"y_dtype": "float16",
             #"max_relative_error": 1e-3,
-        #}, 
-        {
-            "x_dtype": "float32",
-            "y_dtype": "float32",
-        }, {
-            "x_dtype": "float64",
-            "y_dtype": "float64",
-        }]
+            #},
+            {
+                "x_dtype": "float32",
+                "y_dtype": "float32",
+            },
+            {
+                "x_dtype": "float64",
+                "y_dtype": "float64",
+            }
+        ]
 
 
 class TestMulOpPolarityTest(TestMulOpBase):
