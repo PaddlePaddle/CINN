@@ -33,9 +33,6 @@ class TestOneHotOp(OpTest):
         self.prepare_inputs()
 
     def prepare_inputs(self):
-        self.inputs = {
-            "X": np.random.random_integers(0, 9, (10)).astype("int64")
-        }
         self.x_np = self.random(
             shape=self.case["x_shape"], dtype=self.case["x_dtype"])
 
