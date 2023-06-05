@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import random
 import paddle
 import numpy as np
 from cinn.common import *
@@ -35,6 +34,14 @@ class TestFillConstantOp(OpTest):
         self.shape = self.case["shape"]
         self.value = self.case["value"]
         self.dtype = self.case["dtype"]
+        if isinstance(self.value, str):
+            dtypes = ["bool", "int", "float"]
+            for dtype in dtypes:
+                if dtype in self.dtype:
+                    try:
+                        self.value = eval(f"{dtype}(self.value)")
+                    except:
+                        self.value = eval(f"{dtype}(0)")
 
     def build_paddle_program(self, target):
         if self.dtype == None:
@@ -238,6 +245,9 @@ class TestFillConstantOpStrValue(TestCaseHelper):
         self.attrs = [
             {
                 "value": "1024"
+            },
+            {
+                "value": "0.12345678987654321"
             },
         ]
 

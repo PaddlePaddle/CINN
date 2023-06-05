@@ -32,8 +32,8 @@ class TestCbrtOp(OpTest):
 
     def prepare_inputs(self):
         self.inputs = {
-            "x": self.random(self.case["shape"], self.case["dtype"], -1.0,
-                             1.0),
+            "x":
+            self.random(self.case["shape"], self.case["dtype"], -100.0, 100.0),
         }
 
     def build_paddle_program(self, target):
