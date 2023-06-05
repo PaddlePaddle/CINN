@@ -293,8 +293,8 @@ TEST_F(PerformanceTester, LookupTable) {
 TEST_F(PerformanceTester, Gather) {
   int axis = 3;
 
-  Evaluate(tests::OpBuilder("gather").Build({{"operand", {10, 12, 128, 512}}, {"index", {128}, common::Int(32)}},
-                                            {{"axis", axis}}));
+  Evaluate(tests::OpBuilder("gather").Build(
+      {{"operand", {10, 12, 128, 512}}, {"index", {1, 1, 1, 128}, common::Int(32)}}, {{"axis", axis}}));
 }
 
 // paddle model test
