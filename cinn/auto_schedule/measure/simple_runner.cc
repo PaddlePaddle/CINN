@@ -39,8 +39,6 @@ static const std::unordered_map<std::string, std::vector<int>> kInitWithZeroPara
     {"lookup_table", {1}},
     {"gather", {1}},
     {"gather_nd", {1}},
-    {"scatter", {1}},
-    {"scatter_nd", {1}},
     {"scatter_assign", {2}},
     {"scatter_add", {2}},
 };

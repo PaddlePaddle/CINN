@@ -415,12 +415,13 @@ CONDITION_FUNC(reduce_fuse_broadcast) {
         candidates.pop();
 
         for (auto consumer : helper->GetConsumerNode(candidate)) {
+          if (!visited_set.count(consumer)) {
+            visited_set.insert(consumer);
+            candidates.push(consumer);
+          }
           if (helper->GetOpKind(consumer) == OpPatternKind::kBroadcast &&
               second->NodeSet().find(consumer) != second->NodeSet().end()) {
             broadcasters.insert(consumer);
-          } else if (!visited_set.count(consumer)) {
-            visited_set.insert(consumer);
-            candidates.push(consumer);
           }
         }
       }

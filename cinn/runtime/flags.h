@@ -27,6 +27,8 @@ bool CheckStringFlagFalse(const std::string &flag);
 void SetCinnCudnnDeterministic(bool state);
 bool GetCinnCudnnDeterministic();
 
+bool CanUseNvccCompiler();
+
 class RandomSeed {
  public:
   static unsigned long long GetOrSet(unsigned long long seed = 0);
