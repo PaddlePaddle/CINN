@@ -2067,7 +2067,7 @@ std::shared_ptr<OpStrategy> StrategyForDropoutInfer(const framework::NodeAttr &a
 
 std::vector<std::vector<int>> InferShapeForDropoutInfer(const std::vector<std::vector<int>> &inputs_shape,
                                                         const framework::AttrMapType &attrs) {
-  CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
+  CHECK(!inputs_shape.empty()) << "The input's shape size is 0! Please check again.";
   float dropout_prob                 = 0;
   std::string dropout_implementation = "downgrade_in_infer";
   for (auto &iter : attrs) {
