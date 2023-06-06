@@ -17,12 +17,20 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <nvrtc.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+#include <fstream>
+#include <iostream>
 
 #include "cinn/backends/cuda_util.h"
 #include "cinn/backends/nvrtc/header_generator.h"
 #include "cinn/common/common.h"
+#include "cinn/runtime/flags.h"
 #include "cinn/utils/string.h"
 
+DECLARE_string(cinn_nvcc_cmd_path);
 DECLARE_bool(nvrtc_compile_to_cubin);
 
 namespace cinn {
@@ -30,6 +38,9 @@ namespace backends {
 namespace nvrtc {
 
 std::string Compiler::operator()(const std::string& code, bool include_headers) {
+  if (runtime::CanUseNvccCompiler()) {
+    return CompileWithNvcc(code);
+  }
   return CompileCudaSource(code, include_headers);
 }
 
@@ -138,6 +149,89 @@ std::string Compiler::CompileCudaSource(const std::string& code, bool include_he
 
   NVRTC_CALL(nvrtcDestroyProgram(&prog));
   return data;
+}
+
+std::string Compiler::CompileWithNvcc(const std::string& cuda_c) {
+  // read dir source
+  std::string dir = "./source";
+  if (access(dir.c_str(), 0) == -1) {
+    CHECK(mkdir(dir.c_str(), 7) != -1) << "Fail to mkdir " << dir;
+  }
+
+  // get unqiue prefix name
+  prefix_name_ = dir + "/" + common::UniqName("rtc_tmp");
+
+  auto cuda_c_file = prefix_name_ + ".cu";
+  std::ofstream ofs(cuda_c_file, std::ios::out);
+  CHECK(ofs.is_open()) << "Fail to open file " << cuda_c_file;
+  ofs << cuda_c;
+  ofs.close();
+
+  CompileToPtx();
+  CompileToCubin();
+
+  return prefix_name_ + ".cubin";
+}
+
+// std::string Compiler::GetPtx() { return ReadFile(prefix_name_ + ".ptx", std::ios::in); }
+
+void Compiler::CompileToPtx() {
+  auto include_dir            = common::Context::Global().runtime_include_dir();
+  std::string include_dir_str = "";
+  for (auto dir : include_dir) {
+    if (include_dir_str.empty()) {
+      include_dir_str = dir;
+    } else {
+      include_dir_str += ":" + dir;
+    }
+  }
+
+  std::string options = std::string("export PATH=") + FLAGS_cinn_nvcc_cmd_path +
+                        std::string(":$PATH && nvcc -std=c++14 --ptx -O3 -I ") + include_dir_str;
+  options += " -arch=" + GetDeviceArch();
+  options += " -o " + prefix_name_ + ".ptx";
+  options += " " + prefix_name_ + ".cu";
+
+  VLOG(2) << "Nvcc Compile Options : " << options;
+  CHECK(system(options.c_str()) == 0) << options;
+}
+
+void Compiler::CompileToCubin() {
+  std::string options =
+      std::string("export PATH=") + FLAGS_cinn_nvcc_cmd_path + std::string(":$PATH && nvcc --cubin -O3");
+  options += " -arch=" + GetDeviceArch();
+  options += " -o " + prefix_name_ + ".cubin";
+  options += " " + prefix_name_ + ".ptx";
+
+  VLOG(2) << "Nvcc Compile Options : " << options;
+  CHECK(system(options.c_str()) == 0) << options;
+}
+
+std::string Compiler::GetDeviceArch() {
+  int major = 0, minor = 0;
+  if (cudaDeviceGetAttribute(&major, cudaDevAttrComputeCapabilityMajor, 0) == cudaSuccess &&
+      cudaDeviceGetAttribute(&minor, cudaDevAttrComputeCapabilityMinor, 0) == cudaSuccess) {
+    return "sm_" + std::to_string(major) + std::to_string(minor);
+  } else {
+    LOG(WARNING) << "cannot detect compute capability from your device, "
+                 << "fall back to compute_30.";
+    return "sm_30";
+  }
+}
+
+std::string Compiler::ReadFile(const std::string& file_name, std::ios_base::openmode mode) {
+  // open cubin file
+  std::ifstream ifs(file_name, mode);
+  CHECK(ifs.is_open()) << "Fail to open file " << file_name;
+  ifs.seekg(std::ios::end);
+  auto len = ifs.tellg();
+  ifs.seekg(0);
+
+  // read cubin file
+  std::string file_data(len, ' ');
+  ifs.read(&file_data[0], len);
+  ifs.close();
+  return std::move(file_data);
 }
 
 }  // namespace nvrtc

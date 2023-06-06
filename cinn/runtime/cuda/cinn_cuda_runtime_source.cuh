@@ -685,11 +685,14 @@ CINN_NVGPU_LT_NUM(fp32, float)
 CINN_NVGPU_LT_NUM(fp64, double)
 CINN_NVGPU_LT_NUM(int32, int)
 CINN_NVGPU_LT_NUM(int64, long long int)
+#ifdef CINN_CUDA_FP16
+CINN_NVGPU_LT_NUM(fp16, float16)
+#endif
 
 #undef CINN_NVGPU_LT_NUM
 
-#define CINN_NVGPU_GT_NUM(TYPE_SUFFIX, TYPE)                                                  \
-  __device__ inline int cinn_nvgpu_gt_num_##TYPE_SUFFIX(                                      \
+#define CINN_NVGPU_GT_NUM(TYPE_SUFFIX, TYPE)                                                 \
+  __device__ inline int cinn_nvgpu_gt_num_##TYPE_SUFFIX(                                     \
       const TYPE *buf, const int size, const TYPE num, const int offset, const int stride) { \
     int out = 0;                                                                             \
     for (int i = (size - 1) * stride + offset; i >= offset; i -= stride) {                   \
@@ -702,11 +705,14 @@ CINN_NVGPU_GT_NUM(fp32, float)
 CINN_NVGPU_GT_NUM(fp64, double)
 CINN_NVGPU_GT_NUM(int32, int)
 CINN_NVGPU_GT_NUM(int64, long long int)
+#ifdef CINN_CUDA_FP16
+CINN_NVGPU_GT_NUM(fp16, float16)
+#endif
 
 #undef CINN_NVGPU_GT_NUM
 
-#define CINN_NVGPU_INDEX_ADD(TYPE_SUFFIX, TYPE)                                \
-  __device__ inline TYPE cinn_nvgpu_index_add_##TYPE_SUFFIX(const TYPE x,      \
+#define CINN_NVGPU_INDEX_ADD(TYPE_SUFFIX, TYPE)                               \
+  __device__ inline TYPE cinn_nvgpu_index_add_##TYPE_SUFFIX(const TYPE x,     \
                                             const int axis_indice,            \
                                             const TYPE *__restrict__ y,       \
                                             const int offset,                 \
@@ -724,6 +730,10 @@ CINN_NVGPU_GT_NUM(int64, long long int)
     return res;                                                               \
   }
 
+CINN_NVGPU_INDEX_ADD(bool, bool)
+CINN_NVGPU_INDEX_ADD(int8, int8_t)
+CINN_NVGPU_INDEX_ADD(int32, int32_t)
+CINN_NVGPU_INDEX_ADD(int64, int64_t)
 CINN_NVGPU_INDEX_ADD(fp32, float)
 CINN_NVGPU_INDEX_ADD(fp64, double)
 #ifdef CINN_CUDA_FP16

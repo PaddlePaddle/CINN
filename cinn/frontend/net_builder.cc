@@ -389,7 +389,23 @@ Variable NetBuilder::Select(const Variable& condition, const Variable& true_valu
 }
 
 Variable NetBuilder::Gather(const Variable& operand, const Variable& index, int axis) {
-  return CustomInstr("gather", {operand, index}, {{"axis", axis}}).front();
+  size_t x_ndim = operand->shape.size();
+  if (axis < 0) {
+    axis += static_cast<int>(x_ndim);
+  }
+  CHECK_LT(axis, x_ndim) << "Axis must be in [" << -x_ndim << ", " << x_ndim - 1 << ").";
+  Variable transformed_index = index;
+  // If we got 1-D Tensor, the first step is reshape, in order to keep operand.rank == index.rank
+  if (index->shape.size() == 1) {
+    std::vector<int> index_reshape(x_ndim, 1);
+    index_reshape[axis] = index->shape[0];
+    transformed_index   = Reshape(index, index_reshape);
+  }
+  // Then we need to broadcast transformed index
+  auto broadcast_shape  = operand->shape;
+  broadcast_shape[axis] = transformed_index->shape[axis];
+  transformed_index     = BroadcastTo(transformed_index, broadcast_shape);
+  return CustomInstr("gather", {operand, transformed_index}, {{"axis", axis}}).front();
 }
 
 Variable NetBuilder::ScatterAssign(const Variable& operand, const Variable& updates, const Variable& index, int axis) {
@@ -428,33 +444,6 @@ Variable NetBuilder::ReluGrad(const Variable& lhs, const Variable& rhs) {
 
 Variable NetBuilder::GatherNd(const Variable& x, const Variable& index) {
   return CustomInstr("gather_nd", {x, index}, {}).front();
-}
-
-Variable NetBuilder::Scatter(const Variable& src, const Variable& index, const Variable& out, const int& axis) {
-  return CustomInstr("scatter", {src, index, out}, {{"axis", axis}}).front();
-}
-Variable NetBuilder::Scatter(const Variable& src,
-                             const Variable& index,
-                             const std::vector<int>& shape,
-                             const float& default_value,
-                             const int& axis) {
-  auto out = FillConstant(shape, default_value, UniqName("fill_constant"), "float", false);
-  return Scatter(src, index, out, axis);
-}
-
-Variable NetBuilder::ScatterNd(const Variable& src,
-                               const Variable& index,
-                               const Variable& out,
-                               const std::vector<int>& axes) {
-  return CustomInstr("scatter_nd", {src, index, out}, {{"axes", axes}}).front();
-}
-Variable NetBuilder::ScatterNd(const Variable& src,
-                               const Variable& index,
-                               const std::vector<int>& shape,
-                               const float& default_value,
-                               const std::vector<int>& axes) {
-  auto out = FillConstant(shape, default_value, UniqName("fill_constant"), "float", false);
-  return ScatterNd(src, index, out, axes);
 }
 
 Variable NetBuilder::Cast(const Variable& operand, const std::string& dtype) {
@@ -557,6 +546,81 @@ Variable NetBuilder::DepthwiseConv2d(const Variable& a,
       .front();
 }
 
+std::vector<int> UpdatePool2dKernelSize(const std::vector<int>& x_shape,
+                                        const std::vector<int>& ksize,
+                                        const bool global_pooling,
+                                        const std::string& data_format) {
+  std::vector<int> new_ksize{ksize};
+  // Setting h/w_axis according to data_format
+  int height_axis = -1;
+  int width_axis  = -1;
+  if (data_format == "NCHW") {
+    height_axis = 2;
+    width_axis  = 3;
+  } else if (data_format == "NHWC") {
+    height_axis = 1;
+    width_axis  = 2;
+  } else {
+    LOG(FATAL) << "Unsupport data_format: " << data_format;
+  }
+  if (global_pooling) {
+    new_ksize[0] = x_shape[height_axis];
+    new_ksize[1] = x_shape[width_axis];
+  }
+  return new_ksize;
+}
+
+std::vector<int> UpdatePool2dPaddings(const std::vector<int>& paddings,
+                                      const std::vector<int>& x_shape,
+                                      const std::vector<int>& ksize,
+                                      const std::vector<int>& stride,
+                                      const bool global_pooling,
+                                      const bool adaptive,
+                                      const std::string& padding_algorithm,
+                                      const std::string& data_format) {
+  std::vector<int> new_paddings{paddings};
+  if (paddings.size() == 2) {
+    new_paddings.insert(new_paddings.end(), paddings.begin(), paddings.end());
+  }
+  CHECK_EQ(new_paddings.size(), 4) << "Padding size must be 2 or 4, but got: " << paddings.size();
+  // Setting h/w_axis according to data_format
+  int height_axis = -1;
+  int width_axis  = -1;
+  if (data_format == "NCHW") {
+    height_axis = 2;
+    width_axis  = 3;
+  } else if (data_format == "NHWC") {
+    height_axis = 1;
+    width_axis  = 2;
+  } else {
+    LOG(FATAL) << "Unsupport data_format: " << data_format;
+  }
+  // When padding_algorithm is VALID, set paddings to [0, 0, 0, 0].
+  // When padding_algorithm is SAME, the calculation formula of padding is as follows:
+  // output_h/w = ceil(input_h/w / stride_h/w)
+  // padding_sum_h/w = (output_h/w - 1) * stride_h/w + kernel_h/w - input_h/w
+  // padding_top/left = padding_sum_h/w / 2;
+  // padding_bottom/right = padding_sum_h/w - padding_top/left
+  if (padding_algorithm == "VALID") {
+    new_paddings = {0, 0, 0, 0};
+  } else if (padding_algorithm == "SAME") {
+    int out_size_h = (x_shape[height_axis] + stride[0] - 1) / stride[0];
+    int out_size_w = (x_shape[width_axis] + stride[1] - 1) / stride[1];
+    int pad_sum_h  = std::max((out_size_h - 1) * stride[0] + ksize[0] - x_shape[height_axis], 0);
+    int pad_sum_w  = std::max((out_size_w - 1) * stride[1] + ksize[1] - x_shape[width_axis], 0);
+    int pad_top    = pad_sum_h / 2;
+    int pad_bottom = pad_sum_h - pad_top;
+    int pad_left   = pad_sum_w / 2;
+    int pad_right  = pad_sum_w - pad_left;
+    new_paddings   = {pad_top, pad_left, pad_bottom, pad_right};
+  }
+  // When global_pooling or adaptive is true, set paddings to [0, 0, 0, 0].
+  if (global_pooling || adaptive) {
+    new_paddings = {0, 0, 0, 0};
+  }
+  return new_paddings;
+}
+
 Variable NetBuilder::Pool2d(const Variable& a,
                             const std::string& pooling_type,
                             const std::vector<int>& ksize,
@@ -568,23 +632,66 @@ Variable NetBuilder::Pool2d(const Variable& a,
                             const std::string& data_format,
                             bool adaptive,
                             const std::string& padding_algorithm) {
+  // Check input dim
+  CHECK_EQ(a->shape.size(), 4) << "Input's dim must be 4, but " << a->id << "'s shape is ["
+                               << cinn::utils::Join(a->shape, ", ") << "].";
+  // Transform pool_type
   std::string pool_type;
   std::transform(pooling_type.begin(), pooling_type.end(), std::back_inserter(pool_type), [](unsigned char c) {
     return std::tolower(c);
   });
-  return CustomInstr("pool2d",
-                     {a},
-                     {{"pool_type", pool_type},
-                      {"kernel_size", ksize},
-                      {"stride_size", strides},
-                      {"padding_size", paddings},
-                      {"ceil_mode", ceil_mode},
-                      {"exclusive", exclusive},
-                      {"global_pooling", global_pooling},
-                      {"data_format", data_format},
-                      {"adaptive", adaptive},
-                      {"padding_algorithm", padding_algorithm}})
-      .front();
+  CHECK(pool_type == "avg" || pool_type == "max") << "Pool_type must be avg or max, but got: " << pool_type;
+  // Transform ksize
+  std::vector<int> input_ksize{ksize};
+  if (input_ksize.size() == 1) {
+    input_ksize.insert(input_ksize.end(), ksize.begin(), ksize.end());
+  }
+  CHECK_EQ(input_ksize.size(), 2) << "Kernel_size length must be 1 or 2, but got: " << ksize.size();
+  // Transform stride
+  std::vector<int> new_strides{strides};
+  if (new_strides.size() == 1) {
+    new_strides.insert(new_strides.end(), strides.begin(), strides.end());
+  }
+  CHECK_EQ(new_strides.size(), 2) << "Stride length must be 1 or 2, but got: " << strides.size();
+  CHECK(new_strides[0] > 0 && new_strides[1] > 0) << "the value of kernel size for pool2d should greater than 0.";
+  // Transform data_format
+  std::string new_data_format{data_format};
+  if (new_data_format == "AnyLayout") {
+    new_data_format.assign("NCHW");
+  }
+  CHECK(new_data_format == "NCHW" || new_data_format == "NHWC")
+      << "Data_format must be AnyLayout/NCHW/NHWC, but got: " << data_format;
+  // Check padding_algorithm
+  CHECK(padding_algorithm == "EXPLICIT" || padding_algorithm == "SAME" || padding_algorithm == "VALID")
+      << "Padding_algorithm must be EXPLICIT/SAME/VALID, but got: " << padding_algorithm;
+  utils::AttributeMap attrs = {{"pool_type", pool_type},
+                               {"origin_kernel_size", input_ksize},
+                               {"stride_size", new_strides},
+                               {"origin_padding_size", paddings},
+                               {"ceil_mode", ceil_mode},
+                               {"exclusive", exclusive},
+                               {"origin_global_pooling", global_pooling},
+                               {"data_format", new_data_format},
+                               {"origin_adaptive", adaptive},
+                               {"padding_algorithm", padding_algorithm}};
+  // In avg_pool2d, if global_pooling = false, adaptive = true and ksize is [1, 1], we turn off adaptive and use global
+  // pooling instead
+  if (pooling_type == "avg" && !global_pooling && adaptive && input_ksize[0] == 1 && input_ksize[1] == 1) {
+    VLOG(4) << "In avg_pool2d, got global_pooling = false, adaptive = true, ksize = [1, 1], turn off adaptive and "
+               "trans to global_pooling";
+    adaptive       = false;
+    global_pooling = true;
+  }
+  // Transform paddings
+  auto new_paddings = UpdatePool2dPaddings(
+      paddings, a->shape, input_ksize, new_strides, global_pooling, adaptive, padding_algorithm, new_data_format);
+  // Update kernel_size
+  auto new_ksize          = UpdatePool2dKernelSize(a->shape, input_ksize, global_pooling, new_data_format);
+  attrs["kernel_size"]    = new_ksize;
+  attrs["padding_size"]   = new_paddings;
+  attrs["adaptive"]       = adaptive;
+  attrs["global_pooling"] = global_pooling;
+  return CustomInstr("pool2d", {a}, attrs).front();
 }
 
 Variable NetBuilder::Pool2dGrad(const Variable& x,
@@ -600,20 +707,58 @@ Variable NetBuilder::Pool2dGrad(const Variable& x,
                                 const std::string& data_format,
                                 bool adaptive,
                                 const std::string& padding_algorithm) {
+  // Transform pool_type
   std::string pool_type;
   std::transform(pooling_type.begin(), pooling_type.end(), std::back_inserter(pool_type), [](unsigned char c) {
     return std::tolower(c);
   });
+  CHECK(pool_type == "avg" || pool_type == "max") << "Pool_type must be avg or max, but got: " << pool_type;
+  // Transform ksize
+  std::vector<int> input_ksize{ksize};
+  if (input_ksize.size() == 1) {
+    input_ksize.insert(input_ksize.end(), ksize.begin(), ksize.end());
+  }
+  CHECK_EQ(input_ksize.size(), 2) << "Kernel_size length must be 1 or 2, but got: " << ksize.size();
+  // Transform stride
+  std::vector<int> new_strides{strides};
+  if (new_strides.size() == 1) {
+    new_strides.insert(new_strides.end(), strides.begin(), strides.end());
+  }
+  CHECK_EQ(new_strides.size(), 2) << "Stride length must be 1 or 2, but got: " << strides.size();
+  CHECK(new_strides[0] > 0 && new_strides[1] > 0) << "the value of kernel size for pool2d should greater than 0.";
+  // Transform data_format
+  std::string new_data_format{data_format};
+  if (new_data_format == "AnyLayout") {
+    new_data_format.assign("NCHW");
+  }
+  CHECK(new_data_format == "NCHW" || new_data_format == "NHWC")
+      << "Data_format must be AnyLayout/NCHW/NHWC, but got: " << data_format;
+  // Check padding_algorithm
+  CHECK(padding_algorithm == "EXPLICIT" || padding_algorithm == "SAME" || padding_algorithm == "VALID")
+      << "Padding_algorithm must be EXPLICIT/SAME/VALID, but got: " << padding_algorithm;
+  // In avg_pool2d, if global_pooling = false, adaptive = true and ksize is [1, 1], we turn off adaptive and use global
+  // pooling instead
+  if (pooling_type == "avg" && !global_pooling && adaptive && input_ksize[0] == 1 && input_ksize[1] == 1) {
+    VLOG(4) << "In avg_pool2d, got global_pooling = false, adaptive = true, ksize = [1, 1], turn off adaptive and "
+               "trans to global_pooling";
+    adaptive       = false;
+    global_pooling = true;
+  }
+  // Transform paddings
+  auto new_paddings = UpdatePool2dPaddings(
+      paddings, x->shape, input_ksize, new_strides, global_pooling, adaptive, padding_algorithm, new_data_format);
+  // Update kernel_size
+  auto new_ksize = UpdatePool2dKernelSize(x->shape, input_ksize, global_pooling, new_data_format);
   return CustomInstr("pool2d_grad",
                      {x, y, dy},
                      {{"pool_type", pool_type},
-                      {"kernel_size", ksize},
-                      {"stride_size", strides},
-                      {"padding_size", paddings},
+                      {"kernel_size", new_ksize},
+                      {"stride_size", new_strides},
+                      {"padding_size", new_paddings},
                       {"ceil_mode", ceil_mode},
                       {"exclusive", exclusive},
                       {"global_pooling", global_pooling},
-                      {"data_format", data_format},
+                      {"data_format", new_data_format},
                       {"adaptive", adaptive},
                       {"padding_algorithm", padding_algorithm}})
       .front();

@@ -47,9 +47,9 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
                                               const std::vector<std::vector<int>> &output_shapes,
                                               const Target &target) {
   const auto &attr_store = attrs.attr_store;
-  bool trans_a           = GetAttr(attr_store, "trans_a", false);
-  bool trans_b           = GetAttr(attr_store, "trans_b", false);
-  float alpha            = GetAttr(attr_store, "alpha", 1.0f);
+  bool trans_a           = SafeGetAttr(attr_store, "trans_a", false);
+  bool trans_b           = SafeGetAttr(attr_store, "trans_b", false);
+  float alpha            = SafeGetAttr(attr_store, "alpha", 1.0f);
 
   const auto &shape_A = ToPodVector<int>(inputs[0]->shape);
   const auto &shape_B = ToPodVector<int>(inputs[1]->shape);
@@ -147,8 +147,8 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
 std::vector<std::vector<int>> InferShapeForMatMul(const std::vector<std::vector<int>> &inputs_shape,
                                                   const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 2UL) << "The input's shape size should be 2! Please check again.";
-  bool trans_a = GetAttr(attrs, "trans_a", false);
-  bool trans_b = GetAttr(attrs, "trans_b", false);
+  bool trans_a = SafeGetAttr(attrs, "trans_a", false);
+  bool trans_b = SafeGetAttr(attrs, "trans_b", false);
 
   VLOG(4) << "During the matmul shape inference, origin shape_A: " << utils::Join(inputs_shape[0], ", ");
   VLOG(4) << "During the matmul shape inference, origin shape_B: " << utils::Join(inputs_shape[1], ", ");
@@ -493,9 +493,9 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
                                            const Target &target) {
   CHECK_EQ(inputs.size(), 2UL) << "mul should have 2 input";
   const auto &attr_store = attrs.attr_store;
-  int x_num_col_dims     = GetAttr(attr_store, "x_num_col_dims", 1);
-  int y_num_col_dims     = GetAttr(attr_store, "y_num_col_dims", 1);
-  bool is_infer          = GetAttr(attr_store, "is_infer", false);
+  int x_num_col_dims     = SafeGetAttr(attr_store, "x_num_col_dims", 1);
+  int y_num_col_dims     = SafeGetAttr(attr_store, "y_num_col_dims", 1);
+  bool is_infer          = SafeGetAttr(attr_store, "is_infer", false);
 
   const auto &shape_A = ToPodVector<int>(inputs[0]->shape);
   const auto &shape_B = ToPodVector<int>(inputs[1]->shape);
@@ -598,9 +598,9 @@ std::vector<std::vector<int>> InferShapeForMul(const std::vector<std::vector<int
   VLOG(4) << "During the matmul shape inference, origin shape_A: " << utils::Join(inputs_shape[0], ", ");
   VLOG(4) << "During the matmul shape inference, origin shape_B: " << utils::Join(inputs_shape[1], ", ");
 
-  int x_num_col_dims = GetAttr(attrs, "x_num_col_dims", 1);
-  int y_num_col_dims = GetAttr(attrs, "y_num_col_dims", 1);
-  bool is_infer      = GetAttr(attrs, "is_infer", false);
+  int x_num_col_dims = SafeGetAttr(attrs, "x_num_col_dims", 1);
+  int y_num_col_dims = SafeGetAttr(attrs, "y_num_col_dims", 1);
+  bool is_infer      = SafeGetAttr(attrs, "is_infer", false);
 
   const auto &new_shape = pe::utils::GetMulNewShapes(inputs_shape, x_num_col_dims, y_num_col_dims, is_infer);
 
@@ -1088,24 +1088,17 @@ std::shared_ptr<OpStrategy> StrategyForGather(const framework::NodeAttr &attrs,
 std::vector<std::vector<int>> InferShapeForGather(const std::vector<std::vector<int>> &inputs_shape,
                                                   const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 2U) << "The inputs' shape size should be equal to 2! Please check again.";
-  int axis = 0;
-  if (attrs.contains("axis")) {
-    axis = absl::get<int>(attrs.at("axis"));
-  }
-  if (axis < 0) {
-    axis += static_cast<int>(inputs_shape[0].size());
-  }
+  std::vector<int> x_shape     = inputs_shape[0];
+  std::vector<int> index_shape = inputs_shape[1];
+  int axis                     = absl::get<int>(attrs.at("axis"));
   VLOG(4) << "The axis value used in Gather: " << axis;
 
-  CHECK(axis >= 0 && axis < static_cast<int>(inputs_shape[0].size()))
-      << "The attribute `axis` in Gather should be >= 0 and < the size of the first input shape! Please check "
-         "again.";
+  CHECK(axis >= 0 && axis < static_cast<int>(x_shape.size()))
+      << "The attribute `axis` in Gather should be >= 0 and < the size of the first input shape! Please check again.";
 
-  std::vector<int> output_shape = inputs_shape[0];
-  CHECK_EQ(inputs_shape[1].size(), 1U) << "The index should be a 1-D Tensor.";
-  CHECK_GT(inputs_shape[1][0], 0) << "The length of the index should be greater than 0.";
-  output_shape[axis] = inputs_shape[1][0];
-  VLOG(4) << "The output calculated in InferShapeForGather: " << utils::Join(output_shape, ", ");
+  std::vector<int> output_shape = x_shape;
+  output_shape[axis]            = index_shape[axis];
+  VLOG(4) << "The output shape of gather: " << utils::Join(output_shape, ", ");
 
   return {std::move(output_shape)};
 }
@@ -1446,14 +1439,14 @@ std::vector<std::vector<int>> InferShapeForSlice(const std::vector<std::vector<i
   for (int i = 0; i < axes.size(); i++) {
     if (ends[i] < 0) {
       ends[i] = output_shape[axes[i]] + ends[i];
-    }
-    if (starts[i] < 0) {
-      starts[i] = output_shape[axes[i]] + starts[i];
-    }
-    if (ends[i] > output_shape[axes[i]]) {
+    } else if (ends[i] > output_shape[axes[i]]) {
       ends[i] = output_shape[axes[i]];
     }
-    if (starts[i] > output_shape[axes[i]]) {
+    if (starts[i] < -output_shape[axes[i]]) {
+      starts[i] = 0;
+    } else if (starts[i] < 0) {
+      starts[i] = output_shape[axes[i]] + starts[i];
+    } else if (starts[i] > output_shape[axes[i]]) {
       starts[i] = output_shape[axes[i]] - 1;
     }
 
@@ -1701,12 +1694,7 @@ CINN_REGISTER_HELPER(transform_ops) {
   CINN_REGISTER_OP(mul)
       .describe("This operator is used to perform matrix multiplication for input X and Y.")
       .set_num_inputs(2)
-#ifdef CINN_WITH_CUDNN
-      // Revert changes in PR #990 to pass the model unittests
       .set_num_outputs(2)
-#else
-      .set_num_outputs(2)
-#endif
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForMul)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForMul))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForMul))

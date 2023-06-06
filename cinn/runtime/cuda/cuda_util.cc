@@ -591,7 +591,9 @@ std::string debug_cudnn_pool_mode(cudnnPoolingMode_t pool_mode) {
     case CUDNN_POOLING_MAX_DETERMINISTIC:
       return "max_deterministic";
     case CUDNN_POOLING_AVERAGE_COUNT_INCLUDE_PADDING:
-      return "avg";
+      return "avg_include_padding";
+    case CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING:
+      return "avg_exclulude_padding";
     default:
       LOG(FATAL) << "Pool only support max and avg now!";
   };
@@ -1025,7 +1027,13 @@ void cinn_call_cudnn_pool2d_forward(void *v_args,
   CUDNN_CALL(cudnnCreateTensorDescriptor(&y_desc));
   CUDNN_CALL(cudnnSetTensor4dDescriptor(y_desc, tensor_format, data_type, output_n, output_c, output_h, output_w));
 
-  CUDNN_CALL(cudnnPoolingForward(handle, pool_desc, &alpha, x_desc, _x, &beta, y_desc, _y));
+  if (data_type == CUDNN_DATA_DOUBLE) {
+    const double alpha_fp64 = static_cast<double>(alpha);
+    const double beta_fp64  = static_cast<double>(beta);
+    CUDNN_CALL(cudnnPoolingForward(handle, pool_desc, &alpha_fp64, x_desc, _x, &beta_fp64, y_desc, _y));
+  } else {
+    CUDNN_CALL(cudnnPoolingForward(handle, pool_desc, &alpha, x_desc, _x, &beta, y_desc, _y));
+  }
 
   CUDNN_CALL(cudnnDestroyPoolingDescriptor(pool_desc));
   CUDNN_CALL(cudnnDestroyTensorDescriptor(x_desc));
@@ -1095,7 +1103,15 @@ void cinn_call_cudnn_pool2d_backward(void *v_args,
   CUDNN_CALL(cudnnCreateTensorDescriptor(&y_desc));
   CUDNN_CALL(cudnnSetTensor4dDescriptor(y_desc, tensor_format, data_type, output_n, output_c, output_h, output_w));
 
-  CUDNN_CALL(cudnnPoolingBackward(handle, pool_desc, &alpha, y_desc, _y, y_desc, _dy, x_desc, _x, &beta, x_desc, _dx));
+  if (data_type == CUDNN_DATA_DOUBLE) {
+    const double alpha_fp64 = static_cast<double>(alpha);
+    const double beta_fp64  = static_cast<double>(beta);
+    CUDNN_CALL(cudnnPoolingBackward(
+        handle, pool_desc, &alpha_fp64, y_desc, _y, y_desc, _dy, x_desc, _x, &beta_fp64, x_desc, _dx));
+  } else {
+    CUDNN_CALL(
+        cudnnPoolingBackward(handle, pool_desc, &alpha, y_desc, _y, y_desc, _dy, x_desc, _x, &beta, x_desc, _dx));
+  }
 
   CUDNN_CALL(cudnnDestroyPoolingDescriptor(pool_desc));
   CUDNN_CALL(cudnnDestroyTensorDescriptor(x_desc));
@@ -2170,13 +2186,18 @@ void cinn_gpu_cudnn_pool2d(const std::vector<int> &attrs,
   CUDNN_CALL(
       cudnnSetTensor4dDescriptor(out_desc, CUDNN_TENSOR_NCHW, data_type, output_n, output_c, output_h, output_w));
 
-  float alpha = 1.0f;
-  float beta  = 0.0f;
-
   void *in_data  = input->memory;
   void *out_data = output->memory;
 
-  CUDNN_CALL(cudnnPoolingForward(handle, pooling_desc, &alpha, in_desc, in_data, &beta, out_desc, out_data));
+  if (data_type == CUDNN_DATA_DOUBLE) {
+    double alpha = 1.0f;
+    double beta  = 0.0f;
+    CUDNN_CALL(cudnnPoolingForward(handle, pooling_desc, &alpha, in_desc, in_data, &beta, out_desc, out_data));
+  } else {
+    float alpha = 1.0f;
+    float beta  = 0.0f;
+    CUDNN_CALL(cudnnPoolingForward(handle, pooling_desc, &alpha, in_desc, in_data, &beta, out_desc, out_data));
+  }
 
   cudnnDestroyTensorDescriptor(in_desc);
   cudnnDestroyTensorDescriptor(out_desc);

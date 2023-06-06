@@ -915,10 +915,11 @@ ir::Tensor Slice(const ir::Tensor& A,
   }
   std::vector<int> new_starts(starts);
   for (int i = 0; i < axes.size(); i++) {
-    if (new_starts[i] < 0) {
+    if (new_starts[i] < -input_shape[axes[i]]) {
+      new_starts[i] = 0;
+    } else if (new_starts[i] < 0) {
       new_starts[i] = input_shape[axes[i]] + new_starts[i];
-    }
-    if (new_starts[i] > input_shape[axes[i]]) {
+    } else if (new_starts[i] > input_shape[axes[i]]) {
       new_starts[i] = input_shape[axes[i]] - 1;
     }
   }
@@ -1046,7 +1047,7 @@ ir::Tensor Gather(const ir::Tensor& x,
                   const std::vector<Expr>& output_shape,
                   int axis,
                   const std::string& name) {
-  CHECK_EQ(1, static_cast<int>(index->shape.size())) << "The index should be a 1-D Tensor.";
+  CHECK_EQ(x->shape.size(), index->shape.size()) << "The rank of x and index must be same.";
   // The implementation details are explained below.
   // If output_shape = [2, 4, 3] and axis = 0, `Compute` can be translated as the following code:
   // {
@@ -1056,7 +1057,7 @@ ir::Tensor Gather(const ir::Tensor& x,
   //     {
   //       for (k, 0, 3)
   //       {
-  //         index_select_output[i, j, k] = X[int32(Index[i]), j, k]
+  //         index_select_output[i, j, k] = X[int32(Index[i, j, k]), j, k]
   //       }
   //     }
   //   }
@@ -1070,7 +1071,7 @@ ir::Tensor Gather(const ir::Tensor& x,
         // The element type of index maybe int64, but the index type is limited to int32 in CINN.
         // See the below link for more details:
         // https://github.com/PaddlePaddle/CINN/blob/85ab4981a38926dc5c1dbf672762cec335d2b857/cinn/ir/ir.cc#L477
-        transformed_indice[axis] = ir::Cast::Make(common::Int(32), index(indice[axis]));
+        transformed_indice[axis] = ir::Cast::Make(common::Int(32), index(indice));
         return x(transformed_indice);
       },
       name);

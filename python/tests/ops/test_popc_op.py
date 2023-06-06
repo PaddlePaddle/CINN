@@ -14,36 +14,54 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
 import numpy as np
-from op_test import OpTest, OpTestTool
 import paddle
-import cinn
-from cinn.frontend import *
 from cinn.common import *
+from cinn.frontend import *
+from op_test import OpTest, OpTestTool
+from op_test_helper import TestCaseHelper
+
+INT32_MAX = (1 << 31) - 1
+INT32_MIN = -(1 << 31)
+INT64_MAX = (1 << 63) - 1
+INT64_MIN = -(1 << 63)
+
+
+def popcount(integer, dtype):
+    if dtype == "int32":
+        bits = 32
+    elif dtype == "int64":
+        bits = 64
+    else:
+        raise NotImplementedError
+    ones = bin(integer).count("1")
+    if integer > 0:
+        return ones
+    else:
+        trailing_zeros = 0
+        mask = 1
+        while trailing_zeros < bits and ((integer & mask) == 0):
+            trailing_zeros += 1
+            mask <<= 1
+        return bits - ones - trailing_zeros + 1
 
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
                     "x86 test will be skipped due to timeout.")
 class TestPopcOp(OpTest):
     def setUp(self):
-        self.init_case()
+        print(f"\nRunning {self.__class__.__name__}: {self.case}")
+        self.inputs = {}
+        self.prepare_inputs()
 
-    def init_case(self):
-        self.inputs = {
-            # "x": self.random([32, 64], 'int32', low = -2147483648, high=2147483647)
-            "x":
-            np.array([
-                -1591895863, -1770335025, -1290313501, 478042597, 189030958,
-                -935228100, 718518127, -2066013593, -1028229638, -1930307001,
-                -858478166, -282304333
-            ]).astype(np.int32)
-        }
-        self.outputs = {
-            "y":
-            np.array([14, 19, 16, 18, 12, 13, 20, 15, 19, 17, 16,
-                      17]).astype(np.int32)
-        }
+    def prepare_inputs(self):
+        dtype = self.case["dtype"]
+        low = INT32_MIN if dtype == "int32" else INT64_MIN
+        high = INT32_MAX if dtype == "int32" else INT64_MAX
+        x = self.random(self.case["shape"], dtype, low=low, high=high)
+        y = list(map(lambda num: popcount(num, dtype), x.reshape(-1).tolist()))
+        self.inputs = {"x": x}
+        self.outputs = {"y": np.array(y).reshape(x.shape).astype(dtype)}
 
     def build_paddle_program(self, target):
         y = paddle.to_tensor(self.outputs["y"], stop_gradient=False)
@@ -58,49 +76,64 @@ class TestPopcOp(OpTest):
         prog = builder.build()
         res = self.get_cinn_output(prog, target, [x], [self.inputs["x"]],
                                    [out])
-        self.cinn_outputs = [res[0]]
+        self.cinn_outputs = res
 
     def test_check_results(self):
         self.check_outputs_and_grads()
 
 
-class TestPopcCase1(TestPopcOp):
-    def init_case(self):
-        self.inputs = {
-            # "x": self.random([48, 36], 'int32', low = -2147483648, high=2147483647)
-            "x":
-            np.array([[
-                -780762106, 2088944770, 1793870564, 995233974, -1566864405,
-                -1550063384
-            ],
-                      [
-                          58189437, -585656506, 1058816786, -1676158651,
-                          -175192886, 2129254990
-                      ]]).astype(np.int32)
-        }
-        self.outputs = {
-            "y":
-            np.array([[13, 12, 16, 14, 18, 17], [19, 18, 14, 16, 17,
-                                                 20]]).astype(np.int32)
-        }
-
-
-class TestPopcCase2(TestPopcOp):
-    def init_case(self):
-        self.inputs = {
-            # "x": self.random([4, 3, 5, 8], 'int64', low = -9223372036854775808, high=9223372036854775807)
-            "x":
-            np.array([
-                -2603587548323400654, 5370659515557365091,
-                -2051413160116828951, 9015154622229049624,
-                -8328245342679021727, -8113334794330105534,
-                7187230222985732039, 1835610600500058242
-            ]).astype(np.int64)
-        }
-        self.outputs = {
-            "y": np.array([34, 32, 34, 32, 29, 31, 34, 32]).astype(np.int64)
-        }
+class TestPopcOpShapeDtype(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestPopcOpShapeDtype"
+        self.cls = TestPopcOp
+        self.inputs = [
+            {
+                "shape": [10],
+            },
+            {
+                "shape": [8, 5],
+            },
+            {
+                "shape": [10, 3, 5],
+            },
+            {
+                "shape": [80, 40, 5, 7],
+            },
+            {
+                "shape": [80, 1, 5, 7],
+            },
+            {
+                "shape": [80, 3, 1024, 7],
+            },
+            {
+                "shape": [10, 5, 2048, 2],
+            },
+            {
+                "shape": [1],
+            },
+            {
+                "shape": [512],
+            },
+            {
+                "shape": [1024],
+            },
+            {
+                "shape": [2048],
+            },
+            {
+                "shape": [1, 1, 1, 1],
+            },
+        ]
+        self.dtypes = [
+            {
+                "dtype": "int32"
+            },
+            {
+                "dtype": "int64"
+            },
+        ]
+        self.attrs = []
 
 
 if __name__ == "__main__":
-    unittest.main()
+    TestPopcOpShapeDtype().run()
