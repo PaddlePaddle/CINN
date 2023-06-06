@@ -14,100 +14,191 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
 import numpy as np
 from op_test import OpTest, OpTestTool
+from op_test_helper import TestCaseHelper
 import paddle
-import paddle.nn.functional as F
 import cinn
 from cinn.frontend import *
 from cinn.common import *
-import sys
 
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
                     "x86 test will be skipped due to timeout.")
 class TestIsCloseOp(OpTest):
     def setUp(self):
-        self.init_case()
+        # print(f"\n{self.__class__.__name__}: {self.case}")
+        self.prepare_inputs()
 
-    def init_case(self):
-        self.inputs = {"x": self.random([16, 16], "float32")}
-        self.inputs['y'] = self.inputs["x"]
-        self.rtol = 1e-05
-        self.atol = 1e-08
-        self.equal_nan = False
+    def prepare_inputs(self):
+        if self.case["nan_as_input"]:
+            self.x_np = np.full(shape=self.case["shape"], fill_value=np.nan)
+        else:
+            self.x_np = self.random(
+                shape=self.case["shape"], dtype=self.case["dtype"])
+        self.y_np = self.x_np.copy()
 
     def build_paddle_program(self, target):
-        x = paddle.to_tensor(self.inputs["x"], stop_gradient=False)
-        y = paddle.to_tensor(self.inputs["y"], stop_gradient=False)
-
+        x = paddle.to_tensor(self.x_np, stop_gradient=False)
+        y = paddle.to_tensor(self.y_np, stop_gradient=False)
         shape = paddle.broadcast_shape(x.shape, y.shape)
         x = paddle.broadcast_to(x, shape)
         y = paddle.broadcast_to(y, shape)
-
-        out = paddle.isclose(x, y, self.rtol, self.atol, self.equal_nan)
+        out = paddle.isclose(x, y, self.case["rtol"], self.case["atol"],
+                             self.case["equal_nan"])
         self.paddle_outputs = [out]
 
     def build_cinn_program(self, target):
         builder = NetBuilder("isclose")
-
-        x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
-        y = builder.create_input(Float(32), self.inputs["y"].shape, "y")
-        out = builder.isclose(x, y, self.rtol, self.atol, self.equal_nan)
+        x = builder.create_input(
+            self.nptype2cinntype(self.x_np.dtype), self.x_np.shape, "x")
+        y = builder.create_input(
+            self.nptype2cinntype(self.y_np.dtype), self.y_np.shape, "y")
+        out = builder.isclose(x, y, self.case["rtol"], self.case["atol"],
+                              self.case["equal_nan"])
         prog = builder.build()
-        forward_res = self.get_cinn_output(
-            prog, target, [x, y], [self.inputs["x"], self.inputs["y"]], [out])
-
-        self.cinn_outputs = forward_res
+        res = self.get_cinn_output(prog, target, [x, y],
+                                   [self.x_np, self.y_np], [out])
+        self.cinn_outputs = res
 
     def test_check_results(self):
-        self.check_outputs_and_grads()
+        self.check_outputs_and_grads(all_equal=True)
 
 
-class TestIsCloseOpCase1(TestIsCloseOp):
-    def init_case(self):
-        self.inputs = {
-            "x": self.random([16, 16], "float32"),
-            "y": self.random([16, 16], "float32")
-        }
-        self.rtol = 1e-05
-        self.atol = 1e-08
-        self.equal_nan = False
+class TestIsCloseShape(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestIsCloseOpCase"
+        self.cls = TestIsCloseOp
+        self.inputs = [
+            {
+                "shape": [1],
+            },
+            {
+                "shape": [1024],
+            },
+            {
+                "shape": [512, 256],
+            },
+            {
+                "shape": [128, 64, 32],
+            },
+            {
+                "shape": [16, 8, 4, 2],
+            },
+            {
+                "shape": [16, 8, 4, 2, 1],
+            },
+        ]
+        self.dtypes = [
+            {
+                "dtype": "float32",
+            },
+        ]
+        self.attrs = [
+            {
+                "rtol": 1e-5,
+                "atol": 1e-8,
+                "equal_nan": False,
+                "nan_as_input": False,
+            },
+        ]
 
 
-class TestIsCloseOpCase2(TestIsCloseOp):
-    def init_case(self):
-        self.inputs = {
-            "x": np.array([np.nan] * 32).astype("float32"),
-            "y": self.random([32], "float32")
-        }
-        self.rtol = 1e-05
-        self.atol = 1e-08
-        self.equal_nan = False
+class TestIsCloseDtype(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestIsCloseOpCase"
+        self.cls = TestIsCloseOp
+        self.inputs = [
+            {
+                "shape": [1024],
+            },
+        ]
+        self.dtypes = [
+            {
+                "dtype": "float32",
+            },
+            {
+                "dtype": "float64",
+            },
+        ]
+        self.attrs = [
+            {
+                "rtol": 1e-5,
+                "atol": 1e-8,
+                "equal_nan": False,
+                "nan_as_input": False,
+            },
+        ]
 
 
-class TestIsCloseOpCase3(TestIsCloseOp):
-    def init_case(self):
-        self.inputs = {
-            "x": np.array([np.nan] * 32).astype("float32"),
-            "y": np.array([np.nan] * 32).astype("float32")
-        }
-        self.rtol = 1e-05
-        self.atol = 1e-08
-        self.equal_nan = True
+class TestIsCloseAttr(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestIsCloseOpCase"
+        self.cls = TestIsCloseOp
+        self.inputs = [
+            {
+                "shape": [1024],
+            },
+        ]
+        self.dtypes = [
+            {
+                "dtype": "float32",
+            },
+        ]
+        self.attrs = [
+            {
+                "rtol": 1e-3,
+                "atol": 1e-3,
+                "equal_nan": False,
+                "nan_as_input": False,
+            },
+            {
+                "rtol": 1e-5,
+                "atol": 1e-5,
+                "equal_nan": False,
+                "nan_as_input": False,
+            },
+            {
+                "rtol": 1e-8,
+                "atol": 1e-8,
+                "equal_nan": False,
+                "nan_as_input": False,
+            },
+            {
+                "rtol": 1e-5,
+                "atol": 1e-8,
+                "equal_nan": True,
+                "nan_as_input": False,
+            },
+        ]
 
 
-class TestIsCloseOpCase4(TestIsCloseOp):
-    def init_case(self):
-        self.inputs = {
-            "x": self.random([16, 16], "float32"),
-            "y": self.random([1], "float32")
-        }
-        self.rtol = 1e-05
-        self.atol = 1e-08
-        self.equal_nan = False
+class TestIsCloseNAN(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestIsCloseOpCase"
+        self.cls = TestIsCloseOp
+        self.inputs = [
+            {
+                "shape": [1024],
+            },
+        ]
+        self.dtypes = [
+            {
+                "dtype": "float32",
+            },
+        ]
+        self.attrs = [
+            {
+                "rtol": 1e-5,
+                "atol": 1e-8,
+                "equal_nan": True,
+                "nan_as_input": True,
+            },
+        ]
 
 
 if __name__ == "__main__":
-    unittest.main()
+    TestIsCloseShape().run()
+    TestIsCloseDtype().run()
+    TestIsCloseAttr().run()
+    TestIsCloseNAN().run()
