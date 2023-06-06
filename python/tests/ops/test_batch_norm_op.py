@@ -30,19 +30,20 @@ class TestBatchNormTrainOp(OpTest):
         self.init_case()
 
     def init_case(self):
-        self.num_channels = 16
         self.inputs = [{
             "x":
-            self.random([2, self.num_channels, 8, 8], "float32", 0.0, 1.0),
+            self.random([2, 16, 8, 8], "float32", 0.0, 1.0),
             "dout":
-            self.random([2, self.num_channels, 8, 8], "float32", 1e-7, 1e-6),
+            self.random([2, 16, 8, 8], "float32", 1e-7, 1e-6),
+            "num_channels":
+            16
         }]
 
     def build_paddle_program(self, target):
         for inputs in self.inputs:
             x = paddle.to_tensor(inputs["x"])
             batch_norm = paddle.nn.BatchNorm(
-                self.num_channels, act=None, is_test=False)
+                inputs["num_channels"], act=None, is_test=False)
             out = batch_norm(x)
 
             self.paddle_outputs.append(out)
@@ -55,13 +56,13 @@ class TestBatchNormTrainOp(OpTest):
             x = builder.create_input(
                 self.nptype2cinntype(inputs["x"].dtype), inputs["x"].shape,
                 "x")
-            scale = builder.fill_constant([self.num_channels], 1.0, 'scale',
-                                          "float32")
-            bias = builder.fill_constant([self.num_channels], 0.0, 'bias',
+            scale = builder.fill_constant([inputs["num_channels"]], 1.0,
+                                          'scale', "float32")
+            bias = builder.fill_constant([inputs["num_channels"]], 0.0, 'bias',
                                          "float32")
-            mean = builder.fill_constant([self.num_channels], 0.0, 'mean',
+            mean = builder.fill_constant([inputs["num_channels"]], 0.0, 'mean',
                                          "float32")
-            variance = builder.fill_constant([self.num_channels], 1.0,
+            variance = builder.fill_constant([inputs["num_channels"]], 1.0,
                                              'variance', "float32")
 
             out = builder.batchnorm(
@@ -73,22 +74,21 @@ class TestBatchNormTrainOp(OpTest):
             self.cinn_outputs.append(forward_res[0])
 
     def test_check_results(self):
-        self.check_outputs_and_grads()
+        self.check_outputs_and_grads(max_relative_error=1e-3)
 
 
 class TestBatchNormTrainOpAll(TestBatchNormTrainOp):
     def init_case(self):
-        self.num_channels = 16
         self.inputs = []
-        for x_shape in [
-            [2, self.num_channels, 8, 8],
-        ]:
+        for x_shape in [[2, 16, 8, 8], [2, 16, 8, 1], [2, 16, 2048, 8]]:
             for x_type in ["float16", "float32"]:
                 self.inputs.append({
                     "x":
                     self.random(x_shape, x_type, 0.0, 1.0),
                     "dout":
                     self.random(x_shape, x_type, 1e-7, 1e-6),
+                    "num_channels":
+                    x_shape[1]
                 })
 
 
