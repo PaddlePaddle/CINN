@@ -412,10 +412,6 @@ std::vector<shape_t> InferShapeForReduction(const std::vector<shape_t> &inputs_s
     }
   }
 
-  if (out_shapes.empty()) {
-    out_shapes.push_back(1);
-  }
-
   VLOG(4) << "Reduce from input shape [" << cinn::utils::Join(inputs_shape[0], ",") << "] to output shape ["
           << cinn::utils::Join(out_shapes, ",") << "] with reduce dim [" << cinn::utils::Join(dim, ",")
           << "] and keep_dim is " << keep_dim;
@@ -449,25 +445,6 @@ std::vector<std::vector<std::string>> InferLayoutForReduction(const std::vector<
   }
 
   return {{""}, new_input_layouts};
-}
-
-std::vector<shape_t> InferShapeForBnOptimize(const std::vector<shape_t> &inputs_shape,
-                                             const framework::AttrMapType &attrs) {
-  auto shapes = InferShapeForReduction(inputs_shape, attrs);
-  CHECK_GE(shapes.size(), 1) << "shapes's size less than 1, please check!";
-  return {shapes[0], shapes[0]};
-}
-
-std::vector<Type> InferDtypeForBnOptimize(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
-  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
-  return {inputs_type[0], inputs_type[0]};
-}
-
-std::vector<std::vector<std::string>> InferLayoutForBnOptimize(const std::vector<framework::shape_t> &input_shapes,
-                                                               const std::vector<std::string> &input_layouts,
-                                                               const framework::NodeAttr &attrs,
-                                                               const Target &target) {
-  return {{"", ""}, {"", ""}};
 }
 
 }  // namespace op

@@ -520,5 +520,92 @@ class TestUnaryOp_acosh(TestUnaryOp):
         return builder.acosh(x)
 
 
+#######################
+#### TestReduceOp  ####
+#######################
+reduce_api_list = [
+    [paddle.sum, "builder.reduce_sum"],
+    [paddle.prod, "builder.reduce_prod"],
+    [paddle.max, "builder.reduce_max"],
+    [paddle.min, "builder.reduce_min"],
+    [paddle.all, "builder.reduce_all"],
+    [paddle.any, "builder.reduce_any"],
+]
+
+
+@OpTestTool.skip_if(not is_compiled_with_cuda(),
+                    "x86 test will be skipped due to timeout.")
+class TestReduceOp(OpTest):
+    def setUp(self):
+        np.random.seed(2023)
+
+    def init_input(self):
+        self.inputs = {
+            "x": np.random.randint(-10, 10, []).astype(self.dtype),
+        }
+        self.target_shape = ()
+
+    def build_paddle_program(self, target):
+        x = paddle.to_tensor(self.inputs["x"], stop_gradient=False)
+        out = self.paddle_func(x, None)
+
+        self.paddle_outputs = [out]
+
+    def build_cinn_program(self, target):
+        builder = NetBuilder("reduce_op")
+        x = builder.create_input(
+            cinn_dtype_convert(self.dtype), self.inputs["x"].shape, "x")
+        out = eval(self.cinn_func)(x)
+
+        prog = builder.build()
+        res = self.get_cinn_output(prog, target, [x], [self.inputs["x"]],
+                                   [out])
+
+        self.cinn_outputs = res
+        self.assertEqual(res[0].shape, self.target_shape)
+
+    def test_check_results(self):
+        for paddle_func, cinn_func in reduce_api_list:
+            self.paddle_func = paddle_func
+            self.cinn_func = cinn_func
+            if paddle_func in [paddle.all, paddle.any]:
+                self.dtype = "bool"
+            else:
+                self.dtype = "float32"
+            self.init_input()
+            self.check_outputs_and_grads()
+
+
+# x is ND, reduce to 0D
+class TestReduceOp_ND(TestReduceOp):
+    def init_input(self):
+        self.inputs = {
+            "x": np.random.randint(-10, 10, [3, 5]).astype(self.dtype),
+        }
+        self.target_shape = ()
+
+
+# x is 1D, axis=0, reduce to 0D
+class TestReduceOp_1D(TestReduceOp):
+    def init_input(self):
+        self.inputs = {
+            "x": np.random.randint(-10, 10, [3]).astype(self.dtype),
+        }
+        self.target_shape = ()
+
+    def build_cinn_program(self, target):
+        builder = NetBuilder("reduce_op")
+        x = builder.create_input(
+            cinn_dtype_convert(self.dtype), self.inputs["x"].shape, "x")
+        out = eval(self.cinn_func)(x, [0])
+
+        prog = builder.build()
+        res = self.get_cinn_output(prog, target, [x], [self.inputs["x"]],
+                                   [out])
+
+        self.cinn_outputs = res
+        self.assertEqual(res[0].shape, self.target_shape)
+
+
 if __name__ == "__main__":
     unittest.main()
