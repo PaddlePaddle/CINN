@@ -58,9 +58,7 @@ class TestNormOp(OpTest):
         self.cinn_outputs = [res[0]]
 
     def test_check_results(self):
-        max_relative_error = self.case[
-            "max_relative_error"] if "max_relative_error" in self.case else 1e-5
-        self.check_outputs_and_grads(max_relative_error=max_relative_error)
+        self.check_outputs_and_grads()
 
 
 class TestNormOpCase(TestCaseHelper):
