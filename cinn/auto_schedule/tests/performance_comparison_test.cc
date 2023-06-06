@@ -22,6 +22,7 @@
 #include "cinn/common/target.h"
 #include "cinn/frontend/net_builder.h"
 #include "cinn/frontend/optimize.h"
+#include "cinn/frontend/paddle_model_convertor.h"
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/node.h"
@@ -300,9 +301,9 @@ TEST_F(PerformanceTester, Gather) {
 // paddle model test
 TEST_F(PerformanceTester, ResNet50) {
   CHECK_NE(FLAGS_resnet50_model_dir, "");
-
-  Evaluate(tests::PaddleModelBuilder(FLAGS_resnet50_model_dir, common::DefaultNVGPUTarget())
-               .Build({{"inputs", {batch_size, 3, 224, 224}}}));
+  std::unordered_map<std::string, std::vector<int64_t>> feeds = {{"inputs", {batch_size, 3, 224, 224}}};
+  Evaluate(cinn::frontend::PaddleModelConvertor(common::DefaultNVGPUTarget())
+               .LoadModel(FLAGS_resnet50_model_dir, true, feeds));
 }
 
 }  // namespace auto_schedule
