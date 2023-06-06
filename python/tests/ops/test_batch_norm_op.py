@@ -93,7 +93,7 @@ class TestBatchNormTrainBF16(TestBatchNormTrainOp):
         dout = self.random([2, self.num_channels, 8, 8], "bfloat16")
         self.inputs = {
             "x": x,
-            "dout": dout_float,
+            "dout": dout,
         }
 
     def test_check_results(self):
