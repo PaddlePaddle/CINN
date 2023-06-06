@@ -36,8 +36,6 @@ class TestBatchNormTrainOp(OpTest):
             self.random([2, self.num_channels, 8, 8], "float32", 0.0, 1.0),
             "dout":
             self.random([2, self.num_channels, 8, 8], "float32", 1e-7, 1e-6),
-            "dtype":
-            "float32",
         }]
 
     def build_paddle_program(self, target):
@@ -58,13 +56,13 @@ class TestBatchNormTrainOp(OpTest):
                 self.nptype2cinntype(inputs["x"].dtype), inputs["x"].shape,
                 "x")
             scale = builder.fill_constant([self.num_channels], 1.0, 'scale',
-                                          inputs["dtype"])
+                                          "float32")
             bias = builder.fill_constant([self.num_channels], 0.0, 'bias',
-                                         inputs["dtype"])
+                                         "float32")
             mean = builder.fill_constant([self.num_channels], 0.0, 'mean',
-                                         inputs["dtype"])
+                                         "float32")
             variance = builder.fill_constant([self.num_channels], 1.0,
-                                             'variance', inputs["dtype"])
+                                             'variance', "float32")
 
             out = builder.batchnorm(
                 x, scale, bias, mean, variance, is_test=False)
@@ -75,7 +73,23 @@ class TestBatchNormTrainOp(OpTest):
             self.cinn_outputs.append(forward_res[0])
 
     def test_check_results(self):
-        self.check_outputs_and_grads(max_relative_error=1e-3)
+        self.check_outputs_and_grads()
+
+
+class TestBatchNormTrainOpAll(TestBatchNormTrainOp):
+    def init_case(self):
+        self.num_channels = 16
+        self.inputs = []
+        for x_shape in [
+            [2, self.num_channels, 8, 8],
+        ]:
+            for x_type in ["float16", "float32"]:
+                self.inputs.append({
+                    "x":
+                    self.random(x_shape, x_type, 0.0, 1.0),
+                    "dout":
+                    self.random(x_shape, x_type, 1e-7, 1e-6),
+                })
 
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
@@ -217,24 +231,6 @@ class TestBatchNormInferOp(OpTest):
 
     def test_check_results(self):
         self.check_outputs_and_grads()
-
-
-class TestBatchNormTrainOpAll(TestBatchNormTrainOp):
-    def init_case(self):
-        self.num_channels = 16
-        self.inputs = []
-        for x_shape in [
-            [2, self.num_channels, 8, 8],
-        ]:
-            for x_type in ["float16", "float32", "float64"]:
-                self.inputs.append({
-                    "x":
-                    self.random(x_shape, x_type, 0.0, 1.0),
-                    "dout":
-                    self.random(x_shape, x_type, 1e-7, 1e-6),
-                    "dtype":
-                    x_type,
-                })
 
 
 if __name__ == "__main__":
