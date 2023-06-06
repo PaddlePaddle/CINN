@@ -36,6 +36,8 @@ class TestBatchNormTrainOp(OpTest):
             self.random([2, self.num_channels, 8, 8], "float32", 0.0, 1.0),
             "dout":
             self.random([2, self.num_channels, 8, 8], "float32", 1e-7, 1e-6),
+            "dtype":
+            "float32",
         }]
 
     def build_paddle_program(self, target):
@@ -56,13 +58,13 @@ class TestBatchNormTrainOp(OpTest):
                 self.nptype2cinntype(inputs["x"].dtype), inputs["x"].shape,
                 "x")
             scale = builder.fill_constant([self.num_channels], 1.0, 'scale',
-                                          'float32')
+                                          inputs["dtype"])
             bias = builder.fill_constant([self.num_channels], 0.0, 'bias',
-                                         'float32')
+                                         inputs["dtype"])
             mean = builder.fill_constant([self.num_channels], 0.0, 'mean',
-                                         'float32')
+                                         inputs["dtype"])
             variance = builder.fill_constant([self.num_channels], 1.0,
-                                             'variance', 'float32')
+                                             'variance', inputs["dtype"])
 
             out = builder.batchnorm(
                 x, scale, bias, mean, variance, is_test=False)
@@ -70,7 +72,7 @@ class TestBatchNormTrainOp(OpTest):
             prog = builder.build()
             forward_res = self.get_cinn_output(
                 prog, target, [x], [inputs["x"]], out, passes=[])
-            self.cinn_outputs.extend(forward_res)
+            self.cinn_outputs.append(forward_res[0])
 
     def test_check_results(self):
         self.check_outputs_and_grads(max_relative_error=1e-3)
@@ -230,6 +232,8 @@ class TestBatchNormTrainOpAll(TestBatchNormTrainOp):
                     self.random(x_shape, x_type, 0.0, 1.0),
                     "dout":
                     self.random(x_shape, x_type, 1e-7, 1e-6),
+                    "dtype":
+                    x_type,
                 })
 
 
