@@ -389,7 +389,23 @@ Variable NetBuilder::Select(const Variable& condition, const Variable& true_valu
 }
 
 Variable NetBuilder::Gather(const Variable& operand, const Variable& index, int axis) {
-  return CustomInstr("gather", {operand, index}, {{"axis", axis}}).front();
+  size_t x_ndim = operand->shape.size();
+  if (axis < 0) {
+    axis += static_cast<int>(x_ndim);
+  }
+  CHECK_LT(axis, x_ndim) << "Axis must be in [" << -x_ndim << ", " << x_ndim - 1 << ").";
+  Variable transformed_index = index;
+  // If we got 1-D Tensor, the first step is reshape, in order to keep operand.rank == index.rank
+  if (index->shape.size() == 1) {
+    std::vector<int> index_reshape(x_ndim, 1);
+    index_reshape[axis] = index->shape[0];
+    transformed_index   = Reshape(index, index_reshape);
+  }
+  // Then we need to broadcast transformed index
+  auto broadcast_shape  = operand->shape;
+  broadcast_shape[axis] = transformed_index->shape[axis];
+  transformed_index     = BroadcastTo(transformed_index, broadcast_shape);
+  return CustomInstr("gather", {operand, transformed_index}, {{"axis", axis}}).front();
 }
 
 Variable NetBuilder::ScatterAssign(const Variable& operand, const Variable& updates, const Variable& index, int axis) {
