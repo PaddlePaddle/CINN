@@ -148,6 +148,90 @@ TEST(net_build, program_execute_fc) {
 }
 #endif
 
+#ifdef CINN_WITH_CUDA
+TEST(net_build, program_execute_multi_elementwise_add_bf16) {
+  constexpr int M = 32;
+  constexpr int N = 24;
+
+  NetBuilder builder("net_builder");
+  auto a       = builder.CreateInput(cinn::common::BFloat16(), {M, N}, "A");
+  auto b       = builder.CreateInput(cinn::common::BFloat16(), {M, N}, "B");
+  auto c       = builder.Add(a, b);
+  auto d       = builder.Add(a, c);
+  auto program = builder.Build();
+
+#ifdef CINN_WITH_CUDA
+  Target target = common::DefaultNVGPUTarget();
+#else
+  Target target = common::DefaultHostTarget();
+#endif
+
+  std::unordered_set<std::string> fetch_ids;
+  auto graph = Optimize(&program, fetch_ids, target);
+  LOG(INFO) << "graph:\n" << graph->Visualize();
+
+  auto scope = BuildScope(target, graph);
+  hlir::framework::GraphCompiler gc(target, scope, graph);
+  auto runtime_program = gc.Build();
+
+  scope->Var<hlir::framework::Tensor>("A");
+  scope->Var<hlir::framework::Tensor>("B");
+
+  auto A = scope->GetTensor("A");
+  auto B = scope->GetTensor("B");
+  SetRandData<float>(A, target);
+  SetRandData<float>(B, target);
+
+  runtime_program->Execute();
+}
+
+TEST(net_build, program_execute_fc_bf16) {
+  constexpr int B = 10;  // batch size
+  constexpr int M = 32;
+  constexpr int K = 18;
+  constexpr int N = 24;
+
+  NetBuilder builder("net_builder");
+  auto a = builder.CreateInput(cinn::common::BFloat16(), {B * M, K}, "A");
+  auto w = builder.CreateInput(cinn::common::BFloat16(), {K, N}, "W");  // weight
+  auto b = builder.CreateInput(cinn::common::BFloat16(), {N}, "B");     // bias
+
+  auto mul_out = builder.Matmul(a, w);
+  auto add_out = builder.Add(mul_out, b);
+  auto program = builder.Build();
+
+#ifdef CINN_WITH_CUDA
+  Target target = common::DefaultNVGPUTarget();
+#else
+  Target target = common::DefaultHostTarget();
+#endif
+
+  std::unordered_set<std::string> fetch_ids;
+  auto graph = Optimize(&program, fetch_ids, target);
+  LOG(INFO) << "graph:\n" << graph->Visualize();
+
+  auto scope = BuildScope(target, graph);
+  hlir::framework::GraphCompiler gc(target, scope, graph);
+  auto runtime_program = gc.Build();
+
+  scope->Var<hlir::framework::Tensor>(std::string(a.id()));
+  scope->Var<hlir::framework::Tensor>(std::string(w.id()));
+  scope->Var<hlir::framework::Tensor>(std::string(b.id()));
+  scope->Var<hlir::framework::Tensor>(std::string(mul_out->id));
+
+  auto a_ten        = scope->GetTensor(std::string(a.id()));
+  auto w_ten        = scope->GetTensor(std::string(w.id()));
+  auto b_ten        = scope->GetTensor(std::string(b.id()));
+  auto fake_out_ten = scope->GetTensor(std::string(mul_out->id));
+  auto add_out_ten  = scope->GetTensor(std::string(add_out->id));
+  SetRandData<float>(a_ten, target);
+  SetRandData<float>(w_ten, target);
+  SetRandData<float>(b_ten, target);
+
+  runtime_program->Execute();
+}
+#endif
+
 TEST(net_build, program_execute_pool2d) {
   const int B = 16;
   const int C = 64;

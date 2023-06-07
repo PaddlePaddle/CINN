@@ -108,10 +108,14 @@ function prepare_ci {
     apt install -y python${py_version}-dev
   fi
 
-  if ! python${py_version} -m venv $build_dir/ci-env &> /dev/null; then
-    apt install -y python${py_version}-venv
-    python${py_version} -m venv $build_dir/ci-env
+  if ! command -v virtualenv  &> /dev/null; then
+    apt install -y virtualenv
   fi
+
+  if [[ ! -e $build_dir/ci-env/bin/activate ]]; then
+    virtualenv ${build_dir}/ci-env -p python${py_version}
+  fi
+
   source $build_dir/ci-env/bin/activate
   python${py_version} -m pip install -U --no-cache-dir pip
   python${py_version} -m pip install pre-commit
