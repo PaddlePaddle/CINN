@@ -38,7 +38,7 @@ class TestOneHotOp(OpTest):
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.x_np, stop_gradient=True)
-        out = F.one_hot(x, num_classes=self.case["num_classes"])
+        out = F.one_hot(x, num_classes=self.case["depth"])
 
         self.paddle_outputs = [out]
 
@@ -49,6 +49,7 @@ class TestOneHotOp(OpTest):
         x = builder.create_input(
             self.nptype2cinntype(self.case["x_dtype"]), self.case["x_shape"],
             "x")
+        buildtype = 'float32'
         on_value = builder.fill_constant([1],
                                          1,
                                          'on_value',
@@ -63,7 +64,7 @@ class TestOneHotOp(OpTest):
             off_value,
             depth=self.case["depth"],
             axis=self.case["axis"],
-            dtype=self.case["x_dtype"])
+            buildtype)
 
         prog = builder.build()
         res = self.get_cinn_output(prog, target, [x], [self.x_np], [out])
@@ -83,37 +84,31 @@ class TestOneHotOpTest(TestCaseHelper):
         self.inputs = [
             {
                 "x_shape": [1],
-                "num_classes": 10,
                 "depth": 10,
                 "axis": -1,
             },
             {
                 "x_shape": [1024],
-                "num_classes": 10,
                 "depth": 10,
                 "axis": -1,
             },
             {
                 "x_shape": [32, 64],
-                "num_classes": 10,
                 "depth": 10,
                 "axis": -1,
             },
             {
                 "x_shape": [16, 8, 4],
-                "num_classes": 10,
                 "depth": 10,
                 "broadcast_axes": -1,
             },
             {
                 "x_shape": [16, 8, 4, 2],
-                "num_classes": 10,
                 "depth": 10,
                 "axis": -1,
             },
             {
                 "x_shape": [16, 8, 4, 2, 1],
-                "num_classes": 10,
                 "depth": 10,
                 "axis": -1,
             },
