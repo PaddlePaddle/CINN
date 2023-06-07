@@ -49,7 +49,7 @@ class TestOneHotOp(OpTest):
         x = builder.create_input(
             self.nptype2cinntype(self.case["x_dtype"]), self.case["x_shape"],
             "x")
-        buildtype = 'float32'
+        buildtype = "float32"
         on_value = builder.fill_constant([1],
                                          1,
                                          'on_value',
@@ -117,6 +117,10 @@ class TestOneHotOpTest(TestCaseHelper):
             "x_dtype": "int32",
         }, {
             "x_dtype": "int64",
+        }, {
+            "x_dtype": "float32",
+        }, {
+            "x_dtype": "float64",
         }]
         self.attrs = []
 
