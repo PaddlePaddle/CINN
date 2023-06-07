@@ -136,11 +136,11 @@ __device__ inline double FN_FP64(mod)(double a, double b) {
 #define FN_INT32(func) cinn_nvgpu_##func##_int32
 
 __device__ inline int FN_INT32(pow)(int a, int b) {
-  int res = 1;
-  for (int i = 0; i < b; ++i) {
-    res *= a;
+  if (a == 0 && b < 0) {
+    return -1;
   }
-  return res;
+  float res = pow(__int2float_rd(a), __int2float_rd(b));
+  return __float2int_rn(res);
 }
 
 __device__ inline int FN_INT32(left_shift)(int a, int b) { return a << b; }
@@ -181,11 +181,8 @@ __device__ inline long long int FN_INT64(mod)(long long int a, long long int b) 
 }
 
 __device__ inline long long int FN_INT64(pow)(long long int a, long long int b) {
-  long long int res = 1;
-  for (int i = 0; i < b; ++i) {
-    res *= a;
-  }
-  return res;
+  double res = pow(__ll2double_rd(a), __ll2double_rd(b));
+  return __double2ll_rn(res);
 }
 
 // *************************************************************** //

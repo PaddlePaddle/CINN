@@ -38,7 +38,6 @@ CINN_REGISTER_HELPER(cuda_intrinsics) {
   REGISTER_EXTERN_FUNC_2_IN_1_OUT_BOOL(bitwise_and);
   REGISTER_EXTERN_FUNC_2_IN_1_OUT_BOOL(bitwise_or);
   REGISTER_EXTERN_FUNC_2_IN_1_OUT_BOOL(bitwise_xor);
-  REGISTER_EXTERN_FUNC_2_IN_1_OUT_BOOL(logical_right_shift);
 
 #undef REGISTER_EXTERN_FUNC_2_IN_1_OUT_BOOL
 
@@ -238,6 +237,7 @@ CINN_REGISTER_HELPER(cuda_intrinsics) {
 #define REGISTER_EXTERN_FUNC_2_IN_1_INT64(func__) \
   REGISTER_EXTERN_SOURCE_FUNC_2_IN_1_OUT(cinn_nvgpu_##func__##_int64, target, int64_t, int64_t, int64_t);
 
+  REGISTER_EXTERN_FUNC_2_IN_1_INT64(pow)
   REGISTER_EXTERN_FUNC_2_IN_1_INT64(bitwise_and)
   REGISTER_EXTERN_FUNC_2_IN_1_INT64(bitwise_or)
   REGISTER_EXTERN_FUNC_2_IN_1_INT64(bitwise_xor)

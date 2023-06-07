@@ -95,6 +95,8 @@ inline int64_t FN_INT64(clz)(int64_t x);
 
 inline int64_t FN_INT64(popc)(int64_t x);
 
+inline int64_t FN_INT64(pow)(int64_t x, int64_t y);
+
 #undef FN_INT64
 
 #define FN_FP32(func) cinn_host_##func##_fp32
