@@ -1337,6 +1337,20 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
       adaptive = absl::get<bool>(iter.second);
     }
   }
+  // It can be removed after fixing the global_pool2d problem
+  if (attr_store.count("origin_kernel_size")) {
+    kernel_size = absl::get<std::vector<int>>(attr_store.at("origin_kernel_size"));
+  }
+  if (attr_store.count("origin_padding_size")) {
+    padding_size = absl::get<std::vector<int>>(attr_store.at("origin_padding_size"));
+  }
+  if (attr_store.count("origin_global_pooling")) {
+    global_pooling = absl::get<bool>(attr_store.at("origin_global_pooling"));
+  }
+  if (attr_store.count("origin_adaptive")) {
+    adaptive = absl::get<bool>(attr_store.at("origin_adaptive"));
+  }
+
   CHECK(!kernel_size.empty()) << "kernel_size for pool2d is empty. Please check.\n";
   CHECK(!stride_size.empty()) << "stride_size for pool2d is empty. Please check.\n";
   CHECK(!padding_size.empty()) << "padding_size for pool2d is empty. Please check.\n";
@@ -1576,12 +1590,6 @@ std::vector<std::vector<int>> InferShapeForPool2d(const std::vector<std::vector<
     }
   }
 
-  CHECK(pool_type == "max" || pool_type == "avg") << "pool_type for pool2d should be max or avg.\n";
-  if (data_format == "AnyLayout") {
-    data_format = "NCHW";
-  }
-  CHECK(data_format == "NCHW" || data_format == "NHWC") << "data_format of pool2d only support NCHW and NHWC.\n";
-
   int height_axis = -1;
   int width_axis  = -1;
   if (data_format == "NCHW") {
@@ -1590,20 +1598,6 @@ std::vector<std::vector<int>> InferShapeForPool2d(const std::vector<std::vector<
   } else {
     height_axis = 1;
     width_axis  = 2;
-  }
-
-  if (global_pooling) {
-    kernel_size  = {inputs_shape[0][height_axis], inputs_shape[0][width_axis]};
-    padding_size = {0, 0, 0, 0};
-  }
-
-  CHECK_EQ(kernel_size.size(), 2U) << "kernel size rank for pool2d should be 2.\n";
-  CHECK(kernel_size[0] > 0 && kernel_size[1] > 0) << "the value of kernel size for pool2d should greater than 0.\n";
-  CHECK_EQ(stride_size.size(), 2U) << "stride_size size for pool2d should be 2.\n";
-  CHECK(stride_size[0] > 0 && stride_size[1] > 0) << "the value of kernel size for pool2d should greater than 0.\n";
-
-  if (padding_size.size() == 2) {
-    padding_size.insert(padding_size.end(), padding_size.begin(), padding_size.end());
   }
 
   std::vector<int> output_shape1 = inputs_shape[0];
@@ -2067,7 +2061,7 @@ std::shared_ptr<OpStrategy> StrategyForDropoutInfer(const framework::NodeAttr &a
 
 std::vector<std::vector<int>> InferShapeForDropoutInfer(const std::vector<std::vector<int>> &inputs_shape,
                                                         const framework::AttrMapType &attrs) {
-  CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
+  CHECK(!inputs_shape.empty()) << "The input's shape size is 0! Please check again.";
   float dropout_prob                 = 0;
   std::string dropout_implementation = "downgrade_in_infer";
   for (auto &iter : attrs) {

@@ -171,6 +171,12 @@ class TestAddAll(TestCaseHelper):
                 "y_dtype": "float64",
                 "dout_dtype": "float64",
             },
+            {
+                "x_dtype": "bfloat16",
+                "y_dtype": "bfloat16",
+                "dout_dtype": "bfloat16",
+                "max_relative_error": 1e-2,
+            },
         ]
         self.attrs = []
 
@@ -249,6 +255,12 @@ class TestAddAllWithBroadcast(TestCaseHelper):
                 "x_dtype": "float64",
                 "y_dtype": "float64",
                 "dout_dtype": "float64",
+            },
+            {
+                "x_dtype": "bfloat16",
+                "y_dtype": "bfloat16",
+                "dout_dtype": "bfloat16",
+                "max_relative_error": 1e-2,
             },
         ]
         self.attrs = []
