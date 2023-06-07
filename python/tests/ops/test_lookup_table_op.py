@@ -14,9 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
-import numpy as np
 from op_test import OpTest, OpTestTool
+from op_test_helper import TestCaseHelper
 import paddle
 import paddle.nn.functional as F
 import cinn
@@ -28,46 +27,86 @@ from cinn.common import *
                     "x86 test will be skipped due to timeout.")
 class TestLookupTableOp(OpTest):
     def setUp(self):
-        self.init_case()
+        # print(f"\n{self.__class__.__name__}: {self.case}")
+        self.prepare_inputs()
 
-    def init_case(self):
-        self.inputs = {
-            "table": np.random.random([
-                10,
-                20,
-            ]).astype("float32"),
-            "ids": np.random.random_integers(0, 9, (5, 2)).astype("int64")
-        }
+    def prepare_inputs(self):
+        self.table_np = self.random(
+            shape=self.case["table_shape"], dtype=self.case["table_dtype"])
+        self.ids_np = self.random(
+            shape=self.case["ids_shape"],
+            dtype=self.case["ids_dtype"],
+            low=0,
+            high=self.case["table_shape"][0])
 
     def build_paddle_program(self, target):
-        table = paddle.to_tensor(self.inputs["table"], stop_gradient=False)
-        ids = paddle.to_tensor(self.inputs["ids"], stop_gradient=False)
-        out = F.embedding(ids, table, 1)
-
+        table = paddle.to_tensor(self.table_np, stop_gradient=False)
+        ids = paddle.to_tensor(self.ids_np, stop_gradient=False)
+        out = F.embedding(ids, table, self.case["padding_idx"])
         self.paddle_outputs = [out]
 
-    # Note: If the forward and backward operators are run in the same program,
-    # the forward result will be incorrect.
     def build_cinn_program(self, target):
         builder = NetBuilder("lookup_table")
         table = builder.create_input(
-            Float(32), self.inputs["table"].shape, "table")
+            self.nptype2cinntype(self.table_np.dtype), self.table_np.shape,
+            "table")
         ids = builder.create_input(
-            Int(64), self.inputs["ids"].shape + (1, ), "ids")
-        out = builder.lookup_table(table, ids, 1)
+            self.nptype2cinntype(self.ids_np.dtype), self.ids_np.shape + (1, ),
+            "ids")
+        out = builder.lookup_table(table, ids, self.case["padding_idx"])
         prog = builder.build()
-        forward_res = self.get_cinn_output(
-            prog, target, [table, ids],
-            [self.inputs["table"], self.inputs["ids"]], [out])
-
-        self.cinn_outputs = forward_res
+        res = self.get_cinn_output(prog, target, [table, ids],
+                                   [self.table_np, self.ids_np], [out])
+        self.cinn_outputs = res
 
     def test_check_results(self):
-        self.build_paddle_program(self.target)
-        self.build_cinn_program(self.target)
-        self.check_results(self.paddle_outputs, self.cinn_outputs, 1e-5, False,
-                           False)
+        self.check_outputs_and_grads(all_equal=True)
+
+
+class TestLookupTableOpAll(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestLookupTableOpCase"
+        self.cls = TestLookupTableOp
+        self.inputs = [
+            {
+                "table_shape": [128, 8],
+                "ids_shape": [8],
+            },
+            {
+                "table_shape": [256, 4],
+                "ids_shape": [8, 4],
+            },
+            {
+                "table_shape": [1024, 2],
+                "ids_shape": [8, 4, 2],
+            },
+        ]
+        self.dtypes = [
+            {
+                "table_dtype": "float16",
+                "ids_dtype": "int16",
+            },
+            {
+                "table_dtype": "float32",
+                "ids_dtype": "int32",
+            },
+            {
+                "table_dtype": "float64",
+                "ids_dtype": "int64",
+            },
+        ]
+        self.attrs = [
+            {
+                "padding_idx": -1,
+            },
+            {
+                "padding_idx": 0,
+            },
+            {
+                "padding_idx": 1,
+            },
+        ]
 
 
 if __name__ == "__main__":
-    unittest.main()
+    TestLookupTableOpAll().run()
