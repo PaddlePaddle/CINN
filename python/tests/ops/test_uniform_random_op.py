@@ -14,9 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
-import numpy as np
 from op_test import OpTest, OpTestTool
+from op_test_helper import TestCaseHelper
 import paddle
 import cinn
 from cinn.frontend import *
@@ -27,57 +26,134 @@ from cinn.common import *
                     "x86 test will be skipped due to timeout.")
 class TestUniformRandomOp(OpTest):
     def setUp(self):
-        self.init_case()
-
-    def init_case(self):
-        self.shape = [2, 3]
-        self.min = -1.0
-        self.max = 1.0
-        self.seed = 10
-        self.dtype = "float32"
+        # print(f"\n{self.__class__.__name__}: {self.case}")
+        pass
 
     def build_paddle_program(self, target):
         out = paddle.uniform(
-            shape=self.shape,
-            dtype=self.dtype,
-            min=self.min,
-            max=self.max,
-            seed=self.seed)
+            shape=self.case["shape"],
+            dtype=self.case["dtype"],
+            min=self.case["min"],
+            max=self.case["max"],
+            seed=self.case["seed"])
         self.paddle_outputs = [out]
 
     def build_cinn_program(self, target):
         builder = NetBuilder("uniform_random")
-        out = builder.uniform_random(self.shape, self.min, self.max, self.seed,
-                                     self.dtype)
+        out = builder.uniform_random(self.case["shape"], self.case["min"],
+                                     self.case["max"], self.case["seed"],
+                                     self.case["dtype"])
         prog = builder.build()
         res = self.get_cinn_output(prog, target, [], [], [out], passes=[])
-        self.cinn_outputs = [res[0]]
+        self.cinn_outputs = res
 
     def test_check_results(self):
         # Due to the different random number generation numbers implemented
         # in the specific implementation, the random number results generated
         # by CINN and Paddle are not the same, but they all conform to the
         # Uniform distribution.
-        self.check_outputs_and_grads(max_relative_error=10000)
+        self.check_outputs_and_grads(
+            max_relative_error=10000, max_absolute_error=10000)
 
 
-class TestUniformRandomCase1(TestUniformRandomOp):
-    def init_case(self):
-        self.shape = [2, 3, 4]
-        self.min = -5.5
-        self.max = 5.5
-        self.seed = 10
-        self.dtype = "float32"
+class TestUniformRandomOpShape(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestUniformRandomOpCase"
+        self.cls = TestUniformRandomOp
+        self.inputs = [
+            {
+                "shape": [1],
+            },
+            {
+                "shape": [1024],
+            },
+            {
+                "shape": [512, 256],
+            },
+            {
+                "shape": [128, 64, 32],
+            },
+            {
+                "shape": [16, 8, 4, 2],
+            },
+            {
+                "shape": [16, 8, 4, 2, 1],
+            },
+        ]
+        self.dtypes = [
+            {
+                "dtype": "float32",
+            },
+        ]
+        self.attrs = [
+            {
+                "min": -1.0,
+                "max": 1.0,
+                "seed": 1234,
+            },
+        ]
 
 
-class TestUniformRandomCase2(TestUniformRandomOp):
-    def init_case(self):
-        self.shape = [2, 3, 4]
-        self.min = -10.0
-        self.max = 10.0
-        self.seed = 10
-        self.dtype = "float64"
+class TestUniformRandomOpDtype(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestUniformRandomOpCase"
+        self.cls = TestUniformRandomOp
+        self.inputs = [
+            {
+                "shape": [1024],
+            },
+        ]
+        self.dtypes = [
+            {
+                "dtype": "float32",
+            },
+            {
+                "dtype": "float64",
+            },
+        ]
+        self.attrs = [
+            {
+                "min": -1.0,
+                "max": 1.0,
+                "seed": 1234,
+            },
+        ]
+
+
+class TestUniformRandomOpAttr(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestUniformRandomOpCase"
+        self.cls = TestUniformRandomOp
+        self.inputs = [
+            {
+                "shape": [1024],
+            },
+        ]
+        self.dtypes = [
+            {
+                "dtype": "float32",
+            },
+        ]
+        self.attrs = [
+            {
+                "min": -10.0,
+                "max": 0,
+                "seed": 1,
+            },
+            {
+                "min": 0,
+                "max": 10.0,
+                "seed": 2,
+            },
+            {
+                "min": -100.0,
+                "max": 100.0,
+                "seed": 3,
+            },
+        ]
 
 
 if __name__ == "__main__":
-    unittest.main()
+    TestUniformRandomOpShape().run()
+    TestUniformRandomOpDtype().run()
+    TestUniformRandomOpAttr().run()
