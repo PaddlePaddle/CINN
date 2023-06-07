@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (c) 2021 CINN Authors. All Rights Reserved.
+# Copyright (c) 2023 CINN Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,8 +15,8 @@
 # limitations under the License.
 
 import paddle
-from cinn.frontend import *
 from cinn.common import *
+from cinn.frontend import *
 from op_test import OpTest, OpTestTool
 from op_test_helper import TestCaseHelper
 
@@ -39,10 +39,16 @@ class TestReverseOp(OpTest):
             "x": self.random(self.case["shape"], self.case["dtype"]),
             "axes": axes
         }
+        self.net_builder_api = self.case["net_builder_api"]
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.inputs["x"], stop_gradient=True)
-        out = paddle.reverse(x, self.inputs["axes"])
+        if self.net_builder_api == "reverse":
+            out = paddle.reverse(x, self.inputs["axes"])
+        elif self.net_builder_api == "flip":
+            out = paddle.flip(x, self.inputs["axes"])
+        else:
+            raise NotImplementedError
         self.paddle_outputs = [out]
 
     def build_cinn_program(self, target):
@@ -50,7 +56,12 @@ class TestReverseOp(OpTest):
         x = builder.create_input(
             self.nptype2cinntype(self.inputs["x"].dtype),
             self.inputs["x"].shape, "x")
-        out = builder.reverse(x, self.inputs["axes"])
+        if self.net_builder_api == "reverse":
+            out = builder.reverse(x, self.inputs["axes"])
+        elif self.net_builder_api == "flip":
+            out = builder.flip(x, self.inputs["axes"])
+        else:
+            raise NotImplementedError
 
         prog = builder.build()
         res = self.get_cinn_output(prog, target, [x], [self.inputs["x"]],
@@ -120,6 +131,15 @@ class TestReverseOpShape(TestCaseHelper):
                 "axes": [0]
             },
         ]
+        net_builder_api_attrs = [
+            {
+                "net_builder_api": "reverse",
+            },
+            {
+                "net_builder_api": "flip",
+            },
+        ]
+        self._register_custom_attrs(net_builder_api_attrs)
 
 
 class TestReverseOpDtype(TestCaseHelper):
@@ -162,6 +182,15 @@ class TestReverseOpDtype(TestCaseHelper):
                 "axes": [0]
             },
         ]
+        net_builder_api_attrs = [
+            {
+                "net_builder_api": "reverse",
+            },
+            {
+                "net_builder_api": "flip",
+            },
+        ]
+        self._register_custom_attrs(net_builder_api_attrs)
 
 
 class TestReverseOpAxis(TestCaseHelper):
@@ -207,6 +236,15 @@ class TestReverseOpAxis(TestCaseHelper):
                 "axes": [-4]
             },
         ]
+        net_builder_api_attrs = [
+            {
+                "net_builder_api": "reverse",
+            },
+            {
+                "net_builder_api": "flip",
+            },
+        ]
+        self._register_custom_attrs(net_builder_api_attrs)
 
 
 class TestReverseOpMultiAxis(TestCaseHelper):
@@ -252,6 +290,15 @@ class TestReverseOpMultiAxis(TestCaseHelper):
                 "axes": [0, 3, -3, -2]
             },
         ]
+        net_builder_api_attrs = [
+            {
+                "net_builder_api": "reverse",
+            },
+            {
+                "net_builder_api": "flip",
+            },
+        ]
+        self._register_custom_attrs(net_builder_api_attrs)
 
 
 if __name__ == "__main__":

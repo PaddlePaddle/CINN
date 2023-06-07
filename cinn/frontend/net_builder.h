@@ -891,7 +891,10 @@ class NetBuilder {
                   const std::string& padding_algorithm = "EXPLICIT");
 
   /**
-   * This API flipes the Variable x along the given axis.
+   * @brief This API reverse the Variable x along the given axis.
+   * @param x An N-D variable.
+   * @param axis Specify the axis to operate on the input reverse.
+   * @return A reversed variable with the same data type as x.
    */
   Variable Flip(const Variable& operand, const std::vector<int>& axes);
 

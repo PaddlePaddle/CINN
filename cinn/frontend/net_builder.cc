@@ -682,11 +682,7 @@ Variable NetBuilder::Arange(const float start, const float stop, const float ste
 }
 
 Variable NetBuilder::Flip(const Variable& operand, const std::vector<int>& axes) {
-  Instruction instr("flip", {operand});
-  instr.SetAttr("axes", axes);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return CustomInstr("reverse", {operand}, {{"axis", utils::GetPositiveAxes(axes, operand->shape.size())}}).front();
 }
 
 Variable NetBuilder::Matmul(const Variable& x, const Variable& y, bool trans_x, bool trans_y, float alpha) {
