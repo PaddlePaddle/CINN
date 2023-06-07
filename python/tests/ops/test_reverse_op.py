@@ -53,7 +53,8 @@ class TestReverseOp(OpTest):
         out = builder.reverse(x, self.inputs["axes"])
 
         prog = builder.build()
-        res = self.get_cinn_output(prog, target, [x], [self.inputs["x"]], [out])
+        res = self.get_cinn_output(prog, target, [x], [self.inputs["x"]],
+                                   [out])
 
         self.cinn_outputs = res
 

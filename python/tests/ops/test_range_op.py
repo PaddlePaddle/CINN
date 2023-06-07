@@ -38,12 +38,14 @@ class TestArangeOp(OpTest):
         }
 
     def build_paddle_program(self, target):
-        out = paddle.arange(self.inputs["start"], self.inputs["end"], self.inputs["step"], self.inputs["dtype"])
+        out = paddle.arange(self.inputs["start"], self.inputs["end"],
+                            self.inputs["step"], self.inputs["dtype"])
         self.paddle_outputs = [out]
 
     def build_cinn_program(self, target):
         builder = NetBuilder("arange")
-        out = builder.arange(self.inputs["start"], self.inputs["end"], self.inputs["step"], self.inputs["dtype"])
+        out = builder.arange(self.inputs["start"], self.inputs["end"],
+                             self.inputs["step"], self.inputs["dtype"])
 
         prog = builder.build()
         res = self.get_cinn_output(prog, target, [], [], [out])
