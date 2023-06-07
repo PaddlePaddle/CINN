@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import unittest
+import numpy as np
 from op_test import OpTest, OpTestTool
 from op_test_helper import TestCaseHelper
 import paddle
@@ -42,8 +44,18 @@ class TestMulOp(OpTest):
             high=self.case["y_high"])
 
     def build_paddle_program(self, target):
-        x = paddle.to_tensor(self.x_np, stop_gradient=True)
-        y = paddle.to_tensor(self.y_np, stop_gradient=True)
+        x = paddle.to_tensor(self.x_np, stop_gradient=False)
+        y = paddle.to_tensor(self.y_np, stop_gradient=False)
+        x_weight = paddle.distributed.reduce(lambda x, y: x * y,
+                                             x[:x_num_col_dims])
+        x_height = paddle.distributed.reduce(lambda x, y: x * y,
+                                             x[x_num_col_dims:])
+        x = paddle.reshape(x, [x_weight, x_height])
+        y_weight = paddle.distributed.reduce(lambda x, y: x * y,
+                                             y[:y_num_col_dims])
+        y_height = paddle.distributed.reduce(lambda x, y: x * y,
+                                             y[y_num_col_dims:])
+        y = paddle.reshape(y, [y_weight, y_height])
         out = paddle.matmul(x, y)
         self.paddle_outputs = [out]
 
@@ -55,7 +67,7 @@ class TestMulOp(OpTest):
         y = builder.create_input(
             self.nptype2cinntype(self.case["y_dtype"]), self.case["y_shape"],
             "y")
-        out = builder.matmul(x, y)
+        out = builder.mul(x, y)
         prog = builder.build()
         res = self.get_cinn_output(prog, target, [x, y],
                                    [self.x_np, self.y_np], [out])
@@ -95,10 +107,10 @@ class TestMulOpBase(TestCaseHelper):
 
     attrs = [
         {
-            "x_low": -10,
-            "x_high": 10,
-            "y_low": -10,
-            "y_high": 10,
+            "x_low": -100,
+            "x_high": 100,
+            "y_low": -100,
+            "y_high": 100,
         },
     ]
 
@@ -136,21 +148,17 @@ class TestMulOpDtypeTest(TestMulOpBase):
     def init_attrs(self):
         self.class_name = "TestMulOpDtypeTest"
         self.cls = TestMulOp
-        self.dtypes = [
-            #{
-            #"x_dtype": "float16",
-            #"y_dtype": "float16",
-            #"max_relative_error": 1e-3,
-            #},
-            {
-                "x_dtype": "float32",
-                "y_dtype": "float32",
-            },
-            {
-                "x_dtype": "float64",
-                "y_dtype": "float64",
-            }
-        ]
+        self.dtypes = [{
+            "x_dtype": "float16",
+            "y_dtype": "float16",
+            "max_relative_error": 1e-3,
+        }, {
+            "x_dtype": "float32",
+            "y_dtype": "float32",
+        }, {
+            "x_dtype": "float64",
+            "y_dtype": "float64",
+        }]
 
 
 class TestMulOpPolarityTest(TestMulOpBase):
