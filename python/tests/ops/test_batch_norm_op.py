@@ -92,6 +92,20 @@ class TestBatchNormTrainOpAll(TestBatchNormTrainOp):
                 })
 
 
+class TestBatchNormTrainBF16(TestBatchNormTrainOp):
+    def init_case(self):
+        self.num_channels = 16
+        x = self.random([2, self.num_channels, 8, 8], "bfloat16")
+        dout = self.random([2, self.num_channels, 8, 8], "bfloat16")
+        self.inputs = {
+            "x": x,
+            "dout": dout,
+        }
+
+    def test_check_results(self):
+        self.check_outputs_and_grads(max_relative_error=1e-2)
+
+
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
                     "x86 test will be skipped due to timeout.")
 class TestBatchNormBackwardOp(OpTest):

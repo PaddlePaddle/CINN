@@ -30,38 +30,38 @@ inline common::Type CppVarType2CommonType(paddle::cpp::VarDescAPI::Type type) {
     return common::c_type();                  \
     break;
 
-  static std::vector<std::string> var_type_names_ = {"BOOL",
-                                                     "INT16",
-                                                     "INT32",
-                                                     "INT64",
-                                                     "FP16",
-                                                     "FP32",
-                                                     "FP64",
-                                                     "LOD_TENSOR",
-                                                     "SELECTED_ROWS",
-                                                     "FEED_MINIBATCH",
-                                                     "FETCH_LIST",
-                                                     "STEP_SCOPES",
-                                                     "LOD_RANK_TABLE",
-                                                     "LOD_TENSOR_ARRAY",
-                                                     "PLACE_LIST",
-                                                     "READER",
+  static std::vector<std::string> var_type_names_ = {"BOOL",              // 0
+                                                     "INT16",             // 1
+                                                     "INT32",             // 2
+                                                     "INT64",             // 3
+                                                     "FP16",              // 4
+                                                     "FP32",              // 5
+                                                     "FP64",              // 6
+                                                     "LOD_TENSOR",        // 7
+                                                     "SELECTED_ROWS",     // 8
+                                                     "FEED_MINIBATCH",    // 9
+                                                     "FETCH_LIST",        // 10
+                                                     "STEP_SCOPES",       // 11
+                                                     "LOD_RANK_TABLE",    // 12
+                                                     "LOD_TENSOR_ARRAY",  // 13
+                                                     "PLACE_LIST",        // 14
+                                                     "READER",            // 15
                                                      "",
-                                                     "RAW",
-                                                     "TUPLE",
-                                                     "SIZE_T",
-                                                     "UINT8",
-                                                     "INT8",
-                                                     "BF16",
-                                                     "COMPLEX64",
-                                                     "COMPLEX128",
-                                                     "STRING",
-                                                     "STRINGS",
-                                                     "VOCAB",
-                                                     "FEED_LIST",
-                                                     "PSTRING",
-                                                     "SPARSE_COO",
-                                                     "SPARSE_CSR"};
+                                                     "RAW",          // 17
+                                                     "TUPLE",        // 18
+                                                     "SIZE_T",       // 19
+                                                     "UINT8",        // 20
+                                                     "INT8",         // 21
+                                                     "BF16",         // 22
+                                                     "COMPLEX64",    // 23
+                                                     "COMPLEX128",   // 24
+                                                     "STRING",       // 25
+                                                     "STRINGS",      // 26
+                                                     "VOCAB",        // 27
+                                                     "FEED_LIST",    // 28
+                                                     "PSTRING",      // 29
+                                                     "SPARSE_COO",   // 30
+                                                     "SPARSE_CSR"};  // 31
   CHECK_LT(static_cast<int>(type), var_type_names_.size()) << "Unknown VarDesc type: " << static_cast<int>(type);
 
   switch (type) {
@@ -77,11 +77,15 @@ inline common::Type CppVarType2CommonType(paddle::cpp::VarDescAPI::Type type) {
     SET_TYPE_CASE_ITEM(UINT8, UI8)
     SET_TYPE_CASE_ITEM(INT8, I8)
     SET_TYPE_CASE_ITEM(STRING, String)
+    // The paddle's phi::DataType::UNDEFINED is mapped into ProtoDataType::RAW,
+    // so here need convert back to unkown type.
+    SET_TYPE_CASE_ITEM(RAW, Type)
     default:
-      LOG(FATAL) << "Unknown VarDesc type: " << var_type_names_[static_cast<int>(type)];
+      LOG(FATAL) << "Unknown VarDesc type: " << var_type_names_[static_cast<int>(type)] << "(" << static_cast<int>(type)
+                 << ")";
   }
 #undef SET_DATA_TYPE_CASE_ITEM
-  return common::Void();
+  return common::Type();
 }
 
 inline OpMapperContext::FeedInfo GetFeedInfoFromDesc(const paddle::cpp::VarDesc& desc) {

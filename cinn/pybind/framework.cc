@@ -145,7 +145,11 @@ void BindFramework(pybind11::module *m) {
       .def("set_type", [](hlir::framework::Tensor &self, Type type) { self->set_type(type); })
       .def("numpy",
            [](hlir::framework::Tensor &self, const common::Target &target) {
-             py::dtype dt(common::Type2Str(self->type()));
+             std::string type_str = common::Type2Str(self->type());
+             if (type_str == "bfloat16") {
+               type_str = "uint16";
+             }
+             py::dtype dt(type_str);
              py::array::ShapeContainer shape(self->shape().data().begin(), self->shape().data().end());
              py::array array(std::move(dt), std::move(shape));
              void *array_data = array.mutable_data();
