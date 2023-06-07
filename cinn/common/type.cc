@@ -422,6 +422,7 @@ int Type::bytes() const {
 
 Type Str2Type(const std::string &type) {
   static std::unordered_map<std::string, Type> str2type_map = {
+      {"unk", Type()},
       {"void", Void()},
       {"bool", Bool()},
       {"unsigned char", UI8()},

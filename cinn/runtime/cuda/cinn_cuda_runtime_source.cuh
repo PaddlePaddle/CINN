@@ -149,6 +149,7 @@ __device__ inline int FN_INT32(bitwise_not)(int a) { return ~a; }
 __device__ inline int FN_INT32(clz)(int a) { return __clz(a); }
 __device__ inline int FN_INT32(popc)(int a) { return __popc(a); }
 __device__ inline int FN_INT32(logical_right_shift)(int a, int b) { return ((unsigned int)a >> b); }
+__device__ inline int FN_INT32(trunc)(int a) { return a; }
 
 __device__ inline int FN_INT32(max)(int a, int b) { return max(a, b); }
 __device__ inline int FN_INT32(min)(int a, int b) { return min(a, b); }
@@ -170,6 +171,7 @@ __device__ inline long long int FN_INT64(bitwise_xor)(long long int a, long long
 __device__ inline long long int FN_INT64(bitwise_not)(long long int a) { return ~a; }
 __device__ inline long long int FN_INT64(clz)(long long int a) { return __clzll(a); }
 __device__ inline long long int FN_INT64(popc)(long long int a) { return __popcll(a); }
+__device__ inline long long int FN_INT64(trunc)(long long int a) { return a; }
 __device__ inline long long int FN_INT64(mod)(long long int a, long long int b) {
   long long int res = a % b;
   if ((res != 0) && ((b ^ res) < 0)) res += b;
@@ -730,6 +732,10 @@ CINN_NVGPU_GT_NUM(fp16, float16)
     return res;                                                               \
   }
 
+CINN_NVGPU_INDEX_ADD(bool, bool)
+CINN_NVGPU_INDEX_ADD(int8, int8_t)
+CINN_NVGPU_INDEX_ADD(int32, int32_t)
+CINN_NVGPU_INDEX_ADD(int64, int64_t)
 CINN_NVGPU_INDEX_ADD(fp32, float)
 CINN_NVGPU_INDEX_ADD(fp64, double)
 #ifdef CINN_CUDA_FP16

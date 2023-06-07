@@ -14,9 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
-import numpy as np
 from op_test import OpTest, OpTestTool
+from op_test_helper import TestCaseHelper
 import paddle
 import cinn
 from cinn.frontend import *
@@ -27,53 +26,133 @@ from cinn.common import *
                     "x86 test will be skipped due to timeout.")
 class TestGaussianRandomOp(OpTest):
     def setUp(self):
-        self.init_case()
-
-    def init_case(self):
-        self.shape = [2, 3]
-        self.mean = 0.0
-        self.std = 1.0
-        self.seed = 10
-        self.dtype = "float32"
+        # print(f"\n{self.__class__.__name__}: {self.case}")
+        pass
 
     def build_paddle_program(self, target):
         out = paddle.tensor.random.gaussian(
-            shape=self.shape, mean=self.mean, std=self.std, dtype=self.dtype)
+            shape=self.case["shape"],
+            mean=self.case["mean"],
+            std=self.case["std"],
+            dtype=self.case["dtype"])
         self.paddle_outputs = [out]
 
     def build_cinn_program(self, target):
         builder = NetBuilder("gaussian_random")
-        out = builder.gaussian_random(self.shape, self.mean, self.std,
-                                      self.seed, self.dtype)
+        out = builder.gaussian_random(self.case["shape"], self.case["mean"],
+                                      self.case["std"], self.case["seed"],
+                                      self.case["dtype"])
         prog = builder.build()
         res = self.get_cinn_output(prog, target, [], [], [out], passes=[])
-        self.cinn_outputs = [res[0]]
+        self.cinn_outputs = res
 
     def test_check_results(self):
         # Due to the different random number generation numbers implemented
         # in the specific implementation, the random number results generated
         # by CINN and Paddle are not the same, but they all conform to the
         # Uniform distribution.
-        self.check_outputs_and_grads(max_relative_error=10000)
+        self.check_outputs_and_grads(
+            max_relative_error=10000, max_absolute_error=10000)
 
 
-class TestGaussianRandomCase1(TestGaussianRandomOp):
-    def init_case(self):
-        self.shape = [2, 3, 4]
-        self.mean = 1.0
-        self.std = 2.0
-        self.seed = 10
-        self.dtype = "float32"
+class TestGaussianRandomOpShape(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestGaussianRandomOpCase"
+        self.cls = TestGaussianRandomOp
+        self.inputs = [
+            {
+                "shape": [1],
+            },
+            {
+                "shape": [1024],
+            },
+            {
+                "shape": [512, 256],
+            },
+            {
+                "shape": [128, 64, 32],
+            },
+            {
+                "shape": [16, 8, 4, 2],
+            },
+            {
+                "shape": [16, 8, 4, 2, 1],
+            },
+        ]
+        self.dtypes = [
+            {
+                "dtype": "float32",
+            },
+        ]
+        self.attrs = [
+            {
+                "mean": 0.0,
+                "std": 0.0,
+                "seed": 1234,
+            },
+        ]
 
 
-class TestGaussianRandomCase2(TestGaussianRandomOp):
-    def init_case(self):
-        self.shape = [2, 3, 4]
-        self.mean = 2.0
-        self.std = 3.0
-        self.seed = 10
-        self.dtype = "float64"
+class TestGaussianRandomOpDtype(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestGaussianRandomOpCase"
+        self.cls = TestGaussianRandomOp
+        self.inputs = [
+            {
+                "shape": [1024],
+            },
+        ]
+        self.dtypes = [
+            {
+                "dtype": "float32",
+            },
+            {
+                "dtype": "float64",
+            },
+        ]
+        self.attrs = [
+            {
+                "mean": 0.0,
+                "std": 0.0,
+                "seed": 1234,
+            },
+        ]
+
+
+class TestGaussianRandomOpAttr(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestGaussianRandomOpCase"
+        self.cls = TestGaussianRandomOp
+        self.inputs = [
+            {
+                "shape": [1024],
+            },
+        ]
+        self.dtypes = [
+            {
+                "dtype": "float32",
+            },
+        ]
+        self.attrs = [
+            {
+                "mean": 1.0,
+                "std": 0.0,
+                "seed": 1,
+            },
+            {
+                "mean": 0.0,
+                "std": 1.0,
+                "seed": 2,
+            },
+            {
+                "mean": 1.0,
+                "std": 1.0,
+                "seed": 3,
+            },
+        ]
 
 
 if __name__ == "__main__":
-    unittest.main()
+    TestGaussianRandomOpShape().run()
+    TestGaussianRandomOpDtype().run()
+    TestGaussianRandomOpAttr().run()
