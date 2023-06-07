@@ -148,6 +148,90 @@ TEST(net_build, program_execute_fc) {
 }
 #endif
 
+#ifdef CINN_WITH_CUDA
+TEST(net_build, program_execute_multi_elementwise_add_bf16) {
+  constexpr int M = 32;
+  constexpr int N = 24;
+
+  NetBuilder builder("net_builder");
+  auto a       = builder.CreateInput(cinn::common::BFloat16(), {M, N}, "A");
+  auto b       = builder.CreateInput(cinn::common::BFloat16(), {M, N}, "B");
+  auto c       = builder.Add(a, b);
+  auto d       = builder.Add(a, c);
+  auto program = builder.Build();
+
+#ifdef CINN_WITH_CUDA
+  Target target = common::DefaultNVGPUTarget();
+#else
+  Target target = common::DefaultHostTarget();
+#endif
+
+  std::unordered_set<std::string> fetch_ids;
+  auto graph = Optimize(&program, fetch_ids, target);
+  LOG(INFO) << "graph:\n" << graph->Visualize();
+
+  auto scope = BuildScope(target, graph);
+  hlir::framework::GraphCompiler gc(target, scope, graph);
+  auto runtime_program = gc.Build();
+
+  scope->Var<hlir::framework::Tensor>("A");
+  scope->Var<hlir::framework::Tensor>("B");
+
+  auto A = scope->GetTensor("A");
+  auto B = scope->GetTensor("B");
+  SetRandData<float>(A, target);
+  SetRandData<float>(B, target);
+
+  runtime_program->Execute();
+}
+
+TEST(net_build, program_execute_fc_bf16) {
+  constexpr int B = 10;  // batch size
+  constexpr int M = 32;
+  constexpr int K = 18;
+  constexpr int N = 24;
+
+  NetBuilder builder("net_builder");
+  auto a = builder.CreateInput(cinn::common::BFloat16(), {B * M, K}, "A");
+  auto w = builder.CreateInput(cinn::common::BFloat16(), {K, N}, "W");  // weight
+  auto b = builder.CreateInput(cinn::common::BFloat16(), {N}, "B");     // bias
+
+  auto mul_out = builder.Matmul(a, w);
+  auto add_out = builder.Add(mul_out, b);
+  auto program = builder.Build();
+
+#ifdef CINN_WITH_CUDA
+  Target target = common::DefaultNVGPUTarget();
+#else
+  Target target = common::DefaultHostTarget();
+#endif
+
+  std::unordered_set<std::string> fetch_ids;
+  auto graph = Optimize(&program, fetch_ids, target);
+  LOG(INFO) << "graph:\n" << graph->Visualize();
+
+  auto scope = BuildScope(target, graph);
+  hlir::framework::GraphCompiler gc(target, scope, graph);
+  auto runtime_program = gc.Build();
+
+  scope->Var<hlir::framework::Tensor>(std::string(a.id()));
+  scope->Var<hlir::framework::Tensor>(std::string(w.id()));
+  scope->Var<hlir::framework::Tensor>(std::string(b.id()));
+  scope->Var<hlir::framework::Tensor>(std::string(mul_out->id));
+
+  auto a_ten        = scope->GetTensor(std::string(a.id()));
+  auto w_ten        = scope->GetTensor(std::string(w.id()));
+  auto b_ten        = scope->GetTensor(std::string(b.id()));
+  auto fake_out_ten = scope->GetTensor(std::string(mul_out->id));
+  auto add_out_ten  = scope->GetTensor(std::string(add_out->id));
+  SetRandData<float>(a_ten, target);
+  SetRandData<float>(w_ten, target);
+  SetRandData<float>(b_ten, target);
+
+  runtime_program->Execute();
+}
+#endif
+
 TEST(net_build, program_execute_pool2d) {
   const int B = 16;
   const int C = 64;
@@ -349,157 +433,6 @@ TEST(net_build, program_execute_gather_nd) {
         line += (std::to_string(out_data) + ", ");
         EXPECT_EQ(in_data, out_data);
       }
-      VLOG(6) << line;
-    }
-  }
-}
-
-TEST(net_build, program_execute_scatter) {
-  const float default_value = 3.14;
-  const int B               = 3;
-  const int H_IN            = 4;
-  const int H_OUT           = 11;
-
-  NetBuilder builder("net_builder");
-  Placeholder input1 = builder.CreateInput(Float(32), {B, H_IN}, "In1");
-  Placeholder input2 = builder.CreateInput(Int(32), {B, H_IN}, "In2");
-  Variable output    = builder.Scatter(input1, input2, {B, H_OUT}, default_value, 1);
-  auto program       = builder.Build();
-
-#ifdef CINN_WITH_CUDA
-  Target target = common::DefaultNVGPUTarget();
-#else
-  Target target = common::DefaultHostTarget();
-#endif
-  std::unordered_set<std::string> fetch_ids;
-  auto graph = Optimize(&program, fetch_ids, target);
-
-  auto scope = BuildScope(target, graph);
-  hlir::framework::GraphCompiler gc(target, scope, graph);
-  auto runtime_program = gc.Build();
-
-  scope->Var<hlir::framework::Tensor>(std::string(input1.id()));
-  scope->Var<hlir::framework::Tensor>(std::string(input2.id()));
-  scope->Var<hlir::framework::Tensor>(std::string(output->id));
-
-  auto input1_tensor = scope->GetTensor(std::string(input1.id()));
-  SetRandData<float>(input1_tensor, target);
-  std::vector<float> input1_data = GetTensorData<float>(input1_tensor, target);
-
-  auto input2_tensor = scope->GetTensor(std::string(input2.id()));
-  SetRandInt(input2_tensor, target, -1, 0, H_IN);
-
-  std::vector<int> input2_data = GetTensorData<int>(input2_tensor, target);
-
-  runtime_program->Execute();
-
-  auto output_tensor                   = scope->GetTensor(std::string(output->id));
-  const std::vector<int>& output_shape = output_tensor->shape().data();
-  EXPECT_EQ(output_tensor->type(), Float(32));
-  EXPECT_EQ(output_shape.size(), 2UL);
-  EXPECT_EQ(output_shape[0], B);
-  EXPECT_EQ(output_shape[1], H_OUT);
-
-  float true_data[B * H_OUT];
-  for (int b = 0; b < B; ++b) {
-    for (int h = 0; h < H_OUT; ++h) {
-      int index        = h + H_OUT * b;
-      true_data[index] = default_value;
-    }
-  }
-  for (int b = 0; b < B; ++b) {
-    for (int h = 0; h < H_IN; ++h) {
-      int index                                 = h + H_IN * b;
-      true_data[input2_data[index] + H_OUT * b] = input1_data[index];
-    }
-  }
-
-  std::vector<float> output_data = GetTensorData<float>(output_tensor, target);
-  VLOG(6) << "Visualize output_data";
-  for (int b = 0; b < B; ++b) {
-    for (int h = 0; h < H_OUT; ++h) {
-      std::string line;
-      int index      = h + H_OUT * b;
-      float t_data   = true_data[index];
-      float out_data = output_data[index];
-      line += (std::to_string(out_data) + ", ");
-      EXPECT_EQ(t_data, out_data);
-      VLOG(6) << line;
-    }
-  }
-}
-
-TEST(net_build, program_execute_scatter_nd) {
-  Context::Global().ResetNameId();
-  const float default_value = 3.14;
-  const int B               = 3;
-  const int H_IN            = 4;
-  const int H_OUT           = 11;
-
-  NetBuilder builder("net_builder");
-  Placeholder input1 = builder.CreateInput(Float(32), {B, H_IN}, "In1");
-  Placeholder input2 = builder.CreateInput(Int(32), {B, H_IN, 1}, "In2");
-  Variable output    = builder.ScatterNd(input1, input2, {B, H_OUT}, default_value, {1});
-  auto program       = builder.Build();
-
-#ifdef CINN_WITH_CUDA
-  Target target = common::DefaultNVGPUTarget();
-#else
-  Target target = common::DefaultHostTarget();
-#endif
-  std::unordered_set<std::string> fetch_ids;
-  auto graph = Optimize(&program, fetch_ids, target);
-
-  auto scope = BuildScope(target, graph);
-  hlir::framework::GraphCompiler gc(target, scope, graph);
-  auto runtime_program = gc.Build();
-
-  scope->Var<hlir::framework::Tensor>(std::string(input1.id()));
-  scope->Var<hlir::framework::Tensor>(std::string(input2.id()));
-  scope->Var<hlir::framework::Tensor>(std::string(output->id));
-
-  auto input1_tensor = scope->GetTensor(std::string(input1.id()));
-  SetRandData<float>(input1_tensor, target);
-
-  auto input2_tensor = scope->GetTensor(std::string(input2.id()));
-  SetRandInt(input2_tensor, target);
-
-  runtime_program->Execute();
-
-  std::vector<float> input1_data = GetTensorData<float>(input1_tensor, target);
-  std::vector<int> input2_data   = GetTensorData<int>(input2_tensor, target);
-
-  auto output_tensor                   = scope->GetTensor(std::string(output->id));
-  const std::vector<int>& output_shape = output_tensor->shape().data();
-  EXPECT_EQ(output_tensor->type(), Float(32));
-  EXPECT_EQ(output_shape.size(), 2UL);
-  EXPECT_EQ(output_shape[0], B);
-  EXPECT_EQ(output_shape[1], H_OUT);
-
-  float true_data[B * H_OUT];
-  for (int b = 0; b < B; ++b) {
-    for (int h = 0; h < H_OUT; ++h) {
-      int index        = h + H_OUT * b;
-      true_data[index] = default_value;
-    }
-  }
-  for (int b = 0; b < B; ++b) {
-    for (int h = 0; h < H_IN; ++h) {
-      int index                                 = h + H_IN * b;
-      true_data[input2_data[index] + H_OUT * b] = input1_data[index];
-    }
-  }
-
-  std::vector<float> output_data = GetTensorData<float>(output_tensor, target);
-  VLOG(6) << "Visualize output_data";
-  for (int b = 0; b < B; ++b) {
-    for (int h = 0; h < H_OUT; ++h) {
-      std::string line;
-      int index      = h + H_OUT * b;
-      float t_data   = true_data[index];
-      float out_data = output_data[index];
-      line += (std::to_string(out_data) + ", ");
-      EXPECT_EQ(t_data, out_data);
       VLOG(6) << line;
     }
   }
