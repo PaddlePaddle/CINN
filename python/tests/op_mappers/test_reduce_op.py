@@ -128,5 +128,14 @@ class TestReduceOutType(TestReduceOp):
         }
 
 
+class TestReduceUnkOutType(TestReduceOp):
+    def set_op_attrs(self):
+        return {
+            "dim": self.dim,
+            "keep_dim": self.keepdim,
+            "out_dtype": self.nptype2paddledtype("unk")
+        }
+
+
 if __name__ == "__main__":
     unittest.main()

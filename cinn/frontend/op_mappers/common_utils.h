@@ -159,6 +159,10 @@ inline std::string GetPaddleDtype(const paddle::cpp::OpDesc& op_desc,
   }
   auto dtype_pd   = static_cast<paddle::cpp::VarDescAPI::Type>(dtype_id);
   auto dtype_cinn = CppVarType2CommonType(dtype_pd);
+  if (dtype_cinn.is_unk()) {
+    return "";
+  }
+
   return common::Type2Str(dtype_cinn);
 }
 
