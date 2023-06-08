@@ -246,17 +246,6 @@ Placeholder NetBuilder::CreateInput(const Variable& var) {
   return Placeholder(var);
 }
 
-Variable NetBuilder::FillConstant(
-    const std::vector<int>& shape, float value, const std::string& name, const std::string& dtype, bool force_cpu) {
-  auto out =
-      CustomInstr("fill_constant", {}, {{"shape", shape}, {"value", value}, {"dtype", dtype}, {"force_cpu", force_cpu}})
-          .front();
-  if (!name.empty()) {
-    out.set_id(cinn::utils::TransValidVarName(name));
-  }
-  return out;
-}
-
 Variable NetBuilder::FillConstant(const std::vector<int>& shape,
                                   const std::string& str_value,
                                   const std::string& name,

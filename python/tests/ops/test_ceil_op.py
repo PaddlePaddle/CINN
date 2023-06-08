@@ -14,27 +14,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
-import numpy as np
-from op_test import OpTest, OpTestTool
 import paddle
-import cinn
-from cinn.frontend import *
 from cinn.common import *
+from cinn.frontend import *
+from op_test import OpTest, OpTestTool
+from op_test_helper import TestCaseHelper
 
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
                     "x86 test will be skipped due to timeout.")
 class TestCeilOp(OpTest):
     def setUp(self):
-        self.init_case()
+        print(f"\nRunning {self.__class__.__name__}: {self.case}")
+        self.inputs = {}
+        self.prepare_inputs()
 
-    def init_case(self):
+    def prepare_inputs(self):
         self.inputs = {
-            "x": np.random.random([
-                32,
-                64,
-            ]).astype("float32") * 2 - 1
+            "x":
+            self.random(self.case["shape"], self.case["dtype"], -100.0, 100.0),
         }
 
     def build_paddle_program(self, target):
@@ -47,7 +45,9 @@ class TestCeilOp(OpTest):
     # the forward result will be incorrect.
     def build_cinn_program(self, target):
         builder = NetBuilder("ceil")
-        x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
+        x = builder.create_input(
+            self.nptype2cinntype(self.inputs["x"].dtype),
+            self.inputs["x"].shape, "x")
         out = builder.ceil(x)
 
         prog = builder.build()
@@ -60,12 +60,85 @@ class TestCeilOp(OpTest):
         self.check_outputs_and_grads()
 
 
-class TestCeilCase1(TestCeilOp):
-    def init_case(self):
-        self.inputs = {
-            "x": np.random.random([10201, 50]).astype("float32") * 3 - 1
-        }
+class TestCeilOpShape(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestCeilOpShape"
+        self.cls = TestCeilOp
+        self.inputs = [
+            {
+                "shape": [10],
+            },
+            {
+                "shape": [8, 5],
+            },
+            {
+                "shape": [10, 3, 5],
+            },
+            {
+                "shape": [80, 40, 5, 7],
+            },
+            {
+                "shape": [80, 1, 5, 7],
+            },
+            {
+                "shape": [80, 3, 1024, 7],
+            },
+            {
+                "shape": [10, 5, 1024, 2048],
+            },
+            {
+                "shape": [1],
+            },
+            {
+                "shape": [512],
+            },
+            {
+                "shape": [1024],
+            },
+            {
+                "shape": [2048],
+            },
+            {
+                "shape": [1, 1, 1, 1],
+            },
+        ]
+        self.dtypes = [
+            {
+                "dtype": "float32"
+            },
+        ]
+        self.attrs = []
+
+
+class TestCeilOpDtype(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestCeilOpDtype"
+        self.cls = TestCeilOp
+        self.inputs = [
+            {
+                "shape": [1],
+            },
+            {
+                "shape": [5],
+            },
+            {
+                "shape": [80, 40, 5, 7],
+            },
+        ]
+        self.dtypes = [
+            {
+                "dtype": "float16"
+            },
+            {
+                "dtype": "float32"
+            },
+            {
+                "dtype": "float64"
+            },
+        ]
+        self.attrs = []
 
 
 if __name__ == "__main__":
-    unittest.main()
+    TestCeilOpShape().run()
+    TestCeilOpDtype().run()
