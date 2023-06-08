@@ -35,6 +35,7 @@ class TestOneHotOp(OpTest):
     def prepare_inputs(self):
         self.x_np = self.random(
             shape=self.case["x_shape"], dtype=self.case["x_dtype"])
+        self.dtype = "float32"
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.x_np, stop_gradient=True)
@@ -49,7 +50,6 @@ class TestOneHotOp(OpTest):
         x = builder.create_input(
             self.nptype2cinntype(self.case["x_dtype"]), self.case["x_shape"],
             "x")
-        buildtype = "float32"
         on_value = builder.fill_constant([1],
                                          1,
                                          'on_value',
@@ -64,7 +64,7 @@ class TestOneHotOp(OpTest):
             off_value,
             depth=self.case["depth"],
             axis=self.case["axis"],
-            buildtype)
+            dtype=self.dtype)
 
         prog = builder.build()
         res = self.get_cinn_output(prog, target, [x], [self.x_np], [out])
