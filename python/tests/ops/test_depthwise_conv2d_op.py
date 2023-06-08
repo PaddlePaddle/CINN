@@ -21,7 +21,7 @@ from cinn.frontend import *
 from cinn.common import *
 
 
-@OpTestTool.skip_if(not is_compiled_with_cuda(),
+@OpTestTool.skip_if(not is_compiled_with_cudnn(),
                     "x86 test will be skipped due to timeout.")
 class TestDepthwiseConv2dOp(OpTest):
     def setUp(self):
