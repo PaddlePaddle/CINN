@@ -47,14 +47,14 @@ class TestMulOp(OpTest):
         x = paddle.to_tensor(self.x_np, stop_gradient=False)
         y = paddle.to_tensor(self.y_np, stop_gradient=False)
         x_weight = paddle.distributed.reduce(lambda x, y: x * y,
-                                             x[:x_num_col_dims])
+                                             x[:self.case["x_num_col_dims"]])
         x_height = paddle.distributed.reduce(lambda x, y: x * y,
-                                             x[x_num_col_dims:])
+                                             x[self.case["x_num_col_dims"]:])
         x = paddle.reshape(x, [x_weight, x_height])
         y_weight = paddle.distributed.reduce(lambda x, y: x * y,
-                                             y[:y_num_col_dims])
+                                             y[:self.case["y_num_col_dims"]])
         y_height = paddle.distributed.reduce(lambda x, y: x * y,
-                                             y[y_num_col_dims:])
+                                             y[self.case["y_num_col_dims"]:])
         y = paddle.reshape(y, [y_weight, y_height])
         out = paddle.matmul(x, y)
         self.paddle_outputs = [out]
@@ -84,18 +84,28 @@ class TestMulOpBase(TestCaseHelper):
     inputs = [{
         "x_shape": [1],
         "y_shape": [1],
+        "x_num_col_dims": 1,
+        "y_num_col_dims": 1,
     }, {
         "x_shape": [1024],
         "y_shape": [1024],
+        "x_num_col_dims": 1,
+        "y_num_col_dims": 1,
     }, {
         "x_shape": [32, 64],
         "y_shape": [64, 32],
+        "x_num_col_dims": 2,
+        "y_num_col_dims": 2,
     }, {
         "x_shape": [2, 3, 4],
         "y_shape": [2, 4, 3],
+        "x_num_col_dims": 2,
+        "y_num_col_dims": 2,
     }, {
         "x_shape": [16, 8, 4, 2],
         "y_shape": [16, 8, 2, 4],
+        "x_num_col_dims": 3,
+        "y_num_col_dims": 3,
     }]
 
     dtypes = [
@@ -126,21 +136,33 @@ class TestMulOpShapeTest(TestMulOpBase):
         self.inputs = [{
             "x_shape": [1],
             "y_shape": [1],
+            "x_num_col_dims": 1,
+            "y_num_col_dims": 1,
         }, {
             "x_shape": [1024],
             "y_shape": [1024],
+            "x_num_col_dims": 1,
+            "y_num_col_dims": 1,
         }, {
             "x_shape": [2048],
             "y_shape": [2048],
+            "x_num_col_dims": 1,
+            "y_num_col_dims": 1,
         }, {
             "x_shape": [32, 64],
             "y_shape": [64, 32],
+            "x_num_col_dims": 2,
+            "y_num_col_dims": 2,
         }, {
             "x_shape": [2, 3, 4],
             "y_shape": [2, 4, 3],
+            "x_num_col_dims": 2,
+            "y_num_col_dims": 2,
         }, {
             "x_shape": [16, 8, 4, 2],
             "y_shape": [16, 8, 2, 4],
+            "x_num_col_dims": 2,
+            "y_num_col_dims": 2,
         }]
 
 
@@ -182,15 +204,23 @@ class TestMulOpBroadcastTest(TestMulOpBase):
         self.inputs = [{
             "x_shape": [1],
             "y_shape": [1, 1],
+            "x_num_col_dims": 1,
+            "y_num_col_dims": 1,
         }, {
             "x_shape": [1, 64],
             "y_shape": [1, 64, 1],
+            "x_num_col_dims": 1,
+            "y_num_col_dims": 1,
         }, {
             "x_shape": [1, 3, 4],
             "y_shape": [1, 3, 4, 2],
+            "x_num_col_dims": 2,
+            "y_num_col_dims": 2,
         }, {
             "x_shape": [12, 1, 4, 2],
             "y_shape": [12, 1, 2, 4],
+            "x_num_col_dims": 2,
+            "y_num_col_dims": 2,
         }]
 
 
