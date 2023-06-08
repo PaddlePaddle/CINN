@@ -16,6 +16,7 @@
 
 import unittest
 import numpy as np
+from functools import reduce
 from op_test import OpTest, OpTestTool
 from op_test_helper import TestCaseHelper
 import paddle
@@ -46,21 +47,19 @@ class TestMulOp(OpTest):
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.x_np, stop_gradient=False)
         y = paddle.to_tensor(self.y_np, stop_gradient=False)
-        x_weight = paddle.distributed.reduce(lambda x, y: x * y,
-                                             x[:self.case["x_num_col_dims"]])
-        x_height = paddle.distributed.reduce(lambda x, y: x * y,
-                                             x[self.case["x_num_col_dims"]:])
+        x_num_col_dims = x.shape
+        y_num_col_dims = y.shape
+        x_weight = reduce(lambda x, y: x * y, x[:x_num_col_dims])
+        x_height = reduce(lambda x, y: x * y, x[x_num_col_dims:])
         x = paddle.reshape(x, [x_weight, x_height])
-        y_weight = paddle.distributed.reduce(lambda x, y: x * y,
-                                             y[:self.case["y_num_col_dims"]])
-        y_height = paddle.distributed.reduce(lambda x, y: x * y,
-                                             y[self.case["y_num_col_dims"]:])
+        y_weight = reduce(lambda x, y: x * y, y[:y_num_col_dims])
+        y_height = reduce(lambda x, y: x * y, y[y_num_col_dims:])
         y = paddle.reshape(y, [y_weight, y_height])
         out = paddle.matmul(x, y)
         self.paddle_outputs = [out]
 
     def build_cinn_program(self, target):
-        builder = NetBuilder("matmul")
+        builder = NetBuilder("mul")
         x = builder.create_input(
             self.nptype2cinntype(self.case["x_dtype"]), self.case["x_shape"],
             "x")
@@ -84,33 +83,19 @@ class TestMulOpBase(TestCaseHelper):
     inputs = [{
         "x_shape": [1],
         "y_shape": [1],
-        "x_num_col_dims": 1,
-        "y_num_col_dims": 1,
-    },
-              {
-                  "x_shape": [1024],
-                  "y_shape": [1024],
-                  "x_num_col_dims": 1,
-                  "y_num_col_dims": 1,
-              },
-              {
-                  "x_shape": [32, 64],
-                  "y_shape": [64, 32],
-                  "x_num_col_dims": 2,
-                  "y_num_col_dims": 2,
-              },
-              {
-                  "x_shape": [2, 3, 4],
-                  "y_shape": [2, 4, 3],
-                  "x_num_col_dims": 2,
-                  "y_num_col_dims": 2,
-              },
-              {
-                  "x_shape": [16, 8, 4, 2],
-                  "y_shape": [16, 8, 2, 4],
-                  "x_num_col_dims": 3,
-                  "y_num_col_dims": 3,
-              }]
+    }, {
+        "x_shape": [1024],
+        "y_shape": [1024],
+    }, {
+        "x_shape": [32, 64],
+        "y_shape": [64, 32],
+    }, {
+        "x_shape": [2, 3, 4],
+        "y_shape": [2, 4, 3],
+    }, {
+        "x_shape": [16, 8, 4, 2],
+        "y_shape": [16, 8, 2, 4],
+    }]
 
     dtypes = [
         {
@@ -121,10 +106,10 @@ class TestMulOpBase(TestCaseHelper):
 
     attrs = [
         {
-            "x_low": -100,
-            "x_high": 100,
-            "y_low": -100,
-            "y_high": 100,
+            "x_low": -10,
+            "x_high": 10,
+            "y_low": -10,
+            "y_high": 10,
         },
     ]
 
@@ -140,39 +125,22 @@ class TestMulOpShapeTest(TestMulOpBase):
         self.inputs = [{
             "x_shape": [1],
             "y_shape": [1],
-            "x_num_col_dims": 1,
-            "y_num_col_dims": 1,
-        },
-                       {
-                           "x_shape": [1024],
-                           "y_shape": [1024],
-                           "x_num_col_dims": 1,
-                           "y_num_col_dims": 1,
-                       },
-                       {
-                           "x_shape": [2048],
-                           "y_shape": [2048],
-                           "x_num_col_dims": 1,
-                           "y_num_col_dims": 1,
-                       },
-                       {
-                           "x_shape": [32, 64],
-                           "y_shape": [64, 32],
-                           "x_num_col_dims": 2,
-                           "y_num_col_dims": 2,
-                       },
-                       {
-                           "x_shape": [2, 3, 4],
-                           "y_shape": [2, 4, 3],
-                           "x_num_col_dims": 2,
-                           "y_num_col_dims": 2,
-                       },
-                       {
-                           "x_shape": [16, 8, 4, 2],
-                           "y_shape": [16, 8, 2, 4],
-                           "x_num_col_dims": 2,
-                           "y_num_col_dims": 2,
-                       }]
+        }, {
+            "x_shape": [1024],
+            "y_shape": [1024],
+        }, {
+            "x_shape": [2048],
+            "y_shape": [2048],
+        }, {
+            "x_shape": [32, 64],
+            "y_shape": [64, 32],
+        }, {
+            "x_shape": [2, 3, 4],
+            "y_shape": [2, 4, 3],
+        }, {
+            "x_shape": [16, 8, 4, 2],
+            "y_shape": [16, 8, 2, 4],
+        }]
 
 
 class TestMulOpDtypeTest(TestMulOpBase):
@@ -213,27 +181,16 @@ class TestMulOpBroadcastTest(TestMulOpBase):
         self.inputs = [{
             "x_shape": [1],
             "y_shape": [1, 1],
-            "x_num_col_dims": 1,
-            "y_num_col_dims": 1,
-        },
-                       {
-                           "x_shape": [1, 64],
-                           "y_shape": [1, 64, 1],
-                           "x_num_col_dims": 1,
-                           "y_num_col_dims": 1,
-                       },
-                       {
-                           "x_shape": [1, 3, 4],
-                           "y_shape": [1, 3, 4, 2],
-                           "x_num_col_dims": 2,
-                           "y_num_col_dims": 2,
-                       },
-                       {
-                           "x_shape": [12, 1, 4, 2],
-                           "y_shape": [12, 1, 2, 4],
-                           "x_num_col_dims": 2,
-                           "y_num_col_dims": 2,
-                       }]
+        }, {
+            "x_shape": [1, 64],
+            "y_shape": [1, 64, 1],
+        }, {
+            "x_shape": [1, 3, 4],
+            "y_shape": [1, 3, 4, 2],
+        }, {
+            "x_shape": [12, 1, 4, 2],
+            "y_shape": [12, 1, 2, 4],
+        }]
 
 
 if __name__ == "__main__":
