@@ -36,6 +36,7 @@ class TensorInterfaceList : public cinn::utils::SmallVector<TensorInterfacePtr, 
         tensor_set.insert(tensor_if);
       }
     }
+    return *this;
   }
 };
 
