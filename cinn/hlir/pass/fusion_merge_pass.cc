@@ -316,19 +316,19 @@ class FusionMergePassHelper : public FusionHelperBase {
       }
       // producer group
       for (const auto& producer_and_list : consumer->producer_groups) {
-        *(fused_group->producer_groups[producer_and_list.first]) += *producer_and_list.second;
+        fused_group->producer_groups[producer_and_list.first] += producer_and_list.second;
         // update producer's consumer
         producer_and_list.first->consumer_groups.erase(consumer);
         // TODO: Do not add any TensorInterface into any TensorInterfaceList in this file which will be deprecated.
-        *(producer_and_list.first->consumer_groups[fused_group]) += {};
+        producer_and_list.first->consumer_groups[fused_group] += {};
       }
       // consumer group
       for (const auto& gconsumer_and_list : consumer->consumer_groups) {
-        *(fused_group->consumer_groups[gconsumer_and_list.first]) += *gconsumer_and_list.second;
+        fused_group->consumer_groups[gconsumer_and_list.first] += gconsumer_and_list.second;
         // update consumer's producer
         gconsumer_and_list.first->producer_groups.erase(consumer);
         // TODO: Do not add any TensorInterface into any TensorInterfaceList in this file which will be deprecated.
-        *(gconsumer_and_list.first->producer_groups[fused_group]) += {};
+        gconsumer_and_list.first->producer_groups[fused_group] += {};
       }
       // belongs group
       consumer->belong_groups.insert(fused_group);
@@ -502,11 +502,11 @@ class FusionMergePassHelper : public FusionHelperBase {
 
       // producer groups
       for (const auto& group_and_list : producer->producer_groups) {
-        *(fused_group->producer_groups[group_and_list.first]) += *group_and_list.second;
+        fused_group->producer_groups[group_and_list.first] += group_and_list.second;
         // update producer's producer's consumer
         group_and_list.first->consumer_groups.erase(producer);
         // TODO: Do not add any TensorInterface into any TensorInterfaceList in this file which will be deprecated.
-        *(group_and_list.first->consumer_groups[fused_group]) += {};
+        group_and_list.first->consumer_groups[fused_group] += {};
       }
 
       // sub groups
@@ -554,21 +554,21 @@ class FusionMergePassHelper : public FusionHelperBase {
       // producer nodes
       for (const auto& group_and_list : consumer->producer_groups) {
         if (group_and_list.first.get() != producer.get()) {
-          *(fused_group->producer_groups[group_and_list.first]) += *group_and_list.second;
+          fused_group->producer_groups[group_and_list.first] += group_and_list.second;
           // update consumer's producer's consumer
           group_and_list.first->consumer_groups.erase(consumer);
           // TODO: Do not add any TensorInterface into any TensorInterfaceList in this file which will be deprecated.
-          *(group_and_list.first->consumer_groups[fused_group]) += {};
+          group_and_list.first->consumer_groups[fused_group] += {};
         }
       }
 
       // consumer nodes
       for (const auto& group_and_list : consumer->consumer_groups) {
-        *(fused_group->consumer_groups[group_and_list.first]) += *group_and_list.second;
+        fused_group->consumer_groups[group_and_list.first] += group_and_list.second;
         // update consumer's consumer's producer
         group_and_list.first->producer_groups.erase(consumer);
         // TODO: Do not add any TensorInterface into any TensorInterfaceList in this file which will be deprecated.
-        *(group_and_list.first->producer_groups[fused_group]) += {};
+        group_and_list.first->producer_groups[fused_group] += {};
       }
 
       // sub group
@@ -632,11 +632,11 @@ class FusionMergePassHelper : public FusionHelperBase {
       if (fusionable_consumers.count(consumer_and_list.first)) {
         continue;
       }
-      *(master_fuesd_group->consumer_groups[consumer_and_list.first]) += *consumer_and_list.second;
+      master_fuesd_group->consumer_groups[consumer_and_list.first] += consumer_and_list.second;
       // update consumer's producer
       consumer_and_list.first->producer_groups.erase(producer);
       // TODO: Do not add any TensorInterface into any TensorInterfaceList in this file which will be deprecated.
-      *(consumer_and_list.first->producer_groups[master_fuesd_group]) += {};
+      consumer_and_list.first->producer_groups[master_fuesd_group] += {};
     }
   }
 
@@ -892,19 +892,19 @@ class FusionMergePassHelper : public FusionHelperBase {
 
     // update producer and consumer.
     for (auto& group : fusion_groups_) {
-      std::unordered_map<GroupPtr, std::shared_ptr<TensorInterfaceList>> producers;
-      std::unordered_map<GroupPtr, std::shared_ptr<TensorInterfaceList>> consumers;
+      std::unordered_map<GroupPtr, TensorInterfaceList> producers;
+      std::unordered_map<GroupPtr, TensorInterfaceList> consumers;
 
       for (auto& producer_and_list : group->producer_groups) {
         CHECK(producer_and_list.first->belong_groups.size());
         // TODO: Do not add any TensorInterface into any TensorInterfaceList in this file which will be deprecated.
-        *(producers[*producer_and_list.first->belong_groups.begin()]) += {};
+        producers[*producer_and_list.first->belong_groups.begin()] += {};
       }
 
       for (auto& consumer_and_list : group->consumer_groups) {
         CHECK(consumer_and_list.first->belong_groups.size());
         // TODO: Do not add any TensorInterface into any TensorInterfaceList in this file which will be deprecated.
-        *(consumers[*consumer_and_list.first->belong_groups.begin()]) += {};
+        consumers[*consumer_and_list.first->belong_groups.begin()] += {};
       }
       CHECK_EQ(group->producer_groups.size(), producers.size());
       CHECK_EQ(group->consumer_groups.size(), consumers.size());

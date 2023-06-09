@@ -81,9 +81,9 @@ class Graph : public cinn::common::Graph {
     std::unordered_set<Node*> master_nodes;
 
     // input groups
-    std::unordered_map<std::shared_ptr<Group>, std::shared_ptr<TensorInterfaceList>> producer_groups;
+    std::unordered_map<std::shared_ptr<Group>, TensorInterfaceList> producer_groups;
     // output grous
-    std::unordered_map<std::shared_ptr<Group>, std::shared_ptr<TensorInterfaceList>> consumer_groups;
+    std::unordered_map<std::shared_ptr<Group>, TensorInterfaceList> consumer_groups;
     // fused sub-groups, used for fusion merge pass
     std::vector<std::shared_ptr<Group>> fused_sub_groups;
     // if as sub-group, used for belong groups.

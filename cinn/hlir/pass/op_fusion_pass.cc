@@ -101,9 +101,9 @@ class OpFusionPassHelper : public FusionHelperBase {
       for (auto& input_node : consumer->input_nodes) {
         auto& producer = fusion_groups_[input_node.first];
         // TODO: Do not add any TensorInterface into any TensorInterfaceList in this file which will be deprecated.
-        *(consumer->producer_groups[producer]) += {};
+        consumer->producer_groups[producer] += {};
         // TODO: Do not add any TensorInterface into any TensorInterfaceList in this file which will be deprecated.
-        *(producer->consumer_groups[consumer]) += {};
+        producer->consumer_groups[consumer] += {};
       }
     }
 
