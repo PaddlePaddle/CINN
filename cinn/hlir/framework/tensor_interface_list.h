@@ -24,8 +24,6 @@ namespace cinn {
 namespace hlir {
 namespace framework {
 
-using TensorInterfaceList = cinn::utils::SmallVector<TensorInterfacePtr, 16>;
-
 class TensorInterfaceList : public cinn::utils::SmallVector<TensorInterfacePtr, 16> {
  public:
   using cinn::utils::SmallVector<TensorInterfacePtr, 16>::SmallVector;
