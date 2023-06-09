@@ -266,6 +266,9 @@ class TestReverseOpMultiAxis(TestCaseHelper):
         ]
         self.attrs = [
             {
+                "axes": []
+            },
+            {
                 "axes": [0]
             },
             {
