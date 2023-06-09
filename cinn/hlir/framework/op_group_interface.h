@@ -18,27 +18,12 @@
 #include <unordered_set>
 
 #include "cinn/hlir/framework/tensor_interface.h"
-#include "cinn/utils/small_vector.h"
 
 namespace cinn {
 namespace hlir {
 namespace framework {
 
-class TensorInterfaceList : public cinn::utils::SmallVector<TensorInterfacePtr, 16> {
- public:
-  using cinn::utils::SmallVector<TensorInterfacePtr, 16>::SmallVector;
-
-  TensorInterfaceList& operator+=(const TensorInterfaceList& other) {
-    std::unordered_set<TensorInterfacePtr> tensor_set(this->begin(), this->end());
-    for (const auto& tensor_if : other) {
-      if (tensor_set.find(tensor_if) == tensor_set.end()) {
-        this->push_back(tensor_if);
-        tensor_set.insert(tensor_if);
-      }
-    }
-    return *this;
-  }
-};
+class OpGroupInterface {};
 
 }  // namespace framework
 }  // namespace hlir
