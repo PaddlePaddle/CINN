@@ -100,7 +100,7 @@ class TestOneHotOpTest(TestCaseHelper):
             {
                 "x_shape": [16, 8, 4],
                 "depth": 10,
-                "broadcast_axes": -1,
+                "axis": -1,
             },
             {
                 "x_shape": [16, 8, 4, 2],
