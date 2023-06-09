@@ -320,7 +320,7 @@ __device__ inline bfloat16 FN_BF16(pow)(bfloat16 a, bfloat16 b) {
 
 __device__ inline float16 FN_FP16(ceil)(float16 x) { return float16(hceil(x.to_half())); }
 __device__ inline float16 FN_FP16(floor)(float16 x) { return float16(hfloor(x.to_half())); }
-__device__ inline float16 FN_FP16(round)(float16 x) { return float16(hrint(x.to_half())); }
+__device__ inline float16 FN_FP16(round)(float16 x) { return float16(FN_FP32(round)(static_cast<float>(x))); }
 __device__ inline float16 FN_FP16(trunc)(float16 x) { return float16(htrunc(x.to_half())); }
 
 __device__ inline float16 FN_FP16(sin)(float16 x) { return float16(hsin(x.to_half())); }
