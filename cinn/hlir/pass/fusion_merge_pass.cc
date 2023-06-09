@@ -29,11 +29,9 @@ using framework::shape_t;
 using common::GraphEdge;
 using common::GraphNode;
 
-using Comparator = Graph::Group::SharedGroupComparator;
-using Hasher     = Graph::Group::SharedGroupHasher;
-
 using GroupPtr  = std::shared_ptr<Graph::Group>;
 using GroupList = std::vector<GroupPtr>;
+using GroupIter = std::unordered_map<std::shared_ptr<Graph::Group>, std::shared_ptr<TensorInterfaceList>>::iterator;
 
 using ConditionFunction = std::function<bool(const FusionHelperBase*, const GroupPtr&, const GroupPtr&)>;
 
@@ -61,10 +59,12 @@ class FusionMergePassHelper : public FusionHelperBase {
       for (auto& sub_group : group->fused_sub_groups) {
         VLOG(3) << "  Fused Sub-Group -> " << sub_group->group_id;
       }
-      for (auto& producer : group->producer_groups) {
+      for (const auto& pair : group->producer_groups) {
+        const auto& producer = pair.first;
         VLOG(3) << "  Producer -> " << producer->group_id;
       }
-      for (auto& consumer : group->consumer_groups) {
+      for (const auto& pair : group->consumer_groups) {
+        const auto& consumer = pair.first;
         VLOG(3) << "  Consumer -> " << consumer->group_id;
       }
     }
@@ -130,7 +130,7 @@ class FusionMergePassHelper : public FusionHelperBase {
   void UpdateFusionGroup() {
     VLOG(3) << "UpdateFusionGroup...";
     GroupList fusion_groups;
-    std::unordered_set<GroupPtr, Hasher, Comparator> fusion_groups_set;
+    std::unordered_set<GroupPtr> fusion_groups_set;
     // update fusion_groups_
     for (auto& group : fusion_groups_) {
       if (!group->belong_groups.size()) {
@@ -150,7 +150,8 @@ class FusionMergePassHelper : public FusionHelperBase {
         }
 
         bool exist = false;
-        for (auto& producer : group->producer_groups) {
+        for (const auto& pair : group->producer_groups) {
+          const auto& producer = pair.first;
           if (fusion_groups_set.count(producer)) {
             VLOG(4) << group->group_id << " " << producer->group_id;
             exist = true;
@@ -173,13 +174,13 @@ class FusionMergePassHelper : public FusionHelperBase {
     }
   }
 
-  bool HorizontalFusion(GroupPtr producer, std::unordered_set<GroupPtr, Hasher, Comparator>& consumers) {
+  bool HorizontalFusion(GroupPtr producer, std::unordered_set<GroupPtr>& consumers) {
     VLOG(3) << "HorizontalFusion...!";
     if (consumers.size() <= 1) {
       return false;
     }
 
-    std::unordered_set<GroupPtr, Hasher, Comparator> candidates;
+    std::unordered_set<GroupPtr> candidates;
     for (auto& consumer : consumers) {
       // relation
       auto& relation = fusion_relation_map_[consumer->op_pattern_kind];
@@ -249,7 +250,7 @@ class FusionMergePassHelper : public FusionHelperBase {
     auto fused_group = std::make_shared<Graph::Group>();
     // As recompute exist which may case sub-group used by more than one time.
     std::vector<GroupPtr> repeat_sub_groups;
-    std::unordered_set<GroupPtr, Hasher, Comparator> sub_group_set;
+    std::unordered_set<GroupPtr> sub_group_set;
     // find the first consumer.
     GroupPtr first_consumer(nullptr);
     // fuse all group into fusion group.
@@ -315,18 +316,20 @@ class FusionMergePassHelper : public FusionHelperBase {
         fused_group->fused_sub_groups.push_back(consumer);
       }
       // producer group
-      for (auto& producer : consumer->producer_groups) {
-        fused_group->producer_groups.insert(producer);
+      for (const auto& producer_and_list : consumer->producer_groups) {
+        *(fused_group->producer_groups[producer_and_list.first]) += *producer_and_list.second;
         // update producer's consumer
-        producer->consumer_groups.erase(consumer);
-        producer->consumer_groups.insert(fused_group);
+        producer_and_list.first->consumer_groups.erase(consumer);
+        // TODO: Do not add any TensorInterface into any TensorInterfaceList in this file which will be deprecated.
+        *(producer_and_list.first->consumer_groups[fused_group]) += {};
       }
       // consumer group
-      for (auto& gconsumer : consumer->consumer_groups) {
-        fused_group->consumer_groups.insert(gconsumer);
+      for (const auto& gconsumer_and_list : consumer->consumer_groups) {
+        *(fused_group->consumer_groups[gconsumer_and_list.first]) += *gconsumer_and_list.second;
         // update consumer's producer
-        gconsumer->producer_groups.erase(consumer);
-        gconsumer->producer_groups.insert(fused_group);
+        gconsumer_and_list.first->producer_groups.erase(consumer);
+        // TODO: Do not add any TensorInterface into any TensorInterfaceList in this file which will be deprecated.
+        *(gconsumer_and_list.first->producer_groups[fused_group]) += {};
       }
       // belongs group
       consumer->belong_groups.insert(fused_group);
@@ -384,7 +387,7 @@ class FusionMergePassHelper : public FusionHelperBase {
     CHECK(fused_group->output_nodes.size()) << "No output node is found, " << fused_group->group_id;
   }
 
-  bool VerticalFusion(GroupPtr& producer, std::unordered_set<GroupPtr, Hasher, Comparator>& consumers, bool recompute) {
+  bool VerticalFusion(GroupPtr& producer, std::unordered_set<GroupPtr>& consumers, bool recompute) {
     VLOG(3) << "VerticalFusion, Number of Consumers : " << consumers.size();
     auto& relation = fusion_relation_map_[producer->op_pattern_kind];
     // if producer can't fuse others
@@ -392,8 +395,8 @@ class FusionMergePassHelper : public FusionHelperBase {
       return false;
     }
 
-    std::unordered_set<GroupPtr, Hasher, Comparator> fuse_consumers_unsafe;
-    std::unordered_set<GroupPtr, Hasher, Comparator> fuse_consumers;
+    std::unordered_set<GroupPtr> fuse_consumers_unsafe;
+    std::unordered_set<GroupPtr> fuse_consumers;
     for (auto& consumer : consumers) {
       VLOG(4) << "Check consuemr " << consumer->group_id << " can fuse to producer " << producer->group_id;
       // if can't fuse
@@ -456,7 +459,7 @@ class FusionMergePassHelper : public FusionHelperBase {
     return false;
   }
 
-  void VerticalFuse(GroupPtr& producer, std::unordered_set<GroupPtr, Hasher, Comparator>& fusionable_consumers) {
+  void VerticalFuse(GroupPtr& producer, std::unordered_set<GroupPtr>& fusionable_consumers) {
     VLOG(3) << "VerticalFuse...!";
     GroupList fused_groups;
     GroupPtr master_fuesd_group(nullptr);
@@ -499,11 +502,12 @@ class FusionMergePassHelper : public FusionHelperBase {
       }
 
       // producer groups
-      for (auto& group : producer->producer_groups) {
-        fused_group->producer_groups.insert(group);
+      for (const auto& group_and_list : producer->producer_groups) {
+        *(fused_group->producer_groups[group_and_list.first]) += *group_and_list.second;
         // update producer's producer's consumer
-        group->consumer_groups.erase(producer);
-        group->consumer_groups.insert(fused_group);
+        group_and_list.first->consumer_groups.erase(producer);
+        // TODO: Do not add any TensorInterface into any TensorInterfaceList in this file which will be deprecated.
+        *(group_and_list.first->consumer_groups[fused_group]) += {};
       }
 
       // sub groups
@@ -549,20 +553,23 @@ class FusionMergePassHelper : public FusionHelperBase {
       }
 
       // producer nodes
-      for (auto& group : consumer->producer_groups) {
-        if (group.get() != producer.get()) {
-          fused_group->producer_groups.insert(group);
+      for (const auto& group_and_list : consumer->producer_groups) {
+        if (group_and_list.first.get() != producer.get()) {
+          *(fused_group->producer_groups[group_and_list.first]) += *group_and_list.second;
           // update consumer's producer's consumer
-          group->consumer_groups.erase(consumer);
-          group->consumer_groups.insert(fused_group);
+          group_and_list.first->consumer_groups.erase(consumer);
+          // TODO: Do not add any TensorInterface into any TensorInterfaceList in this file which will be deprecated.
+          *(group_and_list.first->consumer_groups[fused_group]) += {};
         }
       }
+
       // consumer nodes
-      for (auto& group : consumer->consumer_groups) {
-        fused_group->consumer_groups.insert(group);
+      for (const auto& group_and_list : consumer->consumer_groups) {
+        *(fused_group->consumer_groups[group_and_list.first]) += *group_and_list.second;
         // update consumer's consumer's producer
-        group->producer_groups.erase(consumer);
-        group->producer_groups.insert(fused_group);
+        group_and_list.first->producer_groups.erase(consumer);
+        // TODO: Do not add any TensorInterface into any TensorInterfaceList in this file which will be deprecated.
+        *(group_and_list.first->producer_groups[fused_group]) += {};
       }
 
       // sub group
@@ -596,16 +603,16 @@ class FusionMergePassHelper : public FusionHelperBase {
 
     for (auto& node : producer->output_nodes) {
       bool be_output = true;
-      for (auto& consumer : producer->consumer_groups) {
+      for (const auto& consumer_and_list : producer->consumer_groups) {
         // if consumer is in fusionable.
-        if (fusionable_consumers.count(consumer)) {
-          if (consumer->input_nodes.count(node)) {
+        if (fusionable_consumers.count(consumer_and_list.first)) {
+          if (consumer_and_list.first->input_nodes.count(node)) {
             be_output = false;
           }
           continue;
         }
         // if consumer is not in fusionable.
-        if (consumer->input_nodes.count(node)) {
+        if (consumer_and_list.first->input_nodes.count(node)) {
           be_output = true;
           break;
         }
@@ -622,29 +629,28 @@ class FusionMergePassHelper : public FusionHelperBase {
       }
     }
     // insert unfusionable consumer groups
-    for (auto& consumer : producer->consumer_groups) {
-      if (fusionable_consumers.count(consumer)) {
+    for (const auto& consumer_and_list : producer->consumer_groups) {
+      if (fusionable_consumers.count(consumer_and_list.first)) {
         continue;
       }
-      master_fuesd_group->consumer_groups.insert(consumer);
+      *(master_fuesd_group->consumer_groups[consumer_and_list.first]) += *consumer_and_list.second;
       // update consumer's producer
-      consumer->producer_groups.erase(producer);
-      consumer->producer_groups.insert(master_fuesd_group);
+      consumer_and_list.first->producer_groups.erase(producer);
+      // TODO: Do not add any TensorInterface into any TensorInterfaceList in this file which will be deprecated.
+      *(consumer_and_list.first->producer_groups[master_fuesd_group]) += {};
     }
   }
 
-  void RecomputeEleGraph(const GroupPtr& producer,
-                         std::unordered_set<GroupPtr, Hasher, Comparator>& fusionable_consumers) {
+  void RecomputeEleGraph(const GroupPtr& producer, std::unordered_set<GroupPtr>& fusionable_consumers) {
     if (producer->op_pattern_kind != framework::kElementWise) {
       SelectConsumerToFuse(producer, fusionable_consumers);
     }
   }
 
-  void SelectConsumerToFuse(const GroupPtr& producer,
-                            std::unordered_set<GroupPtr, Hasher, Comparator>& fusionable_consumers) {
+  void SelectConsumerToFuse(const GroupPtr& producer, std::unordered_set<GroupPtr>& fusionable_consumers) {
     // if is const op
     if (is_const_group(this, producer)) {
-      std::unordered_set<GroupPtr, Hasher, Comparator> candidates;
+      std::unordered_set<GroupPtr> candidates;
       for (auto& consumer : fusionable_consumers) {
         // if can be output node.
         if (is_same_shape(this, producer, consumer)) {
@@ -714,7 +720,7 @@ class FusionMergePassHelper : public FusionHelperBase {
         fusionable_consumers.insert(*candidates.begin());
       }
     } else {
-      std::unordered_set<GroupPtr, Hasher, Comparator> candidates;
+      std::unordered_set<GroupPtr> candidates;
       for (auto& consumer : fusionable_consumers) {
         if (consumer->op_pattern_kind == framework::kElementWise) {
           candidates.insert(consumer);
@@ -739,24 +745,24 @@ class FusionMergePassHelper : public FusionHelperBase {
 
   bool IsDependency(const GroupPtr& producer_g,
                     const GroupPtr& consumer,
-                    const std::unordered_set<GroupPtr, Hasher, Comparator>& consumers) {
+                    const std::unordered_set<GroupPtr>& consumers) {
     std::queue<GroupPtr> candidates;
     candidates.push(consumer);
 
-    std::unordered_set<GroupPtr, Hasher, Comparator> visited_set;
+    std::unordered_set<GroupPtr> visited_set;
     while (!candidates.empty()) {
       auto& candidate = candidates.front();
       candidates.pop();
-      for (auto& producer : candidate->producer_groups) {
-        if (producer.get() == producer_g.get()) {
+      for (const auto& producer_and_list : candidate->producer_groups) {
+        if (producer_and_list.first.get() == producer_g.get()) {
           continue;
         }
-        if (consumers.count(producer)) {
+        if (consumers.count(producer_and_list.first)) {
           return true;
         }
-        if (!visited_set.count(producer)) {
-          visited_set.insert(producer);
-          candidates.push(producer);
+        if (!visited_set.count(producer_and_list.first)) {
+          visited_set.insert(producer_and_list.first);
+          candidates.push(producer_and_list.first);
         }
       }
     }
@@ -765,28 +771,28 @@ class FusionMergePassHelper : public FusionHelperBase {
 
   bool IsDependencySimplify(const GroupPtr& producer_g,
                             const GroupPtr& consumer,
-                            const std::unordered_set<GroupPtr, Hasher, Comparator>& consumers) {
+                            const std::unordered_set<GroupPtr>& consumers) {
     std::queue<GroupPtr> candidates;
     candidates.push(consumer);
     // check upper.
     int check_upper_depth = producer_g.get() ? producer_g->max_depth : INT_MAX;
-    std::unordered_set<GroupPtr, Hasher, Comparator> visited_set;
+    std::unordered_set<GroupPtr> visited_set;
     while (!candidates.empty()) {
       auto& candidate = candidates.front();
       candidates.pop();
-      for (auto& producer : candidate->producer_groups) {
-        if (producer.get() == producer_g.get()) {
+      for (auto& producer_and_list : candidate->producer_groups) {
+        if (producer_and_list.first.get() == producer_g.get()) {
           continue;
         }
-        if (producer->min_depth > check_upper_depth) {
+        if (producer_and_list.first->min_depth > check_upper_depth) {
           continue;
         }
-        if (consumers.count(producer)) {
+        if (consumers.count(producer_and_list.first)) {
           return true;
         }
-        if (!visited_set.count(producer)) {
-          visited_set.insert(producer);
-          candidates.push(producer);
+        if (!visited_set.count(producer_and_list.first)) {
+          visited_set.insert(producer_and_list.first);
+          candidates.push(producer_and_list.first);
         }
       }
     }
@@ -818,7 +824,7 @@ class FusionMergePassHelper : public FusionHelperBase {
   void UpdateInputToConsumers() {
     for (auto& input_consumers : input_to_consumers_) {
       auto& consumers = input_consumers.second;
-      std::unordered_set<GroupPtr, Hasher, Comparator> updated_consumers;
+      std::unordered_set<GroupPtr> updated_consumers;
       for (auto& consumer : consumers) {
         std::queue<GroupPtr> fused_groups;
         fused_groups.push(consumer);
@@ -887,16 +893,19 @@ class FusionMergePassHelper : public FusionHelperBase {
 
     // update producer and consumer.
     for (auto& group : fusion_groups_) {
-      std::unordered_set<GroupPtr, Hasher, Comparator> producers;
-      std::unordered_set<GroupPtr, Hasher, Comparator> consumers;
+      std::unordered_map<GroupPtr, std::shared_ptr<TensorInterfaceList>> producers;
+      std::unordered_map<GroupPtr, std::shared_ptr<TensorInterfaceList>> consumers;
 
-      for (auto& producer : group->producer_groups) {
-        CHECK(producer->belong_groups.size());
-        producers.insert(*producer->belong_groups.begin());
+      for (auto& producer_and_list : group->producer_groups) {
+        CHECK(producer_and_list.first->belong_groups.size());
+        // TODO: Do not add any TensorInterface into any TensorInterfaceList in this file which will be deprecated.
+        *(producers[*producer_and_list.first->belong_groups.begin()]) += {};
       }
-      for (auto& consumer : group->consumer_groups) {
-        CHECK(consumer->belong_groups.size());
-        consumers.insert(*consumer->belong_groups.begin());
+
+      for (auto& consumer_and_list : group->consumer_groups) {
+        CHECK(consumer_and_list.first->belong_groups.size());
+        // TODO: Do not add any TensorInterface into any TensorInterfaceList in this file which will be deprecated.
+        *(consumers[*consumer_and_list.first->belong_groups.begin()]) += {};
       }
       CHECK_EQ(group->producer_groups.size(), producers.size());
       CHECK_EQ(group->consumer_groups.size(), consumers.size());
@@ -996,8 +1005,8 @@ class FusionMergePassHelper : public FusionHelperBase {
   }
 
   GroupList fusion_groups_;
-  std::unordered_map<GroupPtr, int, Hasher, Comparator> fusion_groups_index_;
-  std::unordered_map<NodeData*, std::unordered_set<GroupPtr, Hasher, Comparator>> input_to_consumers_;
+  std::unordered_map<GroupPtr, int> fusion_groups_index_;
+  std::unordered_map<NodeData*, std::unordered_set<GroupPtr>> input_to_consumers_;
 
   struct Relation {
     std::unordered_map<framework::OpPatternKind, ConditionFunction> vertical_relation;

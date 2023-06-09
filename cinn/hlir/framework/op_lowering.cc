@@ -41,8 +41,6 @@ using common::GraphNode;
 using common::Type;
 using namespace lang;
 
-using Comparator = Graph::Group::SharedGroupComparator;
-using Hasher     = Graph::Group::SharedGroupHasher;
 using cinn::hlir::op::ExternalApiRegistry;
 
 OpLowerer::OpLowerer(const absl::flat_hash_map<std::string, Type>& type_dict,

@@ -24,6 +24,7 @@
 #include "cinn/common/graph_utils.h"
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/node.h"
+#include "cinn/hlir/framework/tensor_interface_list.h"
 
 namespace cinn {
 namespace hlir {
@@ -79,24 +80,14 @@ class Graph : public cinn::common::Graph {
     // master node for schedule
     std::unordered_set<Node*> master_nodes;
 
-    struct SharedGroupHasher {
-      size_t operator()(const std::shared_ptr<Group>& group) const noexcept {
-        return std::hash<uint64_t>()(reinterpret_cast<uint64_t>(group.get()));
-      }
-    };
-    struct SharedGroupComparator {
-      bool operator()(const std::shared_ptr<Group>& first, const std::shared_ptr<Group>& second) const noexcept {
-        return first.get() == second.get();
-      }
-    };
     // input groups
-    std::unordered_set<std::shared_ptr<Group>, SharedGroupHasher, SharedGroupComparator> producer_groups;
+    std::unordered_map<std::shared_ptr<Group>, std::shared_ptr<TensorInterfaceList>> producer_groups;
     // output grous
-    std::unordered_set<std::shared_ptr<Group>, SharedGroupHasher, SharedGroupComparator> consumer_groups;
+    std::unordered_map<std::shared_ptr<Group>, std::shared_ptr<TensorInterfaceList>> consumer_groups;
     // fused sub-groups, used for fusion merge pass
     std::vector<std::shared_ptr<Group>> fused_sub_groups;
     // if as sub-group, used for belong groups.
-    std::unordered_set<std::shared_ptr<Group>, SharedGroupHasher, SharedGroupComparator> belong_groups;
+    std::unordered_set<std::shared_ptr<Group>> belong_groups;
 
     // for op lowering.
     std::vector<std::string> input_names;
