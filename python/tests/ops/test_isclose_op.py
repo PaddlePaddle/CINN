@@ -36,7 +36,8 @@ class TestIsCloseOp(OpTest):
         else:
             self.x_np = self.random(
                 shape=self.case["shape"], dtype=self.case["dtype"])
-        self.y_np = self.x_np.copy()
+        self.y_np = self.x_np + self.random(
+            shape=self.case["shape"], dtype=self.case["dtype"])
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.x_np, stop_gradient=False)
@@ -184,7 +185,7 @@ class TestIsCloseNAN(TestCaseHelper):
         ]
         self.dtypes = [
             {
-                "dtype": "float32",
+                "dtype": "float64",
             },
         ]
         self.attrs = [
