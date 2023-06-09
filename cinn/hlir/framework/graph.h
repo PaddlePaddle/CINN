@@ -93,6 +93,14 @@ class Graph : public cinn::common::Graph {
     std::vector<std::string> input_names;
     std::vector<std::string> output_names;
 
+    std::unordered_set<std::shared_ptr<Group>> CollectConsumerGroups() {
+      std::unordered_set<std::shared_ptr<Group>> groups;
+      for (const auto& consumer_and_list : consumer_groups) {
+        groups.insert(consumer_and_list.first);
+      }
+      return groups;
+    }
+
     std::vector<Node*> CollectNodes() {
       if (fused_sub_groups.size()) {
         std::vector<Node*> tmp_nodes;

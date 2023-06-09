@@ -31,7 +31,6 @@ using common::GraphNode;
 
 using GroupPtr  = std::shared_ptr<Graph::Group>;
 using GroupList = std::vector<GroupPtr>;
-using GroupIter = std::unordered_map<std::shared_ptr<Graph::Group>, std::shared_ptr<TensorInterfaceList>>::iterator;
 
 using ConditionFunction = std::function<bool(const FusionHelperBase*, const GroupPtr&, const GroupPtr&)>;
 
@@ -93,7 +92,7 @@ class FusionMergePassHelper : public FusionHelperBase {
         continue;
       }
       // do horizontal fusion.
-      updated |= HorizontalFusion(producer, producer->consumer_groups);
+      updated |= HorizontalFusion(producer, producer->CollectConsumerGroups());
     }
 
     if (updated) {
@@ -114,9 +113,9 @@ class FusionMergePassHelper : public FusionHelperBase {
       }
       // do horizontal fusion.
       if (!recompute) {
-        updated |= HorizontalFusion(producer, producer->consumer_groups);
+        updated |= HorizontalFusion(producer, producer->CollectConsumerGroups());
       }
-      updated |= VerticalFusion(producer, producer->consumer_groups, recompute);
+      updated |= VerticalFusion(producer, producer->CollectConsumerGroups(), recompute);
     }
     // fuse input consumers
     updated |= FuseInputToConsumers();
@@ -174,14 +173,14 @@ class FusionMergePassHelper : public FusionHelperBase {
     }
   }
 
-  bool HorizontalFusion(GroupPtr producer, std::unordered_set<GroupPtr>& consumers) {
+  bool HorizontalFusion(GroupPtr producer, const std::unordered_set<GroupPtr>& consumers) {
     VLOG(3) << "HorizontalFusion...!";
     if (consumers.size() <= 1) {
       return false;
     }
 
     std::unordered_set<GroupPtr> candidates;
-    for (auto& consumer : consumers) {
+    for (const auto& consumer : consumers) {
       // relation
       auto& relation = fusion_relation_map_[consumer->op_pattern_kind];
       // check horizontal relation exist
@@ -387,7 +386,7 @@ class FusionMergePassHelper : public FusionHelperBase {
     CHECK(fused_group->output_nodes.size()) << "No output node is found, " << fused_group->group_id;
   }
 
-  bool VerticalFusion(GroupPtr& producer, std::unordered_set<GroupPtr>& consumers, bool recompute) {
+  bool VerticalFusion(GroupPtr& producer, const std::unordered_set<GroupPtr>& consumers, bool recompute) {
     VLOG(3) << "VerticalFusion, Number of Consumers : " << consumers.size();
     auto& relation = fusion_relation_map_[producer->op_pattern_kind];
     // if producer can't fuse others
@@ -397,7 +396,7 @@ class FusionMergePassHelper : public FusionHelperBase {
 
     std::unordered_set<GroupPtr> fuse_consumers_unsafe;
     std::unordered_set<GroupPtr> fuse_consumers;
-    for (auto& consumer : consumers) {
+    for (const auto& consumer : consumers) {
       VLOG(4) << "Check consuemr " << consumer->group_id << " can fuse to producer " << producer->group_id;
       // if can't fuse
       if (!relation.vertical_relation.count(consumer->op_pattern_kind)) {
