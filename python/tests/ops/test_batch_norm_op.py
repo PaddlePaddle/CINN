@@ -17,6 +17,7 @@
 import unittest, sys
 import numpy as np
 from op_test import OpTest, OpTestTool
+from op_test_helper import TestCaseHelper
 import paddle
 import cinn
 from cinn.frontend import *
@@ -30,55 +31,48 @@ class TestBatchNormTrainOp(OpTest):
         self.init_case()
 
     def init_case(self):
-        self.inputs = [{
-            "x":
-            self.random([2, 16, 8, 8], "float32", 0.0, 1.0),
-            "dout":
-            self.random([2, 16, 8, 8], "float32", 1e-7, 1e-6),
-            "num_channels":
-            16
-        }]
+        self.inputs = self.case
 
     def build_paddle_program(self, target):
-        for inputs in self.inputs:
-            x = paddle.to_tensor(inputs["x"])
-            batch_norm = paddle.nn.BatchNorm(
-                inputs["num_channels"], act=None, is_test=False)
-            out = batch_norm(x)
+        x = paddle.to_tensor(self.inputs["x"])
+        batch_norm = paddle.nn.BatchNorm(
+            self.inputs["num_channels"], act=None, is_test=False)
+        out = batch_norm(x)
 
-            self.paddle_outputs.append(out)
+        self.paddle_outputs = [out]
 
     # Note: If the forward and backward operators are run in the same program,
     # the forward result will be incorrect.
     def build_cinn_program(self, target):
-        for inputs in self.inputs:
-            builder = NetBuilder("batch_norm")
-            x = builder.create_input(
-                self.nptype2cinntype(inputs["x"].dtype), inputs["x"].shape,
-                "x")
-            scale = builder.fill_constant([inputs["num_channels"]], 1.0,
-                                          'scale', "float32")
-            bias = builder.fill_constant([inputs["num_channels"]], 0.0, 'bias',
-                                         "float32")
-            mean = builder.fill_constant([inputs["num_channels"]], 0.0, 'mean',
-                                         "float32")
-            variance = builder.fill_constant([inputs["num_channels"]], 1.0,
-                                             'variance', "float32")
+        builder = NetBuilder("batch_norm")
+        x = builder.create_input(
+            self.nptype2cinntype(self.inputs["x"].dtype),
+            self.inputs["x"].shape, "x")
+        scale = builder.fill_constant([self.inputs["num_channels"]], 1.0,
+                                      'scale', "float32")
+        bias = builder.fill_constant([self.inputs["num_channels"]], 0.0,
+                                     'bias', "float32")
+        mean = builder.fill_constant([self.inputs["num_channels"]], 0.0,
+                                     'mean', "float32")
+        variance = builder.fill_constant([self.inputs["num_channels"]], 1.0,
+                                         'variance', "float32")
 
-            out = builder.batchnorm(
-                x, scale, bias, mean, variance, is_test=False)
+        out = builder.batchnorm(x, scale, bias, mean, variance, is_test=False)
 
-            prog = builder.build()
-            forward_res = self.get_cinn_output(
-                prog, target, [x], [inputs["x"]], out, passes=[])
-            self.cinn_outputs.append(forward_res[0])
+        prog = builder.build()
+        forward_res = self.get_cinn_output(
+            prog, target, [x], [self.inputs["x"]], out, passes=[])
+        self.cinn_outputs = [forward_res[0]]
 
     def test_check_results(self):
         self.check_outputs_and_grads(max_relative_error=1e-3)
 
 
-class TestBatchNormTrainOpAll(TestBatchNormTrainOp):
-    def init_case(self):
+class TestBatchNormTrainOpAll(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestBatchNormTrainOpBase"
+        self.cls = TestBatchNormTrainOp
+
         self.inputs = []
         for x_shape in [[2, 16, 8, 8], [2, 16, 8, 1], [2, 16, 2048, 8]]:
             for x_type in ["float16", "float32"]:
