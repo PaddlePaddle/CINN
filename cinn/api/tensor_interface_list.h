@@ -15,26 +15,29 @@
 #pragma once
 
 #include <memory>
+#include <unordered_set>
+
+#include "cinn/api/tensor_interface.h"
+#include "cinn/utils/small_vector.h"
 
 namespace cinn {
-namespace hlir {
-namespace framework {
+namespace api {
 
-class ShapeInterface;
-
-class TensorInterface {
+class TensorInterfaceList : public cinn::utils::SmallVector<TensorInterfacePtr, 16> {
  public:
-  // Get the shape of tensor.
-  virtual const ShapeInterface& shape() const = 0;
+  using cinn::utils::SmallVector<TensorInterfacePtr, 16>::SmallVector;
 
- protected:
-  TensorInterface()                       = default;
-  TensorInterface(const TensorInterface&) = delete;
-  TensorInterface(TensorInterface&&)      = delete;
+  TensorInterfaceList& operator+=(const TensorInterfaceList& other) {
+    std::unordered_set<TensorInterfacePtr> tensor_set(this->begin(), this->end());
+    for (const auto& tensor_if : other) {
+      if (tensor_set.find(tensor_if) == tensor_set.end()) {
+        this->push_back(tensor_if);
+        tensor_set.insert(tensor_if);
+      }
+    }
+    return *this;
+  }
 };
 
-using TensorInterfacePtr = std::shared_ptr<TensorInterface>;
-
-}  // namespace framework
-}  // namespace hlir
+}  // namespace api
 }  // namespace cinn
