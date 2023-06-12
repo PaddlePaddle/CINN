@@ -24,6 +24,7 @@
 #include "cinn/hlir/pe/ir_schedule_pe.h"
 #include "cinn/hlir/pe/nn.h"
 #include "cinn/hlir/pe/schedule.h"
+#include "cinn/ir/ir.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/utils/functional.h"
 
@@ -261,7 +262,45 @@ std::shared_ptr<OpStrategy> StrategyForSum(const framework::NodeAttr &attrs,
                                            const std::vector<Type> &out_type,
                                            const std::vector<std::vector<int>> &output_shapes,
                                            const Target &target) {
-  LOG(FATAL) << "The operator will be decomposed into several primitive operators. Please Use Decomposer Program Pass.";
+  framework::CINNCompute sum_compute([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of const_float compute is empty! Please check.";
+
+    CINNValuePack pack_args = args[0];
+    CHECK_GE(pack_args.size(), 2U) << "The sum op should has at least 1 inputs.";
+
+    // the front args are tensor
+    std::vector<ir::Tensor> inputs;
+    for (int i = 0; i < pack_args.size() - 1; ++i) {
+      Expr arg = pack_args[i];
+      CHECK(arg.as_tensor());
+      inputs.emplace_back(arg.as_tensor_ref());
+    }
+    // the last arg is tensor name
+    CHECK(pack_args.back().is_string()) << "Cannot run at FLAGS_cinn_ir_schedule=false! Please check.";
+    auto tensor_name = pack_args.back().operator std::string();
+
+    auto out = lang::Compute(
+        {ToCinnExprs(output_shapes.at(0))},
+        [=](const std::vector<Expr> &indice) {
+          std::vector<Expr> nums;
+          for (auto &in : inputs) {
+            nums.emplace_back(in(indice));
+          }
+          return ir::Sum::Make(nums);
+        },
+        tensor_name);
+    CHECK(out.defined()) << "can't create sum op";
+
+    auto tensors = inputs;
+    tensors.emplace_back(out);
+    auto stages = CreateStages(tensors);
+    *ret        = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
+  });
+
+  auto strategy = std::make_shared<framework::OpStrategy>();
+  strategy->AddImpl(sum_compute, GetElementwiseScheduleFunc(output_shapes, target), "strategy.const_scalar.x86", 1);
+
+  return strategy;
 }
 
 std::vector<shape_t> InferShapeForSum(const std::vector<shape_t> &inputs_shape, const framework::AttrMapType &attrs) {
