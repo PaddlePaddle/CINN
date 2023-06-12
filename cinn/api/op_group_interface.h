@@ -20,12 +20,15 @@
 
 #include "cinn/api/tensor_interface.h"
 #include "cinn/api/tensor_interface_list.h"
+#include "cinn/hlir/framework/op.h"
 
 namespace cinn {
 namespace api {
 
 class OpGroupInterface {
  public:
+  virtual hlir::framework::OpPatternKind kind() const = 0;
+
   //  virtual const TensorInterfaceList& input_tensors() const = 0;
 
   //  virtual const TensorInterfaceList& output_tensors() const = 0;
@@ -37,6 +40,10 @@ class OpGroupInterface {
   virtual const std::unordered_map<std::shared_ptr<OpGroupInterface>, TensorInterfaceList>& producer_groups() const = 0;
 
   virtual const std::unordered_map<std::shared_ptr<OpGroupInterface>, TensorInterfaceList>& consumer_groups() const = 0;
+
+  const std::unordered_map<std::shared_ptr<OpGroupInterface>, TensorInterfaceList>& consumer2outputs() const {
+    return consumer_groups();
+  }
 
  protected:
   OpGroupInterface() = default;

@@ -143,6 +143,8 @@ class Graph : public cinn::common::Graph {
       return &consumer_groups_;
     }
 
+    hlir::framework::OpPatternKind kind() const override { return op_pattern_kind; }
+
    private:
     // input groups
     std::unordered_map<std::shared_ptr<OpGroupInterface>, TensorInterfaceList> producer_groups_;
