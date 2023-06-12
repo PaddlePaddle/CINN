@@ -79,9 +79,9 @@ class FusionMergePassHelper : public FusionHelperBase {
     VLOG(3) << "DoFusionMerge...!";
     while (DoGeneralHorizontalFusion()) {
     }
-    while (DoVerticalFusion(/* recompute=*/false)) {
+    while (DoGeneralVerticalFusion(/* recompute=*/false)) {
     }
-    while (DoVerticalFusion(/* recompute=*/true)) {
+    while (DoGeneralVerticalFusion(/* recompute=*/true)) {
     }
   }
 
@@ -105,7 +105,7 @@ class FusionMergePassHelper : public FusionHelperBase {
     return updated;
   }
 
-  bool DoVerticalFusion(bool recompute) {
+  bool DoGeneralVerticalFusion(bool recompute) {
     VLOG(3) << "DoVerticalFusion...!";
     bool updated = false;
     for (int idx = 0; idx < fusion_groups_.size(); ++idx) {
@@ -117,12 +117,10 @@ class FusionMergePassHelper : public FusionHelperBase {
       }
       // do horizontal fusion.
       if (!recompute) {
-        updated |= HorizontalFusion(producer, producer->CollectConsumerGroups());
+        updated |= GeneralHorizontalFuse(producer);
       }
-      updated |= VerticalFusion(producer, producer->CollectConsumerGroups(), recompute);
+      updated |= GeneralVerticalFuse(producer);
     }
-    // fuse input consumers
-    updated |= FuseInputToConsumers();
 
     if (updated) {
       UpdateFusionGroup();
@@ -186,6 +184,20 @@ class FusionMergePassHelper : public FusionHelperBase {
     bool AllOutputsSameSize(const OpGroupPtr& first, const OpGroupPtr& second) const { TODO(); }
 
     bool HorizontalElementwiseFuseReduce(const OpGroupPtr& src, const OpGroupPtr& dst) { TODO(); }
+
+    bool ElementwiseFuseBroadcast(const OpGroupPtr& src, const OpGroupPtr& dst) { TODO(); }
+
+    bool HorizontalWithInjective(const OpGroupPtr& src, const OpGroupPtr& dst) { TODO(); }
+
+    bool ElementwiseFuseReduce(const OpGroupPtr& src, const OpGroupPtr& dst) { TODO(); }
+
+    bool BroadcastFuseReduce(const OpGroupPtr& src, const OpGroupPtr& dst) { TODO(); }
+
+    bool InjectiveHorizontalWithReduce(const OpGroupPtr& src, const OpGroupPtr& dst) { TODO(); }
+
+    bool ReduceFuseElementwise(const OpGroupPtr& src, const OpGroupPtr& dst) { TODO(); }
+
+    bool ReduceFuseBroadcast(const OpGroupPtr& src, const OpGroupPtr& dst) { TODO(); }
 
     bool ReduceFuseReduce(const OpGroupPtr& src, const OpGroupPtr& dst) { TODO(); }
 
@@ -581,83 +593,196 @@ class FusionMergePassHelper : public FusionHelperBase {
     CHECK(fused_group->output_nodes.size()) << "No output node is found, " << fused_group->group_id;
   }
 
-  bool VerticalFusion(GroupPtr& producer, const std::unordered_set<GroupPtr>& consumers, bool recompute) {
-    VLOG(3) << "VerticalFusion, Number of Consumers : " << consumers.size();
-    auto& relation = fusion_relation_map_[producer->op_pattern_kind];
-    // if producer can't fuse others
-    if (!relation.vertical_relation.size()) {
-      return false;
-    }
+  class DefautlVerticalFusePass final : public FusePass {
+  public:
+   DefautlVerticalFusePass() : FusePass() {}
 
-    std::unordered_set<GroupPtr> fuse_consumers_unsafe;
-    std::unordered_set<GroupPtr> fuse_consumers;
-    for (const auto& consumer : consumers) {
-      VLOG(4) << "Check consuemr " << consumer->group_id << " can fuse to producer " << producer->group_id;
-      // if can't fuse
-      if (!relation.vertical_relation.count(consumer->op_pattern_kind)) {
-        VLOG(4) << "Can't fuse producer " << producer->group_id << " consumer " << consumer->group_id;
-        continue;
+   void operator()(LightwareFusePassCtx* ctx) const override {
+      const auto& producer        = ctx->PickOpGroup();
+      const OpGroupList consumers = [&]() {
+        OpGroupList consumers;
+        for (const auto& pair : producer->consumer2outputs()) {
+          consumers.insert(pair.first);
+        }
+        return consumers;
+      }();
+      if (consumers.size() == 0) {
+        return;
       }
-
-      // if condition function is false
-      if (!relation.vertical_relation[consumer->op_pattern_kind](this, producer, consumer)) {
-        VLOG(4) << "Can't fuse producer " << producer->group_id << " consumer " << consumer->group_id;
-        continue;
+      for (int i = 0; i < consumers.size(); ++i) {
+        const auto& consumer = consumers.at(i);
+        if (!DetectFusabilityByKind(ctx, producer, consumer)) {
+          continue;
+        }
+        if (ctx->fuse_helper().DetectCycleIfFuse(producer, consumer)) {
+          continue;
+        }
+        if (ctx->IsConstGroup(producer)) {
+          if (!ctx->IsSameShape(producer, consumer)) {
+            continue;
+          }
+        }
+        ctx->EnableFuse(src, dst);
       }
-
-      fuse_consumers_unsafe.insert(consumer);
-
-      if (IsDependencySimplify(producer, consumer, consumers)) {
-        VLOG(4) << "IsDependencySimplify, Consumer " << consumer->group_id << " can't be master fused group!";
-        continue;
-      }
-
-      if (IsDependency(producer, consumer, consumers)) {
-        VLOG(4) << "IsDependency, Consumer " << consumer->group_id << " can't be master fused group!";
-        continue;
-      }
-
-      fuse_consumers.insert(consumer);
-    }
-
-    VLOG(3) << "VerticalFusion, Number of fuse Consumers : " << fuse_consumers.size();
-    VLOG(3) << "VerticalFusion, Number of unsafe fuse Consumers : " << fuse_consumers.size();
-
-    if (fuse_consumers.size() == 0) {
-      return false;
-    }
-    // if can_fuse_consumers == consumers
-    // if producer op kind == kElementwise
-    // if use recompute
-    if (fuse_consumers_unsafe.size() == producer->consumer_groups.size() &&
-        producer->op_pattern_kind == framework::kElementWise) {
-      if (!recompute) {
-        return false;
-      } else {
-        RecomputeEleGraph(producer, fuse_consumers_unsafe);
-        VerticalFuse(producer, fuse_consumers_unsafe);
-        return true;
-      }
-    }
-
-    if (fuse_consumers.size()) {
-      SelectConsumerToFuse(producer, fuse_consumers);
-    }
-
-    // if fusionable consumers exist
-    if (fuse_consumers.size()) {
-      VerticalFuse(producer, fuse_consumers);
-      return true;
-    }
-
-    return false;
   }
 
-  void VerticalFuse(GroupPtr& producer, std::unordered_set<GroupPtr>& fusionable_consumers) {
+  using KindKeyT = std::pair<OpPatternKind, OpPatternKind>;
+  bool DetectFusabilityByKind(LightwareFusePassCtx* ctx, const OpGroupPtr& src, const OpGroupPtr& dst) const {
+    const KindKeyT kind_pair(src->kind(), dst->kind());
+    const auto& map  = GetConditionMap();
+    const auto& iter = map.find(kind_pair);
+    if (iter == map.end()) {
+      return false;
+    }
+    return iter->second(ctx, src, dst);
+  }
+
+  typedef bool (*ConditionT)(LightwareFusePassCtx* ctx, const OpGroupPtr& src, const OpGroupPtr& dst);
+
+  const std::unordered_map<KindKeyT, ConditionT>& GetConditionMap() const {
+    thread_local static std::unordered_map<KindKeyT, ConditionT> map(RawConditionMap());
+    return map;
+  }
+
+  std::unordered_map<KindKeyT, ConditionT> RawConditionMap() const {
+    return std::unordered_map<KindKeyT, ConditionT>{
+          {{OpPatternKind::kElementWise, framework::kElementWise}, &DefautlHorizontalFusePass::IsSameSize},
+          {{OpPatternKind::kElementWise, framework::kBroadcast}, &DefautlHorizontalFusePass::ElementwiseFuseBroadcast},
+          {{OpPatternKind::kElementWise, framework::kInjective}, &DefautlHorizontalFusePass::HorizontalWithInjective},
+          {{OpPatternKind::kElementWise, framework::kReduction},
+           &DefautlHorizontalFusePass::ElementwiseFuseReduce},
+
+          {{OpPatternKind::kBroadcast, framework::kElementWise}, &DefautlHorizontalFusePass::IsSameSize},
+          {{OpPatternKind::kBroadcast, framework::kBroadcast}, &DefautlHorizontalFusePass::IsSameSize},
+          {{OpPatternKind::kBroadcast, framework::kInjective}, &DefautlHorizontalFusePass::HorizontalWithInjective},
+          {{OpPatternKind::kBroadcast, framework::kReduction}, &DefautlHorizontalFusePass::BroadcastFuseReduce},
+
+          {{OpPatternKind::kInjective, framework::kElementWise}, &DefautlHorizontalFusePass::IsSameSize},
+          {{OpPatternKind::kInjective, framework::kBroadcast}, &DefautlHorizontalFusePass::IsSameSize},
+          {{OpPatternKind::kInjective, framework::kInjective}, &DefautlHorizontalFusePass::HorizontalWithInjective},
+          {{OpPatternKind::kInjective, framework::kReduction}, &DefautlHorizontalFusePass::InjectiveHorizontalWithReduce},
+
+          {{OpPatternKind::kReduction, framework::kElementWise},
+           &DefautlHorizontalFusePass::ReduceFuseElementwise},
+          {{OpPatternKind::kReduction, framework::kBroadcast}, &DefautlHorizontalFusePass::ReduceFuseBroadcast},
+          {{OpPatternKind::kReduction, framework::kInjective}, &DefautlHorizontalFusePass::HorizontalWithInjective},
+          {{OpPatternKind::kReduction, framework::kReduction}, &DefautlHorizontalFusePass::ReduceFuseReduce},
+    };
+  }
+
+    static bool IsSameSize(LightwareFusePassCtx* ctx, const OpGroupPtr& src, const OpGroupPtr& dst) {
+      return ctx->fuse_helper().AllOutputsSameSize(src, dst);
+    }
+
+    static bool ElementwiseFuseBroadcast(LightwareFusePassCtx* ctx,
+                                                const OpGroupPtr& src,
+                                                const OpGroupPtr& dst) {
+      return ctx->fuse_helper().ElementwiseFuseBroadcast(src, dst);
+    }
+
+    static bool HorizontalWithInjective(LightwareFusePassCtx* ctx,
+                                                const OpGroupPtr& src,
+                                                const OpGroupPtr& dst) {
+      return ctx->fuse_helper().HorizontalWithInjective(src, dst);
+    }
+
+    static bool ElementwiseFuseReduce(LightwareFusePassCtx* ctx,
+                                                const OpGroupPtr& src,
+                                                const OpGroupPtr& dst) {
+      return ctx->fuse_helper().ElementwiseFuseReduce(src, dst);
+    }
+
+    static bool BroadcastFuseReduce(LightwareFusePassCtx* ctx,
+                                                const OpGroupPtr& src,
+                                                const OpGroupPtr& dst) {
+      return ctx->fuse_helper().BroadcastFuseReduce(src, dst);
+    }
+
+    static bool InjectiveHorizontalWithReduce(LightwareFusePassCtx* ctx,
+                                                const OpGroupPtr& src,
+                                                const OpGroupPtr& dst) {
+      return ctx->fuse_helper().InjectiveHorizontalWithReduce(src, dst);
+    }
+
+    static bool ReduceFuseElementwise(LightwareFusePassCtx* ctx,
+                                                const OpGroupPtr& src,
+                                                const OpGroupPtr& dst) {
+      return ctx->fuse_helper().ReduceFuseElementwise(src, dst);
+    }
+
+    static bool ReduceFuseBroadcast(LightwareFusePassCtx* ctx,
+                                                const OpGroupPtr& src,
+                                                const OpGroupPtr& dst) {
+      return ctx->fuse_helper().ReduceFuseBroadcast(src, dst);
+    }
+
+    static bool ReduceFuseReduce(LightwareFusePassCtx* ctx, const OpGroupPtr& src, const OpGroupPtr& dst) {
+      return ctx->fuse_helper().ReduceFuseReduce(src, dst);
+    }
+ };
+
+   std::vector<std::shared_ptr<const FusePass>> RawVerticalFusePasses() const {
+    std::vector<std::shared_ptr<const FusePass>>{
+        std::shared_ptr<const FusePass>(new DefautlVerticalFusePass{}),
+    };
+    return ret;
+  }
+
+  const std::vector<std::shared_ptr<const FusePass>>& GetVerticalFusePasses() const {
+    thread_local static std::vector<std::shared_ptr<const FusePass>> fuse_passes = RawVerticalFusePasses();
+    return fuse_passes;
+  }
+
+   void TagVerticalGroups(LightwareFusePassCtx* ctx) const {
+    const auto& producer = ctx->PickOpGroup();
+    if (producer->consumer2outputs().empty()) {
+      return;
+    }
+    const auto& fuse_passes = GetVerticalFusePasses();
+    for (const auto& fuse_pass : fuse_passes) {
+      (*fuse_pass)(ctx);
+    }
+  }
+
+  bool GeneralVerticalFuse(const GroupPtr& producer) const {
+    VLOG(3) << "GeneralVerticalFuse...!";
+    using GroupSets                         = std::set<std::set<GroupPtr>>;
+    const auto& GetFusableConsumerGroupSets = [&]() -> GroupSets {
+      GroupSets tagged_sets;
+      const auto& EnableFuse = [&](const GroupPtr& first, const GroupPtr& second) {
+        tagged_sets.insert(std::set<GroupPtr>{first, second});
+      };
+      LightwareFusePassCtx fuse_ctx(producer, EnableFuse);
+      TagVerticalGroups(&fuse_ctx);
+      return tagged_sets;
+    };
+
+    const auto& GetFusableConsumerGroupList = [&]() -> GroupList {
+      const auto& group_sets = GetFusableConsumerGroupSets();
+      if (group_sets.empty()) {
+        return GroupList{};
+      }
+      return GroupList{group_sets.begin()->begin(), group_sets.begin()->end()};
+    };
+
+    size_t fuse_count = 0;
+    while (true) {
+      const auto& consumer_groups = GetFusableConsumerGroupList();
+      if (groups.empty()) {
+        break;
+      }
+      fuse_count += VerticalFuse(producer, consumer_groups);
+    }
+    return fuse_count > 0;
+  }
+
+  void VerticalFuse(GroupPtr& producer_group, std::unordered_set<GroupPtr>& fusionable_consumers) {
     VLOG(3) << "VerticalFuse...!";
+    auto producer = std::shared_dynamic_cast<Graph::Group>(producer_group);
     GroupList fused_groups;
     GroupPtr master_fuesd_group(nullptr);
-    for (auto& consumer : fusionable_consumers) {
+    for (auto& consumer_group : fusionable_consumers) {
+      auto consumer = std::shared_dynamic_cast<Graph::Group>(consumer_group);
       auto fused_group = std::make_shared<Graph::Group>();
       // update depth using consumer depth.
       fused_group->max_depth = std::max(producer->max_depth, consumer->max_depth);
@@ -747,9 +872,9 @@ class FusionMergePassHelper : public FusionHelperBase {
       }
 
       // producer nodes
-      for (const auto& group_and_list : consumer->producer_groups) {
+      for (const auto& group_and_list : consumer->producer_groups()) {
         if (group_and_list.first.get() != producer.get()) {
-          fused_group->producer_groups[group_and_list.first] += group_and_list.second;
+          *(fused_group->mut_producer_groups())[group_and_list.first] += group_and_list.second;
           // update consumer's producer's consumer
           group_and_list.first->consumer_groups.erase(consumer);
           // TODO: Do not add any TensorInterface into any TensorInterfaceList in this file which will be deprecated.
@@ -761,9 +886,9 @@ class FusionMergePassHelper : public FusionHelperBase {
       for (const auto& group_and_list : consumer->consumer_groups) {
         fused_group->consumer_groups[group_and_list.first] += group_and_list.second;
         // update consumer's consumer's producer
-        group_and_list.first->producer_groups.erase(consumer);
+        group_and_list.first->mut_producer_groups()->erase(consumer);
         // TODO: Do not add any TensorInterface into any TensorInterfaceList in this file which will be deprecated.
-        group_and_list.first->producer_groups[fused_group] += {};
+        *(group_and_list.first->mut_producer_groups())[fused_group] += {};
       }
 
       // sub group
@@ -797,7 +922,7 @@ class FusionMergePassHelper : public FusionHelperBase {
 
     for (auto& node : producer->output_nodes) {
       bool be_output = true;
-      for (const auto& consumer_and_list : producer->consumer_groups) {
+      for (const auto& consumer_and_list : producer->consumer_groups()) {
         // if consumer is in fusionable.
         if (fusionable_consumers.count(consumer_and_list.first)) {
           if (consumer_and_list.first->input_nodes.count(node)) {
@@ -823,117 +948,15 @@ class FusionMergePassHelper : public FusionHelperBase {
       }
     }
     // insert unfusionable consumer groups
-    for (const auto& consumer_and_list : producer->consumer_groups) {
+    for (const auto& consumer_and_list : producer->consumer_groups()) {
       if (fusionable_consumers.count(consumer_and_list.first)) {
         continue;
       }
-      master_fuesd_group->consumer_groups[consumer_and_list.first] += consumer_and_list.second;
+      *(master_fuesd_group-mut_consumer_groups())[consumer_and_list.first] += consumer_and_list.second;
       // update consumer's producer
-      consumer_and_list.first->producer_groups.erase(producer);
+      consumer_and_list.first->mut_producer_groups()->erase(producer);
       // TODO: Do not add any TensorInterface into any TensorInterfaceList in this file which will be deprecated.
-      consumer_and_list.first->producer_groups[master_fuesd_group] += {};
-    }
-  }
-
-  void RecomputeEleGraph(const GroupPtr& producer, std::unordered_set<GroupPtr>& fusionable_consumers) {
-    if (producer->op_pattern_kind != framework::kElementWise) {
-      SelectConsumerToFuse(producer, fusionable_consumers);
-    }
-  }
-
-  void SelectConsumerToFuse(const GroupPtr& producer, std::unordered_set<GroupPtr>& fusionable_consumers) {
-    // if is const op
-    if (is_const_group(this, producer)) {
-      std::unordered_set<GroupPtr> candidates;
-      for (auto& consumer : fusionable_consumers) {
-        // if can be output node.
-        if (is_same_shape(this, producer, consumer)) {
-          candidates.insert(consumer);
-        } else {
-          VLOG(4) << "Fuse Producer : " << producer->group_id << " into Consumer : " << consumer->group_id;
-          consumer->group_id = producer->group_id + "_" + consumer->group_id;
-          // just merge the node into group.
-          auto& sub_group     = consumer->fused_sub_groups.front();
-          sub_group->group_id = producer->group_id + "_" + sub_group->group_id;
-          sub_group->nodes.insert(sub_group->nodes.begin(), producer->CollectNodes()[0]);
-          sub_group->nodes_set.insert(producer->CollectNodes()[0]);
-          // remove depency.
-          consumer->input_nodes.erase(producer->CollectNodes()[0]);
-          consumer->producer_groups.erase(producer);
-          producer->consumer_groups.erase(consumer);
-        }
-      }
-
-      CHECK_GE(producer->consumer_groups.size(), candidates.size());
-      if (producer->consumer_groups.size() == 0 && candidates.size() == 0 &&
-          output_nodes_set_.count(producer->CollectNodes()[0]) == 0) {
-        producer->belong_groups.insert(*fusionable_consumers.begin());
-      }
-
-      fusionable_consumers = candidates;
-      return;
-    }
-    // 1 to 1 fusion.
-    if (producer->consumer_groups.size() == 1) {
-      return;
-    }
-
-    if (FLAGS_enhance_vertical_fusion_with_recompute) {
-      std::vector<GroupPtr> candidates;
-      for (auto& consumer : fusionable_consumers) {
-        if (consumer->op_pattern_kind == framework::kElementWise) {
-          candidates.push_back(consumer);
-          continue;
-        }
-
-        auto producer_output_shape       = this->GetNodeDataShape(*producer->output_nodes.begin());
-        auto consumer_output_shape       = this->GetNodeDataShape(*consumer->output_nodes.begin());
-        auto consumer_master_input_shape = this->GetNodeInputShape(*(consumer->master_nodes.begin()));
-        int producer_output_numel =
-            std::accumulate(producer_output_shape.begin(), producer_output_shape.end(), 1, std::multiplies<int>());
-        int consumer_output_numel =
-            std::accumulate(consumer_output_shape.begin(), consumer_output_shape.end(), 1, std::multiplies<int>());
-        int consumer_master_input_numel = std::accumulate(
-            consumer_master_input_shape.begin(), consumer_master_input_shape.end(), 1, std::multiplies<int>());
-        if (producer_output_numel == consumer_output_numel) {
-          candidates.push_back(consumer);
-          continue;
-        }
-
-        if (producer->op_pattern_kind != framework::kInjective && consumer->op_pattern_kind == framework::kReduction &&
-            producer_output_numel == consumer_master_input_numel) {
-          candidates.push_back(consumer);
-        }
-      }
-      sort(candidates.begin(), candidates.end(), [](const auto& lhs, const auto& rhs) {
-        return lhs->op_pattern_kind < rhs->op_pattern_kind;
-      });
-
-      fusionable_consumers.clear();
-      if (candidates.size()) {
-        fusionable_consumers.insert(*candidates.begin());
-      }
-    } else {
-      std::unordered_set<GroupPtr> candidates;
-      for (auto& consumer : fusionable_consumers) {
-        if (consumer->op_pattern_kind == framework::kElementWise) {
-          candidates.insert(consumer);
-          continue;
-        }
-
-        auto shape0 = this->GetNodeDataShape(*producer->output_nodes.begin());
-        auto shape1 = this->GetNodeDataShape(*consumer->output_nodes.begin());
-
-        if (std::accumulate(shape0.begin(), shape0.end(), 1, std::multiplies<int>()) ==
-            std::accumulate(shape1.begin(), shape1.end(), 1, std::multiplies<int>())) {
-          candidates.insert(consumer);
-        }
-      }
-
-      fusionable_consumers.clear();
-      if (candidates.size()) {
-        fusionable_consumers.insert(*candidates.begin());
-      }
+      *(consumer_and_list.first->mut_producer_groups())[master_fuesd_group] += {};
     }
   }
 
