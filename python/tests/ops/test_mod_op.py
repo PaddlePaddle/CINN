@@ -42,13 +42,7 @@ class TestModOp(OpTest):
             dtype=self.case["y_dtype"],
             low=self.case["y_low"],
             high=self.case["y_high"])
-
-        if self.case["y_dtype"] is "int32" or self.case[
-                "y_dtype"] is "int64" or self.case[
-                    "y_dtype"] is "float32" or self.case[
-                        "y_dtype"] is "float64" or self.case[
-                            "y_dtype"] is "float16":
-            self.y_np[self.y_np == 0] = 1
+        self.y_np[self.y_np == 0] = 1
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.x_np, stop_gradient=True)
