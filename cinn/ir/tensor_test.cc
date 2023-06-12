@@ -185,7 +185,7 @@ void fn(void* _args, int32_t num_args)
 
 TEST(Tensor, reduce) {
   Placeholder<float> A("A", {Expr(10)});
-  Var reduce_axis(Expr(10), "ii");
+  Var reduce_axis(Expr(10), "reduce_k");
   {
     auto C = Compute(
         A->shape,

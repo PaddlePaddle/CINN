@@ -348,7 +348,7 @@ __host__ __device__ inline bool(isfinite)(const bfloat16& a) { return !((isnan)(
 
 __host__ __device__ inline bfloat16(abs)(const bfloat16& a) {
 #if defined(CINN_CUDA_BF16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
-  return __habs(a.to_nv_bfloat16());
+  return bfloat16(__habs(a.to_nv_bfloat16()));
 #else
   return bfloat16(std::abs(static_cast<float>(a)));
 #endif

@@ -112,7 +112,7 @@ void TestGenerateCodeCpu_Sort(void* _args, int32_t num_args)
   };
   for (int32_t i = 0; i < 4; i += 1) {
     for (int32_t j = 0; j < 28; j += 1) {
-      test_sort_out_index[((28 * i) + j)] = cinn_host_find_int_nd(_test_sort_out_index_temp, 28, j, (28 * i), 1);
+      test_sort_out_index[((28 * i) + j)] = cinn_host_next_smallest_int32(_test_sort_out_index_temp, 28, j, (28 * i), 1);
     };
   };
   for (int32_t i = 0; i < 4; i += 1) {

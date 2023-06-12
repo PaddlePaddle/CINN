@@ -399,6 +399,7 @@ class OpMapperTest(OpTest):
             paddle.int64: "int64",
             paddle.uint8: "uint8",
             paddle.bool: "bool",
+            paddle.fluid.core.VarDesc.VarType.RAW: "unk",
         }
         assert dtype in switch_map, str(dtype) + " not support in CINN"
         return switch_map[dtype]
@@ -415,6 +416,8 @@ class OpMapperTest(OpTest):
             "int64": paddle.int64,
             "uint8": paddle.uint8,
             "bool": paddle.bool,
+            # The paddle's phi::DataType::UNDEFINED is mapped into ProtoDataType::RAW,
+            "unk": paddle.fluid.core.VarDesc.VarType.RAW,
         }
         assert dtype in switch_map, dtype + " not support in CINN"
         return switch_map[dtype]

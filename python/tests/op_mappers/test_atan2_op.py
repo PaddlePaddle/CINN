@@ -51,5 +51,53 @@ class TestAtan2Op(OpMapperTest):
         self.check_outputs_and_grads()
 
 
+class TestAtan2OpFP64(TestAtan2Op):
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([32, 64], "float64", low=-1.0, high=1.0),
+            'y': self.random([32, 64], "float64", low=-1.0, high=1.0),
+        }
+
+
+class TestAtan2OpINT32(TestAtan2Op):
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([32, 64], "int32", low=-10, high=10),
+            'y': self.random([32, 64], "int32", low=-10, high=10),
+        }
+
+
+class TestAtan2OpINT64(TestAtan2Op):
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([32, 64], "int64", low=-10, high=10),
+            'y': self.random([32, 64], "int64", low=-10, high=10),
+        }
+
+
+class TestAtan2OpZeroCase1(TestAtan2Op):
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([32, 64], "int64", low=0, high=1),
+            'y': self.random([32, 64], "int64", low=0, high=1),
+        }
+
+
+class TestAtan2OpZeroCase2(TestAtan2Op):
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([32, 64], "int64"),
+            'y': self.random([32, 64], "int64", low=0, high=1),
+        }
+
+
+class TestAtan2OpZeroCase3(TestAtan2Op):
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([32, 64], "int64", low=0, high=1),
+            'y': self.random([32, 64], "int64"),
+        }
+
+
 if __name__ == "__main__":
     unittest.main()

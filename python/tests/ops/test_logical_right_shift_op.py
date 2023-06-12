@@ -14,11 +14,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
 import numpy as np
 from op_test import OpTest, OpTestTool
+from op_test_helper import TestCaseHelper
 import paddle
-import paddle.nn.functional as F
 import cinn
 from cinn.frontend import *
 from cinn.common import *
@@ -28,59 +27,104 @@ from cinn.common import *
                     "x86 test will be skipped due to timeout.")
 class TestLogicalRightShift(OpTest):
     def setUp(self):
-        self.init_case()
+        # print(f"\n{self.__class__.__name__}: {self.case}")
+        self.prepare_inputs()
 
-    def init_case(self):
-        self.inputs = {
-            # "x": self.random([1, 24], 'int32', low = -2147483648, high=2147483647)
-            "x":
-            np.array([[
-                1690476611, 142184466, -1752569340, 1860589058, -1295695292,
-                1912939056, -1416770533, -483282486, 284237925, -2094465968,
-                -823026780, -1503970769, -535860601, 1515033359, -1212100470,
-                -2008734407, 704803066, 1861454881, -479224831, 1939718614,
-                -1903975007, -1197706543, 1327016838, -232019105
-            ]]).astype(np.int32),
-            # "y": self.random([1, 24], 'int32', low = 0, high=32)
-            "y":
-            np.array([[
-                20, 3, 12, 3, 0, 31, 0, 2, 6, 16, 1, 7, 6, 2, 19, 16, 7, 17,
-                10, 15, 8, 9, 24, 4
-            ]]).astype(np.int32)
-        }
-        self.outputs = {
-            "out":
-            np.array([[
-                1612, 17773058, 620702, 232573632, -1295695292, 0, -1416770533,
-                952921202, 4441217, 33576, 1735970258, 21804660, 58736042,
-                378758339, 5880, 34885, 5506273, 14201, 3726311, 59195,
-                9339813, 6049337, 79, 253934261
-            ]]).astype(np.int32)
-        }
+    def prepare_inputs(self):
+        iinfo = np.iinfo(self.case["dtype"])
+        self.x_np = self.random(
+            shape=self.case["shape"],
+            dtype=self.case["dtype"],
+            low=0,
+            high=iinfo.max)
+        self.y_np = self.random(
+            shape=self.case["shape"],
+            dtype=self.case["dtype"],
+            low=0,
+            high=iinfo.bits)
 
     def build_paddle_program(self, target):
-        out = paddle.to_tensor(self.outputs["out"], stop_gradient=False)
+        out_np = np.right_shift(self.x_np, self.y_np)
+        out = paddle.to_tensor(out_np, stop_gradient=True)
         self.paddle_outputs = [out]
 
     def build_cinn_program(self, target):
         builder = NetBuilder("logical_right_shift")
         x = builder.create_input(
-            self.nptype2cinntype(self.inputs["x"].dtype),
-            self.inputs["x"].shape, "x")
+            self.nptype2cinntype(self.x_np.dtype), self.x_np.shape, "x")
         y = builder.create_input(
-            self.nptype2cinntype(self.inputs["y"].dtype),
-            self.inputs["y"].shape, "y")
+            self.nptype2cinntype(self.y_np.dtype), self.y_np.shape, "y")
         out = builder.logical_right_shift(x, y)
-
         prog = builder.build()
         res = self.get_cinn_output(prog, target, [x, y],
-                                   [self.inputs["x"], self.inputs["y"]], [out])
-
-        self.cinn_outputs = [res[0]]
+                                   [self.x_np, self.y_np], [out])
+        self.cinn_outputs = res
 
     def test_check_results(self):
-        self.check_outputs_and_grads()
+        self.check_outputs_and_grads(all_equal=True)
+
+
+class TestLogicalRightShiftShape(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestLogicalRightShiftCase"
+        self.cls = TestLogicalRightShift
+        self.inputs = [
+            {
+                "shape": [1],
+            },
+            {
+                "shape": [1024],
+            },
+            {
+                "shape": [512, 256],
+            },
+            {
+                "shape": [128, 64, 32],
+            },
+            {
+                "shape": [16, 8, 4, 2],
+            },
+            {
+                "shape": [16, 8, 4, 2, 1],
+            },
+        ]
+        self.dtypes = [
+            {
+                "dtype": "int32",
+            },
+        ]
+        self.attrs = []
+
+
+class TestLogicalRightShiftDtype(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestLogicalRightShiftCase"
+        self.cls = TestLogicalRightShift
+        self.inputs = [
+            {
+                "shape": [1024],
+            },
+        ]
+        self.dtypes = [
+            {
+                "dtype": "uint8",
+            },
+            {
+                "dtype": "int8",
+            },
+            {
+                "dtype": "int16",
+            },
+            {
+                "dtype": "int32",
+            },
+            {
+                "dtype": "int64",
+            },
+        ]
+        self.attrs = []
 
 
 if __name__ == "__main__":
-    unittest.main()
+    TestLogicalRightShiftShape().run()
+    TestLogicalRightShiftDtype().run()

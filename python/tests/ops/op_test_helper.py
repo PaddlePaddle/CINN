@@ -18,6 +18,9 @@ import itertools
 import unittest
 import re
 
+from unittest import suite
+from typing import Union, List
+
 parser = argparse.ArgumentParser(description="Argparse for op test helper")
 parser.add_argument(
     "--case",
@@ -31,6 +34,9 @@ class TestCaseHelper():
     """
     Helper class for constructing test cases.
     """
+
+    def __init__(self):
+        self.custom_attrs_list = []
 
     def init_attrs(self):
         """
@@ -48,6 +54,12 @@ class TestCaseHelper():
                 new_dict.append((k, v))
         return dict(new_dict)
 
+    def _register_custom_attrs(self, custom_attrs):
+        """
+        register custom attribute
+        """
+        self.custom_attrs_list.append(custom_attrs)
+
     def _init_cases(self):
         """
         Generate all test cases
@@ -56,7 +68,9 @@ class TestCaseHelper():
         assert isinstance(self.dtypes, list)
         assert isinstance(self.attrs, list)
         self.all_cases = []
-        all_lists = [self.inputs, self.dtypes, self.attrs]
+        all_lists = [
+            self.inputs, self.dtypes, self.attrs, *self.custom_attrs_list
+        ]
         filtered_lists = filter(lambda x: len(x) > 0, all_lists)
         for case in itertools.product(*filtered_lists):
             self.all_cases.append(self._flatten_tuple(case))
@@ -104,3 +118,17 @@ class TestCaseHelper():
         res = runner.run(test_suite)
         if not res.wasSuccessful():
             sys.exit(not res.wasSuccessful())
+
+
+def run_test(test_class: Union[suite.TestSuite, List[suite.TestSuite]]):
+    test_suite = unittest.TestSuite()
+    test_loader = unittest.TestLoader()
+    if isinstance(test_class, type):
+        test_suite.addTests(test_loader.loadTestsFromTestCase(test_class))
+    else:
+        for cls in test_class:
+            test_suite.addTests(test_loader.loadTestsFromTestCase(cls))
+    runner = unittest.TextTestRunner()
+    res = runner.run(test_suite)
+    if not res.wasSuccessful():
+        sys.exit(not res.wasSuccessful())

@@ -14,11 +14,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
 import numpy as np
 from op_test import OpTest, OpTestTool
+from op_test_helper import TestCaseHelper
 import paddle
-import paddle.nn.functional as F
 import cinn
 from cinn.frontend import *
 from cinn.common import *
@@ -28,69 +27,126 @@ from cinn.common import *
                     "x86 test will be skipped due to timeout.")
 class TestPowOp(OpTest):
     def setUp(self):
-        self.init_case()
+        # print(f"\n{self.__class__.__name__}: {self.case}")
+        self.prepare_inputs()
 
-    def init_case(self):
-        self.inputs = {
-            "x": self.random([32, 64], "float32"),
-            "y": self.random([32, 64], "float32", 0.0, 4.0)
-        }
-        self.axis = -1
+    def prepare_inputs(self):
+        self.x_np = self.random(
+            shape=self.case["x_shape"],
+            dtype=self.case["dtype"],
+            low=self.case["base_low"],
+            high=self.case["base_high"])
+        self.y_np = self.random(
+            shape=self.case["y_shape"],
+            dtype=self.case["dtype"],
+            low=self.case["exp_low"],
+            high=self.case["exp_high"])
+        self.axis = np.random.choice([-1, 0])
 
     def build_paddle_program(self, target):
-        x = paddle.to_tensor(self.inputs["x"], stop_gradient=False)
-        y = paddle.to_tensor(self.inputs["y"], stop_gradient=False)
-
+        x = paddle.to_tensor(self.x_np, stop_gradient=False)
+        y = paddle.to_tensor(self.y_np, stop_gradient=False)
         out = paddle.pow(x, y)
-
         self.paddle_outputs = [out]
 
     def build_cinn_program(self, target):
         builder = NetBuilder("pow")
         x = builder.create_input(
-            self.nptype2cinntype(self.inputs["x"].dtype),
-            self.inputs["x"].shape, "x")
+            self.nptype2cinntype(self.x_np.dtype), self.x_np.shape, "x")
         y = builder.create_input(
-            self.nptype2cinntype(self.inputs["y"].dtype),
-            self.inputs["y"].shape, "y")
+            self.nptype2cinntype(self.y_np.dtype), self.y_np.shape, "y")
         out = builder.pow(x, y, axis=self.axis)
-
         prog = builder.build()
         res = self.get_cinn_output(prog, target, [x, y],
-                                   [self.inputs["x"], self.inputs["y"]], [out])
-
-        self.cinn_outputs = [res[0]]
+                                   [self.x_np, self.y_np], [out])
+        self.cinn_outputs = res
 
     def test_check_results(self):
-        self.check_outputs_and_grads()
+        self.check_outputs_and_grads(equal_nan=True)
 
 
-class TestPowCase1(TestPowOp):
-    def init_case(self):
-        self.inputs = {
-            "x": self.random([8, 16, 32, 32], "float32"),
-            "y": self.random([1], "float32", 0.0, 4.0)
-        }
-        self.axis = 0
+class TestPowOpShape(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestLogicalRightShiftCase"
+        self.cls = TestPowOp
+        self.inputs = [
+            {
+                "x_shape": [1],
+                "y_shape": [1],
+            },
+            {
+                "x_shape": [1024],
+                "y_shape": [1024],
+            },
+            {
+                "x_shape": [512, 256],
+                "y_shape": [512, 256],
+            },
+            {
+                "x_shape": [128, 64, 32],
+                "y_shape": [128, 64, 32],
+            },
+            {
+                "x_shape": [16, 8, 4, 2],
+                "y_shape": [16, 8, 4, 2],
+            },
+            {
+                "x_shape": [16, 8, 4, 2, 1],
+                "y_shape": [16, 8, 4, 2, 1],
+            },
+        ]
+        self.dtypes = [
+            {
+                "dtype": "float32",
+            },
+        ]
+        self.attrs = [
+            {
+                "base_low": -10,
+                "base_high": 10,
+                "exp_low": -3,
+                "exp_high": 3,
+            },
+        ]
 
 
-class TestPowCase2(TestPowOp):
-    def init_case(self):
-        self.inputs = {
-            "x": self.random([8, 16, 32, 32], "int32", 2, 10),
-            "y": self.random([8, 16, 32, 32], "int32", 0, 5)
-        }
-        self.axis = -1
-
-
-class TestPowFP64(TestPowOp):
-    def init_case(self):
-        self.inputs = {
-            "x": self.random([8, 16, 32, 32], "float64", 2, 10),
-            "y": self.random([8, 16, 32, 32], "float64", 0, 5)
-        }
-        self.axis = -1
+class TestPowOpDtype(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestLogicalRightShiftCase"
+        self.cls = TestPowOp
+        self.inputs = [
+            {
+                "x_shape": [1024],
+                "y_shape": [1024],
+            },
+        ]
+        self.dtypes = [
+            {
+                "dtype": "int32",
+            },
+            {
+                "dtype": "int64",
+            },
+            {
+                "dtype": "float16",
+            },
+            {
+                "dtype": "float32",
+            },
+            {
+                "dtype": "float64",
+            },
+        ]
+        self.attrs = [
+            {
+                "base_low": -10,
+                "base_high": 10,
+                "exp_low": -3,
+                "exp_high": 3,
+            },
+        ]
 
 
 if __name__ == "__main__":
-    unittest.main()
+    TestPowOpShape().run()
+    TestPowOpDtype().run()

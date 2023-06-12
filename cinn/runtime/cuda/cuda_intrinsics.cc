@@ -56,6 +56,7 @@ CINN_REGISTER_HELPER(cuda_intrinsics) {
   REGISTER_EXTERN_FUNC_2_IN_1_OUT_UINT8(bitwise_and);
   REGISTER_EXTERN_FUNC_2_IN_1_OUT_UINT8(bitwise_or);
   REGISTER_EXTERN_FUNC_2_IN_1_OUT_UINT8(bitwise_xor);
+  REGISTER_EXTERN_FUNC_2_IN_1_OUT_UINT8(logical_right_shift);
 
 #undef REGISTER_EXTERN_FUNC_2_IN_1_OUT_UINT8
 
@@ -74,6 +75,7 @@ CINN_REGISTER_HELPER(cuda_intrinsics) {
   REGISTER_EXTERN_FUNC_2_IN_1_OUT_INT8(bitwise_and);
   REGISTER_EXTERN_FUNC_2_IN_1_OUT_INT8(bitwise_or);
   REGISTER_EXTERN_FUNC_2_IN_1_OUT_INT8(bitwise_xor);
+  REGISTER_EXTERN_FUNC_2_IN_1_OUT_INT8(logical_right_shift);
 
 #undef REGISTER_EXTERN_FUNC_2_IN_1_OUT_INT8
 
@@ -92,6 +94,7 @@ CINN_REGISTER_HELPER(cuda_intrinsics) {
   REGISTER_EXTERN_FUNC_2_IN_1_OUT_INT16(bitwise_and);
   REGISTER_EXTERN_FUNC_2_IN_1_OUT_INT16(bitwise_or);
   REGISTER_EXTERN_FUNC_2_IN_1_OUT_INT16(bitwise_xor);
+  REGISTER_EXTERN_FUNC_2_IN_1_OUT_INT16(logical_right_shift);
 
 #undef REGISTER_EXTERN_FUNC_2_IN_1_OUT_INT16
 
@@ -204,6 +207,7 @@ CINN_REGISTER_HELPER(cuda_intrinsics) {
   REGISTER_EXTERN_FUNC_1_IN_1_INT32(bitwise_not)
   REGISTER_EXTERN_FUNC_1_IN_1_INT32(clz)
   REGISTER_EXTERN_FUNC_1_IN_1_INT32(popc)
+  REGISTER_EXTERN_FUNC_1_IN_1_INT32(trunc)
 
 #undef REGISTER_EXTERN_FUNC_1_IN_1_INT32
 
@@ -213,6 +217,7 @@ CINN_REGISTER_HELPER(cuda_intrinsics) {
   REGISTER_EXTERN_FUNC_1_IN_1_INT64(bitwise_not)
   REGISTER_EXTERN_FUNC_1_IN_1_INT64(clz)
   REGISTER_EXTERN_FUNC_1_IN_1_INT64(popc)
+  REGISTER_EXTERN_FUNC_1_IN_1_INT64(trunc)
 
 #undef REGISTER_EXTERN_FUNC_1_IN_1_INT64
 
@@ -234,10 +239,12 @@ CINN_REGISTER_HELPER(cuda_intrinsics) {
 #define REGISTER_EXTERN_FUNC_2_IN_1_INT64(func__) \
   REGISTER_EXTERN_SOURCE_FUNC_2_IN_1_OUT(cinn_nvgpu_##func__##_int64, target, int64_t, int64_t, int64_t);
 
+  REGISTER_EXTERN_FUNC_2_IN_1_INT64(pow)
   REGISTER_EXTERN_FUNC_2_IN_1_INT64(bitwise_and)
   REGISTER_EXTERN_FUNC_2_IN_1_INT64(bitwise_or)
   REGISTER_EXTERN_FUNC_2_IN_1_INT64(bitwise_xor)
   REGISTER_EXTERN_FUNC_2_IN_1_INT64(mod)
+  REGISTER_EXTERN_FUNC_2_IN_1_INT64(logical_right_shift)
 
 #undef REGISTER_EXTERN_FUNC_2_IN_1_INT64
 
@@ -300,6 +307,15 @@ CINN_REGISTER_HELPER(cuda_intrinsics) {
       .AddInputType<int>()
       .End();
 
+  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_nvgpu_next_smallest_int32, target)
+      .SetRetType<int>()
+      .AddInputType<cinn_buffer_t *>()
+      .AddInputType<int>()
+      .AddInputType<int>()
+      .AddInputType<int>()
+      .AddInputType<int>()
+      .End();
+
 #define _REGISTER_CINN_NVGPU_LT_NUM(TYPE_SUFFIX, TYPE)                        \
   REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_nvgpu_lt_num_##TYPE_SUFFIX, target) \
       .SetRetType<int>()                                                      \
@@ -346,6 +362,10 @@ CINN_REGISTER_HELPER(cuda_intrinsics) {
       .AddInputType<int>()                                                       \
       .End();
 
+  _REGISTER_CINN_NVGPU_INDEX_ADD(bool, bool);
+  _REGISTER_CINN_NVGPU_INDEX_ADD(int8, int8_t);
+  _REGISTER_CINN_NVGPU_INDEX_ADD(int32, int32_t);
+  _REGISTER_CINN_NVGPU_INDEX_ADD(int64, int64_t);
   _REGISTER_CINN_NVGPU_INDEX_ADD(fp32, float);
   _REGISTER_CINN_NVGPU_INDEX_ADD(fp64, double);
 

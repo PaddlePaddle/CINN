@@ -126,7 +126,7 @@ std::shared_ptr<OpStrategy> StrategyForReciprocal(const framework::NodeAttr &att
 
 std::vector<framework::shape_t> InferShapeForReciprocal(const std::vector<framework::shape_t> &inputs_shape,
                                                         const framework::AttrMapType &attrs) {
-  CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
+  CHECK(!inputs_shape.empty()) << "The input's shape size is empty! Please check again.";
   std::vector<framework::shape_t> res{inputs_shape[0]};
   return res;
 }

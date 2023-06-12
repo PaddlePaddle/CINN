@@ -65,8 +65,6 @@ static const char *SnakeName(const char *name) {
 
 #define EXPAND_CINN_SUPPORT_TYPE(EXPAND_MACRO) \
   EXPAND_MACRO(bool)                           \
-  EXPAND_MACRO(float)                          \
-  EXPAND_MACRO(int)                            \
   EXPAND_MACRO(int64_t)                        \
   EXPAND_MACRO(double)
 
@@ -405,14 +403,23 @@ void BindFrontend(pybind11::module *m) {
 #undef EXPAND_QUINTIC_VECTOR
 #undef EXPAND_SEXTIC_VECTOR
 #undef PY_REGISTER_CONSTANT_OP
-#define PY_REGISTER_FILLCONSTANT_OP(TYPE__)                                   \
-     .def("fill_constant",                                                    \
-          static_cast<Variable (NetBuilder::*)(                               \
-               const std::vector<int> &, TYPE__, const std::string &, bool)>( \
-               &NetBuilder::template FillConstant<TYPE__>),                   \
-          py::arg("shape"),                                                   \
-          py::arg("value"),                                                   \
-          py::arg("name") = "",                                               \
+#define PY_REGISTER_FILLCONSTANT_OP(TYPE__)                                                        \
+     .def("fill_constant",                                                                         \
+           static_cast<Variable (NetBuilder::*)(                                                   \
+               const std::vector<int> &, TYPE__, const std::string &, const std::string &, bool)>( \
+               &NetBuilder::FillConstant<TYPE__>),                                                 \
+           py::arg("shape"),                                                                       \
+           py::arg("value"),                                                                       \
+           py::arg("name") = "",                                                                   \
+           py::arg("dtype"),                                                                       \
+           py::arg("force_cpu") = false)                                                           \
+     .def("fill_constant",                                                                         \
+          static_cast<Variable (NetBuilder::*)(                                                    \
+               const std::vector<int> &, TYPE__, const std::string &, bool)>(                      \
+               &NetBuilder::template FillConstant<TYPE__>),                                        \
+          py::arg("shape"),                                                                        \
+          py::arg("value"),                                                                        \
+          py::arg("name") = "",                                                                    \
           py::arg("force_cpu") = false)
           EXPAND_CINN_SUPPORT_TYPE(PY_REGISTER_FILLCONSTANT_OP)
 #undef PY_REGISTER_FILLCONSTANT_OP
@@ -462,15 +469,6 @@ void BindFrontend(pybind11::module *m) {
       .def("name", &NetBuilder::name)
       .def("__str__", [](NetBuilder &self) { return self.name(); })
       .def("append_instruction", &NetBuilder::AppendInstruction, py::arg("instr"))
-      .def("fill_constant",
-           static_cast<Variable (NetBuilder::*)(
-               const std::vector<int> &, float, const std::string &, const std::string &, bool)>(
-               &NetBuilder::FillConstant),
-           py::arg("shape"),
-           py::arg("value"),
-           py::arg("name") = "",
-           py::arg("dtype"),
-           py::arg("force_cpu") = false)
       .def("fill_constant",
            static_cast<Variable (NetBuilder::*)(
                const std::vector<int> &, const std::string &, const std::string &, const std::string &, bool)>(
@@ -588,7 +586,7 @@ void BindFrontend(pybind11::module *m) {
       .def("pool2d",
            &NetBuilder::Pool2d,
            py::arg("x"),
-           py::arg("polling_type"),
+           py::arg("pooling_type"),
            py::arg("kernel_size"),
            py::arg("stride")            = std::vector<int>{1, 1},
            py::arg("padding")           = std::vector<int>{0, 0},
@@ -603,7 +601,7 @@ void BindFrontend(pybind11::module *m) {
            py::arg("x"),
            py::arg("y"),
            py::arg("dy"),
-           py::arg("polling_type"),
+           py::arg("pooling_type"),
            py::arg("kernel_size"),
            py::arg("stride")            = std::vector<int>{1, 1},
            py::arg("padding")           = std::vector<int>{0, 0},
@@ -673,7 +671,7 @@ void BindFrontend(pybind11::module *m) {
            py::arg("output_shape")      = std::vector<int>{})
       .def("cast", &NetBuilder::Cast, py::arg("x"), py::arg("dtype"))
       .def("bitcast_convert", &NetBuilder::BitcastConvert, py::arg("x"), py::arg("dtype"))
-      .def("arange", &NetBuilder::Arange, py::arg("start"), py::arg("end"), py::arg("step"), py::arg("dtype"))
+      .def("arange", &NetBuilder::Arange, py::arg("start"), py::arg("stop"), py::arg("step"), py::arg("dtype"))
       .def("gather_nd", &NetBuilder::GatherNd, py::arg("x"), py::arg("index"))
       .def("cbrt", &NetBuilder::Cbrt, py::arg("x"))
       .def("clz", &NetBuilder::Clz, py::arg("x"))
@@ -703,6 +701,8 @@ void BindFrontend(pybind11::module *m) {
            py::arg("max")   = 0,
            py::arg("seed")  = 0,
            py::arg("dtype") = "int64")
+      .def("repeat", &NetBuilder::Repeat, py::arg("x"), py::arg("repeats"), py::arg("axis"))
+      .def("flip", &NetBuilder::Flip, py::arg("x"), py::arg("axis"))
       .def("cholesky", &NetBuilder::Cholesky, py::arg("x"), py::arg("upper") = false)
       .def("triangular_solve",
            &NetBuilder::TriangularSolve,
@@ -767,7 +767,11 @@ void BindFrontend(pybind11::module *m) {
            py::arg("builder") = nullptr,
            py::arg("scope")   = nullptr)
       .def("__call__", &PaddleModelConvertor::operator())
-      .def("load_model", &PaddleModelConvertor::LoadModel, py::arg("model_dir"), py::arg("is_combined") = false)
+      .def("load_model",
+           &PaddleModelConvertor::LoadModel,
+           py::arg("model_dir"),
+           py::arg("is_combined") = false,
+           py::arg("feed")        = std::unordered_map<std::string, std::vector<int64_t>>())
       .def("create_input", &PaddleModelConvertor::CreateInput, py::arg("dtype"), py::arg("shape"), py::arg("name"))
       .def("append_op",
            static_cast<void (PaddleModelConvertor::*)(const std::string &,

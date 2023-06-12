@@ -14,27 +14,38 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
 import numpy as np
-from op_test import OpTest, OpTestTool
 import paddle
-import cinn
-from cinn.frontend import *
 from cinn.common import *
+from cinn.frontend import *
+from op_test import OpTest, OpTestTool
+from op_test_helper import TestCaseHelper
 
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
                     "x86 test will be skipped due to timeout.")
 class TestCholeskyOp(OpTest):
     def setUp(self):
-        self.init_case()
+        print(f"\nRunning {self.__class__.__name__}: {self.case}")
+        self.inputs = {}
+        self.prepare_inputs()
 
-    def init_case(self):
-        matrix = self.random([3, 3], "float32")
-        matrix_t = np.transpose(matrix, [1, 0])
-        x = np.dot(matrix, matrix_t)
+    def prepare_inputs(self):
+        if "batch_dim" in self.case and self.case["batch_dim"] > 0:
+            x = []
+            for _ in range(self.case["batch_dim"]):
+                matrix = self.random(self.case["shape"], self.case["dtype"],
+                                     -1.0, 1.0)
+                matrix_t = np.transpose(matrix, [1, 0])
+                x.append(np.dot(matrix, matrix_t))
+            x = np.stack(x)
+        else:
+            matrix = self.random(self.case["shape"], self.case["dtype"], -1.0,
+                                 1.0)
+            matrix_t = np.transpose(matrix, [1, 0])
+            x = np.dot(matrix, matrix_t)
         self.inputs = {"x": x}
-        self.upper = False
+        self.upper = self.case["upper"]
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.inputs["x"], stop_gradient=False)
@@ -56,34 +67,165 @@ class TestCholeskyOp(OpTest):
         self.check_outputs_and_grads()
 
 
-class TestCholeskyCase1(TestCholeskyOp):
-    def init_case(self):
-        matrix = self.random([5, 5], "float64")
-        matrix_t = np.transpose(matrix, [1, 0])
-        x = np.dot(matrix, matrix_t)
-        self.inputs = {"x": x}
-        self.upper = True
+class TestCholeskyOpShape(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestCholeskyOpShape"
+        self.cls = TestCholeskyOp
+        self.inputs = [
+            {
+                "shape": [1, 1],
+            },
+            {
+                "shape": [8, 8],
+            },
+            {
+                "shape": [10, 10],
+            },
+        ]
+        self.dtypes = [
+            {
+                "dtype": "float32"
+            },
+        ]
+        self.attrs = [
+            {
+                "upper": False
+            },
+        ]
 
 
-class TestCholeskyCase2(TestCholeskyOp):
-    def init_case(self):
-        matrix = self.random([3, 3], "float32")
-        matrix_t = np.transpose(matrix, [1, 0])
-        x = np.dot(matrix, matrix_t)
-        x = x * np.ones(shape=(3, 3, 3))
-        self.inputs = {"x": x}
-        self.upper = False
+class TestCholeskyOpLargeShape(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestCholeskyOpLargeShape"
+        self.cls = TestCholeskyOp
+        self.inputs = [
+            {
+                "shape": [1024, 1024],
+            },
+            {
+                "shape": [2048, 2048],
+            },
+        ]
+        self.dtypes = [
+            {
+                "dtype": "float64"
+            },
+        ]
+        self.attrs = [
+            {
+                "upper": False,
+                "batch_dim": 2
+            },
+            {
+                "upper": False,
+                "batch_dim": 4
+            },
+            {
+                "upper": True,
+                "batch_dim": 8
+            },
+        ]
 
 
-class TestCholeskyCase3(TestCholeskyOp):
-    def init_case(self):
-        matrix = self.random([3, 3], "float64")
-        matrix_t = np.transpose(matrix, [1, 0])
-        x = np.dot(matrix, matrix_t)
-        x = x * np.ones(shape=(2, 3, 3, 3))
-        self.inputs = {"x": x}
-        self.upper = True
+class TestCholeskyOpDtype(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestCholeskyOpDtype"
+        self.cls = TestCholeskyOp
+        self.inputs = [
+            {
+                "shape": [1, 1],
+            },
+            {
+                "shape": [8, 8],
+            },
+            {
+                "shape": [10, 10],
+            },
+        ]
+        self.dtypes = [
+            {
+                "dtype": "float32"
+            },
+            {
+                "dtype": "float64"
+            },
+        ]
+        self.attrs = [
+            {
+                "upper": False
+            },
+        ]
+
+
+class TestCholeskyOpBatch(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestCholeskyOpBatch"
+        self.cls = TestCholeskyOp
+        self.inputs = [
+            {
+                "shape": [1, 1],
+            },
+            {
+                "shape": [8, 8],
+            },
+            {
+                "shape": [10, 10],
+            },
+        ]
+        self.dtypes = [
+            {
+                "dtype": "float32"
+            },
+        ]
+        self.attrs = [
+            {
+                "upper": False,
+                "batch_dim": 1
+            },
+            {
+                "upper": False,
+                "batch_dim": 4
+            },
+            {
+                "upper": False,
+                "batch_dim": 8
+            },
+        ]
+
+
+class TestCholeskyOpAttrs(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestCholeskyOpAttrs"
+        self.cls = TestCholeskyOp
+        self.inputs = [
+            {
+                "shape": [1, 1],
+            },
+            {
+                "shape": [8, 8],
+            },
+            {
+                "shape": [10, 10],
+            },
+        ]
+        self.dtypes = [
+            {
+                "dtype": "float32"
+            },
+            {
+                "dtype": "float64"
+            },
+        ]
+        self.attrs = [
+            {
+                "upper": True,
+            },
+        ]
 
 
 if __name__ == "__main__":
-    unittest.main()
+    TestCholeskyOpShape().run()
+    TestCholeskyOpLargeShape().run()
+    TestCholeskyOpDtype().run()
+    TestCholeskyOpBatch().run()
+    TestCholeskyOpAttrs().run()

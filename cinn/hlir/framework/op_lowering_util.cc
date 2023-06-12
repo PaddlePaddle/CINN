@@ -15,6 +15,7 @@
 #include "cinn/hlir/framework/op_lowering_util.h"
 
 #include "cinn/hlir/pe/nn_util.h"
+#include "cinn/utils/string.h"
 #ifdef CINN_WITH_CUDA
 #include "cinn/common/bfloat16.h"
 #include "cinn/common/float16.h"
@@ -539,23 +540,39 @@ void LoopAssignReduceWithoutLast(ir::IRSchedule& ir_sch,
   int tail   = 0;
   bool bound = true;
   auto shape = pe::GetFirstStepReduceShape(inshape, axes, bound, tail);
-  CHECK(bound);
+  CHECK(bound) << std::accumulate(
+      inshape.begin(), inshape.end(), std::string(""), [](const std::string& left, const int right) {
+        return left + std::to_string(right) + " ";
+      });
+
+  VLOG(4) << "LoopAssignReduceWithoutLast: THe input shape=[" << cinn::utils::Join(inshape, ", ")
+          << "], first step reduce shape=[" << cinn::utils::Join(shape, ", ") << "]"
+          << ", axes=[" << cinn::utils::Join(axes, ", ") << "], tail=" << tail;
 
   // remove loop size = 1 and remove axis in axes.
-  std::vector<int> nshape, naxes = axes;
+  std::vector<int> nshape, axes_shift_num(axes.size(), 0);
   for (int idx = 0; idx < shape.size(); ++idx) {
     if (shape[idx] == 1 && idx < axes.back()) {
-      auto iter = std::find(naxes.begin(), naxes.end(), idx);
-      if (iter != naxes.end()) {
-        naxes.erase(iter);
-      }
-      for (auto& axis : naxes) {
-        if (axis > idx) {
-          --axis;
+      for (int j = 0; j < axes.size(); ++j) {
+        if (axes[j] == idx) {
+          // the loop size at axis is 1, need remove
+          axes_shift_num[j] = -1;
+        } else if (axes[j] > idx) {
+          // the axies value need left shift
+          axes_shift_num[j]++;
         }
       }
     } else {
       nshape.push_back(shape[idx]);
+    }
+  }
+
+  // remove loop size - 1 axes
+  std::vector<int> naxes;
+  for (int i = 0; i < axes_shift_num.size(); ++i) {
+    if (axes_shift_num[i] != -1) {
+      // the axis do not need remove, but need left shift
+      naxes.emplace_back(axes[i] - axes_shift_num[i]);
     }
   }
 
@@ -631,10 +648,25 @@ void LoopAssignReduceWithLast(ir::IRSchedule& ir_sch,
                               const std::vector<int>& inshape,
                               const std::vector<int>& axes,
                               const common::Target& target) {
+  // If the number of current device SM is smaller than the number of SM
+  // required by Warp Reduce, the performance of Warp Reduce is better.
+  // Otherwise, use Block Reduce.
+  auto max_num_threads       = common::DefaultNVGPUTarget().max_num_threads();
+  int need_reduce_last_count = 1;
+  for (int i = 0; i < inshape.size(); i++) {
+    if (find(axes.begin(), axes.end(), i) == axes.end()) {
+      need_reduce_last_count *= inshape[i];
+    }
+  }
+  int warp_reduce_need_sm_count = ceil((need_reduce_last_count * 32) / float(target.get_max_threads_per_sm()));
+  // Set Num_max_threads to 32 is Warp Reduce
+  if (target.get_multi_processor_count() < warp_reduce_need_sm_count) {
+    max_num_threads = 32;
+  }
   // find first reduce and second reduce axis.
-  int lane             = 1;
-  int index            = static_cast<int>(axes.size()) - 1;
-  auto max_num_threads = target.max_num_threads();
+  int lane  = 1;
+  int index = static_cast<int>(axes.size()) - 1;
+
   for (; index >= 0; --index) {
     if (index + 1 < axes.size() && axes[index] != axes[index + 1] - 1) {
       break;
@@ -654,6 +686,18 @@ void LoopAssignReduceWithLast(ir::IRSchedule& ir_sch,
   if (lane > max_num_threads) {
     // last reduce axis size > 1024
     if (index == static_cast<int>(axes.size()) - 1) {
+      int tail         = max_num_threads;
+      bool check_bound = true;
+      for (; tail >= max_num_threads / 2; --tail) {
+        if (lane % tail == 0) {
+          check_bound = false;
+          break;
+        }
+      }
+      if (check_bound) {
+        lane = ((lane + max_num_threads - 1) / max_num_threads) * max_num_threads;
+        ir_sch.Split(block_name, axes[index], {lane});
+      }
       int idx = max_num_threads;
       do {
         if (lane % idx == 0) {
@@ -677,6 +721,14 @@ void LoopAssignReduceWithLast(ir::IRSchedule& ir_sch,
       }
     }
     LoopOrderAssignReduce(ir_sch, block_name, first_axes, target);
+    // The current one-dimensional reduce does not make full use of SM.
+    // This case is optimized into a two-dimensional.
+    auto loops       = ir_sch.GetLoops(block_name);
+    auto block_dim_x = loops[1].As<ir::For>()->extent.as_int32();
+    int block_dim_y  = block_dim_x <= 32 ? 2 : 1;
+    if (block_dim_y != 1) {
+      ir_sch.Split(loops[0], {-1, block_dim_y});
+    }
   } else {
     int fuse_times = axes.size() - (index + 1) - 1;
     for (int idx = 0; idx < fuse_times; ++idx) {
@@ -700,15 +752,16 @@ bool CanbeInline(Node* node,
   if (group->output_nodes.count(node)) {
     return false;
   }
-  if (IsConstOp(node)) {
-    return true;
-  }
 
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
   for (auto consumer : consumers) {
     if (op_pattern_dict[consumer->op()] == framework::kReduction) {
       return false;
     }
+  }
+
+  if (IsConstOp(node)) {
+    return true;
   }
 
   if (op_pattern_dict[node->op()] == framework::kReduction) {
@@ -882,10 +935,10 @@ void LoopAssignReduce(ir::IRSchedule& ir_sch,
   };
 
   auto node_shape = shape_dict.at(node_data->id());
-  // node output is same shape with reduce output.
+  // The output shape of node is different from that of reduce node
   if (std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<int>()) !=
       std::accumulate(node_shape.begin(), node_shape.end(), 1, std::multiplies<int>())) {
-    // split loop to assign master loop
+    // get loop factors of reduce node
     int extend = 1;
     std::vector<int> factors;
     loops       = ir_sch.GetLoops(node_data->id());
@@ -900,8 +953,63 @@ void LoopAssignReduce(ir::IRSchedule& ir_sch,
       factors.push_back(loop.As<ir::For>()->extent.as_int32());
     }
 
-    ir_sch.Split(loops.back(), factors);
-    loops = ir_sch.GetLoops(node_data->id());
+    // If there are IfThenElse stmt in loop, we need to find out the indices in condition,
+    // and special treatment should be applied to loops with these indices.
+    // We apply two step split on loop of src node to align the loop of reduce node.
+    std::unordered_set<int> loop_index_in_if;
+    auto first_reduce_loop = rloops.front();
+    // collect if
+    auto if_checker               = [](const Expr* x) { return x->As<ir::IfThenElse>(); };
+    auto if_set                   = ir::CollectIRNodesWithoutTensor(first_reduce_loop.As<ir::For>()->body, if_checker);
+    std::string reduce_block_name = reducer_data->id();
+    for (auto if_expr : if_set) {
+      auto checker = [reduce_block_name](const Expr* x) {
+        return x->As<ir::ScheduleBlockRealize>() &&
+               x->As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->name == reduce_block_name;
+      };
+      auto blocks_in_if = ir::CollectIRNodesWithoutTensor(if_expr, checker);
+      if (!blocks_in_if.empty()) {
+        ir::Expr condition = if_expr.As<ir::IfThenElse>()->condition;
+        auto indices_in_if =
+            ir::CollectIRNodesWithoutTensor(condition, [](const Expr* x) { return x->As<ir::_Var_>(); });
+        for (int i = 0; i < rloops.size(); ++i) {
+          std::string var_name = rloops[i].As<ir::For>()->loop_var->name;
+          auto find_var_iter = std::find_if(indices_in_if.begin(), indices_in_if.end(), [&var_name](const ir::Expr& x) {
+            return x.As<ir::_Var_>()->name == var_name;
+          });
+          if (find_var_iter != indices_in_if.end()) {
+            loop_index_in_if.insert(i);
+          }
+        }
+        break;
+      }
+    }
+
+    // prepare factors of two step split
+    std::vector<int> first_step_factors;
+    std::vector<int> second_step_factors;
+    int second_start_loop_index;
+    for (int i = 0; i < factors.size(); ++i) {
+      if (loop_index_in_if.count(i) == 0) {
+        first_step_factors.push_back(factors[i]);
+      } else if (loop_index_in_if.count(i) != 0 && second_step_factors.empty()) {
+        first_step_factors.push_back(-1);
+        second_step_factors.push_back(factors[i]);
+        second_start_loop_index = i;
+      } else if (loop_index_in_if.count(i) != 0 && !second_step_factors.empty()) {
+        second_step_factors.push_back(factors[i]);
+      }
+    }
+    // do two step split
+    if (!first_step_factors.empty()) {
+      ir_sch.Split(loops.back(), first_step_factors);
+      loops = ir_sch.GetLoops(node_data->id());
+    }
+    if (!second_step_factors.empty()) {
+      ir_sch.Split(loops.at(second_start_loop_index), second_step_factors);
+      loops = ir_sch.GetLoops(node_data->id());
+    }
+
     // copy loop info form rloops.
     copy_loop_info(loops, rloops);
     return;
@@ -911,9 +1019,13 @@ void LoopAssignReduce(ir::IRSchedule& ir_sch,
   if (WithoutLastDimInReduce(shape, axes)) {
     // if using two strep reduce.
     if (tensor_map.count(reducer_data->id() + "_1")) {
+      VLOG(4) << "Try assign loop of " << node_data->id() << " into two strep reduce loop of " << reducer_data->id();
       LoopAssignReduceWithoutLast(ir_sch, node_data->id(), shape, axes, target);
       auto nloops = ir_sch.GetLoops(node_data->id());
       auto rloops = ir_sch.GetLoops(tensor_map.find(reducer_data->id() + "_0")->second->name);
+
+      VLOG(4) << node_data->id() << "'s loop level is " << nloops.size() << ", and " << reducer_data->id()
+              << "'s loop level is " << rloops.size();
       if (nloops.size() < rloops.size()) {
         ir_sch.Split(nloops[0], {1, -1});
       }
@@ -922,6 +1034,8 @@ void LoopAssignReduce(ir::IRSchedule& ir_sch,
       // copy loop info form rloops.
       copy_loop_info(nloops, rloops);
     } else {
+      VLOG(4) << "Try assign loop of " << node_data->id() << " into reduce loop of " << reducer_data->id();
+
       auto nloops = ir_sch.GetLoops(node_data->id());
       ir_sch.Split(nloops.back(), shape);
       LoopOrderAssignReduce(ir_sch, node_data->id(), axes, target);

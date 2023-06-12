@@ -7,7 +7,7 @@
 namespace infrt {
 namespace common {
 
-//! Get the predifined axis name.
+//! Get the predefined axis name.
 const std::string& axis_name(int level);
 bool IsAxisNameReserved(const std::string& x);
 
