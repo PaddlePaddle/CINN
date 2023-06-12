@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <map>
+
+#include "cinn/api/op_group_interface.h"
+#include "cinn/common/is_reachable_predicator.h"
 #include "cinn/hlir/pass/fusion_merge_pass_util.h"
 
 DECLARE_bool(enhance_vertical_fusion_with_recompute);
@@ -19,6 +23,7 @@ DECLARE_bool(enhance_vertical_fusion_with_recompute);
 namespace cinn {
 namespace hlir {
 namespace pass {
+namespace {
 
 using framework::Graph;
 using framework::Node;
@@ -36,6 +41,218 @@ using OpGroupPtr  = std::shared_ptr<api::OpGroupInterface>;
 using OpGroupList = std::vector<OpGroupPtr>;
 
 using ConditionFunction = std::function<bool(const FusionHelperBase*, const GroupPtr&, const GroupPtr&)>;
+
+class GraphGroupLightwareFusePassCtx;
+class FuseHelper {
+ public:
+  virtual ~FuseHelper() = default;
+
+  virtual bool AllOutputsSameSize(const OpGroupPtr& first, const OpGroupPtr& second) const = 0;
+
+  virtual bool HorizontalElementwiseFuseReduce(const OpGroupPtr& src, const OpGroupPtr& dst) const = 0;
+
+  virtual bool ReduceFuseReduce(const OpGroupPtr& src, const OpGroupPtr& dst) const = 0;
+
+  virtual bool DetectCycleIfFuse(const OpGroupPtr& src, const OpGroupPtr& dst) const = 0;
+
+ protected:
+  FuseHelper() = default;
+};
+
+class GraphGroupFuseHelper final : public FuseHelper {
+ public:
+  explicit GraphGroupFuseHelper(const GraphGroupLightwareFusePassCtx* ctx) : ctx_(ctx) {}
+
+  bool AllOutputsSameSize(const OpGroupPtr& first, const OpGroupPtr& second) const override;
+
+  bool HorizontalElementwiseFuseReduce(const OpGroupPtr& src, const OpGroupPtr& dst) const override;
+
+  bool ReduceFuseReduce(const OpGroupPtr& src, const OpGroupPtr& dst) const override;
+
+  bool DetectCycleIfFuse(const OpGroupPtr& lhs, const OpGroupPtr& rhs) const override {
+    return ReachableIfDirectEdgeIgnored(lhs, rhs) || ReachableIfDirectEdgeIgnored(rhs, lhs);
+  }
+
+ private:
+  bool ReachableIfDirectEdgeIgnored(const OpGroupPtr& src, const OpGroupPtr& dst) const {
+    const auto& MinDepth4Node = [&](OpGroupPtr node) {
+      return std::dynamic_pointer_cast<Graph::Group>(node)->min_depth;
+    };
+    const auto& MaxDepth4Node = [&](OpGroupPtr node) {
+      return std::dynamic_pointer_cast<Graph::Group>(node)->max_depth;
+    };
+    const auto& VisitNextNodes = [&](OpGroupPtr node, const std::function<void(OpGroupPtr)>& Visit) {
+      for (const auto& pair : node->consumer2outputs()) {
+        if (node == src && pair.first == dst) {
+          continue;
+        }
+        Visit(pair.first);
+      }
+    };
+    common::IsReachablePredicator<OpGroupPtr> is_reachable(MinDepth4Node, MaxDepth4Node, VisitNextNodes);
+    return is_reachable(src, dst, [](OpGroupPtr) {});
+  }
+
+  const GraphGroupLightwareFusePassCtx* ctx_;
+};
+
+class LightwareFusePassCtx {
+ public:
+  virtual ~LightwareFusePassCtx() {}
+
+  virtual const OpGroupPtr& PickOpGroup() const = 0;
+
+  virtual const FuseHelper& fuse_helper() const = 0;
+
+  virtual void EnableFuse(const OpGroupPtr& first, const OpGroupPtr& second) = 0;
+
+ protected:
+  LightwareFusePassCtx() = default;
+};
+
+class GraphGroupLightwareFusePassCtx final : public LightwareFusePassCtx {
+ public:
+  GraphGroupLightwareFusePassCtx(
+      const FusionHelperBase* graph_group_fusion_helper,
+      const OpGroupPtr& group,
+      const std::function<void(const OpGroupPtr& first, const OpGroupPtr& second)>& EnableFuse)
+      : graph_group_fusion_helper_(graph_group_fusion_helper),
+        group_(group),
+        EnableFuse_(EnableFuse),
+        fuse_helper_(this) {}
+
+  const OpGroupPtr& PickOpGroup() const override { return group_; }
+
+  const FuseHelper& fuse_helper() const override { return fuse_helper_; }
+
+  void EnableFuse(const OpGroupPtr& first, const OpGroupPtr& second) override { EnableFuse_(first, second); }
+
+  const FusionHelperBase& graph_group_fusion_helper() const { return *graph_group_fusion_helper_; }
+
+ private:
+  const FusionHelperBase* graph_group_fusion_helper_;
+  const OpGroupPtr group_;
+  const std::function<void(const OpGroupPtr& first, const OpGroupPtr& second)> EnableFuse_;
+  const GraphGroupFuseHelper fuse_helper_;
+};
+
+bool GraphGroupFuseHelper::AllOutputsSameSize(const OpGroupPtr& first, const OpGroupPtr& second) const {
+  return is_same_size(&ctx_->graph_group_fusion_helper(),
+                      std::dynamic_pointer_cast<Graph::Group>(first),
+                      std::dynamic_pointer_cast<Graph::Group>(second));
+}
+
+bool GraphGroupFuseHelper::HorizontalElementwiseFuseReduce(const OpGroupPtr& src, const OpGroupPtr& dst) const {
+  return honrizontal_elementwise_fuse_reduce(&ctx_->graph_group_fusion_helper(),
+                                             std::dynamic_pointer_cast<Graph::Group>(src),
+                                             std::dynamic_pointer_cast<Graph::Group>(dst));
+}
+
+bool GraphGroupFuseHelper::ReduceFuseReduce(const OpGroupPtr& src, const OpGroupPtr& dst) const {
+  return reduce_fuse_reduce(&ctx_->graph_group_fusion_helper(),
+                            std::dynamic_pointer_cast<Graph::Group>(src),
+                            std::dynamic_pointer_cast<Graph::Group>(dst));
+}
+
+class FusePass {
+ public:
+  virtual ~FusePass() = default;
+
+  virtual void operator()(LightwareFusePassCtx* ctx) const = 0;
+
+ protected:
+  FusePass() = default;
+};
+
+class DefautlHorizontalFusePass final : public FusePass {
+ public:
+  DefautlHorizontalFusePass() : FusePass() {}
+
+  void operator()(LightwareFusePassCtx* ctx) const override {
+    const auto& producer        = ctx->PickOpGroup();
+    const OpGroupList consumers = [&]() {
+      OpGroupList consumers;
+      for (const auto& pair : producer->consumer2outputs()) {
+        consumers.push_back(pair.first);
+      }
+      return consumers;
+    }();
+    if (consumers.size() <= 1) {
+      return;
+    }
+    for (int i = 0; i < consumers.size(); ++i) {
+      const auto& src = consumers.at(i);
+      for (int j = i + 1; j < consumers.size(); ++j) {
+        const auto& dst = consumers.at(j);
+        if (ctx->fuse_helper().DetectCycleIfFuse(src, dst)) {
+          continue;
+        }
+        if (!DetectFusabilityByKind(ctx, src, dst)) {
+          continue;
+        }
+        ctx->EnableFuse(src, dst);
+        return;
+      }
+    }
+  }
+
+  using KindKeyT = std::pair<OpPatternKind, OpPatternKind>;
+
+  bool DetectFusabilityByKind(LightwareFusePassCtx* ctx, const OpGroupPtr& src, const OpGroupPtr& dst) const {
+    const KindKeyT kind_pair(src->kind(), dst->kind());
+    const auto& map  = GetConditionMap();
+    const auto& iter = map.find(kind_pair);
+    if (iter == map.end()) {
+      return false;
+    }
+    return iter->second(ctx, src, dst);
+  }
+
+  typedef bool (*ConditionT)(LightwareFusePassCtx* ctx, const OpGroupPtr& src, const OpGroupPtr& dst);
+
+  const std::map<KindKeyT, ConditionT>& GetConditionMap() const {
+    thread_local static std::map<KindKeyT, ConditionT> map(RawConditionMap());
+    return map;
+  }
+
+  std::map<KindKeyT, ConditionT> RawConditionMap() const {
+    return std::map<KindKeyT, ConditionT>{
+        {{OpPatternKind::kElementWise, framework::kElementWise}, &DefautlHorizontalFusePass::IsSameSize},
+        {{OpPatternKind::kElementWise, framework::kBroadcast}, &DefautlHorizontalFusePass::IsSameSize},
+        {{OpPatternKind::kElementWise, framework::kInjective}, &DefautlHorizontalFusePass::IsSameSize},
+        {{OpPatternKind::kElementWise, framework::kReduction},
+         &DefautlHorizontalFusePass::HorizontalElementwiseFuseReduce},
+
+        {{OpPatternKind::kBroadcast, framework::kElementWise}, &DefautlHorizontalFusePass::IsSameSize},
+        {{OpPatternKind::kBroadcast, framework::kBroadcast}, &DefautlHorizontalFusePass::IsSameSize},
+        {{OpPatternKind::kBroadcast, framework::kInjective}, &DefautlHorizontalFusePass::IsSameSize},
+        {{OpPatternKind::kBroadcast, framework::kReduction}, &DefautlHorizontalFusePass::IsSameSize},
+
+        {{OpPatternKind::kInjective, framework::kElementWise}, &DefautlHorizontalFusePass::IsSameSize},
+        {{OpPatternKind::kInjective, framework::kBroadcast}, &DefautlHorizontalFusePass::IsSameSize},
+        {{OpPatternKind::kInjective, framework::kInjective}, &DefautlHorizontalFusePass::IsSameSize},
+        {{OpPatternKind::kInjective, framework::kReduction}, &DefautlHorizontalFusePass::IsSameSize},
+
+        {{OpPatternKind::kReduction, framework::kElementWise},
+         &DefautlHorizontalFusePass::HorizontalElementwiseFuseReduce},
+        {{OpPatternKind::kReduction, framework::kBroadcast}, &DefautlHorizontalFusePass::IsSameSize},
+        {{OpPatternKind::kReduction, framework::kInjective}, &DefautlHorizontalFusePass::IsSameSize},
+        {{OpPatternKind::kReduction, framework::kReduction}, &DefautlHorizontalFusePass::ReduceFuseReduce},
+    };
+  }
+
+  static bool IsSameSize(LightwareFusePassCtx* ctx, const OpGroupPtr& src, const OpGroupPtr& dst) {
+    return ctx->fuse_helper().AllOutputsSameSize(src, dst);
+  }
+
+  static bool HorizontalElementwiseFuseReduce(LightwareFusePassCtx* ctx, const OpGroupPtr& src, const OpGroupPtr& dst) {
+    return ctx->fuse_helper().HorizontalElementwiseFuseReduce(src, dst);
+  }
+
+  static bool ReduceFuseReduce(LightwareFusePassCtx* ctx, const OpGroupPtr& src, const OpGroupPtr& dst) {
+    return ctx->fuse_helper().ReduceFuseReduce(src, dst);
+  }
+};
 
 // Op Fusion Pass which performs Ops fusion, Ops are fused
 // "vertically", meaning producing Ops are fused into their consumers
@@ -62,12 +279,12 @@ class FusionMergePassHelper : public FusionHelperBase {
         VLOG(3) << "  Fused Sub-Group -> " << sub_group->group_id;
       }
       for (const auto& pair : group->producer_groups()) {
-        const auto& producer = pair.first;
-        VLOG(3) << "  Producer -> " << std::dynamic_pointer_cast<Graph::Group>(producer)->group_id;
+        const auto& producer = std::dynamic_pointer_cast<Graph::Group>(pair.first);
+        VLOG(3) << "  Producer -> " << producer->group_id;
       }
       for (const auto& pair : group->consumer_groups()) {
-        const auto& consumer = pair.first;
-        VLOG(3) << "  Consumer -> " << std::dynamic_pointer_cast<Graph::Group>(consumer)->group_id;
+        const auto& consumer = std::dynamic_pointer_cast<Graph::Group>(pair.first);
+        VLOG(3) << "  Consumer -> " << consumer->group_id;
       }
     }
     return fusion_groups_;
@@ -76,7 +293,7 @@ class FusionMergePassHelper : public FusionHelperBase {
  private:
   void DoFusionMerge() {
     VLOG(3) << "DoFusionMerge...!";
-    while (DoHorizontalFusion()) {
+    while (DoGeneralHorizontalFusion()) {
     }
     while (DoVerticalFusion(/* recompute=*/false)) {
     }
@@ -84,8 +301,8 @@ class FusionMergePassHelper : public FusionHelperBase {
     }
   }
 
-  bool DoHorizontalFusion() {
-    VLOG(3) << "DoHorizontalFusion...!";
+  bool DoGeneralHorizontalFusion() {
+    VLOG(3) << "DoGeneralHorizontalFusion...!";
     bool updated = false;
     for (int idx = 0; idx < fusion_groups_.size(); ++idx) {
       auto producer = fusion_groups_[idx];
@@ -95,7 +312,7 @@ class FusionMergePassHelper : public FusionHelperBase {
         continue;
       }
       // do horizontal fusion.
-      updated |= HorizontalFusion(producer, producer->CollectConsumerGroups());
+      updated |= GeneralHorizontalFuse(producer);
     }
 
     if (updated) {
@@ -176,6 +393,63 @@ class FusionMergePassHelper : public FusionHelperBase {
     }
   }
 
+  std::vector<std::shared_ptr<const FusePass>> RawHorizontalFusePasses() const {
+    return std::vector<std::shared_ptr<const FusePass>>{
+        std::shared_ptr<const FusePass>(new DefautlHorizontalFusePass{}),
+    };
+  }
+
+  const std::vector<std::shared_ptr<const FusePass>>& GetHorizontalFusePasses() const {
+    thread_local static std::vector<std::shared_ptr<const FusePass>> fuse_passes = RawHorizontalFusePasses();
+    return fuse_passes;
+  }
+
+  void EnableFusedHorizontalGroups(LightwareFusePassCtx* ctx) const {
+    const auto& producer = ctx->PickOpGroup();
+    if (producer->consumer2outputs().size() <= 1) {
+      return;
+    }
+    const auto& fuse_passes = GetHorizontalFusePasses();
+    for (const auto& fuse_pass : fuse_passes) {
+      (*fuse_pass)(ctx);
+    }
+  }
+
+  bool GeneralHorizontalFuse(const GroupPtr& producer) {
+    VLOG(3) << "GeneralHorizontalFuse...!";
+    using OpGroupSets                       = std::set<std::set<OpGroupPtr>>;
+    const auto& GetFusableConsumerGroupSets = [&]() -> OpGroupSets {
+      OpGroupSets tagged_sets;
+      const auto& EnableFuse = [&](const OpGroupPtr& first, const OpGroupPtr& second) {
+        tagged_sets.insert(std::set<OpGroupPtr>{first, second});
+      };
+      GraphGroupLightwareFusePassCtx fuse_ctx(this, producer, EnableFuse);
+      EnableFusedHorizontalGroups(&fuse_ctx);
+      return tagged_sets;
+    };
+    const auto& GetFusableConsumerGroupList = [&]() -> GroupList {
+      const auto& group_sets = GetFusableConsumerGroupSets();
+      if (group_sets.empty()) {
+        return GroupList{};
+      }
+      GroupList ret;
+      for (const auto& group : *group_sets.begin()) {
+        ret.push_back(std::dynamic_pointer_cast<Graph::Group>(group));
+      }
+      return ret;
+    };
+    bool update = false;
+    while (true) {
+      const auto& groups = GetFusableConsumerGroupList();
+      if (groups.size() <= 1) {
+        break;
+      }
+      HorizontalFuse(groups);
+      update = true;
+    }
+    return update;
+  }
+
   bool HorizontalFusion(GroupPtr producer, const std::unordered_set<GroupPtr>& consumers) {
     VLOG(3) << "HorizontalFusion...!";
     if (consumers.size() <= 1) {
@@ -246,7 +520,7 @@ class FusionMergePassHelper : public FusionHelperBase {
     return updated;
   }
 
-  void HorizontalFuse(GroupList& consumers) {
+  void HorizontalFuse(const GroupList& consumers) {
     VLOG(3) << "HorizontalFuse Groups...";
     // create fusion group
     auto fused_group = std::make_shared<Graph::Group>();
@@ -256,7 +530,7 @@ class FusionMergePassHelper : public FusionHelperBase {
     // find the first consumer.
     GroupPtr first_consumer(nullptr);
     // fuse all group into fusion group.
-    for (auto& consumer : consumers) {
+    for (const auto& consumer : consumers) {
       VLOG(3) << "fuse consumer " << consumer->group_id << " into fused_group!";
       // update depth
       fused_group->max_depth = std::max(fused_group->max_depth, consumer->max_depth);
@@ -1028,7 +1302,9 @@ class FusionMergePassHelper : public FusionHelperBase {
   std::unordered_map<framework::OpPatternKind, Relation> fusion_relation_map_;
 };
 
-void FusionMergePassInternal(Graph* graph) {
+}  // namespace
+
+void GeneralFusionMergePassInternal(Graph* graph) {
   if (graph->fusion_groups.size() <= 1) {
     VLOG(3) << "Don't do Fusoin Merge Pass...!";
     return;
@@ -1042,13 +1318,13 @@ void FusionMergePassInternal(Graph* graph) {
 }  // namespace hlir
 }  // namespace cinn
 
-CINN_REGISTER_HELPER(FusionMergePass) {
-  CINN_REGISTER_PASS(FusionMergePass)
+CINN_REGISTER_HELPER(GeneralFusionMergePass) {
+  CINN_REGISTER_PASS(GeneralFusionMergePass)
       .describe(
           "Fusion Merge Pass which performs Fusion-Ops fusion, Producer Fusion-Ops are fused into Consumer Fusion-Ops "
           "with certain conditions.")
       .set_change_structure(false)
-      .set_body(cinn::hlir::pass::FusionMergePassInternal);
+      .set_body(cinn::hlir::pass::GeneralFusionMergePassInternal);
 
   return true;
 }
