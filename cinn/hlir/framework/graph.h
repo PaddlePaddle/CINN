@@ -21,6 +21,7 @@
 #include <string>
 #include <vector>
 
+#include "cinn/api/cpp/op_group_interface.h"
 #include "cinn/common/graph_utils.h"
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/node.h"
@@ -56,7 +57,7 @@ class Graph : public cinn::common::Graph {
   absl::flat_hash_map<std::string, std::shared_ptr<absl::any>> attrs;
 
   std::vector<std::vector<Node*>> groups;
-  struct Group {
+  struct Group final : public OpGroupInterface {
     // distance to last group.
     int depth{0};
     int max_depth{0};
@@ -80,10 +81,6 @@ class Graph : public cinn::common::Graph {
     // master node for schedule
     std::unordered_set<Node*> master_nodes;
 
-    // input groups
-    std::unordered_map<std::shared_ptr<Group>, TensorInterfaceList> producer_groups;
-    // output grous
-    std::unordered_map<std::shared_ptr<Group>, TensorInterfaceList> consumer_groups;
     // fused sub-groups, used for fusion merge pass
     std::vector<std::shared_ptr<Group>> fused_sub_groups;
     // if as sub-group, used for belong groups.
@@ -125,6 +122,29 @@ class Graph : public cinn::common::Graph {
     std::unordered_set<NodeData*> GetOutputNodeDatas();
 
     std::string GetFuncName() { return "fn_" + group_id + unique_id; }
+
+   public:
+    const std::unordered_map<std::shared_ptr<OpGroupInterface>, TensorInterfaceList>& producer_groups() const override {
+      return producer_groups_;
+    }
+
+    const std::unordered_map<std::shared_ptr<OpGroupInterface>, TensorInterfaceList>& consumer_groups() const override {
+      return consumer_groups_;
+    }
+
+    std::unordered_map<std::shared_ptr<OpGroupInterface>, TensorInterfaceList>* mut_producer_groups() {
+      return &producer_groups_;
+    }
+
+    std::unordered_map<std::shared_ptr<OpGroupInterface>, TensorInterfaceList>* mut_consumer_groups() {
+      return &consumer_groups_;
+    }
+
+   private:
+    // input groups
+    std::unordered_map<std::shared_ptr<OpGroupInterface>, TensorInterfaceList> producer_groups_;
+    // output grous
+    std::unordered_map<std::shared_ptr<OpGroupInterface>, TensorInterfaceList> consumer_groups_;
   };
   std::vector<std::shared_ptr<Group>> fusion_groups;
 
