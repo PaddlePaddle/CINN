@@ -489,7 +489,7 @@ class FusionMergePassHelper : public FusionHelperBase {
     VLOG(3) << "DoFusionMerge...!";
     while (DoGeneralHorizontalFusion()) {
     }
-    while (DoVerticalFusion(/* recompute=*/false)) {
+    while (DoGeneralVerticalFusion()) {
     }
     while (DoVerticalFusion(/* recompute=*/true)) {
     }
@@ -540,7 +540,7 @@ class FusionMergePassHelper : public FusionHelperBase {
     return updated;
   }
 
-  bool DoGeneralVerticalFusion(bool recompute) {
+  bool DoGeneralVerticalFusion() {
     VLOG(3) << "DoVerticalFusion...!";
     bool updated = false;
     for (int idx = 0; idx < fusion_groups_.size(); ++idx) {
@@ -551,11 +551,14 @@ class FusionMergePassHelper : public FusionHelperBase {
         continue;
       }
       // do horizontal fusion.
-      if (!recompute) {
-        updated |= GeneralHorizontalFuse(producer);
-      }
-      updated |= GeneralVerticalFuse(producer);
+      updated |= GeneralHorizontalFuse(producer);
+      updated |= VerticalFusion(producer, producer->CollectConsumerGroups(), false);
+
+      // updated |= GeneralVerticalFuse(producer);
     }
+
+    // fuse input consumers
+    updated |= FuseInputToConsumers();
 
     if (updated) {
       UpdateFusionGroup();
@@ -1003,6 +1006,9 @@ class FusionMergePassHelper : public FusionHelperBase {
 
     bool update = false;
     auto consumer_groups = GetFusableConsumerGroupSet();
+    if (consumer_groups.size()) {
+      SelectConsumerToFuse(producer, consumer_groups);
+    }
     if (consumer_groups.size() > 0) {
       VerticalFuse(producer, consumer_groups);
       update = true;
