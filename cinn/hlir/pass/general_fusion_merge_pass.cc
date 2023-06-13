@@ -489,9 +489,9 @@ class FusionMergePassHelper : public FusionHelperBase {
     VLOG(3) << "DoFusionMerge...!";
     while (DoGeneralHorizontalFusion()) {
     }
-    while (DoGeneralVerticalFusion(/* recompute=*/false)) {
+    while (DoVerticalFusion(/* recompute=*/false)) {
     }
-    while (DoGeneralVerticalFusion(/* recompute=*/true)) {
+    while (DoVerticalFusion(/* recompute=*/true)) {
     }
   }
 
@@ -508,6 +508,31 @@ class FusionMergePassHelper : public FusionHelperBase {
       // do horizontal fusion.
       updated |= GeneralHorizontalFuse(producer);
     }
+
+    if (updated) {
+      UpdateFusionGroup();
+    }
+    return updated;
+  }
+
+  bool DoVerticalFusion(bool recompute) {
+    VLOG(3) << "DoVerticalFusion...!";
+    bool updated = false;
+    for (int idx = 0; idx < fusion_groups_.size(); ++idx) {
+      auto producer = fusion_groups_[idx];
+      VLOG(3) << "Fusion Producer Group -> " << producer->group_id;
+      // if producer is sub group.
+      if (producer->belong_groups.size()) {
+        continue;
+      }
+      // do horizontal fusion.
+      if (!recompute) {
+        updated |= HorizontalFusion(producer, producer->CollectConsumerGroups());
+      }
+      updated |= VerticalFusion(producer, producer->CollectConsumerGroups(), recompute);
+    }
+    // fuse input consumers
+    updated |= FuseInputToConsumers();
 
     if (updated) {
       UpdateFusionGroup();
