@@ -157,11 +157,13 @@ class TestMultiplyOp(TestBinaryOp):
 
 class TestFloorDivideOp(TestBinaryOp):
     def get_x_data(self):
+        np.random.seed(2023)
         # avoid random generate 0
         return self.random([32, 64], 'int32', 1, 100) * np.random.choice(
             [-1, 1], [1])[0]
 
     def get_y_data(self):
+        np.random.seed(2023)
         # avoid random generate 0
         return self.random([32, 64], 'int32', 1, 100) * np.random.choice(
             [-1, 1], [1])[0]

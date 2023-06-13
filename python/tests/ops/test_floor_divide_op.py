@@ -33,6 +33,7 @@ class TestFloorDivideOp(OpTest):
         self.init_case()
 
     def init_case(self):
+        np.random.seed(2023)
         self.x_np = self.random(
             shape=self.case["x_shape"],
             dtype=self.case["x_dtype"],
@@ -166,6 +167,7 @@ class TestFloorDivideNegOp(OpTest):
         self.init_case()
 
     def init_case(self):
+        np.random.seed(2023)
         self.x_np = self.random(
             shape=self.case["x_shape"],
             dtype=self.case["x_dtype"],
