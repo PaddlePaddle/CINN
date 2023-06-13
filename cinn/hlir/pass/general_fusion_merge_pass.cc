@@ -857,6 +857,78 @@ class FusionMergePassHelper : public FusionHelperBase {
     CHECK(fused_group->output_nodes.size()) << "No output node is found, " << fused_group->group_id;
   }
 
+  bool VerticalFusion(GroupPtr& producer, const std::unordered_set<GroupPtr>& consumers, bool recompute) {
+    VLOG(3) << "VerticalFusion, Number of Consumers : " << consumers.size();
+    auto& relation = fusion_relation_map_[producer->op_pattern_kind];
+    // if producer can't fuse others
+    if (!relation.vertical_relation.size()) {
+      return false;
+    }
+
+    std::unordered_set<GroupPtr> fuse_consumers_unsafe;
+    std::unordered_set<GroupPtr> fuse_consumers;
+    for (const auto& consumer : consumers) {
+      VLOG(4) << "Check consuemr " << consumer->group_id << " can fuse to producer " << producer->group_id;
+      // if can't fuse
+      if (!relation.vertical_relation.count(consumer->op_pattern_kind)) {
+        VLOG(4) << "Can't fuse producer " << producer->group_id << " consumer " << consumer->group_id;
+        continue;
+      }
+
+      // if condition function is false
+      if (!relation.vertical_relation[consumer->op_pattern_kind](this, producer, consumer)) {
+        VLOG(4) << "Can't fuse producer " << producer->group_id << " consumer " << consumer->group_id;
+        continue;
+      }
+
+      fuse_consumers_unsafe.insert(consumer);
+
+      if (IsDependencySimplify(producer, consumer, consumers)) {
+        VLOG(4) << "IsDependencySimplify, Consumer " << consumer->group_id << " can't be master fused group!";
+        continue;
+      }
+
+      if (IsDependency(producer, consumer, consumers)) {
+        VLOG(4) << "IsDependency, Consumer " << consumer->group_id << " can't be master fused group!";
+        continue;
+      }
+
+      fuse_consumers.insert(consumer);
+    }
+
+    VLOG(3) << "VerticalFusion, Number of fuse Consumers : " << fuse_consumers.size();
+    VLOG(3) << "VerticalFusion, Number of unsafe fuse Consumers : " << fuse_consumers.size();
+
+    if (fuse_consumers.size() == 0) {
+      return false;
+    }
+    // if can_fuse_consumers == consumers
+    // if producer op kind == kElementwise
+    // if use recompute
+    if (fuse_consumers_unsafe.size() == producer->consumer_groups().size() &&
+        producer->op_pattern_kind == framework::kElementWise) {
+      if (!recompute) {
+        return false;
+      } else {
+        RecomputeEleGraph(producer, fuse_consumers_unsafe);
+        VerticalFuse(producer, fuse_consumers_unsafe);
+        return true;
+      }
+    }
+
+    if (fuse_consumers.size()) {
+      SelectConsumerToFuse(producer, fuse_consumers);
+    }
+
+    // if fusionable consumers exist
+    if (fuse_consumers.size()) {
+      VerticalFuse(producer, fuse_consumers);
+      return true;
+    }
+
+    return false;
+  }
+
   std::vector<std::shared_ptr<const FusePass>> RawVerticalFusePasses() const {
     return std::vector<std::shared_ptr<const FusePass>>{
         std::shared_ptr<const FusePass>(new DefaultVerticalFusePass()),
@@ -905,12 +977,8 @@ class FusionMergePassHelper : public FusionHelperBase {
     };
 
     bool update = false;
-    // Maybe this loop is no need.
-    while (true) {
-      auto consumer_groups = GetFusableConsumerGroupSet();
-      if (consumer_groups.empty()) {
-        break;
-      }
+    auto consumer_groups = GetFusableConsumerGroupSet();
+    if (consumer_groups.size() > 0) {
       VerticalFuse(producer, consumer_groups);
       update = true;
     }
