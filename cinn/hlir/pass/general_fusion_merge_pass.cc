@@ -875,16 +875,12 @@ class FusionMergePassHelper : public FusionHelperBase {
       }
       return ret;
     };
-    bool update = false;
-    while (true) {
-      const auto& groups = GetFusableConsumerGroupList();
-      if (groups.size() <= 1) {
-        break;
-      }
-      HorizontalFuse(groups);
-      update = true;
+    const auto& groups = GetFusableConsumerGroupList();
+    if (groups.size() <= 1) {
+      return false;
     }
-    return update;
+    HorizontalFuse(groups);
+    return true;
   }
 
   bool HorizontalFusion(GroupPtr producer, const std::unordered_set<GroupPtr>& consumers) {
@@ -1675,12 +1671,11 @@ class FusionMergePassHelper : public FusionHelperBase {
         continue;
       }
       // do input fusion.
-      auto st = CallGeneralInputFusePass(input_consumers.second);
-      if (st) {
+      while (CallGeneralInputFusePass(input_consumers.second)) {
         // fused consumers, update
         UpdateInputToConsumers();
+        updated = true;
       }
-      updated |= st;
     }
 
     return updated;
