@@ -552,9 +552,7 @@ class FusionMergePassHelper : public FusionHelperBase {
       }
       // do horizontal fusion.
       updated |= GeneralHorizontalFuse(producer);
-      updated |= VerticalFusion(producer, producer->CollectConsumerGroups(), false);
-
-      // updated |= GeneralVerticalFuse(producer);
+      updated |= GeneralVerticalFuse(producer);
     }
 
     // fuse input consumers
