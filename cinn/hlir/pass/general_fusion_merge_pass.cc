@@ -481,12 +481,12 @@ class DefaultVerticalFusePass final : public LightwareFusePass {
 
   typedef bool (*ConditionT)(LightwareFusePassCtx* ctx, const OpGroupPtr& src, const OpGroupPtr& dst);
 
-  const std::map<KindKeyT, ConditionT>& GetConditionMap() const {
+  static const std::map<KindKeyT, ConditionT>& GetConditionMap() {
     thread_local static std::map<KindKeyT, ConditionT> map(RawConditionMap());
     return map;
   }
 
-  std::map<KindKeyT, ConditionT> RawConditionMap() const {
+  static std::map<KindKeyT, ConditionT> RawConditionMap() {
     return std::map<KindKeyT, ConditionT>{
         {{OpPatternKind::kElementWise, framework::kElementWise}, &DefaultVerticalFusePass::IsSameSize},
         {{OpPatternKind::kElementWise, framework::kBroadcast}, &DefaultVerticalFusePass::ElementwiseFuseBroadcast},
@@ -547,9 +547,9 @@ class DefaultVerticalFusePass final : public LightwareFusePass {
   }
 };
 
-class DefaultRecomputeFusePass final : public FusePass {
+class DefaultRecomputeFusePass final : public LightwareFusePass {
  public:
-  DefaultRecomputeFusePass() : FusePass() {}
+  DefaultRecomputeFusePass() : LightwareFusePass() {}
 
   void operator()(LightwareFusePassCtx* ctx) const override {
     const auto& producer        = ctx->PickOpGroup();
@@ -1423,14 +1423,14 @@ class FusionMergePassHelper : public FusionHelperBase {
     }
   }
 
-  std::vector<std::shared_ptr<const FusePass>> RawRecomputeFusePasses() const {
-    return std::vector<std::shared_ptr<const FusePass>>{
-        std::shared_ptr<const FusePass>(new DefaultRecomputeFusePass()),
+  std::vector<std::shared_ptr<const LightwareFusePass>> RawRecomputeFusePasses() const {
+    return std::vector<std::shared_ptr<const LightwareFusePass>>{
+        std::shared_ptr<const LightwareFusePass>(new DefaultRecomputeFusePass()),
     };
   }
 
-  const std::vector<std::shared_ptr<const FusePass>>& GetRecomputeFusePasses() const {
-    thread_local static std::vector<std::shared_ptr<const FusePass>> fuse_passes = RawRecomputeFusePasses();
+  const std::vector<std::shared_ptr<const LightwareFusePass>>& GetRecomputeFusePasses() const {
+    thread_local static std::vector<std::shared_ptr<const LightwareFusePass>> fuse_passes = RawRecomputeFusePasses();
     return fuse_passes;
   }
 
