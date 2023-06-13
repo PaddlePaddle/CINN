@@ -21,15 +21,18 @@
 #include <string>
 #include <vector>
 
-#include "cinn/api/cpp/op_group_interface.h"
+#include "cinn/api/op_group_interface.h"
+#include "cinn/api/tensor_interface_list.h"
 #include "cinn/common/graph_utils.h"
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/node.h"
-#include "cinn/hlir/framework/tensor_interface_list.h"
 
 namespace cinn {
 namespace hlir {
 namespace framework {
+
+using OpGroupInterface    = cinn::api::OpGroupInterface;
+using TensorInterfaceList = cinn::api::TensorInterfaceList;
 
 /**
  * \brief Symbolic computation graph.
@@ -92,8 +95,8 @@ class Graph : public cinn::common::Graph {
 
     std::unordered_set<std::shared_ptr<Group>> CollectConsumerGroups() {
       std::unordered_set<std::shared_ptr<Group>> groups;
-      for (const auto& consumer_and_list : consumer_groups) {
-        groups.insert(consumer_and_list.first);
+      for (const auto& consumer_and_list : consumer_groups_) {
+        groups.insert(std::dynamic_pointer_cast<Graph::Group>(consumer_and_list.first));
       }
       return groups;
     }
@@ -139,6 +142,8 @@ class Graph : public cinn::common::Graph {
     std::unordered_map<std::shared_ptr<OpGroupInterface>, TensorInterfaceList>* mut_consumer_groups() {
       return &consumer_groups_;
     }
+
+    hlir::framework::OpPatternKind kind() const override { return op_pattern_kind; }
 
    private:
     // input groups

@@ -14,27 +14,25 @@
 
 #pragma once
 
-#include "cinn/hlir/framework/op_group_interface.h"
+#include <memory>
 
 namespace cinn {
-namespace hlir {
-namespace framework {
+namespace api {
 
+class ShapeInterface;
 
-class FusePassContext {
+class TensorInterface {
  public:
-  FusePassContext() = default;
+  // Get the shape of tensor.
+  virtual const ShapeInterface& shape() const = 0;
 
-  std::shared_ptr<OpGroupInterface> PickGroup();
-
-  void EnableRecompute(const OpGroupInterface& op_group);
-
-  void EnableVerticalFuse(const OpGroupInterface& first_op_group, const OpGroupInterface& second_op_group);
-
-  void EnableHorizontalFuse(const OpGroupInterface& first_op_group, const OpGroupInterface& second_op_group);
-
+ protected:
+  TensorInterface()                       = default;
+  TensorInterface(const TensorInterface&) = delete;
+  TensorInterface(TensorInterface&&)      = delete;
 };
 
-}  // namespace framework
-}  // namespace hlir
+using TensorInterfacePtr = std::shared_ptr<TensorInterface>;
+
+}  // namespace api
 }  // namespace cinn

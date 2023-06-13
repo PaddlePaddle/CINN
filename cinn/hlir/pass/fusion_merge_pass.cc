@@ -32,6 +32,9 @@ using common::GraphNode;
 using GroupPtr  = std::shared_ptr<Graph::Group>;
 using GroupList = std::vector<GroupPtr>;
 
+using OpGroupPtr  = std::shared_ptr<api::OpGroupInterface>;
+using OpGroupList = std::vector<OpGroupPtr>;
+
 using ConditionFunction = std::function<bool(const FusionHelperBase*, const GroupPtr&, const GroupPtr&)>;
 
 // Op Fusion Pass which performs Ops fusion, Ops are fused
@@ -58,13 +61,13 @@ class FusionMergePassHelper : public FusionHelperBase {
       for (auto& sub_group : group->fused_sub_groups) {
         VLOG(3) << "  Fused Sub-Group -> " << sub_group->group_id;
       }
-      for (const auto& pair : group->producer_groups) {
+      for (const auto& pair : group->producer_groups()) {
         const auto& producer = pair.first;
-        VLOG(3) << "  Producer -> " << producer->group_id;
+        VLOG(3) << "  Producer -> " << std::dynamic_pointer_cast<Graph::Group>(producer)->group_id;
       }
-      for (const auto& pair : group->consumer_groups) {
+      for (const auto& pair : group->consumer_groups()) {
         const auto& consumer = pair.first;
-        VLOG(3) << "  Consumer -> " << consumer->group_id;
+        VLOG(3) << "  Consumer -> " << std::dynamic_pointer_cast<Graph::Group>(consumer)->group_id;
       }
     }
     return fusion_groups_;
@@ -149,8 +152,8 @@ class FusionMergePassHelper : public FusionHelperBase {
         }
 
         bool exist = false;
-        for (const auto& pair : group->producer_groups) {
-          const auto& producer = pair.first;
+        for (const auto& pair : group->producer_groups()) {
+          const auto& producer = std::dynamic_pointer_cast<Graph::Group>(pair.first);
           if (fusion_groups_set.count(producer)) {
             VLOG(4) << group->group_id << " " << producer->group_id;
             exist = true;
@@ -315,20 +318,22 @@ class FusionMergePassHelper : public FusionHelperBase {
         fused_group->fused_sub_groups.push_back(consumer);
       }
       // producer group
-      for (const auto& producer_and_list : consumer->producer_groups) {
-        fused_group->producer_groups[producer_and_list.first] += producer_and_list.second;
+      for (const auto& producer_and_list : consumer->producer_groups()) {
+        GroupPtr producer = std::dynamic_pointer_cast<Graph::Group>(producer_and_list.first);
+        (*fused_group->mut_producer_groups())[producer] += producer_and_list.second;
         // update producer's consumer
-        producer_and_list.first->consumer_groups.erase(consumer);
+        producer->mut_consumer_groups()->erase(consumer);
         // TODO: Do not add any TensorInterface into any TensorInterfaceList in this file which will be deprecated.
-        producer_and_list.first->consumer_groups[fused_group] += {};
+        (*producer->mut_consumer_groups())[fused_group] += {};
       }
       // consumer group
-      for (const auto& gconsumer_and_list : consumer->consumer_groups) {
-        fused_group->consumer_groups[gconsumer_and_list.first] += gconsumer_and_list.second;
+      for (const auto& gconsumer_and_list : consumer->consumer_groups()) {
+        GroupPtr gconsumer = std::dynamic_pointer_cast<Graph::Group>(gconsumer_and_list.first);
+        (*fused_group->mut_consumer_groups())[gconsumer] += gconsumer_and_list.second;
         // update consumer's producer
-        gconsumer_and_list.first->producer_groups.erase(consumer);
+        gconsumer->mut_producer_groups()->erase(consumer);
         // TODO: Do not add any TensorInterface into any TensorInterfaceList in this file which will be deprecated.
-        gconsumer_and_list.first->producer_groups[fused_group] += {};
+        (*gconsumer->mut_producer_groups())[fused_group] += {};
       }
       // belongs group
       consumer->belong_groups.insert(fused_group);
@@ -434,7 +439,7 @@ class FusionMergePassHelper : public FusionHelperBase {
     // if can_fuse_consumers == consumers
     // if producer op kind == kElementwise
     // if use recompute
-    if (fuse_consumers_unsafe.size() == producer->consumer_groups.size() &&
+    if (fuse_consumers_unsafe.size() == producer->consumer_groups().size() &&
         producer->op_pattern_kind == framework::kElementWise) {
       if (!recompute) {
         return false;
@@ -501,12 +506,13 @@ class FusionMergePassHelper : public FusionHelperBase {
       }
 
       // producer groups
-      for (const auto& group_and_list : producer->producer_groups) {
-        fused_group->producer_groups[group_and_list.first] += group_and_list.second;
+      for (const auto& group_and_list : producer->producer_groups()) {
+        (*fused_group->mut_producer_groups())[group_and_list.first] += group_and_list.second;
+        const auto& group = std::dynamic_pointer_cast<Graph::Group>(group_and_list.first);
         // update producer's producer's consumer
-        group_and_list.first->consumer_groups.erase(producer);
+        group->mut_consumer_groups()->erase(producer);
         // TODO: Do not add any TensorInterface into any TensorInterfaceList in this file which will be deprecated.
-        group_and_list.first->consumer_groups[fused_group] += {};
+        (*group->mut_consumer_groups())[fused_group] += {};
       }
 
       // sub groups
@@ -552,23 +558,25 @@ class FusionMergePassHelper : public FusionHelperBase {
       }
 
       // producer nodes
-      for (const auto& group_and_list : consumer->producer_groups) {
+      for (const auto& group_and_list : consumer->producer_groups()) {
         if (group_and_list.first.get() != producer.get()) {
-          fused_group->producer_groups[group_and_list.first] += group_and_list.second;
+          (*fused_group->mut_producer_groups())[group_and_list.first] += group_and_list.second;
+          const GroupPtr& group = std::dynamic_pointer_cast<Graph::Group>(group_and_list.first);
           // update consumer's producer's consumer
-          group_and_list.first->consumer_groups.erase(consumer);
+          group->mut_consumer_groups()->erase(consumer);
           // TODO: Do not add any TensorInterface into any TensorInterfaceList in this file which will be deprecated.
-          group_and_list.first->consumer_groups[fused_group] += {};
+          (*group->mut_consumer_groups())[fused_group] += {};
         }
       }
 
       // consumer nodes
-      for (const auto& group_and_list : consumer->consumer_groups) {
-        fused_group->consumer_groups[group_and_list.first] += group_and_list.second;
+      for (const auto& group_and_list : consumer->consumer_groups()) {
+        (*fused_group->mut_consumer_groups())[group_and_list.first] += group_and_list.second;
+        const GroupPtr& group = std::dynamic_pointer_cast<Graph::Group>(group_and_list.first);
         // update consumer's consumer's producer
-        group_and_list.first->producer_groups.erase(consumer);
+        group->mut_producer_groups()->erase(consumer);
         // TODO: Do not add any TensorInterface into any TensorInterfaceList in this file which will be deprecated.
-        group_and_list.first->producer_groups[fused_group] += {};
+        (*group->mut_producer_groups())[fused_group] += {};
       }
 
       // sub group
@@ -602,16 +610,17 @@ class FusionMergePassHelper : public FusionHelperBase {
 
     for (auto& node : producer->output_nodes) {
       bool be_output = true;
-      for (const auto& consumer_and_list : producer->consumer_groups) {
+      for (const auto& consumer_and_list : producer->consumer_groups()) {
+        const auto& consumer = std::dynamic_pointer_cast<Graph::Group>(consumer_and_list.first);
         // if consumer is in fusionable.
-        if (fusionable_consumers.count(consumer_and_list.first)) {
-          if (consumer_and_list.first->input_nodes.count(node)) {
+        if (fusionable_consumers.count(consumer)) {
+          if (consumer->input_nodes.count(node)) {
             be_output = false;
           }
           continue;
         }
         // if consumer is not in fusionable.
-        if (consumer_and_list.first->input_nodes.count(node)) {
+        if (consumer->input_nodes.count(node)) {
           be_output = true;
           break;
         }
@@ -628,15 +637,16 @@ class FusionMergePassHelper : public FusionHelperBase {
       }
     }
     // insert unfusionable consumer groups
-    for (const auto& consumer_and_list : producer->consumer_groups) {
-      if (fusionable_consumers.count(consumer_and_list.first)) {
+    for (const auto& consumer_and_list : producer->consumer_groups()) {
+      const auto& consumer = std::dynamic_pointer_cast<Graph::Group>(consumer_and_list.first);
+      if (fusionable_consumers.count(consumer)) {
         continue;
       }
-      master_fuesd_group->consumer_groups[consumer_and_list.first] += consumer_and_list.second;
+      (*master_fuesd_group->mut_consumer_groups())[consumer_and_list.first] += consumer_and_list.second;
       // update consumer's producer
-      consumer_and_list.first->producer_groups.erase(producer);
+      consumer->mut_producer_groups()->erase(producer);
       // TODO: Do not add any TensorInterface into any TensorInterfaceList in this file which will be deprecated.
-      consumer_and_list.first->producer_groups[master_fuesd_group] += {};
+      (*consumer->mut_producer_groups())[master_fuesd_group] += {};
     }
   }
 
@@ -664,13 +674,13 @@ class FusionMergePassHelper : public FusionHelperBase {
           sub_group->nodes_set.insert(producer->CollectNodes()[0]);
           // remove depency.
           consumer->input_nodes.erase(producer->CollectNodes()[0]);
-          consumer->producer_groups.erase(producer);
-          producer->consumer_groups.erase(consumer);
+          consumer->mut_producer_groups()->erase(producer);
+          producer->mut_consumer_groups()->erase(consumer);
         }
       }
 
-      CHECK_GE(producer->consumer_groups.size(), candidates.size());
-      if (producer->consumer_groups.size() == 0 && candidates.size() == 0 &&
+      CHECK_GE(producer->consumer_groups().size(), candidates.size());
+      if (producer->consumer_groups().size() == 0 && candidates.size() == 0 &&
           output_nodes_set_.count(producer->CollectNodes()[0]) == 0) {
         producer->belong_groups.insert(*fusionable_consumers.begin());
       }
@@ -679,7 +689,7 @@ class FusionMergePassHelper : public FusionHelperBase {
       return;
     }
     // 1 to 1 fusion.
-    if (producer->consumer_groups.size() == 1) {
+    if (producer->consumer_groups().size() == 1) {
       return;
     }
 
@@ -752,16 +762,17 @@ class FusionMergePassHelper : public FusionHelperBase {
     while (!candidates.empty()) {
       auto& candidate = candidates.front();
       candidates.pop();
-      for (const auto& producer_and_list : candidate->producer_groups) {
+      for (const auto& producer_and_list : candidate->producer_groups()) {
         if (producer_and_list.first.get() == producer_g.get()) {
           continue;
         }
-        if (consumers.count(producer_and_list.first)) {
+        const auto& producer = std::dynamic_pointer_cast<Graph::Group>(producer_and_list.first);
+        if (consumers.count(producer)) {
           return true;
         }
-        if (!visited_set.count(producer_and_list.first)) {
-          visited_set.insert(producer_and_list.first);
-          candidates.push(producer_and_list.first);
+        if (!visited_set.count(producer)) {
+          visited_set.insert(producer);
+          candidates.push(producer);
         }
       }
     }
@@ -779,19 +790,20 @@ class FusionMergePassHelper : public FusionHelperBase {
     while (!candidates.empty()) {
       auto& candidate = candidates.front();
       candidates.pop();
-      for (auto& producer_and_list : candidate->producer_groups) {
+      for (auto& producer_and_list : candidate->producer_groups()) {
         if (producer_and_list.first.get() == producer_g.get()) {
           continue;
         }
-        if (producer_and_list.first->min_depth > check_upper_depth) {
+        const auto& producer = std::dynamic_pointer_cast<Graph::Group>(producer_and_list.first);
+        if (producer->min_depth > check_upper_depth) {
           continue;
         }
-        if (consumers.count(producer_and_list.first)) {
+        if (consumers.count(producer)) {
           return true;
         }
-        if (!visited_set.count(producer_and_list.first)) {
-          visited_set.insert(producer_and_list.first);
-          candidates.push(producer_and_list.first);
+        if (!visited_set.count(producer)) {
+          visited_set.insert(producer);
+          candidates.push(producer);
         }
       }
     }
@@ -873,15 +885,15 @@ class FusionMergePassHelper : public FusionHelperBase {
       auto group        = fusion_groups_[idx];
       auto belong_group = std::make_shared<Graph::Group>();
       // copy from group.
-      belong_group->max_depth       = group->depth;
-      belong_group->min_depth       = group->depth;
-      belong_group->group_id        = group->group_id;
-      belong_group->input_nodes     = group->input_nodes;
-      belong_group->output_nodes    = group->output_nodes;
-      belong_group->op_pattern_kind = group->op_pattern_kind;
-      belong_group->master_nodes    = group->master_nodes;
-      belong_group->producer_groups = group->producer_groups;
-      belong_group->consumer_groups = group->consumer_groups;
+      belong_group->max_depth                = group->depth;
+      belong_group->min_depth                = group->depth;
+      belong_group->group_id                 = group->group_id;
+      belong_group->input_nodes              = group->input_nodes;
+      belong_group->output_nodes             = group->output_nodes;
+      belong_group->op_pattern_kind          = group->op_pattern_kind;
+      belong_group->master_nodes             = group->master_nodes;
+      (*belong_group->mut_producer_groups()) = group->producer_groups();
+      (*belong_group->mut_consumer_groups()) = group->consumer_groups();
       belong_group->fused_sub_groups.push_back(group);
       group->belong_groups.insert(belong_group);
       // replace group to fused_group
@@ -892,24 +904,26 @@ class FusionMergePassHelper : public FusionHelperBase {
 
     // update producer and consumer.
     for (auto& group : fusion_groups_) {
-      std::unordered_map<GroupPtr, TensorInterfaceList> producers;
-      std::unordered_map<GroupPtr, TensorInterfaceList> consumers;
+      std::unordered_map<OpGroupPtr, TensorInterfaceList> producers;
+      std::unordered_map<OpGroupPtr, TensorInterfaceList> consumers;
 
-      for (auto& producer_and_list : group->producer_groups) {
-        CHECK(producer_and_list.first->belong_groups.size());
+      for (auto& producer_and_list : group->producer_groups()) {
+        const auto& producer = std::dynamic_pointer_cast<Graph::Group>(producer_and_list.first);
+        CHECK(producer->belong_groups.size());
         // TODO: Do not add any TensorInterface into any TensorInterfaceList in this file which will be deprecated.
-        producers[*producer_and_list.first->belong_groups.begin()] += {};
+        producers[*producer->belong_groups.begin()] += {};
       }
 
-      for (auto& consumer_and_list : group->consumer_groups) {
-        CHECK(consumer_and_list.first->belong_groups.size());
+      for (auto& consumer_and_list : group->consumer_groups()) {
+        const auto& consumer = std::dynamic_pointer_cast<Graph::Group>(consumer_and_list.first);
+        CHECK(consumer->belong_groups.size());
         // TODO: Do not add any TensorInterface into any TensorInterfaceList in this file which will be deprecated.
-        consumers[*consumer_and_list.first->belong_groups.begin()] += {};
+        consumers[*consumer->belong_groups.begin()] += {};
       }
-      CHECK_EQ(group->producer_groups.size(), producers.size());
-      CHECK_EQ(group->consumer_groups.size(), consumers.size());
-      group->producer_groups = producers;
-      group->consumer_groups = consumers;
+      CHECK_EQ(group->producer_groups().size(), producers.size());
+      CHECK_EQ(group->consumer_groups().size(), consumers.size());
+      (*group->mut_producer_groups()) = producers;
+      (*group->mut_consumer_groups()) = consumers;
     }
   }
 

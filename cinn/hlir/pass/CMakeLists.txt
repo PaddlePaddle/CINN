@@ -8,6 +8,7 @@ gather_srcs(cinnapi_src SRCS
     const_propagate.cc
     op_fusion_pass.cc
     fusion_merge_pass.cc
+    general_fusion_merge_pass.cc
     dot_merger.cc
     check_fusion_accuracy_pass.cc
     custom_call_pass.cc
