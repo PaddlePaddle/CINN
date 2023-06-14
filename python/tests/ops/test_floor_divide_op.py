@@ -24,16 +24,18 @@ import cinn
 from cinn.frontend import *
 from cinn.common import *
 
+SEED = 1
+
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
                     "x86 test will be skipped due to timeout.")
 class TestFloorDivideOp(OpTest):
     def setUp(self):
-        print(f"\nRunning {self.__class__.__name__}: {self.case}")
+        # print(f"\nRunning {self.__class__.__name__}: {self.case}")
         self.init_case()
 
     def init_case(self):
-        np.random.seed(2023)
+        np.random.seed(SEED)
         self.x_np = self.random(
             shape=self.case["x_shape"],
             dtype=self.case["x_dtype"],
@@ -46,8 +48,8 @@ class TestFloorDivideOp(OpTest):
             high=10)
 
     def build_paddle_program(self, target):
-        x = paddle.to_tensor(self.x_np, stop_gradient=True)
-        y = paddle.to_tensor(self.y_np, stop_gradient=True)
+        x = paddle.to_tensor(self.x_np, stop_gradient=False)
+        y = paddle.to_tensor(self.y_np, stop_gradient=False)
 
         out = paddle.floor_divide(x, y)
 
@@ -67,7 +69,7 @@ class TestFloorDivideOp(OpTest):
         res = self.get_cinn_output(prog, target, [x, y],
                                    [self.x_np, self.y_np], [out])
 
-        self.cinn_outputs = [res[0]]
+        self.cinn_outputs = res
 
     def test_check_results(self):
         max_relative_error = self.case[
@@ -163,11 +165,11 @@ class TestFloorDivideAllWithBroadcast(TestCaseHelper):
 
 class TestFloorDivideNegOp(OpTest):
     def setUp(self):
-        print(f"\nRunning {self.__class__.__name__}: {self.case}")
+        # print(f"\nRunning {self.__class__.__name__}: {self.case}")
         self.init_case()
 
     def init_case(self):
-        np.random.seed(2023)
+        np.random.seed(SEED)
         self.x_np = self.random(
             shape=self.case["x_shape"],
             dtype=self.case["x_dtype"],
@@ -180,8 +182,8 @@ class TestFloorDivideNegOp(OpTest):
             high=-1)
 
     def build_paddle_program(self, target):
-        x = paddle.to_tensor(self.x_np, stop_gradient=True)
-        y = paddle.to_tensor(self.y_np, stop_gradient=True)
+        x = paddle.to_tensor(self.x_np, stop_gradient=False)
+        y = paddle.to_tensor(self.y_np, stop_gradient=False)
 
         out = paddle.floor_divide(x, y)
 
@@ -201,7 +203,7 @@ class TestFloorDivideNegOp(OpTest):
         res = self.get_cinn_output(prog, target, [x, y],
                                    [self.x_np, self.y_np], [out])
 
-        self.cinn_outputs = [res[0]]
+        self.cinn_outputs = res
 
     def test_check_results(self):
         max_relative_error = self.case[

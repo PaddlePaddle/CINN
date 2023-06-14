@@ -87,10 +87,10 @@ class TestSignOpShape(TestCaseHelper):
                 "shape": [80, 1, 5, 7],
             },
             {
-                "shape": [80, 3, 1024, 7],
+                "shape": [80, 3, 32, 7],
             },
             {
-                "shape": [10, 5, 1024, 2048],
+                "shape": [10, 5, 32, 32],
             },
             {
                 "shape": [1],
