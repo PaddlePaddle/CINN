@@ -102,7 +102,7 @@ class GraphGroupFuseHelper final : public FuseHelper {
   }
 
  private:
-  bool ReachableIfDirectEdgeIgnored(const OpGroupPtr& src, const OpGroupPtr& dst) const {
+  bool ReachableIfDirectEdgeIgnored(const OpGroupPtr& producer, const OpGroupPtr& consumer) const {
     const auto& MinDepth4Node = [&](OpGroupPtr node) {
       return std::dynamic_pointer_cast<Graph::Group>(node)->min_depth;
     };
@@ -110,15 +110,15 @@ class GraphGroupFuseHelper final : public FuseHelper {
       return std::dynamic_pointer_cast<Graph::Group>(node)->max_depth;
     };
     const auto& VisitNextNodes = [&](OpGroupPtr node, const std::function<void(OpGroupPtr)>& Visit) {
-      for (const auto& pair : node->consumer2outputs()) {
-        if (node == src && pair.first == dst) {
+      for (const auto& pair : node->producer2inputs()) {
+        if (node == consumer && pair.first == producer) {
           continue;
         }
         Visit(pair.first);
       }
     };
     common::IsReachablePredicator<OpGroupPtr> is_reachable(MinDepth4Node, MaxDepth4Node, VisitNextNodes);
-    return is_reachable(src, dst, [](OpGroupPtr) {});
+    return is_reachable(consumer, producer, [](OpGroupPtr) {});
   }
 
   const GraphGroupLightwareFusePassCtx* ctx_;
@@ -341,15 +341,27 @@ class DefaultVerticalFusePass final : public FusePass {
       if (consumers.size() == 0) {
         return;
       }
+
+      std::unordered_set<OpGroupPtr> candidates;
       for (int i = 0; i < consumers.size(); ++i) {
         const auto& consumer = consumers.at(i);
         if (!DetectFusabilityByKind(ctx, producer, consumer)) {
           continue;
         }
         if (ctx->fuse_helper().DetectCycleIfFuse(producer, consumer)) {
+          VLOG(4) << "Can't fuse because detect cycle";
           continue;
         }
-        ctx->EnableFuse(producer, consumer);
+        candidates.insert(consumer);
+      }
+
+      // Jump for Recompute
+      if (candidates.size() == consumers.size() && producer->kind() == framework::kElementWise) {
+        return;
+      }
+      // Add Tag
+      for (const auto& candidate : candidates) {
+        ctx->EnableFuse(producer, candidate);
       }
   }
 
