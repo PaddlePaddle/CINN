@@ -722,7 +722,7 @@ class FusionMergePassHelper : public FusionHelperBase {
     }
 
     // fuse input consumers
-    updated |= FuseInputToConsumers();
+    updated |= GeneralInputFuse();
 
     if (updated) {
       UpdateFusionGroup();
