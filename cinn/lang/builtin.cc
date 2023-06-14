@@ -109,6 +109,8 @@ Expr FloorDivide(Expr a, Expr b) {
   CHECK_EQ(a.type(), b.type()) << "FloorDivide's inputs type not equal, where a:" << a.type() << " but b:" << b.type();
   if (a.type().is_float()) {
     return Floor(a / b);
+  } else if (a.type().is_uint()) {
+    return a / b;
   } else {
     auto div = a / b;
     auto mod = a % b;
