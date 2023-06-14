@@ -41,6 +41,10 @@ class OpGroupInterface {
 
   virtual const std::unordered_map<std::shared_ptr<OpGroupInterface>, TensorInterfaceList>& consumer_groups() const = 0;
 
+  const std::unordered_map<std::shared_ptr<OpGroupInterface>, TensorInterfaceList>& producer2inputs() const {
+    return producer_groups();
+  }
+
   const std::unordered_map<std::shared_ptr<OpGroupInterface>, TensorInterfaceList>& consumer2outputs() const {
     return consumer_groups();
   }
