@@ -327,9 +327,9 @@ class DefautlHorizontalFusePass final : public FusePass {
 
 class DefaultVerticalFusePass final : public FusePass {
   public:
-   DefaultVerticalFusePass() : FusePass() {}
+    DefaultVerticalFusePass() : FusePass() {}
 
-   void operator()(LightwareFusePassCtx* ctx) const override {
+    void operator()(LightwareFusePassCtx* ctx) const override {
       const auto& producer        = ctx->PickOpGroup();
       const OpGroupList consumers = [&]() {
         OpGroupList consumers;
@@ -342,7 +342,6 @@ class DefaultVerticalFusePass final : public FusePass {
         return;
       }
 
-      std::unordered_set<OpGroupPtr> candidates;
       for (int i = 0; i < consumers.size(); ++i) {
         const auto& consumer = consumers.at(i);
         if (!DetectFusabilityByKind(ctx, producer, consumer)) {
@@ -352,18 +351,9 @@ class DefaultVerticalFusePass final : public FusePass {
           VLOG(4) << "Can't fuse because detect cycle";
           continue;
         }
-        candidates.insert(consumer);
+        ctx->EnableFuse(producer, consumer);
       }
-
-      // Jump for Recompute
-      if (candidates.size() == consumers.size() && producer->kind() == framework::kElementWise) {
-        return;
-      }
-      // Add Tag
-      for (const auto& candidate : candidates) {
-        ctx->EnableFuse(producer, candidate);
-      }
-  }
+   }
 
   using KindKeyT = std::pair<OpPatternKind, OpPatternKind>;
   bool DetectFusabilityByKind(LightwareFusePassCtx* ctx, const OpGroupPtr& src, const OpGroupPtr& dst) const {
@@ -476,13 +466,13 @@ class DefaultRecomputeFusePass final : public FusePass {
     if (consumers.size() <= 1) {
       return;
     }
-    std::unordered_set<OpGroupPtr> candidates;
+    std::vector<OpGroupPtr> candidates;
     for (int i = 0; i < consumers.size(); ++i) {
       const auto& consumer = consumers.at(i);
       if (!DetectFusabilityByKind(ctx, producer, consumer)) {
         continue;
       }
-      candidates.insert(consumer);
+      candidates.push_back(consumer);
     }
     if (candidates.size() == consumers.size() && producer->kind() == framework::kElementWise) {
       for (const auto& consumer : consumers) {
@@ -632,7 +622,9 @@ class FusionMergePassHelper : public FusionHelperBase {
       }
       // do horizontal fusion.
       updated |= GeneralRecomputeFuse(producer);
-      updated |= GeneralVerticalFuse(producer);
+      if (!updated) {
+        updated |= GeneralVerticalFuse(producer);
+      }
     }
 
     // fuse input consumers
@@ -1423,10 +1415,10 @@ class FusionMergePassHelper : public FusionHelperBase {
         fusionable_consumers.insert(*candidates.begin());
       }
     } else {
-      std::unordered_set<GroupPtr> candidates;
+      std::vector<GroupPtr> candidates;
       for (auto& consumer : fusionable_consumers) {
         if (consumer->op_pattern_kind == framework::kElementWise) {
-          candidates.insert(consumer);
+          candidates.push_back(consumer);
           continue;
         }
 
@@ -1435,13 +1427,13 @@ class FusionMergePassHelper : public FusionHelperBase {
 
         if (std::accumulate(shape0.begin(), shape0.end(), 1, std::multiplies<int>()) ==
             std::accumulate(shape1.begin(), shape1.end(), 1, std::multiplies<int>())) {
-          candidates.insert(consumer);
+          candidates.push_back(consumer);
         }
       }
 
       fusionable_consumers.clear();
       if (candidates.size()) {
-        fusionable_consumers.insert(*candidates.begin());
+        fusionable_consumers.insert(candidates.front());
       }
     }
   }
