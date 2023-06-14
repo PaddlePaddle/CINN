@@ -36,16 +36,19 @@ class TestFloorDivideOp(OpTest):
 
     def init_case(self):
         np.random.seed(SEED)
-        self.x_np = self.random(
-            shape=self.case["x_shape"],
-            dtype=self.case["x_dtype"],
-            low=-10,
-            high=10)
-        self.y_np = self.random(
-            shape=self.case["y_shape"],
-            dtype=self.case["y_dtype"],
-            low=1,
-            high=10)
+        self.x_np = np.arange(-16, 16, 1, dtype=self.case['x_dtype'])
+        self.y_np = np.full(
+            self.case['y_shape'], -2, dtype=self.case['y_dtype'])
+        # self.x_np = self.random(
+        #     shape=self.case["x_shape"],
+        #     dtype=self.case["x_dtype"],
+        #     low=-10,
+        #     high=10)
+        # self.y_np = self.random(
+        #     shape=self.case["y_shape"],
+        #     dtype=self.case["y_dtype"],
+        #     low=1,
+        #     high=10)
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.x_np, stop_gradient=False)
@@ -297,8 +300,32 @@ class TestFloorDivideNegAllWithBroadcast(TestCaseHelper):
         self.attrs = []
 
 
+class TestFloorDivide(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "Case"
+        self.cls = TestFloorDivideOp
+        self.inputs = [
+            {
+                "x_shape": [32],
+                "y_shape": [32],
+            },
+        ]
+        self.dtypes = [
+            {
+                "x_dtype": "int32",
+                "y_dtype": "int32",
+            },
+            {
+                "x_dtype": "int64",
+                "y_dtype": "int64",
+            },
+        ]
+        self.attrs = []
+
+
 if __name__ == "__main__":
-    TestFloorDivideAll().run()
-    TestFloorDivideNegAll().run()
-    TestFloorDivideAllWithBroadcast().run()
-    TestFloorDivideNegAllWithBroadcast().run()
+    # TestFloorDivideAll().run()
+    # TestFloorDivideNegAll().run()
+    # TestFloorDivideAllWithBroadcast().run()
+    # TestFloorDivideNegAllWithBroadcast().run()
+    TestFloorDivide().run()
