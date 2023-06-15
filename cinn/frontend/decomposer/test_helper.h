@@ -30,6 +30,7 @@
 #include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/framework/tensor.h"
 #include "cinn/hlir/op/use_ops.h"
+#include "cinn/hlir/pass/use_general_pass.h"
 #include "cinn/hlir/pass/use_pass.h"
 
 namespace cinn::frontend {
