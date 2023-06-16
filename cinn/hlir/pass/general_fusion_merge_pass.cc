@@ -13,9 +13,11 @@
 // limitations under the License.
 
 #include <map>
+#include <unordered_map>
 
 #include "cinn/api/op_group_interface.h"
 #include "cinn/common/is_reachable_predicator.h"
+#include "cinn/common/macros.h"
 #include "cinn/hlir/pass/fusion_merge_pass_util.h"
 
 DECLARE_bool(enhance_vertical_fusion_with_recompute);
@@ -23,7 +25,6 @@ DECLARE_bool(enhance_vertical_fusion_with_recompute);
 namespace cinn {
 namespace hlir {
 namespace pass {
-namespace {
 
 using framework::Graph;
 using framework::Node;
@@ -42,7 +43,6 @@ using OpGroupList = std::vector<OpGroupPtr>;
 
 using ConditionFunction = std::function<bool(const FusionHelperBase*, const GroupPtr&, const GroupPtr&)>;
 
-class GraphGroupLightwareFusePassCtx;
 class FuseHelper {
  public:
   virtual ~FuseHelper() = default;
@@ -350,6 +350,10 @@ class FusePass {
  public:
   virtual ~FusePass() = default;
 
+  virtual const std::string FuseMode() const = 0;
+
+  virtual int Benefit() const = 0;
+
  protected:
   FusePass() = default;
 };
@@ -360,15 +364,22 @@ class InputFusePass : public FusePass {
 
   virtual void operator()(InputFusePassCtx* ctx) const = 0;
 
+  virtual const std::string FuseMode() const override final { return "InputFuse"; }
+
+  virtual int Benefit() const = 0;
+
  protected:
   InputFusePass() = default;
 };
 
-class DefautlInputFusePass final : public InputFusePass {
+class DefaultInputFusePass final : public InputFusePass {
  public:
-  DefautlInputFusePass() : InputFusePass() {}
+  DefaultInputFusePass() : InputFusePass() {}
+
+  int Benefit() const override { return 100; }
 
   void operator()(InputFusePassCtx* ctx) const override {
+    VLOG(1) << "DefaultInputFusePass";
     const auto& consumer_set = ctx->PickConsumersWithSameInputs();
     if (consumer_set.size() <= 1) {
       return;
@@ -403,15 +414,36 @@ class LightwareFusePass : public FusePass {
 
   virtual void operator()(LightwareFusePassCtx* ctx) const = 0;
 
+  virtual const std::string FuseMode() const = 0;
+
+  virtual int Benefit() const = 0;
+
  protected:
   LightwareFusePass() = default;
 };
 
-class DefautlHorizontalFusePass final : public LightwareFusePass {
+class HorizontalFusePass : public LightwareFusePass {
  public:
-  DefautlHorizontalFusePass() : LightwareFusePass() {}
+  virtual ~HorizontalFusePass() = default;
+
+  virtual void operator()(LightwareFusePassCtx* ctx) const = 0;
+
+  virtual const std::string FuseMode() const override final { return "HorizontalFuse"; }
+
+  virtual int Benefit() const = 0;
+
+ protected:
+  HorizontalFusePass() = default;
+};
+
+class DefaultHorizontalFusePass final : public HorizontalFusePass {
+ public:
+  DefaultHorizontalFusePass() : HorizontalFusePass() {}
+
+  int Benefit() const override { return 100; }
 
   void operator()(LightwareFusePassCtx* ctx) const override {
+    VLOG(1) << "DefaultHorizontalFusePass";
     const auto& producer        = ctx->PickOpGroup();
     const OpGroupList consumers = [&]() {
       OpGroupList consumers;
@@ -440,35 +472,52 @@ class DefautlHorizontalFusePass final : public LightwareFusePass {
   }
 };
 
-class DefaultVerticalFusePass final : public LightwareFusePass {
-  public:
-    DefaultVerticalFusePass() : LightwareFusePass() {}
+class VerticalFusePass : public LightwareFusePass {
+ public:
+  virtual ~VerticalFusePass() = default;
 
-    void operator()(LightwareFusePassCtx* ctx) const override {
-      const auto& producer        = ctx->PickOpGroup();
-      const OpGroupList consumers = [&]() {
-        OpGroupList consumers;
-        for (const auto& pair : producer->consumer2outputs()) {
-          consumers.push_back(pair.first);
-        }
-        return consumers;
-      }();
-      if (consumers.size() == 0) {
-        return;
-      }
+  virtual void operator()(LightwareFusePassCtx* ctx) const = 0;
 
-      for (int i = 0; i < consumers.size(); ++i) {
-        const auto& consumer = consumers.at(i);
-        if (!DetectFusabilityByKind(ctx, producer, consumer)) {
-          continue;
-        }
-        if (ctx->fuse_helper().DetectCycleIfFuse(producer, consumer)) {
-          VLOG(4) << "Can't fuse because detect cycle";
-          continue;
-        }
-        ctx->EnableFuse(producer, consumer);
+  virtual const std::string FuseMode() const override final { return "VerticalFuse"; }
+
+  virtual int Benefit() const = 0;
+
+ protected:
+  VerticalFusePass() = default;
+};
+
+class DefaultVerticalFusePass final : public VerticalFusePass {
+ public:
+  DefaultVerticalFusePass() : VerticalFusePass() {}
+
+  int Benefit() const override { return 100; }
+
+  void operator()(LightwareFusePassCtx* ctx) const override {
+    VLOG(1) << "DefaultVerticalFusePass";
+    const auto& producer        = ctx->PickOpGroup();
+    const OpGroupList consumers = [&]() {
+      OpGroupList consumers;
+      for (const auto& pair : producer->consumer2outputs()) {
+        consumers.push_back(pair.first);
       }
-   }
+      return consumers;
+    }();
+    if (consumers.size() == 0) {
+      return;
+    }
+
+    for (int i = 0; i < consumers.size(); ++i) {
+      const auto& consumer = consumers.at(i);
+      if (!DetectFusabilityByKind(ctx, producer, consumer)) {
+        continue;
+      }
+      if (ctx->fuse_helper().DetectCycleIfFuse(producer, consumer)) {
+        VLOG(4) << "Can't fuse because detect cycle";
+        continue;
+      }
+      ctx->EnableFuse(producer, consumer);
+    }
+  }
 
   using KindKeyT = std::pair<OpPatternKind, OpPatternKind>;
   bool DetectFusabilityByKind(LightwareFusePassCtx* ctx, const OpGroupPtr& src, const OpGroupPtr& dst) const {
@@ -549,11 +598,28 @@ class DefaultVerticalFusePass final : public LightwareFusePass {
   }
 };
 
-class DefaultRecomputeFusePass final : public LightwareFusePass {
+class RecomputeFusePass : public LightwareFusePass {
  public:
-  DefaultRecomputeFusePass() : LightwareFusePass() {}
+  virtual ~RecomputeFusePass() = default;
+
+  virtual void operator()(LightwareFusePassCtx* ctx) const = 0;
+
+  virtual const std::string FuseMode() const override final { return "RecomputeFuse"; }
+
+  virtual int Benefit() const = 0;
+
+ protected:
+  RecomputeFusePass() = default;
+};
+
+class DefaultRecomputeFusePass final : public RecomputeFusePass {
+ public:
+  DefaultRecomputeFusePass() : RecomputeFusePass() {}
+
+  int Benefit() const override { return 100; }
 
   void operator()(LightwareFusePassCtx* ctx) const override {
+    VLOG(1) << "DefaultRecomputeFusePass";
     const auto& producer        = ctx->PickOpGroup();
     const OpGroupList consumers = [&]() {
       OpGroupList consumers;
@@ -592,13 +658,97 @@ class DefaultRecomputeFusePass final : public LightwareFusePass {
   }
 };
 
+struct LightwareFusePassComparator {
+  bool operator()(const std::shared_ptr<LightwareFusePass>& lhs, const std::shared_ptr<LightwareFusePass>& rhs) {
+    return lhs->Benefit() > rhs->Benefit();
+  }
+};
+
+struct InputFusePassComparator {
+  bool operator()(const std::shared_ptr<InputFusePass>& lhs, const std::shared_ptr<InputFusePass>& rhs) {
+    return lhs->Benefit() > rhs->Benefit();
+  }
+};
+
+class FusionPassMap {
+ public:
+  static FusionPassMap& Instance() {
+    static FusionPassMap global_fusion_pass_map;
+    return global_fusion_pass_map;
+  }
+
+  bool Has(const std::string& pass_name) const { return map_.find(pass_name) != map_.end(); }
+
+  void Insert(const std::string& pass_name, const std::shared_ptr<FusePass>& pass) {
+    CHECK(!Has(pass_name)) << "FusePass " << pass_name << " has already been registered.";
+    map_.insert({pass_name, pass});
+  }
+
+  std::shared_ptr<FusePass> Get(const std::string& pass_name) const {
+    auto it = map_.find(pass_name);
+    CHECK(it != map_.end()) << "FusePass " << pass_name << " has not been registered.";
+    return it->second;
+  }
+
+  // fuse_mode: HorizontalFuse, VerticalFuse, RecomputeFuse
+  std::vector<std::shared_ptr<LightwareFusePass>> GetLightwareFusePassesByMode(const std::string& fuse_mode) const {
+    CHECK(fuse_mode == "HorizontalFuse" || fuse_mode == "VerticalFuse" || fuse_mode == "RecomputeFuse")
+        << "fuse_mode only supports HorizontalFuse, VerticalFuse and RecomputeFuse. Please check your input modes = "
+        << fuse_mode;
+    std::set<std::shared_ptr<LightwareFusePass>, LightwareFusePassComparator> candidate_passes;
+    for (const auto iter : map_) {
+      if (fuse_mode == iter.second->FuseMode()) {
+        candidate_passes.insert(std::dynamic_pointer_cast<LightwareFusePass>(iter.second));
+      }
+    }
+    return std::vector<std::shared_ptr<LightwareFusePass>>(candidate_passes.begin(), candidate_passes.end());
+  }
+
+  std::vector<std::shared_ptr<InputFusePass>> GetInputFusePasses() const {
+    std::set<std::shared_ptr<InputFusePass>, InputFusePassComparator> candidate_passes;
+    for (const auto iter : map_) {
+      if (iter.second->FuseMode() == "InputFuse") {
+        candidate_passes.insert(std::dynamic_pointer_cast<InputFusePass>(iter.second));
+      }
+    }
+    return std::vector<std::shared_ptr<InputFusePass>>(candidate_passes.begin(), candidate_passes.end());
+  }
+
+ private:
+  FusionPassMap() = default;
+  std::unordered_map<std::string, std::shared_ptr<FusePass>> map_;
+
+  DISABLE_COPY_AND_ASSIGN(FusionPassMap);
+};
+
+class Registrar {
+ public:
+  // In our design, various kinds of classes, e.g., operators and kernels,
+  // have their corresponding registry and registrar. The action of
+  // registration is in the constructor of a global registrar variable, which
+  // are not used in the code that calls package framework, and would
+  // be removed from the generated binary file by the linker. To avoid such
+  // removal, we add Touch to all registrar classes and make USE_OP macros to
+  // call this method. So, as long as the callee code calls USE_OP, the global
+  // registrar variable won't be removed by the linker.
+  void Touch() {}
+};
+
+template <typename PassClassT>
+class FusionPassRegistrar final : public Registrar {
+ public:
+  explicit FusionPassRegistrar(const std::string& pass_name) {
+    FusionPassMap::Instance().Insert(pass_name, std::shared_ptr<PassClassT>(new PassClassT()));
+  }
+};
+
 // Op Fusion Pass which performs Ops fusion, Ops are fused
 // "vertically", meaning producing Ops are fused into their consumers
 // with the intent that the loops which compute their values will be fused in
 // code generation.
-class FusionMergePassHelper : public FusionHelperBase {
+class GeneralFusionMergePassHelper : public FusionHelperBase {
  public:
-  FusionMergePassHelper(const Graph* graph) : FusionHelperBase(graph) {
+  GeneralFusionMergePassHelper(const Graph* graph) : FusionHelperBase(graph) {
     fusion_groups_ = graph->fusion_groups;
     // init fusion relation.
     InitFusionRelation();
@@ -781,14 +931,12 @@ class FusionMergePassHelper : public FusionHelperBase {
     }
   }
 
-  std::vector<std::shared_ptr<const LightwareFusePass>> RawHorizontalFusePasses() const {
-    return std::vector<std::shared_ptr<const LightwareFusePass>>{
-        std::shared_ptr<const LightwareFusePass>(new DefautlHorizontalFusePass{}),
-    };
+  std::vector<std::shared_ptr<LightwareFusePass>> RawHorizontalFusePasses() const {
+    return FusionPassMap::Instance().GetLightwareFusePassesByMode("HorizontalFuse");
   }
 
-  const std::vector<std::shared_ptr<const LightwareFusePass>>& GetHorizontalFusePasses() const {
-    thread_local static std::vector<std::shared_ptr<const LightwareFusePass>> fuse_passes = RawHorizontalFusePasses();
+  const std::vector<std::shared_ptr<LightwareFusePass>>& GetHorizontalFusePasses() const {
+    thread_local static std::vector<std::shared_ptr<LightwareFusePass>> fuse_passes = RawHorizontalFusePasses();
     return fuse_passes;
   }
 
@@ -838,14 +986,12 @@ class FusionMergePassHelper : public FusionHelperBase {
     return update;
   }
 
-  std::vector<std::shared_ptr<const InputFusePass>> RawInputFusePasses() const {
-    return std::vector<std::shared_ptr<const InputFusePass>>{
-        std::shared_ptr<const InputFusePass>(new DefautlInputFusePass{}),
-    };
+  std::vector<std::shared_ptr<InputFusePass>> RawInputFusePasses() const {
+    return FusionPassMap::Instance().GetInputFusePasses();
   }
 
-  const std::vector<std::shared_ptr<const InputFusePass>>& GetInputFusePasses() const {
-    thread_local static std::vector<std::shared_ptr<const InputFusePass>> fuse_passes = RawInputFusePasses();
+  const std::vector<std::shared_ptr<InputFusePass>>& GetInputFusePasses() const {
+    thread_local static std::vector<std::shared_ptr<InputFusePass>> fuse_passes = RawInputFusePasses();
     return fuse_passes;
   }
 
@@ -1174,14 +1320,12 @@ class FusionMergePassHelper : public FusionHelperBase {
     return false;
   }
 
-  std::vector<std::shared_ptr<const LightwareFusePass>> RawVerticalFusePasses() const {
-    return std::vector<std::shared_ptr<const LightwareFusePass>>{
-        std::shared_ptr<const LightwareFusePass>(new DefaultVerticalFusePass()),
-    };
+  std::vector<std::shared_ptr<LightwareFusePass>> RawVerticalFusePasses() const {
+    return FusionPassMap::Instance().GetLightwareFusePassesByMode("VerticalFuse");
   }
 
-  const std::vector<std::shared_ptr<const LightwareFusePass>>& GetVerticalFusePasses() const {
-    thread_local static std::vector<std::shared_ptr<const LightwareFusePass>> fuse_passes = RawVerticalFusePasses();
+  const std::vector<std::shared_ptr<LightwareFusePass>>& GetVerticalFusePasses() const {
+    thread_local static std::vector<std::shared_ptr<LightwareFusePass>> fuse_passes = RawVerticalFusePasses();
     return fuse_passes;
   }
 
@@ -1423,14 +1567,12 @@ class FusionMergePassHelper : public FusionHelperBase {
     }
   }
 
-  std::vector<std::shared_ptr<const LightwareFusePass>> RawRecomputeFusePasses() const {
-    return std::vector<std::shared_ptr<const LightwareFusePass>>{
-        std::shared_ptr<const LightwareFusePass>(new DefaultRecomputeFusePass()),
-    };
+  std::vector<std::shared_ptr<LightwareFusePass>> RawRecomputeFusePasses() const {
+    return FusionPassMap::Instance().GetLightwareFusePassesByMode("RecomputeFuse");
   }
 
-  const std::vector<std::shared_ptr<const LightwareFusePass>>& GetRecomputeFusePasses() const {
-    thread_local static std::vector<std::shared_ptr<const LightwareFusePass>> fuse_passes = RawRecomputeFusePasses();
+  const std::vector<std::shared_ptr<LightwareFusePass>>& GetRecomputeFusePasses() const {
+    thread_local static std::vector<std::shared_ptr<LightwareFusePass>> fuse_passes = RawRecomputeFusePasses();
     return fuse_passes;
   }
 
@@ -1881,15 +2023,13 @@ class FusionMergePassHelper : public FusionHelperBase {
   std::unordered_map<framework::OpPatternKind, Relation> fusion_relation_map_;
 };
 
-}  // namespace
-
 void GeneralFusionMergePassInternal(Graph* graph) {
   if (graph->fusion_groups.size() <= 1) {
     VLOG(3) << "Don't do Fusoin Merge Pass...!";
     return;
   }
 
-  FusionMergePassHelper fusion_merge_pass_helper(graph);
+  GeneralFusionMergePassHelper fusion_merge_pass_helper(graph);
   graph->fusion_groups = fusion_merge_pass_helper();
 }
 
@@ -1907,3 +2047,8 @@ CINN_REGISTER_HELPER(GeneralFusionMergePass) {
 
   return true;
 }
+
+CINN_REGISTER_FUSION_PASS(DefaultHorizontalFusePass, cinn::hlir::pass::DefaultHorizontalFusePass);
+CINN_REGISTER_FUSION_PASS(DefaultVerticalFusePass, cinn::hlir::pass::DefaultVerticalFusePass);
+CINN_REGISTER_FUSION_PASS(DefaultRecomputeFusePass, cinn::hlir::pass::DefaultRecomputeFusePass);
+CINN_REGISTER_FUSION_PASS(DefaultInputFusePass, cinn::hlir::pass::DefaultInputFusePass);
