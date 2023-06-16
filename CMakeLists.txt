@@ -3,7 +3,15 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 project(CINN CXX C)
 
-set(CMAKE_CXX_STANDARD 17)
+string(REGEX MATCH "-std=(c\\+\\+[^ ]+)" STD_FLAG "${CMAKE_CXX_FLAGS}")
+if (STD_FLAG)
+  message(STATUS "Found STD_FLAG: ${STD_FLAG}")
+  string(REGEX MATCH "([0-9]+)" STD_VALUE "${STD_FLAG}")
+  set(CMAKE_CXX_STANDARD ${STD_VALUE})
+else ()
+  message(STATUS "STD_FLAG not found, using default flag: -std=c++17")
+  set(CMAKE_CXX_STANDARD 17)
+endif()
 
 set(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY TRUE)
 
