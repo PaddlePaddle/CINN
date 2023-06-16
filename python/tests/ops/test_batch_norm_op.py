@@ -268,4 +268,4 @@ class TestBatchNormInferOp(OpTest):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    TestBatchNormTrainOpAll.run()
