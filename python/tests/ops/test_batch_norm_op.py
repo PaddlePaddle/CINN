@@ -28,15 +28,18 @@ from cinn.common import *
                     "x86 test will be skipped due to timeout.")
 class TestBatchNormTrainOp(OpTest):
     def setUp(self):
-        self.init_case()
+        print(f"\nRunning {self.__class__.__name__}: {self.case}")
+        self.prepare_inputs()
 
-    def init_case(self):
-        self.inputs = self.case
+    def prepare_inputs(self):
+        self.x_np = self.random(
+            shape=self.case["x_shape"], dtype=self.case["x_dtype"])
 
     def build_paddle_program(self, target):
-        x = paddle.to_tensor(self.inputs["x"])
-        batch_norm = paddle.nn.BatchNorm(
-            self.inputs["num_channels"], act=None, is_test=False)
+        x = paddle.to_tensor(self.x_np)
+        batch_norm = paddle.nn.BatchNorm([self.case["x_shape"][1]],
+                                         act=None,
+                                         is_test=False)
         out = batch_norm(x)
 
         self.paddle_outputs = [out]
@@ -46,44 +49,60 @@ class TestBatchNormTrainOp(OpTest):
     def build_cinn_program(self, target):
         builder = NetBuilder("batch_norm")
         x = builder.create_input(
-            self.nptype2cinntype(self.inputs["x"].dtype),
-            self.inputs["x"].shape, "x")
-        scale = builder.fill_constant([self.inputs["num_channels"]], 1.0,
-                                      'scale', "float32")
-        bias = builder.fill_constant([self.inputs["num_channels"]], 0.0,
-                                     'bias', "float32")
-        mean = builder.fill_constant([self.inputs["num_channels"]], 0.0,
-                                     'mean', "float32")
-        variance = builder.fill_constant([self.inputs["num_channels"]], 1.0,
-                                         'variance', "float32")
+            self.nptype2cinntype(self.case["x_dtype"]), self.case["x_shape"],
+            "x")
+        scale = builder.fill_constant([self.case["x_shape"][1]], 1.0, 'scale',
+                                      'float32')
+        bias = builder.fill_constant([self.case["x_shape"][1]], 0.0, 'bias',
+                                     'float32')
+        mean = builder.fill_constant([self.case["x_shape"][1]], 0.0, 'mean',
+                                     'float32')
+        variance = builder.fill_constant([self.case["x_shape"][1]], 1.0,
+                                         'variance', 'float32')
 
         out = builder.batchnorm(x, scale, bias, mean, variance, is_test=False)
 
         prog = builder.build()
         forward_res = self.get_cinn_output(
-            prog, target, [x], [self.inputs["x"]], out, passes=[])
+            prog, target, [x], [self.x_np], out, passes=[])
         self.cinn_outputs = [forward_res[0]]
 
     def test_check_results(self):
-        self.check_outputs_and_grads(max_relative_error=1e-3)
+        max_relative_error = self.case[
+            "max_relative_error"] if "max_relative_error" in self.case else 1e-5
+        self.check_outputs_and_grads(max_relative_error=max_relative_error)
 
 
 class TestBatchNormTrainOpAll(TestCaseHelper):
     def init_attrs(self):
-        self.class_name = "TestBatchNormTrainOpBase"
+        self.class_name = "TestBatchNormTrainOpCase"
         self.cls = TestBatchNormTrainOp
 
-        self.inputs = []
-        for x_shape in [[2, 16, 8, 8], [2, 16, 8, 1], [2, 16, 2048, 8]]:
-            for x_type in ["float16", "float32"]:
-                self.inputs.append({
-                    "x":
-                    self.random(x_shape, x_type, 0.0, 1.0),
-                    "dout":
-                    self.random(x_shape, x_type, 1e-7, 1e-6),
-                    "num_channels":
-                    x_shape[1]
-                })
+        self.inputs = [
+            {
+                "x_shape": [2, 16, 8, 8],
+            },
+            {
+                "x_shape": [2, 16, 8, 1],
+            },
+            {
+                "x_shape": [2, 16, 2048, 8],
+            },
+        ]
+        self.dtype = [
+            {
+                "x_dtype": "float16",
+                "max_relative_error": 1e-5
+            },
+            {
+                "x_dtype": "float32",
+                "max_relative_error": 1e-3
+            },
+            {
+                "x_dtype": "bfloat16",
+                "max_relative_error": 1e-2
+            },
+        ]
 
 
 class TestBatchNormTrainBF16(TestBatchNormTrainOp):
