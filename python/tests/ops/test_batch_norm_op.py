@@ -103,6 +103,7 @@ class TestBatchNormTrainOpAll(TestCaseHelper):
                 "max_relative_error": 1e-2
             },
         ]
+        self.attrs = []
 
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
