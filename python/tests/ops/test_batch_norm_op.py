@@ -37,9 +37,8 @@ class TestBatchNormTrainOp(OpTest):
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.x_np)
-        batch_norm = paddle.nn.BatchNorm([self.case["x_shape"][1]],
-                                         act=None,
-                                         is_test=False)
+        batch_norm = paddle.nn.BatchNorm(
+            self.case["x_shape"][1], act=None, is_test=False)
         out = batch_norm(x)
 
         self.paddle_outputs = [out]
