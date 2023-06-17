@@ -89,7 +89,7 @@ class TestBatchNormTrainOpAll(TestCaseHelper):
                 "x_shape": [2, 16, 2048, 8],
             },
         ]
-        self.dtype = [
+        self.dtypes = [
             {
                 "x_dtype": "float16",
                 "max_relative_error": 1e-5
