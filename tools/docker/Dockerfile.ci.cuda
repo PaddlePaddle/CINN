@@ -1,6 +1,1 @@
-FROM registry.baidubce.com/paddlepaddle/paddle:latest-dev-cuda11.2-cudnn8-gcc82
-
-# install cmake
-WORKDIR /home
-RUN wget -q https://cmake.org/files/v3.20/cmake-3.20.0-linux-x86_64.tar.gz && tar -zxvf cmake-3.20.0-linux-x86_64.tar.gz && rm cmake-3.20.0-linux-x86_64.tar.gz
-ENV PATH=/home/cmake-3.20.0-linux-x86_64/bin:$PATH
+FROM registry.baidubce.com/paddlepaddle/paddle:latest-dev-cuda11.2-cudnn8.2-trt8.0-gcc82
