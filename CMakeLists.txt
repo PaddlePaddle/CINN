@@ -74,8 +74,7 @@ if (WITH_CUDA)
 
   cuda_select_nvcc_arch_flags(ARCH_FLAGS Auto)
   list(APPEND CUDA_NVCC_FLAGS ${ARCH_FLAGS})
-  #message(STATUS "Before CMAKE_CUDA_STANDARD: ${CMAKE_CUDA_STANDARD}")
-  #set(CMAKE_CUDA_STANDARD 17)
+  set(CMAKE_CUDA_STANDARD ${CMAKE_CXX_STANDARD})
 
   message(STATUS "copy cinn/common/float16.h cinn/common/bfloat16.h to $ENV{runtime_include_dir}")
   file(COPY cinn/common/float16.h cinn/common/bfloat16.h DESTINATION $ENV{runtime_include_dir})
