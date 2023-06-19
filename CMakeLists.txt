@@ -15,7 +15,7 @@ if (NOT STD_FLAG)
   endif()
 else()
   string(REGEX MATCH "([0-9]+)" STD_VALUE "${STD_FLAG}")
-  message(STATUS "Got STD_FLAG=${STD_FLAG}, set CMAKE_CXX_FLAGS=${STD_VALUE}")
+  message(STATUS "Got STD_FLAG=${STD_FLAG}, set CMAKE_CXX_STANDARD=${STD_VALUE}")
   set(CMAKE_CXX_STANDARD ${STD_VALUE})
 endif()
 
