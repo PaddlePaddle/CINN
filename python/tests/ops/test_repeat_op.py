@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (c) 2021 CINN Authors. All Rights Reserved.
+# Copyright (c) 2023 CINN Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,63 +16,61 @@
 
 import paddle
 import numpy as np
-from cinn.common import *
 from cinn.frontend import *
+from cinn.common import *
 from op_test import OpTest, OpTestTool
 from op_test_helper import TestCaseHelper
 
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
                     "x86 test will be skipped due to timeout.")
-class TestFillConstantOp(OpTest):
+class TestRepeatOp(OpTest):
     def setUp(self):
         print(f"\nRunning {self.__class__.__name__}: {self.case}")
         self.inputs = {}
         self.prepare_inputs()
 
     def prepare_inputs(self):
-        self.shape = self.case["shape"]
-        self.value = self.case["value"]
-        self.dtype = self.case["dtype"]
-        if isinstance(self.value, str):
-            dtypes = ["bool", "int", "float"]
-            for dtype in dtypes:
-                if dtype in self.dtype:
-                    try:
-                        self.value = eval(f"{dtype}(self.value)")
-                    except:
-                        self.value = eval(f"{dtype}(0)")
+        shape = self.case["shape"]
+        dtype = self.case["dtype"]
+        repeats = self.case["repeats"]
+        axis = self.case["axis"]
+        dims = len(shape)
+        axis = min(axis, dims - 1)
+        axis = max(axis, -dims)
+        self.inputs = {
+            "x": self.random(shape, dtype, -1.0, 1.0),
+            "repeats": repeats,
+            "axis": axis
+        }
 
     def build_paddle_program(self, target):
-        if self.dtype == None:
-            x = np.full(self.shape, self.value)
-            x = paddle.to_tensor(x)
-        else:
-            x = paddle.full(self.shape, self.value, dtype=self.dtype)
-
-        self.paddle_outputs = [x]
+        x = np.repeat(self.inputs["x"], self.inputs["repeats"],
+                      self.inputs["axis"])
+        out = paddle.to_tensor(x, stop_gradient=True)
+        self.paddle_outputs = [out]
 
     def build_cinn_program(self, target):
-        builder = NetBuilder("fill_constant")
-        if self.dtype == None:
-            x = builder.fill_constant(self.shape, self.value, "out")
-        else:
-            x = builder.fill_constant(self.shape, self.value, "out",
-                                      self.dtype)
+        builder = NetBuilder("repeat")
+        x = builder.create_input(
+            self.nptype2cinntype(self.inputs["x"].dtype),
+            self.inputs["x"].shape, "x")
+        out = builder.repeat(x, self.inputs["repeats"], self.inputs["axis"])
 
         prog = builder.build()
-        res = self.get_cinn_output(prog, target, [], [], [x])
+        res = self.get_cinn_output(prog, target, [x], [self.inputs["x"]],
+                                   [out])
 
         self.cinn_outputs = res
 
     def test_check_results(self):
-        self.check_outputs_and_grads(all_equal=True)
+        self.check_outputs_and_grads()
 
 
-class TestFillConstantOpShape(TestCaseHelper):
+class TestRepeatOpShape(TestCaseHelper):
     def init_attrs(self):
-        self.class_name = "TestFillConstantOpShape"
-        self.cls = TestFillConstantOp
+        self.class_name = "TestRepeatOpShape"
+        self.cls = TestRepeatOp
         self.inputs = [
             {
                 "shape": [10],
@@ -84,10 +82,16 @@ class TestFillConstantOpShape(TestCaseHelper):
                 "shape": [10, 3, 5],
             },
             {
-                "shape": [1, 2, 4, 8],
+                "shape": [80, 40, 5, 7],
             },
             {
-                "shape": [16, 4, 8, 32],
+                "shape": [80, 1, 5, 7],
+            },
+            {
+                "shape": [80, 3, 1024, 7],
+            },
+            {
+                "shape": [10, 5, 1024, 2048],
             },
             {
                 "shape": [1],
@@ -112,30 +116,40 @@ class TestFillConstantOpShape(TestCaseHelper):
         ]
         self.attrs = [
             {
-                "value": 123.456
+                "repeats": 2,
+                "axis": 0
             },
         ]
 
 
-class TestFillConstantOpDtype(TestCaseHelper):
+class TestRepeatOpDtype(TestCaseHelper):
     def init_attrs(self):
-        self.class_name = "TestFillConstantOpDtype"
-        self.cls = TestFillConstantOp
+        self.class_name = "TestRepeatOpDtype"
+        self.cls = TestRepeatOp
         self.inputs = [
             {
-                "shape": [10],
+                "shape": [1],
             },
             {
-                "shape": [8, 5],
+                "shape": [5],
             },
             {
-                "shape": [10, 3, 5],
-            },
-            {
-                "shape": [1, 2, 4, 8],
+                "shape": [80, 40, 5, 7],
             },
         ]
         self.dtypes = [
+            {
+                "dtype": "bool"
+            },
+            {
+                "dtype": "int8"
+            },
+            {
+                "dtype": "int32"
+            },
+            {
+                "dtype": "int64"
+            },
             {
                 "dtype": "float16"
             },
@@ -145,30 +159,19 @@ class TestFillConstantOpDtype(TestCaseHelper):
             {
                 "dtype": "float64"
             },
-            {
-                "dtype": "bool"
-            },
-            {
-                "dtype": "uint8"
-            },
-            {
-                "dtype": "int32"
-            },
-            {
-                "dtype": "int64"
-            },
         ]
         self.attrs = [
             {
-                "value": 123.456
+                "repeats": 4,
+                "axis": 0
             },
         ]
 
 
-class TestFillConstantOpValue(TestCaseHelper):
+class TestRepeatOpAttributeRepeats(TestCaseHelper):
     def init_attrs(self):
-        self.class_name = "TestFillConstantOpValue"
-        self.cls = TestFillConstantOp
+        self.class_name = "TestRepeatOpAttributeRepeats"
+        self.cls = TestRepeatOp
         self.inputs = [
             {
                 "shape": [10],
@@ -177,83 +180,88 @@ class TestFillConstantOpValue(TestCaseHelper):
                 "shape": [8, 5],
             },
             {
-                "shape": [10, 3, 5],
-            },
-            {
-                "shape": [1, 2, 4, 8],
+                "shape": [80, 40, 5, 7],
             },
         ]
         self.dtypes = [
-            {
-                "dtype": None
-            },
-        ]
-        self.attrs = [
-            {
-                "value": bool(True)
-            },
-            {
-                "value": int(123)
-            },
-            {
-                "value": float(123.456)
-            },
-        ]
-
-
-class TestFillConstantOpStrValue(TestCaseHelper):
-    def init_attrs(self):
-        self.class_name = "TestFillConstantOpStrValue"
-        self.cls = TestFillConstantOp
-        self.inputs = [
-            {
-                "shape": [10],
-            },
-            {
-                "shape": [8, 5],
-            },
-            {
-                "shape": [10, 3, 5],
-            },
-            {
-                "shape": [1, 2, 4, 8],
-            },
-        ]
-        self.dtypes = [
-            {
-                "dtype": "float16"
-            },
             {
                 "dtype": "float32"
             },
+        ]
+        self.attrs = [
             {
-                "dtype": "float64"
+                "repeats": 256,
+                "axis": 0
             },
             {
-                "dtype": "bool"
+                "repeats": 1024,
+                "axis": 0
             },
             {
-                "dtype": "uint8"
+                "repeats": 2048,
+                "axis": 0
+            },
+        ]
+
+
+class TestRepeatOpAttributeAxis(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestRepeatOpAttributeAxis"
+        self.cls = TestRepeatOp
+        self.inputs = [
+            {
+                "shape": [10],
             },
             {
-                "dtype": "int32"
+                "shape": [8, 5],
             },
             {
-                "dtype": "int64"
+                "shape": [80, 40, 5, 7],
+            },
+        ]
+        self.dtypes = [
+            {
+                "dtype": "float32"
             },
         ]
         self.attrs = [
             {
-                "value": "1024"
+                "repeats": 128,
+                "axis": 0
             },
             {
-                "value": "0.12345678987654321"
+                "repeats": 128,
+                "axis": 1
+            },
+            {
+                "repeats": 128,
+                "axis": 2
+            },
+            {
+                "repeats": 128,
+                "axis": 3
+            },
+            {
+                "repeats": 128,
+                "axis": -1
+            },
+            {
+                "repeats": 128,
+                "axis": -2
+            },
+            {
+                "repeats": 128,
+                "axis": -3
+            },
+            {
+                "repeats": 128,
+                "axis": -4
             },
         ]
 
 
 if __name__ == "__main__":
-    TestFillConstantOpShape().run()
-    TestFillConstantOpDtype().run()
-    TestFillConstantOpValue().run()
-    TestFillConstantOpStrValue().run()
+    TestRepeatOpShape().run()
+    TestRepeatOpDtype().run()
+    TestRepeatOpAttributeRepeats().run()
+    TestRepeatOpAttributeAxis().run()

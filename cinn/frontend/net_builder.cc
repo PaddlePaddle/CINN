@@ -246,17 +246,6 @@ Placeholder NetBuilder::CreateInput(const Variable& var) {
   return Placeholder(var);
 }
 
-Variable NetBuilder::FillConstant(
-    const std::vector<int>& shape, float value, const std::string& name, const std::string& dtype, bool force_cpu) {
-  auto out =
-      CustomInstr("fill_constant", {}, {{"shape", shape}, {"value", value}, {"dtype", dtype}, {"force_cpu", force_cpu}})
-          .front();
-  if (!name.empty()) {
-    out.set_id(cinn::utils::TransValidVarName(name));
-  }
-  return out;
-}
-
 Variable NetBuilder::FillConstant(const std::vector<int>& shape,
                                   const std::string& str_value,
                                   const std::string& name,
@@ -827,11 +816,7 @@ Variable NetBuilder::Arange(const float start, const float stop, const float ste
 }
 
 Variable NetBuilder::Flip(const Variable& operand, const std::vector<int>& axes) {
-  Instruction instr("flip", {operand});
-  instr.SetAttr("axes", axes);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return CustomInstr("reverse", {operand}, {{"axis", utils::GetPositiveAxes(axes, operand->shape.size())}}).front();
 }
 
 Variable NetBuilder::Matmul(const Variable& x, const Variable& y, bool trans_x, bool trans_y, float alpha) {

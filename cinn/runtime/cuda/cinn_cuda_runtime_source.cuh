@@ -22,6 +22,7 @@ __device__ inline uint8_t FN_UINT8(bitwise_and)(uint8_t a, uint8_t b) { return a
 __device__ inline uint8_t FN_UINT8(bitwise_or)(uint8_t a, uint8_t b) { return a | b; }
 __device__ inline uint8_t FN_UINT8(bitwise_xor)(uint8_t a, uint8_t b) { return a ^ b; }
 __device__ inline uint8_t FN_UINT8(bitwise_not)(uint8_t a) { return ~a; }
+__device__ inline uint8_t FN_UINT8(logical_right_shift)(uint8_t a, uint8_t b) { return ((uint8_t)a >> b); }
 
 // *************************************************************** //
 // int8 unary and binary operator
@@ -30,6 +31,7 @@ __device__ inline int8_t FN_INT8(bitwise_and)(int8_t a, int8_t b) { return a & b
 __device__ inline int8_t FN_INT8(bitwise_or)(int8_t a, int8_t b) { return a | b; }
 __device__ inline int8_t FN_INT8(bitwise_xor)(int8_t a, int8_t b) { return a ^ b; }
 __device__ inline int8_t FN_INT8(bitwise_not)(int8_t a) { return ~a; }
+__device__ inline int8_t FN_INT8(logical_right_shift)(int8_t a, int8_t b) { return ((uint8_t)a >> b); }
 
 // *************************************************************** //
 // int16 unary and binary operator
@@ -38,6 +40,7 @@ __device__ inline int16_t FN_INT16(bitwise_and)(int16_t a, int16_t b) { return a
 __device__ inline int16_t FN_INT16(bitwise_or)(int16_t a, int16_t b) { return a | b; }
 __device__ inline int16_t FN_INT16(bitwise_xor)(int16_t a, int16_t b) { return a ^ b; }
 __device__ inline int16_t FN_INT16(bitwise_not)(int16_t a) { return ~a; }
+__device__ inline int16_t FN_INT16(logical_right_shift)(int16_t a, int16_t b) { return ((uint16_t)a >> b); }
 
 // *************************************************************** //
 // float32 unary and binary operator
@@ -133,11 +136,11 @@ __device__ inline double FN_FP64(mod)(double a, double b) {
 #define FN_INT32(func) cinn_nvgpu_##func##_int32
 
 __device__ inline int FN_INT32(pow)(int a, int b) {
-  int res = 1;
-  for (int i = 0; i < b; ++i) {
-    res *= a;
+  if (a == 0 && b < 0) {
+    return -1;
   }
-  return res;
+  float res = pow(__int2float_rd(a), __int2float_rd(b));
+  return __float2int_rn(res);
 }
 
 __device__ inline int FN_INT32(left_shift)(int a, int b) { return a << b; }
@@ -171,6 +174,7 @@ __device__ inline long long int FN_INT64(bitwise_xor)(long long int a, long long
 __device__ inline long long int FN_INT64(bitwise_not)(long long int a) { return ~a; }
 __device__ inline long long int FN_INT64(clz)(long long int a) { return __clzll(a); }
 __device__ inline long long int FN_INT64(popc)(long long int a) { return __popcll(a); }
+__device__ inline long long int FN_INT64(logical_right_shift)(long long int a, long long int b) { return ((unsigned long long int)a >> b); }
 __device__ inline long long int FN_INT64(trunc)(long long int a) { return a; }
 __device__ inline long long int FN_INT64(mod)(long long int a, long long int b) {
   long long int res = a % b;
@@ -179,11 +183,8 @@ __device__ inline long long int FN_INT64(mod)(long long int a, long long int b) 
 }
 
 __device__ inline long long int FN_INT64(pow)(long long int a, long long int b) {
-  long long int res = 1;
-  for (int i = 0; i < b; ++i) {
-    res *= a;
-  }
-  return res;
+  double res = pow(__ll2double_rd(a), __ll2double_rd(b));
+  return __double2ll_rn(res);
 }
 
 // *************************************************************** //
@@ -320,7 +321,7 @@ __device__ inline bfloat16 FN_BF16(pow)(bfloat16 a, bfloat16 b) {
 
 __device__ inline float16 FN_FP16(ceil)(float16 x) { return float16(hceil(x.to_half())); }
 __device__ inline float16 FN_FP16(floor)(float16 x) { return float16(hfloor(x.to_half())); }
-__device__ inline float16 FN_FP16(round)(float16 x) { return float16(hrint(x.to_half())); }
+__device__ inline float16 FN_FP16(round)(float16 x) { return float16(FN_FP32(round)(static_cast<float>(x))); }
 __device__ inline float16 FN_FP16(trunc)(float16 x) { return float16(htrunc(x.to_half())); }
 
 __device__ inline float16 FN_FP16(sin)(float16 x) { return float16(hsin(x.to_half())); }

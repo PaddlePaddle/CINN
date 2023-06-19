@@ -1210,20 +1210,19 @@ void ScheduleImpl::SimpleComputeAt(const Expr& block, const Expr& loop) {
       loops.size() < block_loops.size() ? optim::IRCopy(block_loops[loops.size()]) : optim::IRCopy(this_block);
   Expr new_loop = optim::IRCopy(this_loop);
 
-  if (loops.size() >= block_loops.size()) {
-    auto body = block_loops.back().As<ir::For>()->body;
-    // collect if
-    auto if_checker = [](const Expr* x) { return x->As<ir::IfThenElse>(); };
-    auto if_set     = ir::CollectIRNodesWithoutTensor(body, if_checker);
-    for (auto if_expr : if_set) {
-      auto checker = [block_name](const Expr* x) {
-        return x->As<ir::ScheduleBlockRealize>() &&
-               x->As<ir::ScheduleBlockRealize>()->schedule_block.As<ScheduleBlock>()->name == block_name;
-      };
-      if (ir::CollectIRNodesWithoutTensor(if_expr, checker, true).size() > 0) {
-        result = IfThenElse::Make(if_expr.As<ir::IfThenElse>()->condition, result);
-        break;
-      }
+  // Get the body of block_loop under the same loops
+  auto body = block_loops.at(loops.size() - 1).As<ir::For>()->body;
+  // collect if
+  auto if_checker = [](const Expr* x) { return x->As<ir::IfThenElse>(); };
+  auto if_set     = ir::CollectIRNodesWithoutTensor(body, if_checker);
+  for (auto if_expr : if_set) {
+    auto checker = [block_name](const Expr* x) {
+      return x->As<ir::ScheduleBlockRealize>() &&
+             x->As<ir::ScheduleBlockRealize>()->schedule_block.As<ScheduleBlock>()->name == block_name;
+    };
+    if (ir::CollectIRNodesWithoutTensor(if_expr, checker, true).size() > 0) {
+      result = IfThenElse::Make(if_expr.As<ir::IfThenElse>()->condition, result);
+      break;
     }
   }
 
@@ -1238,10 +1237,9 @@ void ScheduleImpl::SimpleComputeAt(const Expr& block, const Expr& loop) {
           ir::Block::Make({result.As<ir::IfThenElse>()->true_case,
                            new_loop.As<ir::For>()->body.As<ir::Block>()->stmts[0].As<ir::IfThenElse>()->true_case});
     } else {
-      new_loop.As<ir::For>()->body.As<ir::Block>()->stmts[0].As<ir::IfThenElse>()->true_case = ir::Block::Make(
-          {result, new_loop.As<ir::For>()->body.As<ir::Block>()->stmts[0].As<ir::IfThenElse>()->true_case});
+      std::vector<ir::Expr>::iterator pos = new_loop.As<ir::For>()->body.As<ir::Block>()->stmts.begin();
+      new_loop.As<ir::For>()->body.As<ir::Block>()->stmts.insert(pos, result);
     }
-
   } else {
     new_loop.As<ir::For>()->body = ir::Block::Make({result, new_loop.As<ir::For>()->body});
   }

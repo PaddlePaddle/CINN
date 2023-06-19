@@ -35,6 +35,9 @@ class TestCaseHelper():
     Helper class for constructing test cases.
     """
 
+    def __init__(self):
+        self.custom_attrs_list = []
+
     def init_attrs(self):
         """
         Initialize attributes for op
@@ -51,6 +54,12 @@ class TestCaseHelper():
                 new_dict.append((k, v))
         return dict(new_dict)
 
+    def _register_custom_attrs(self, custom_attrs):
+        """
+        register custom attribute
+        """
+        self.custom_attrs_list.append(custom_attrs)
+
     def _init_cases(self):
         """
         Generate all test cases
@@ -59,7 +68,9 @@ class TestCaseHelper():
         assert isinstance(self.dtypes, list)
         assert isinstance(self.attrs, list)
         self.all_cases = []
-        all_lists = [self.inputs, self.dtypes, self.attrs]
+        all_lists = [
+            self.inputs, self.dtypes, self.attrs, *self.custom_attrs_list
+        ]
         filtered_lists = filter(lambda x: len(x) > 0, all_lists)
         for case in itertools.product(*filtered_lists):
             self.all_cases.append(self._flatten_tuple(case))
