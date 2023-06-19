@@ -935,10 +935,10 @@ void LoopAssignReduce(ir::IRSchedule& ir_sch,
   };
 
   auto node_shape = shape_dict.at(node_data->id());
-  // node output is same shape with reduce output.
+  // The output shape of node is different from that of reduce node
   if (std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<int>()) !=
       std::accumulate(node_shape.begin(), node_shape.end(), 1, std::multiplies<int>())) {
-    // split loop to assign master loop
+    // get loop factors of reduce node
     int extend = 1;
     std::vector<int> factors;
     loops       = ir_sch.GetLoops(node_data->id());
@@ -953,8 +953,63 @@ void LoopAssignReduce(ir::IRSchedule& ir_sch,
       factors.push_back(loop.As<ir::For>()->extent.as_int32());
     }
 
-    ir_sch.Split(loops.back(), factors);
-    loops = ir_sch.GetLoops(node_data->id());
+    // If there are IfThenElse stmt in loop, we need to find out the indices in condition,
+    // and special treatment should be applied to loops with these indices.
+    // We apply two step split on loop of src node to align the loop of reduce node.
+    std::unordered_set<int> loop_index_in_if;
+    auto first_reduce_loop = rloops.front();
+    // collect if
+    auto if_checker               = [](const Expr* x) { return x->As<ir::IfThenElse>(); };
+    auto if_set                   = ir::CollectIRNodesWithoutTensor(first_reduce_loop.As<ir::For>()->body, if_checker);
+    std::string reduce_block_name = reducer_data->id();
+    for (auto if_expr : if_set) {
+      auto checker = [reduce_block_name](const Expr* x) {
+        return x->As<ir::ScheduleBlockRealize>() &&
+               x->As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->name == reduce_block_name;
+      };
+      auto blocks_in_if = ir::CollectIRNodesWithoutTensor(if_expr, checker);
+      if (!blocks_in_if.empty()) {
+        ir::Expr condition = if_expr.As<ir::IfThenElse>()->condition;
+        auto indices_in_if =
+            ir::CollectIRNodesWithoutTensor(condition, [](const Expr* x) { return x->As<ir::_Var_>(); });
+        for (int i = 0; i < rloops.size(); ++i) {
+          std::string var_name = rloops[i].As<ir::For>()->loop_var->name;
+          auto find_var_iter = std::find_if(indices_in_if.begin(), indices_in_if.end(), [&var_name](const ir::Expr& x) {
+            return x.As<ir::_Var_>()->name == var_name;
+          });
+          if (find_var_iter != indices_in_if.end()) {
+            loop_index_in_if.insert(i);
+          }
+        }
+        break;
+      }
+    }
+
+    // prepare factors of two step split
+    std::vector<int> first_step_factors;
+    std::vector<int> second_step_factors;
+    int second_start_loop_index;
+    for (int i = 0; i < factors.size(); ++i) {
+      if (loop_index_in_if.count(i) == 0) {
+        first_step_factors.push_back(factors[i]);
+      } else if (loop_index_in_if.count(i) != 0 && second_step_factors.empty()) {
+        first_step_factors.push_back(-1);
+        second_step_factors.push_back(factors[i]);
+        second_start_loop_index = i;
+      } else if (loop_index_in_if.count(i) != 0 && !second_step_factors.empty()) {
+        second_step_factors.push_back(factors[i]);
+      }
+    }
+    // do two step split
+    if (!first_step_factors.empty()) {
+      ir_sch.Split(loops.back(), first_step_factors);
+      loops = ir_sch.GetLoops(node_data->id());
+    }
+    if (!second_step_factors.empty()) {
+      ir_sch.Split(loops.at(second_start_loop_index), second_step_factors);
+      loops = ir_sch.GetLoops(node_data->id());
+    }
+
     // copy loop info form rloops.
     copy_loop_info(loops, rloops);
     return;

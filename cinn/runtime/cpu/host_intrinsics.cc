@@ -232,11 +232,10 @@ inline double FN_FP64(pow)(double x, double y) { return pow(x, y); }
 #define FN_INT32(func) cinn_host_##func##_int32
 
 inline int FN_INT32(pow)(int x, int y) {
-  int res = 1;
-  for (int i = 0; i < y; ++i) {
-    res *= x;
+  if (x == 0 && y < 0) {
+    return -1;
   }
-  return res;
+  return pow(x, y);
 }
 
 inline int FN_INT32(clz)(int x) { return __builtin_clz(x); }
@@ -252,6 +251,10 @@ inline int FN_INT32(logical_right_shift)(int x, int y) { return ((unsigned int)x
 inline int64_t FN_INT64(clz)(int64_t x) { return __builtin_clzll(x); }
 
 inline int64_t FN_INT64(popc)(int64_t x) { return __builtin_popcountll(x); }
+
+inline int64_t FN_INT64(pow)(int64_t x, int64_t y) { return pow(x, y); }
+
+inline int64_t FN_INT64(logical_right_shift)(int64_t x, int64_t y) { return ((uint64_t)x >> y); }
 
 #undef FN_INT64
 }  // extern "C"
@@ -322,6 +325,15 @@ CINN_REGISTER_HELPER(host_intrinsics) {
   REGISTER_EXTERN_FUNC_2_IN_1_INT32(logical_right_shift)
 
 #undef REGISTER_EXTERN_FUNC_2_IN_1_INT32
+
+#define REGISTER_EXTERN_FUNC_2_IN_1_INT64(func__) \
+  REGISTER_EXTERN_FUNC_2_IN_1_OUT(cinn_host_##func__##_int64, host_target, int64_t, int64_t, int64_t);
+
+  REGISTER_EXTERN_FUNC_2_IN_1_INT64(pow)
+
+  REGISTER_EXTERN_FUNC_2_IN_1_INT64(logical_right_shift)
+
+#undef REGISTER_EXTERN_FUNC_2_IN_1_INT64
 
   REGISTER_EXTERN_FUNC_1_IN_1_OUT(cinn_host_clz_int32, host_target, int, int);
 

@@ -201,6 +201,7 @@ std::shared_ptr<OpStrategy> StrategyForConstScalar(const framework::NodeAttr &at
   framework::CINNCompute const_scalar_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of const_float compute is empty! Please check.";
     auto scalar             = GetScalarExpr(attrs.attr_store.at("value"));
+    auto scalar_type        = out_type.at(0);
     CINNValuePack pack_args = args[0];
     std::string tensor_name = UniqName("const_scalar_Out");
     if (FLAGS_cinn_ir_schedule) {
@@ -210,7 +211,12 @@ std::shared_ptr<OpStrategy> StrategyForConstScalar(const framework::NodeAttr &at
     }
 
     auto out = lang::Compute(
-        {Expr(1)}, [=](const std::vector<Expr> &indice) { return scalar; }, tensor_name);
+        {Expr(1)},
+        [=](const std::vector<Expr> &indice) {
+          auto res = (scalar_type == scalar->type()) ? scalar : ir::Cast::Make(scalar_type, scalar);
+          return res;
+        },
+        tensor_name);
     CHECK(out.defined()) << "can't create const scalar with the given type " << out_type[0];
     auto stages = CreateStages({out});
     *ret        = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
@@ -229,9 +235,16 @@ std::vector<shape_t> InferShapeForConstScalar(const std::vector<shape_t> &inputs
 }
 
 std::vector<Type> InferDtypeForConstScalar(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
-  CHECK(attrs.count("value"));
-  auto scalar   = GetScalarExpr(attrs.at("value"));
-  auto out_type = scalar->type();
+  Type out_type;
+  if (attrs.find("dtype") != attrs.end()) {
+    auto dtype_str = absl::get<std::string>(attrs.at("dtype"));
+    if (!dtype_str.empty()) {
+      out_type = common::Str2Type(dtype_str);
+    }
+  } else {
+    auto scalar = GetScalarExpr(attrs.at("value"));
+    out_type    = scalar->type();
+  }
   VLOG(3) << "scalar type: " << out_type;
   return {out_type};
 }
@@ -356,10 +369,10 @@ std::vector<std::vector<std::string>> InferLayoutForFillConstant(const std::vect
 
 #define EXPAND_ATTR_TYPE(MACRO) \
   MACRO(bool)                   \
-  MACRO(float)                  \
   MACRO(int)                    \
   MACRO(int64_t)                \
-  MACRO(double)
+  MACRO(double)                 \
+  MACRO(float)
 
 std::shared_ptr<OpStrategy> StrategyForAssignValue(const framework::NodeAttr &attrs,
                                                    const std::vector<ir::Tensor> &inputs,
