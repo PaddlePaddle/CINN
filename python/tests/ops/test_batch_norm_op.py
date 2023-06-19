@@ -214,19 +214,17 @@ class TestBatchNormBackwardOpAll(TestCaseHelper):
                     "x86 test will be skipped due to timeout.")
 class TestBatchNormInferOp(OpTest):
     def setUp(self):
-        self.init_case()
+        print(f"\nRunning {self.__class__.__name__}: {self.case}")
+        self.prepare_inputs()
 
-    def init_case(self):
-        self.num_channels = 16
-        self.inputs = {
-            "x": self.random([2, self.num_channels, 8, 8], "float32", 0.0,
-                             1.0),
-        }
+    def prepare_inputs(self):
+        self.x_np = self.random(
+            shape=self.case["x_shape"], dtype=self.case["x_dtype"])
 
     def build_paddle_program(self, target):
-        x = paddle.to_tensor(self.inputs["x"])
+        x = paddle.to_tensor(self.x_np)
         batch_norm = paddle.nn.BatchNorm(
-            self.num_channels, act=None, is_test=True)
+            self.case["x_shape"][1], act=None, is_test=True)
         out = batch_norm(x)
 
         self.paddle_outputs = [out]
@@ -236,28 +234,54 @@ class TestBatchNormInferOp(OpTest):
     def build_cinn_program(self, target):
         builder = NetBuilder("batch_norm")
         x = builder.create_input(
-            self.nptype2cinntype(self.inputs["x"].dtype),
-            self.inputs["x"].shape, "x")
-        scale = builder.fill_constant([self.num_channels], 1.0, 'scale',
+            self.nptype2cinntype(self.case["x_dtype"]), self.case["x_shape"],
+            "x")
+        scale = builder.fill_constant([self.case["x_shape"][1]], 1.0, 'scale',
                                       'float32')
-        bias = builder.fill_constant([self.num_channels], 0.0, 'bias',
+        bias = builder.fill_constant([self.case["x_shape"][1]], 0.0, 'bias',
                                      'float32')
-        mean = builder.fill_constant([self.num_channels], 0.0, 'mean',
+        mean = builder.fill_constant([self.case["x_shape"][1]], 0.0, 'mean',
                                      'float32')
-        variance = builder.fill_constant([self.num_channels], 1.0, 'variance',
-                                         'float32')
+        variance = builder.fill_constant([self.case["x_shape"][1]], 1.0,
+                                         'variance', 'float32')
 
         out = builder.batchnorm(x, scale, bias, mean, variance, is_test=False)
 
         prog = builder.build()
         forward_res = self.get_cinn_output(
-            prog, target, [x], [self.inputs["x"]], out, passes=[])
+            prog, target, [x], [self.x_np], out, passes=[])
         self.cinn_outputs = [forward_res[0]]
 
     def test_check_results(self):
         self.check_outputs_and_grads()
 
 
+class TestBatchNormInferOpAll(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestBatchNormInferOpCase"
+        self.cls = TestBatchNormInferOp
+
+        self.inputs = [
+            {
+                "x_shape": [2, 16, 8, 8],
+            },
+            {
+                "x_shape": [2, 16, 8, 1],
+            },
+            {
+                "x_shape": [2, 16, 2048, 8],
+            },
+        ]
+        self.dtypes = [
+            {
+                "x_dtype": "float32",
+                "max_relative_error": 1e-5
+            },
+        ]
+        self.attrs = []
+
+
 if __name__ == "__main__":
     TestBatchNormTrainOpAll().run()
     TestBatchNormBackwardOpAll().run()
+    TestBatchNormInferOpAll().run()
