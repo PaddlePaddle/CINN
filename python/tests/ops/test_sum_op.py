@@ -138,10 +138,9 @@ class TestSumOpDtypeTest(TestCaseHelper):
             },
         ]
         self.dtypes = [
-            # TODO(thisjiang): fix error on float16
-            # {
-            #     "dtype": "float16"
-            # },
+            {
+                "dtype": "float16"
+            },
             {
                 "dtype": "float32"
             },
