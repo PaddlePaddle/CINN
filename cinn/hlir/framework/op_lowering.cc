@@ -54,9 +54,9 @@ std::vector<ir::LoweredFunc> OpLowerer::Lower(GroupPtr& group) {
       case framework::kElementWise:
       case framework::kBroadcast:
       case framework::kInjective:
-        return IRLowerOp(&OpLowerer::IRElementwiseCompute, group);
+        return LowerGroup(&OpLowerer::IRElementwiseCompute, group, true);
       case framework::kReduction:
-        return IRLowerOp(&OpLowerer::IRReduceCompute, group);
+        return LowerGroup(&OpLowerer::IRReduceCompute, group, true);
       case framework::kOutFusible:
         LOG(FATAL) << "Group Pattern Kind kOutFusible Is Not Implemented!";
       case framework::kNonFusible:
@@ -76,9 +76,9 @@ std::vector<ir::LoweredFunc> OpLowerer::LowerWithoutSchedule(GroupPtr& group) {
       case framework::kElementWise:
       case framework::kBroadcast:
       case framework::kInjective:
-        return IRLowerOpWithoutSchedule(&OpLowerer::IRElementwiseCompute, group);
+        return LowerGroup(&OpLowerer::IRElementwiseCompute, group, false);
       case framework::kReduction:
-        return IRLowerOpWithoutSchedule(&OpLowerer::IRReduceCompute, group);
+        return LowerGroup(&OpLowerer::IRReduceCompute, group, false);
       case framework::kOutFusible:
         LOG(FATAL) << "Group Pattern Kind kOutFusible Is Not Implemented!";
       case framework::kNonFusible:
@@ -89,6 +89,96 @@ std::vector<ir::LoweredFunc> OpLowerer::LowerWithoutSchedule(GroupPtr& group) {
   } else {
     LOG(FATAL) << "Previous IR Schedule Is Not Implemented!";
   }
+}
+
+std::vector<ir::LoweredFunc> OpLowerer::LowerGroup(IRComputeFunction compute,
+                                                   GroupPtr& group,
+                                                   bool with_group_schedule) {
+  poly::StageMap stages;
+  std::vector<ir::Tensor> arg_tensors;
+  std::unordered_map<std::string, ir::Tensor> tensor_map;
+  // do compute.
+  VLOG(3) << "group->fused_sub_groups.size() is : " << group->fused_sub_groups.size();
+  std::vector<Expr> ast_exprs;
+  if (group->fused_sub_groups.size() == 0) {
+    ast_exprs = (this->*compute)(stages, arg_tensors, tensor_map, group, group, /*apply_impl_schedule = */ false);
+  } else {
+    for (auto& sub_group : group->fused_sub_groups) {
+      auto exprs =
+          (this->*compute)(stages, arg_tensors, tensor_map, group, sub_group, /*apply_impl_schedule = */ false);
+      ast_exprs.insert(ast_exprs.end(), exprs.begin(), exprs.end());
+    }
+  }
+  ir::ModuleExpr mod_expr(ast_exprs);
+  ir::IRSchedule ir_sch(mod_expr);
+  ir_sch.MergeExprs();
+  VLOG(3) << "Before group lower, ir is: \n" << ir_sch.GetModule().GetExprs().at(0);
+  if (with_group_schedule) {
+    // do schedule.
+    IRSchedule(ir_sch, group, tensor_map);
+    VLOG(3) << "After group schedule, ir is: \n" << ir_sch.GetModule().GetExprs().at(0);
+  }
+
+  // function args
+  group->input_names.clear();
+  std::vector<ir::Argument> func_args;
+  for (auto& args : arg_tensors) {
+    // input node data name.
+    group->input_names.push_back(args->name);
+    // input args
+    func_args.emplace_back(args->buffer, ir::Argument::IO::kInput);
+  }
+
+  group->output_names.clear();
+  for (auto& node : group->output_nodes) {
+    // output node data name.
+    for (auto node_data : GetAllNodeData(node)) {
+      group->output_names.push_back(node_data->id());
+    }
+    // collect all output tensor.
+    std::string post   = "";
+    std::string prefix = GetNodeData(node)->id();
+    for (int idx = 0; idx < 1; ++idx) {
+      CHECK(tensor_map.count(prefix)) << "Can't find output tensor " << prefix;
+      if (!tensor_map.count(prefix + post)) {
+        break;
+      }
+      auto tensor = tensor_map[prefix + post];
+      arg_tensors.push_back(tensor);
+      // output args
+      func_args.emplace_back(tensor->buffer, ir::Argument::IO::kOutput);
+      // update post
+      post = "_" + std::to_string(idx);
+    }
+  }
+
+  std::unordered_set<std::string> args_map;
+  for (auto arg : func_args) {
+    args_map.insert(arg.name());
+  }
+
+  for (auto& tensor : tensor_map) {
+    if (args_map.count("_" + tensor.first)) {
+      continue;
+    }
+    arg_tensors.push_back(tensor.second);
+    // use the underlying tensor name to be consistent with the argument name in the lowered function
+    group->output_names.push_back(tensor.second->name);
+    func_args.emplace_back(tensor.second->buffer, ir::Argument::IO::kOutput);
+  }
+
+  auto func_body = ir_sch.GetModule().GetExprs().at(0);
+#ifdef CINN_WITH_CUDA
+  optim::OptimizeExprGPU(&(func_body));
+#endif
+
+  auto temp_buffers = lang::GetTempBuffers(arg_tensors, stages, func_body);
+  auto func =
+      ir::_LoweredFunc_::Make(group->GetFuncName(), func_args, ir_sch.GetModule().GetExprs().at(0), temp_buffers);
+  func->PrepareBufferCastExprs();
+  func = optim::Optimize(Expr(func), target_, false).as_lowered_func_ref();
+
+  return {func};
 }
 
 std::vector<ir::LoweredFunc> OpLowerer::IRLowerOp(IRComputeFunction compute, GroupPtr& group) {

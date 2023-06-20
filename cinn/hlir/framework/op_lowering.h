@@ -58,6 +58,9 @@ class OpLowerer {
   std::vector<ir::LoweredFunc> IRLowerOp(IRComputeFunction, GroupPtr&);
   std::vector<ir::LoweredFunc> IRLowerNonFusibleOp(GroupPtr&, bool);
   std::vector<ir::LoweredFunc> IRLowerOpWithoutSchedule(IRComputeFunction, GroupPtr&);
+
+  std::vector<ir::LoweredFunc> LowerGroup(IRComputeFunction, GroupPtr&, bool);
+
 #define DEFINE_IR_COMPUTE(type)                                                                \
   std::vector<Expr> IR##type##Compute(poly::StageMap& stages,                                  \
                                       std::vector<ir::Tensor>& func_args,                      \
