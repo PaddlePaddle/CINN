@@ -14,6 +14,8 @@
 
 #pragma once
 
+#include <memory>
+
 #include "cinn/api/op_node.h"
 
 #include "cinn/hlir/framework/graph.h"
@@ -24,44 +26,93 @@ namespace api {
 
 class OpGroup {
  public:
-  OpNode(const hlir::pass::FusionHelperBase* helper, const hlir::framework::Graph::Group* group) : helper_(helper), group_(group) {}
+  OpGroup(const hlir::pass::FusionHelperBase* helper, const std::shared_ptr<hlir::framework::Graph::Group>& group) : helper_(helper), group_(group) {}
+
+  OpGroup(const OpGroup& other) = default;
+
+  class iterator {
+   public:
+    iterator(std::unordered_map<std::shared_ptr<hlir::framework::Graph::Group>, TensorInterfaceList>::iterator it, const hlir::pass::FusionHelperBase* helper) : iter_(it), helper_(helper) {}
+
+    iterator& operator++() {
+      ++iter_;
+      return *this;
+    }
+
+    iterator operator++(int) {
+      iterator tmp = *this;
+      ++iter_;
+      return tmp;
+    }
+
+    OpGroup operator*() {
+      return OpGroup(helper_, iter_->first);
+    }
+
+    bool operator==(const iterator& other) const {
+      return iter_ == other.iter_;
+    }
+
+    bool operator!=(const iterator& other) const {
+        return !(*this == other);
+    }
+
+   private:
+    std::unordered_map<std::shared_ptr<hlir::framework::Graph::Group>, TensorInterfaceList>::iterator iter_;
+    const hlir::pass::FusionHelperBase* helper_;
+  };
+
+  hlir::framework::OpPatternKind kind() const { return group_->kind(); }
 
   size_t OpSize() const {
-    return group->CollectNodes().size();
+    return group_->CollectNodes().size();
   }
 
   OpNode GetOp(size_t index) const {
-    return group->CollectNodes()[index];
+    return OpNode(helper_, group_->CollectNodes()[index]);
   }
 
   size_t ProducerSize() const {
-    return group->producer_groups().size();
-  }
-  OpGroup GetProducer(size_t index) const {
-    std::vector<hlir::framework::Graph::Group*> producer_groups;
-    producer_groups.reserve(ProducerSize());
-    for(const auto& producer : group->producer_groups()) {
-      producer_groups.push_back(producer.first.get());
-    }
-    return OpGroup(helper_, producer_groups[index]);
+    return group_->producer_groups().size();
   }
 
   size_t ConsumerSize() const {
-    return group->consumer_groups().size();
+    return group_->consumer_groups().size();
   }
 
-  OpGroup GetConsumer(size_t index) const {
-    std::vector<hlir::framework::Graph::Group*> consumer_groups;
-    consumer_groups.reserve(ConsumerSize());
-    for(const auto& consumer : group->consumer_groups()) {
-      consumer_groups.push_back(consumer.first.get());
-    }
-    return OpGroup(helper_, consumer_groups[index]);
+  iterator ProducerBegin() const {
+    return iterator(group_->mut_producer_groups()->begin(), helper_);
   }
+
+  iterator ProducerEnd() const {
+    return iterator(group_->mut_producer_groups()->end(), helper_);
+  }
+
+  iterator ConsumerBegin() const {
+    return iterator(group_->mut_consumer_groups()->begin(), helper_);
+  }
+
+  iterator ConsumerEnd() const {
+    return iterator(group_->mut_consumer_groups()->end(), helper_);
+  }
+
+  std::shared_ptr<hlir::framework::Graph::Group> GetGroup() const {
+    return group_;
+  }
+
+  bool operator==(const OpGroup& other) const {
+    return group_.get() == other.group_.get();
+  }
+
+  // struct OpGroupHash {
+  //   std::size_t operator()(const OpGroup& obj) const {
+  //     return std::hash<int>{}(obj.GetGroup().get());
+  //   }
+  // };
 
  private:
   const hlir::pass::FusionHelperBase* helper_;
-  const hlir::framework::Graph::Group* group_;
+  const std::shared_ptr<hlir::framework::Graph::Group> group_;
 };
 
 }  // namespace api

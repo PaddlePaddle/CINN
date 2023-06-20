@@ -35,11 +35,11 @@ class OpNode {
   }
 
   size_t InputsSize() const {
-    return node_->inlinks.size();
+    return node_->inlinks().size();
   }
 
   size_t OutputsSize() const {
-    return node_->outlinks.size();
+    return node_->outlinks().size();
   }
 
   TensorNode GetInput(size_t i) const;

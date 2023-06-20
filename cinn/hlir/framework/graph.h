@@ -60,7 +60,7 @@ class Graph : public cinn::common::Graph {
   absl::flat_hash_map<std::string, std::shared_ptr<absl::any>> attrs;
 
   std::vector<std::vector<Node*>> groups;
-  struct Group final : public OpGroupInterface {
+  struct Group {
     // distance to last group.
     int depth{0};
     int max_depth{0};
@@ -127,29 +127,29 @@ class Graph : public cinn::common::Graph {
     std::string GetFuncName() { return "fn_" + group_id + unique_id; }
 
    public:
-    const std::unordered_map<std::shared_ptr<OpGroupInterface>, TensorInterfaceList>& producer_groups() const override {
+    const std::unordered_map<std::shared_ptr<Group>, TensorInterfaceList>& producer_groups() const {
       return producer_groups_;
     }
 
-    const std::unordered_map<std::shared_ptr<OpGroupInterface>, TensorInterfaceList>& consumer_groups() const override {
+    const std::unordered_map<std::shared_ptr<Group>, TensorInterfaceList>& consumer_groups() const {
       return consumer_groups_;
     }
 
-    std::unordered_map<std::shared_ptr<OpGroupInterface>, TensorInterfaceList>* mut_producer_groups() {
+    std::unordered_map<std::shared_ptr<Group>, TensorInterfaceList>* mut_producer_groups() {
       return &producer_groups_;
     }
 
-    std::unordered_map<std::shared_ptr<OpGroupInterface>, TensorInterfaceList>* mut_consumer_groups() {
+    std::unordered_map<std::shared_ptr<Group>, TensorInterfaceList>* mut_consumer_groups() {
       return &consumer_groups_;
     }
 
-    hlir::framework::OpPatternKind kind() const override { return op_pattern_kind; }
+    hlir::framework::OpPatternKind kind() const { return op_pattern_kind; }
 
    private:
     // input groups
-    std::unordered_map<std::shared_ptr<OpGroupInterface>, TensorInterfaceList> producer_groups_;
+    std::unordered_map<std::shared_ptr<Group>, TensorInterfaceList> producer_groups_;
     // output grous
-    std::unordered_map<std::shared_ptr<OpGroupInterface>, TensorInterfaceList> consumer_groups_;
+    std::unordered_map<std::shared_ptr<Group>, TensorInterfaceList> consumer_groups_;
   };
   std::vector<std::shared_ptr<Group>> fusion_groups;
 

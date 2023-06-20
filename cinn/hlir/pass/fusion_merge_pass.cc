@@ -904,8 +904,8 @@ class FusionMergePassHelper : public FusionHelperBase {
 
     // update producer and consumer.
     for (auto& group : fusion_groups_) {
-      std::unordered_map<OpGroupPtr, TensorInterfaceList> producers;
-      std::unordered_map<OpGroupPtr, TensorInterfaceList> consumers;
+      std::unordered_map<GroupPtr, TensorInterfaceList> producers;
+      std::unordered_map<GroupPtr, TensorInterfaceList> consumers;
 
       for (auto& producer_and_list : group->producer_groups()) {
         const auto& producer = std::dynamic_pointer_cast<Graph::Group>(producer_and_list.first);
