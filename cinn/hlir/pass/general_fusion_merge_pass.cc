@@ -138,6 +138,10 @@ class FusePassCtx {
 
   virtual void EnableFuse(const OpGroupPtr& first, const OpGroupPtr& second) = 0;
 
+  // User can cache some group info in context by using this function.
+  // The group info can be any data and need to create by create_fn.
+  // virtual absl::any* FindOrCreateCachedGroupInfo(const OpGroupPtr& op_group, const std::function<absl::any(const OpGroupPtr& op_group)>& create_fn) = 0;
+
  protected:
   FusePassCtx() = default;
 };
@@ -151,6 +155,8 @@ class LightwareFusePassCtx : public FusePassCtx {
   virtual const FuseHelper& fuse_helper() const = 0;
 
   virtual void EnableFuse(const OpGroupPtr& first, const OpGroupPtr& second) = 0;
+
+  // virtual absl::any* FindOrCreateCachedGroupInfo(const OpGroupPtr& op_group, const std::function<absl::any(const OpGroupPtr& op_group)>& create_fn) = 0;
 
  protected:
   LightwareFusePassCtx() = default;
@@ -173,9 +179,17 @@ class GraphGroupLightwareFusePassCtx final : public LightwareFusePassCtx {
 
   void EnableFuse(const OpGroupPtr& first, const OpGroupPtr& second) override { EnableFuse_(first, second); }
 
+  // absl::any* FindOrCreateCachedGroupInfo(const OpGroupPtr& op_group, const std::function<absl::any(const OpGroupPtr& op_group)>& create_fn) {
+  //   if (cache_data_.find(op_group) == cache_data_.end()) {
+  //     cache_data_[op_group] = create_fn(op_group);
+  //   }
+  //   return &cache_data_[op_group];
+  // }
+
   const FusionHelperBase& graph_group_fusion_helper() const { return *graph_group_fusion_helper_; }
 
  private:
+  // static std::unordered_map<api::OpGroup, absl::any> cache_data_;
   const FusionHelperBase* graph_group_fusion_helper_;
   OpGroupPtr group_;
   const std::function<void(const OpGroupPtr& first, const OpGroupPtr& second)> EnableFuse_;
@@ -191,6 +205,8 @@ class InputFusePassCtx : public FusePassCtx {
   virtual const FuseHelper& fuse_helper() const = 0;
 
   virtual void EnableFuse(const OpGroupPtr& first, const OpGroupPtr& second) = 0;
+
+  // virtual absl::any* FindOrCreateCachedGroupInfo(const OpGroupPtr& op_group, const std::function<absl::any(const OpGroupPtr& op_group)>& create_fn) = 0;
 
  protected:
   InputFusePassCtx() = default;
@@ -214,7 +230,15 @@ class GraphGroupInputFusePassCtx final : public InputFusePassCtx {
 
   const FusionHelperBase& graph_group_fusion_helper() const { return *graph_group_fusion_helper_; }
 
+  // absl::any* FindOrCreateCachedGroupInfo(const OpGroupPtr& op_group, const std::function<absl::any(const OpGroupPtr& op_group)>& create_fn) {
+  //   if (cache_data_.find(op_group) == cache_data_.end()) {
+  //     cache_data_[op_group] = create_fn(op_group);
+  //   }
+  //   return &cache_data_[op_group];
+  // }
+
  private:
+  // static std::unordered_map<api::OpGroup, absl::any> cache_data_;
   const FusionHelperBase* graph_group_fusion_helper_;
   const OpGroupList& groups_;
   const std::function<void(const OpGroupPtr& first, const OpGroupPtr& second)> EnableFuse_;
@@ -338,8 +362,38 @@ struct HorizontalFuseUtil {
     };
   }
 
+  static api::OpNode GetMasterNode(FusePassCtxT* ctx, const OpGroupPtr& op_group) {
+    VLOG(1) << "####### GetMasterNode";
+    size_t op_num = op_group.OpSize();
+    for (size_t i = 0; i < op_num; ++i) {
+      VLOG(1) << "####### GetMasterNode GetOp : " << i;
+      api::OpNode node = op_group.GetOp(i);
+      if (node.kind() == OpPatternKind::kReduction) {
+        return node;
+      }
+    }
+    VLOG(1) << "####### return GetOp : 0";
+    return op_group.GetOp(0);
+  }
+
   static bool IsSameSize(FusePassCtxT* ctx, const OpGroupPtr& src, const OpGroupPtr& dst) {
-    return ctx->fuse_helper().AllOutputsSameSize(src, dst);
+    api::OpNode src_master_node = GetMasterNode(ctx, src);
+    api::OpNode dst_master_node = GetMasterNode(ctx, dst);
+    VLOG(1) << "#### GetMasterNode Finish";
+
+    const auto& output_var_0 = src_master_node.GetOutput(0).Shape();
+    const auto& output_var_1 = dst_master_node.GetOutput(0).Shape();
+    VLOG(1) << "##### output_var_0 " << output_var_0.size();
+    VLOG(1) << "##### output_var_1 " << output_var_1.size();
+    if (output_var_0 == output_var_1) {
+      return true;
+    }
+
+    auto size_0 = std::accumulate(output_var_0.begin(), output_var_0.end(), 1, std::multiplies<int>());
+    auto size_1 = std::accumulate(output_var_1.begin(), output_var_1.end(), 1, std::multiplies<int>());
+    VLOG(1) << "##### size_0 " << size_0;
+    VLOG(1) << "##### size_1 " << size_1;
+    return size_0 == size_1;
   }
 
   static bool HorizontalElementwiseFuseReduce(FusePassCtxT* ctx, const OpGroupPtr& src, const OpGroupPtr& dst) {

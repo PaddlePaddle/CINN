@@ -15,20 +15,25 @@
 #pragma once
 
 #include "cinn/hlir/framework/node.h"
+#include "cinn/utils/type_defs.h"
 #include "cinn/hlir/pass/fusion_helper_base.h"
+
 
 namespace cinn {
 namespace api {
 
 class OpNode;
 
+using shape_t = utils::ShapeType;
+
 class TensorNode {
  public:
   TensorNode(const hlir::pass::FusionHelperBase* helper, const hlir::framework::NodeData* node_data) : helper_(helper), node_data_(node_data) {}
 
   // Get the shape of tensor.
-  const shpae_t& Shape() const {
-    return helper_->GetNodeDataShape(node_data_)
+  const shape_t& Shape() const {
+    CHECK(helper_->shape_dict_.count(node_data_->id())) << "Can't find " << node_data_->id() << " 's shape!";
+    return helper_->shape_dict_.at(node_data_->id());
   }
 
   OpNode Producer() const;

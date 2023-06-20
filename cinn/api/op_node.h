@@ -17,14 +17,14 @@
 #include <memory>
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/pass/fusion_helper_base.h"
+#include "cinn/api/tensor_node.h"
+
 
 namespace cinn {
 namespace api {
 
 using OpPatternKind = cinn::hlir::framework::OpPatternKind;
 using Attribute = cinn::utils::Attribute;
-
-class TensorNode;
 
 class OpNode {
  public:
