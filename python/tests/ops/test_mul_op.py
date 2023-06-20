@@ -47,8 +47,8 @@ class TestMulOp(OpTest):
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.x_np, stop_gradient=False)
         y = paddle.to_tensor(self.y_np, stop_gradient=False)
-        x_num_col_dims = x.shape
-        y_num_col_dims = y.shape
+        x_num_col_dims = x.dim
+        y_num_col_dims = y.dim
         print("x_num_col_dims", x_num_col_dims)
         print("y_num_col_dims", y_num_col_dims)
         x_weight = reduce(lambda x, y: x * y, x[:x_num_col_dims])
