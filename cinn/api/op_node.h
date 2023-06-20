@@ -52,7 +52,7 @@ class OpNode {
   }
 
  private:
-  const Attribute& GetAttr(const std::string& attr_name) {
+  const Attribute& GetAttr(const std::string& attr_name) const {
     return node_->attrs.attr_store.at(attr_name);
   }
 

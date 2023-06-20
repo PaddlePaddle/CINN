@@ -45,8 +45,8 @@ class OpGroup {
       return tmp;
     }
 
-    OpGroup operator*() {
-      return OpGroup(helper_, iter_->first);
+    std::shared_ptr<OpGroup> operator*() {
+      return std::make_shared<OpGroup>(helper_, iter_->first);
     }
 
     bool operator==(const iterator& other) const {
@@ -100,8 +100,12 @@ class OpGroup {
     return group_;
   }
 
-  bool operator==(const OpGroup& other) const {
+  bool operator == (const OpGroup& other) const {
     return group_.get() == other.group_.get();
+  }
+
+  bool operator < (const OpGroup& other) const {
+    return group_.get() < other.group_.get();
   }
 
   // struct OpGroupHash {
