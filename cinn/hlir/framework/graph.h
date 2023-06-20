@@ -104,8 +104,8 @@ class Graph : public cinn::common::Graph {
       }
     };
 
-    std::unordered_set<std::shared_ptr<Group>> CollectConsumerGroups() {
-      std::unordered_set<std::shared_ptr<Group>> groups;
+    std::unordered_set<std::shared_ptr<Group>, SharedGroupHasher, SharedGroupComparator> CollectConsumerGroups() {
+      std::unordered_set<std::shared_ptr<Group>, SharedGroupHasher, SharedGroupComparator> groups;
       for (const auto& consumer_and_list : consumer_groups_) {
         groups.insert(std::dynamic_pointer_cast<Graph::Group>(consumer_and_list.first));
       }

@@ -45,8 +45,8 @@ class OpGroup {
       return tmp;
     }
 
-    std::shared_ptr<OpGroup> operator*() {
-      return std::make_shared<OpGroup>(helper_, iter_->first);
+    OpGroup operator*() {
+      return OpGroup(helper_, iter_->first);
     }
 
     bool operator==(const iterator& other) const {
@@ -117,10 +117,12 @@ class OpGroup {
 }  // namespace cinn
 
 namespace std {
-  template <>
-  struct hash<MyClass> {
-    size_t operator()(const cinn::api::OpGroup& obj) const {
-      return std::hash<int64_t>{}(obj.GetGroup().get());
-    }
-  };
-}
+
+template <>
+struct hash<cinn::api::OpGroup> {
+  size_t operator()(const cinn::api::OpGroup& obj) const {
+    return std::hash<int64_t>()(reinterpret_cast<uint64_t>(obj.GetGroup().get()));
+  }
+};
+
+} // namespace std
