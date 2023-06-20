@@ -31,7 +31,10 @@ class TestAcoshOp(OpTest):
 
     def prepare_inputs(self):
         self.x_np = self.random(
-            shape=self.case["x_shape"], dtype=self.case["x_dtype"])
+            low=2,
+            high=100,
+            shape=self.case["x_shape"],
+            dtype=self.case["x_dtype"])
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.x_np, stop_gradient=False)
