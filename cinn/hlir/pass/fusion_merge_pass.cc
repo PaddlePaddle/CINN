@@ -32,6 +32,9 @@ using common::GraphNode;
 using GroupPtr  = std::shared_ptr<Graph::Group>;
 using GroupList = std::vector<GroupPtr>;
 
+using Comparator = Graph::Group::SharedGroupComparator;
+using Hasher     = Graph::Group::SharedGroupHasher;
+
 using OpGroupPtr  = std::shared_ptr<api::OpGroupInterface>;
 using OpGroupList = std::vector<OpGroupPtr>;
 
@@ -904,11 +907,11 @@ class FusionMergePassHelper : public FusionHelperBase {
 
     // update producer and consumer.
     for (auto& group : fusion_groups_) {
-      std::unordered_map<GroupPtr, TensorInterfaceList> producers;
-      std::unordered_map<GroupPtr, TensorInterfaceList> consumers;
+      std::unordered_map<GroupPtr, TensorInterfaceList, Hasher, Comparator> producers;
+      std::unordered_map<GroupPtr, TensorInterfaceList, Hasher, Comparator> consumers;
 
-      for (auto& producer_and_list : group->producer_groups()) {
-        const auto& producer = std::dynamic_pointer_cast<Graph::Group>(producer_and_list.first);
+      for (const auto& producer_and_list : group->producer_groups()) {
+        const auto& producer = producer_and_list.first;
         CHECK(producer->belong_groups.size());
         // TODO: Do not add any TensorInterface into any TensorInterfaceList in this file which will be deprecated.
         producers[*producer->belong_groups.begin()] += {};

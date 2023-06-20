@@ -108,12 +108,6 @@ class OpGroup {
     return group_.get() < other.group_.get();
   }
 
-  // struct OpGroupHash {
-  //   std::size_t operator()(const OpGroup& obj) const {
-  //     return std::hash<int>{}(obj.GetGroup().get());
-  //   }
-  // };
-
  private:
   const hlir::pass::FusionHelperBase* helper_;
   const std::shared_ptr<hlir::framework::Graph::Group> group_;
@@ -121,3 +115,12 @@ class OpGroup {
 
 }  // namespace api
 }  // namespace cinn
+
+namespace std {
+  template <>
+  struct hash<MyClass> {
+    size_t operator()(const cinn::api::OpGroup& obj) const {
+      return std::hash<int64_t>{}(obj.GetGroup().get());
+    }
+  };
+}

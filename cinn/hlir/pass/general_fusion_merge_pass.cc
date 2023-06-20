@@ -39,6 +39,9 @@ using common::GraphNode;
 using GroupPtr  = std::shared_ptr<Graph::Group>;
 using GroupList = std::vector<GroupPtr>;
 
+using Comparator = Graph::Group::SharedGroupComparator;
+using Hasher     = Graph::Group::SharedGroupHasher;
+
 using OpGroupPtr  = std::shared_ptr<api::OpGroup>;
 // using OpGroupPtr  = api::OpGroup;
 using OpGroupList = std::vector<OpGroupPtr>;
@@ -1339,11 +1342,11 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
 
   bool GeneralVerticalFuse(GroupPtr& producer) {
     VLOG(3) << "GeneralVerticalFuse...!";
-    using GroupSets                           = std::set<std::pair<OpGroupPtr, OpGroupPtr>>;
+    using GroupSets                           = std::vector<std::pair<OpGroupPtr, OpGroupPtr>>;
     const auto& GetFusableConsumerOpGroupSets = [&]() -> GroupSets {
       GroupSets tagged_sets;
       const auto& EnableFuse = [&](const OpGroupPtr& first, const OpGroupPtr& second) {
-        tagged_sets.insert(std::make_pair(first, second));
+        tagged_sets.push_back(std::make_pair(first, second));
       };
       GraphGroupLightwareFusePassCtx fuse_ctx(this, std::make_shared<api::OpGroup>(this, producer), EnableFuse);
       TagVerticalGroups(&fuse_ctx);
@@ -1896,8 +1899,8 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
 
     // update producer and consumer.
     for (auto& group : fusion_groups_) {
-      std::unordered_map<GroupPtr, TensorInterfaceList> producers;
-      std::unordered_map<GroupPtr, TensorInterfaceList> consumers;
+      std::unordered_map<GroupPtr, TensorInterfaceList, Hasher, Comparator> producers;
+      std::unordered_map<GroupPtr, TensorInterfaceList, Hasher, Comparator> consumers;
 
       for (auto& producer_and_list : group->producer_groups()) {
         const auto& producer = std::dynamic_pointer_cast<Graph::Group>(producer_and_list.first);
