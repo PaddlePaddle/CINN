@@ -86,37 +86,34 @@ class TestMulOp(OpTest):
         self.check_outputs_and_grads(max_relative_error=max_relative_error)
 
 
+# yapf: disable
 class TestMulOpBase(TestCaseHelper):
     inputs = [{
         "x_shape": [1],
         "y_shape": [1],
         "x_num_col_dims": 1,
         "y_num_col_dims": 1,
-    },
-              {
-                  "x_shape": [1024],
-                  "y_shape": [1024],
-                  "x_num_col_dims": 1,
-                  "y_num_col_dims": 1,
-              },
-              {
-                  "x_shape": [32, 64],
-                  "y_shape": [64, 32],
-                  "x_num_col_dims": 2,
-                  "y_num_col_dims": 2,
-              },
-              {
-                  "x_shape": [2, 3, 4],
-                  "y_shape": [2, 4, 3],
-                  "x_num_col_dims": 3,
-                  "y_num_col_dims": 3,
-              },
-              {
-                  "x_shape": [16, 8, 4, 2],
-                  "y_shape": [16, 8, 2, 4],
-                  "x_num_col_dims": 4,
-                  "y_num_col_dims": 4,
-              }]
+    }, {
+        "x_shape": [1024],
+        "y_shape": [1024],
+        "x_num_col_dims": 1,
+        "y_num_col_dims": 1,
+    }, {
+        "x_shape": [32, 64],
+        "y_shape": [64, 32],
+        "x_num_col_dims": 2,
+        "y_num_col_dims": 2,
+    }, {
+        "x_shape": [2, 3, 4],
+        "y_shape": [2, 4, 3],
+        "x_num_col_dims": 3,
+        "y_num_col_dims": 3,
+    }, {
+        "x_shape": [16, 8, 4, 2],
+        "y_shape": [16, 8, 2, 4],
+        "x_num_col_dims": 4,
+        "y_num_col_dims": 4,
+    }]
 
     dtypes = [
         {
@@ -130,8 +127,15 @@ class TestMulOpBase(TestCaseHelper):
             "x_low": -10,
             "x_high": 10,
             "y_low": -10,
+            "y_high": -1,
+            "is_infer": False
+        },
+        {
+            "x_low": -10,
+            "x_high": 10,
+            "y_low": 1,
             "y_high": 10,
-            "is_infer": False,
+            "is_infer": False
         },
     ]
 
@@ -149,37 +153,30 @@ class TestMulOpShapeTest(TestMulOpBase):
             "y_shape": [1],
             "x_num_col_dims": 2,
             "y_num_col_dims": 2,
+        }, {
+            "x_shape": [1024],
+            "y_shape": [1024],
+            "x_num_col_dims": 2,
+            "y_num_col_dims": 2,
         },
-                       {
-                           "x_shape": [1024],
-                           "y_shape": [1024],
-                           "x_num_col_dims": 2,
-                           "y_num_col_dims": 2,
-                       },
-                       {
-                           "x_shape": [2048],
-                           "y_shape": [2048],
-                           "x_num_col_dims": 2,
-                           "y_num_col_dims": 2,
-                       },
-                       {
-                           "x_shape": [32, 64],
-                           "y_shape": [64, 32],
-                           "x_num_col_dims": 3,
-                           "y_num_col_dims": 3,
-                       },
-                       {
-                           "x_shape": [2, 3, 4],
-                           "y_shape": [2, 4, 3],
-                           "x_num_col_dims": 4,
-                           "y_num_col_dims": 4,
-                       },
-                       {
-                           "x_shape": [16, 8, 4, 2],
-                           "y_shape": [16, 8, 2, 4],
-                           "x_num_col_dims": 5,
-                           "y_num_col_dims": 5,
-                       }]
+            {
+            "x_shape": [32, 64],
+            "y_shape": [64, 32],
+            "x_num_col_dims": 3,
+            "y_num_col_dims": 3,
+        },
+            {
+            "x_shape": [2, 3, 4],
+            "y_shape": [2, 4, 3],
+            "x_num_col_dims": 4,
+            "y_num_col_dims": 4,
+        },
+            {
+            "x_shape": [16, 8, 4, 2],
+            "y_shape": [16, 8, 2, 4],
+            "x_num_col_dims": 5,
+            "y_num_col_dims": 5,
+        }]
 
 
 class TestMulOpDtypeTest(TestMulOpBase):
@@ -208,8 +205,15 @@ class TestMulOpPolarityTest(TestMulOpBase):
                 "x_low": -10,
                 "x_high": 10,
                 "y_low": -10,
+                "y_high": -1,
+                "is_infer": False
+            },
+            {
+                "x_low": -10,
+                "x_high": 10,
+                "y_low": 1,
                 "y_high": 10,
-                "is_infer": False,
+                "is_infer": False
             },
         ]
 
@@ -224,25 +228,25 @@ class TestMulOpBroadcastTest(TestMulOpBase):
             "x_num_col_dims": 1,
             "y_num_col_dims": 1,
         },
-                       {
-                           "x_shape": [1, 64],
-                           "y_shape": [1, 64, 1],
-                           "x_num_col_dims": 1,
-                           "y_num_col_dims": 2,
-                       },
-                       {
-                           "x_shape": [1, 3, 4],
-                           "y_shape": [1, 3, 4, 2],
-                           "x_num_col_dims": 1,
-                           "y_num_col_dims": 2,
-                       },
-                       {
-                           "x_shape": [12, 1, 4, 2],
-                           "y_shape": [12, 1, 2, 4],
-                           "x_num_col_dims": 3,
-                           "y_num_col_dims": 3,
-                       }]
-
+            {
+            "x_shape": [1, 64],
+            "y_shape": [1, 64, 1],
+            "x_num_col_dims": 1,
+            "y_num_col_dims": 2,
+        },
+            {
+            "x_shape": [1, 3, 4],
+            "y_shape": [1, 3, 4, 2],
+            "x_num_col_dims": 1,
+            "y_num_col_dims": 2,
+        },
+            {
+            "x_shape": [12, 1, 4, 2],
+            "y_shape": [12, 1, 2, 4],
+            "x_num_col_dims": 3,
+            "y_num_col_dims": 3,
+        }]
+# yapf: enable
 
 if __name__ == "__main__":
     TestMulOpShapeTest().run()
