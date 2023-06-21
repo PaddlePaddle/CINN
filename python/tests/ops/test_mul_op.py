@@ -47,16 +47,16 @@ class TestMulOp(OpTest):
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.x_np, stop_gradient=False)
         y = paddle.to_tensor(self.y_np, stop_gradient=False)
-        x_num_col_dims = x.dim
-        y_num_col_dims = y.dim
-        print("x_num_col_dims", x_num_col_dims)
-        print("y_num_col_dims", y_num_col_dims)
-        x_weight = reduce(lambda x, y: x * y, x[:x_num_col_dims])
-        x_height = reduce(lambda x, y: x * y, x[x_num_col_dims:])
-        x = paddle.reshape(x, [x_weight, x_height])
-        y_weight = reduce(lambda x, y: x * y, y[:y_num_col_dims])
-        y_height = reduce(lambda x, y: x * y, y[y_num_col_dims:])
-        y = paddle.reshape(y, [y_weight, y_height])
+        x_num_col_dim = x.ndim
+        y_num_col_dim = y.ndim
+        print("x_num_col_dim", x_num_col_dim)
+        print("y_num_col_dim", y_num_col_dim)
+        x_weight = reduce(lambda x, y: x * y, x[:x_num_col_dim])
+        x_height = reduce(lambda x, y: x * y, x[x_num_col_dim:])
+        x = paddle.reshape(x, [int(x_weight), int(x_height)])
+        y_weight = reduce(lambda y, x: x * y, y[:y_num_col_dim])
+        y_height = reduce(lambda y, x: x * y, y[y_num_col_dim:])
+        y = paddle.reshape(y, [int(y_weight), int(y_height)])
         out = paddle.matmul(x, y)
         self.paddle_outputs = [out]
 
