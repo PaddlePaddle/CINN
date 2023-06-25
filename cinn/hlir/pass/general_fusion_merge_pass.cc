@@ -363,41 +363,66 @@ struct HorizontalFuseUtil {
   }
 
   static api::OpNode GetMasterNode(FusePassCtxT* ctx, const OpGroupPtr& op_group) {
-    VLOG(1) << "####### GetMasterNode";
     size_t op_num = op_group.OpSize();
     for (size_t i = 0; i < op_num; ++i) {
-      VLOG(1) << "####### GetMasterNode GetOp : " << i;
       api::OpNode node = op_group.GetOp(i);
       if (node.kind() == OpPatternKind::kReduction) {
         return node;
       }
     }
-    VLOG(1) << "####### return GetOp : 0";
     return op_group.GetOp(0);
   }
 
   static bool IsSameSize(FusePassCtxT* ctx, const OpGroupPtr& src, const OpGroupPtr& dst) {
     api::OpNode src_master_node = GetMasterNode(ctx, src);
     api::OpNode dst_master_node = GetMasterNode(ctx, dst);
-    VLOG(1) << "#### GetMasterNode Finish";
 
     const auto& output_var_0 = src_master_node.GetOutput(0).Shape();
     const auto& output_var_1 = dst_master_node.GetOutput(0).Shape();
-    VLOG(1) << "##### output_var_0 " << output_var_0.size();
-    VLOG(1) << "##### output_var_1 " << output_var_1.size();
     if (output_var_0 == output_var_1) {
       return true;
     }
 
     auto size_0 = std::accumulate(output_var_0.begin(), output_var_0.end(), 1, std::multiplies<int>());
     auto size_1 = std::accumulate(output_var_1.begin(), output_var_1.end(), 1, std::multiplies<int>());
-    VLOG(1) << "##### size_0 " << size_0;
-    VLOG(1) << "##### size_1 " << size_1;
     return size_0 == size_1;
   }
 
   static bool HorizontalElementwiseFuseReduce(FusePassCtxT* ctx, const OpGroupPtr& src, const OpGroupPtr& dst) {
     return ctx->fuse_helper().HorizontalElementwiseFuseReduce(src, dst);
+    // if same shape with horizontal relation
+    if (IsSameSize(ctx, src, dst)) {
+      return true;
+    }
+
+    const OpGroupPtr* ele_group;
+    const OpGroupPtr* reduce_group;
+
+    if (src.kind() == framework::kReduction) {
+      ele_group    = &dst;
+      reduce_group = &src;
+    } else {
+      ele_group    = &src;
+      reduce_group = &dst;
+    }
+
+    shape_t ele_node_shape = GetMasterNode(ctx, *ele_group).GetOutput(0).Shape();
+    int32_t size_ele       = std::accumulate(ele_node_shape.begin(), ele_node_shape.end(), 1, std::multiplies<int>());
+
+    size_t op_num = reduce_group->OpSize();
+    for (size_t i = 0; i < op_num; ++i) {
+      api::OpNode node = reduce_group->GetOp(i);
+      if (node.kind() == OpPatternKind::kReduction) {
+        shape_t master_node_shape = node.GetOutput(0).Shape();
+        int32_t size_master =
+          std::accumulate(master_node_shape.begin(), master_node_shape.end(), 1, std::multiplies<int>());
+        if (size_ele == size_master) {
+          return true;
+        }
+      }
+    }
+
+    return false;
   }
 
   static bool ReduceFuseReduce(FusePassCtxT* ctx, const OpGroupPtr& src, const OpGroupPtr& dst) {
