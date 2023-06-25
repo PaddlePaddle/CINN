@@ -116,7 +116,7 @@ class GraphGroupFuseHelper final : public FuseHelper {
       return node.GetGroup()->max_depth;
     };
     const auto& VisitNextNodes = [&](OpGroupPtr node, const std::function<void(OpGroupPtr)>& Visit) {
-      for(auto iter = node.ProducerEnd(); iter != node.ProducerEnd(); ++iter) {
+      for(auto iter = node.ProducerBegin(); iter != node.ProducerEnd(); ++iter) {
         if (node == consumer && *iter == producer) {
           continue;
         }
