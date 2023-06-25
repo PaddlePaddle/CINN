@@ -28,6 +28,7 @@
 #include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/op/use_ops.h"
 #include "cinn/hlir/pass/use_pass.h"
+#include "cinn/runtime/flags.h"
 #include "cinn/utils/data_util.h"
 
 namespace cinn::frontend {
@@ -45,7 +46,7 @@ void RunWithProgram(const Program& program,
 }
 
 TEST(TransposeFoldingInput, TransposeWithMultiMamtul) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     return;
   }
   NetBuilder builder("net_builder");

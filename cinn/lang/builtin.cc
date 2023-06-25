@@ -26,6 +26,7 @@
 namespace cinn {
 namespace lang {
 
+using cinn::common::bfloat16;
 using cinn::common::float16;
 
 Expr logic_and(const std::vector<Expr>& conds) {
@@ -106,7 +107,17 @@ Expr One(const Type& type) { return ir::One(type); }
 
 Expr FloorDivide(Expr a, Expr b) {
   CHECK_EQ(a.type(), b.type()) << "FloorDivide's inputs type not equal, where a:" << a.type() << " but b:" << b.type();
-  return a.type().is_float() ? Floor(a / b) : a / b;
+  if (a.type().is_float()) {
+    return Floor(a / b);
+  } else if (a.type().is_uint()) {
+    return a / b;
+  } else {
+    auto div = a / b;
+    auto mod = a % b;
+    auto ret = ir::Select::Make(
+        ir::EQ::Make(mod, common::make_const(a.type(), 0)), div, div - common::make_const(a.type(), 1));
+    return ir::Select::Make((a > 0 && b > 0) || (a < 0 && b < 0), div, ret);
+  }
 }
 
 Expr min_value(const Type& type) {
@@ -123,6 +134,7 @@ Expr min_value(const Type& type) {
   FOR_CASE(uint16_t)
   FOR_CASE(uint32_t)
   FOR_CASE(uint64_t)
+  FOR_CASE(bfloat16)
   FOR_CASE(float16)
   FOR_CASE(float)
   FOR_CASE(double)
@@ -145,6 +157,7 @@ Expr max_value(const Type& type) {
   FOR_CASE(uint16_t)
   FOR_CASE(uint32_t)
   FOR_CASE(uint64_t)
+  FOR_CASE(bfloat16)
   FOR_CASE(float16)
   FOR_CASE(float)
   FOR_CASE(double)
@@ -169,6 +182,7 @@ Expr Epsilon(const Type& type) {
   FOR_CASE(uint16_t)
   FOR_CASE(uint32_t)
   FOR_CASE(uint64_t)
+  FOR_CASE(bfloat16)
   FOR_CASE(float16)
   FOR_CASE(float)
   FOR_CASE(double)

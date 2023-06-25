@@ -56,9 +56,9 @@ std::vector<ir::Tensor> ArgSort(const ir::Tensor &A,
   std::string find_func_name;
   std::string index_func_name;
   if (target.arch == common::Target::Arch::NVGPU) {
-    find_func_name.assign("cinn_cuda_find_int_nd");
+    find_func_name.assign("cinn_nvgpu_next_smallest_int32");
   } else if (target.arch == common::Target::Arch::X86) {
-    find_func_name.assign("cinn_host_find_int_nd");
+    find_func_name.assign("cinn_host_next_smallest_int32");
   } else {
     LOG(FATAL) << "ArgSort only supports X86 and NVGPU ! Please Check.\n";
   }
@@ -364,7 +364,7 @@ std::vector<std::vector<int>> InferShapeForTopK(const std::vector<std::vector<in
   }
   CHECK_GE(axis, 0);
   CHECK_LT(axis, res[0].size());
-  res[0][axis] = k;
+  res[0][axis] = std::min(res[0][axis], k);
   return {res[0], res[0]};
 }
 

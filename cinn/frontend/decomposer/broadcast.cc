@@ -118,10 +118,13 @@ void elementwise_add(const Instruction& instr, const DecomposerContext& context)
 void elementwise_add_grad(const Instruction& instr, const DecomposerContext& context) {
   CHECK_EQ(instr->inputs.size(), 3UL) << " 3 input tensors for " << instr->op_type;
   CHECK_EQ(instr->outputs.size(), 2UL) << "2 output tensors for " << instr->op_type;
-  auto dout     = instr->inputs[0];
-  auto dx       = instr->outputs[0];
-  auto dy       = instr->outputs[1];
-  int axis      = instr.GetAttrs<int>("axis");
+  auto dout = instr->inputs[0];
+  auto dx   = instr->outputs[0];
+  auto dy   = instr->outputs[1];
+  int axis  = instr.GetAttrs<int>("axis");
+  if (axis < 0 && dx->shape.size() < dy->shape.size()) {
+    LOG(FATAL) << "Please make sure x'rank greater than or equal to y'rank when axis = -1";
+  }
   axis          = axis >= 0 ? axis : dx->shape.size() - dy->shape.size();
   auto* builder = context.builder();
 

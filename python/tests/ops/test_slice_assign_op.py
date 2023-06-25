@@ -14,74 +14,78 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
-import numpy as np
-from op_test import OpTest, OpTestTool
 import paddle
-import cinn
+import numpy as np
 from cinn.frontend import *
 from cinn.common import *
+from op_test import OpTest, OpTestTool
+from op_test_helper import TestCaseHelper
+
+
+def paddle_slice_assign(data, update, axes, starts, ends, strides):
+    assert len(axes) == len(starts) == len(ends) == len(strides)
+
+    # prepare
+    for i in range(len(ends)):
+        input_len = data.shape[axes[i]]
+        if ends[i] < 0:
+            ends[i] += input_len
+        elif ends[i] > input_len:
+            ends[i] = input_len
+        if starts[i] < 0:
+            starts[i] += input_len
+        elif starts[i] > input_len:
+            starts[i] = input_len - 1
+
+    # slice & assign
+    dims = len(data.shape)
+    slices = ['::'] * dims
+    for i, axis in enumerate(axes):
+        slices[axis] = str(starts[i]) + ':' + str(ends[i]) + ':' + str(
+            strides[i])
+    res = data.clone()
+    exec(f"res[{','.join(slices)}] = update")
+    return res
 
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
                     "x86 test will be skipped due to timeout.")
 class TestSliceAssignOp(OpTest):
     def setUp(self):
-        self.init_case()
-        self.prepare_case()
+        print(f"\nRunning {self.__class__.__name__}: {self.case}")
+        self.inputs = {}
+        self.prepare_inputs()
 
-    def init_case(self):
+    def prepare_inputs(self):
         self.inputs = {
-            "inputs": np.random.random([10, 12]).astype("float32"),
-            "assign": np.zeros([3, 3]).astype("float32")
+            "inputs": self.random(self.case["inputs_shape"],
+                                  self.case["dtype"]),
+            "assign": self.random(self.case["assign_shape"],
+                                  self.case["dtype"]),
         }
-        self.axes = [0, 1]
-        self.starts = [2, 2]
-        self.ends = [5, 5]
-        self.strides = [1, 1]
-
-    def prepare_case(self):
-        for i in range(len(self.ends)):
-            input_len = self.inputs["inputs"].shape[i]
-            if self.ends[i] < 0:
-                self.ends[i] += input_len
-            elif self.ends[i] > input_len:
-                self.ends[i] = input_len
-            if self.starts[i] < 0:
-                self.starts[i] += input_len
-            elif self.starts[i] > input_len:
-                self.starts[i] = input_len - 1
-
-    def num_of_slice(self, start, end, stride):
-        if stride < 0:
-            start, end = end, start
-            stride = -stride
-        num = 0
-        while start < end:
-            start += stride
-            num += 1
-        return num
+        if self.case["assign_zeros"]:
+            self.inputs["assign"] = np.zeros(self.case["assign_shape"]).astype(
+                self.case["dtype"])
+        self.axes = self.case["axes"]
+        self.starts = self.case["starts"]
+        self.ends = self.case["ends"]
+        self.strides = self.case["strides"]
 
     def build_paddle_program(self, target):
-        res = self.inputs["inputs"].copy()
-
-        row_len = self.num_of_slice(self.starts[0], self.ends[0],
-                                    self.strides[0])
-
-        for row_id in range(row_len):
-            res[self.starts[0] + self.strides[0] *
-                row_id][self.starts[1]:self.ends[1]:self.
-                        strides[1]] = self.inputs["assign"][row_id]
-
-        pd_res = paddle.to_tensor(res, stop_gradient=True)
-        self.paddle_outputs = [pd_res]
+        inputs = paddle.to_tensor(self.inputs["inputs"], stop_gradient=True)
+        assign = paddle.to_tensor(self.inputs["assign"], stop_gradient=True)
+        res = paddle_slice_assign(inputs, assign, self.axes, self.starts,
+                                  self.ends, self.strides)
+        self.paddle_outputs = [res]
 
     def build_cinn_program(self, target):
         builder = NetBuilder("slice_assign")
         inputs = builder.create_input(
-            Float(32), self.inputs["inputs"].shape, "inputs")
+            self.nptype2cinntype(self.inputs["inputs"].dtype),
+            self.inputs["inputs"].shape, "inputs")
         assign = builder.create_input(
-            Float(32), self.inputs["assign"].shape, "assign")
+            self.nptype2cinntype(self.inputs["assign"].dtype),
+            self.inputs["assign"].shape, "assign")
         out = builder.slice_assign(
             inputs,
             assign,
@@ -100,150 +104,318 @@ class TestSliceAssignOp(OpTest):
         self.check_outputs_and_grads(all_equal=True)
 
 
-class TestSliceAssignCase1(TestSliceAssignOp):
-    def init_case(self):
-        self.inputs = {
-            "inputs": np.random.random([10, 12]).astype("float32"),
-            "assign": np.zeros([5, 5]).astype("float32")
-        }
-        self.axes = [0, 1]
-        self.starts = [1, 2]
-        self.ends = [6, 1000]
-        self.strides = [1, 2]
+class TestSliceAssignOpLegacyTest(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestSliceAssignOpLegacyTest"
+        self.cls = TestSliceAssignOp
+        self.inputs = [
+            {
+                "inputs_shape": [10, 12],
+                "assign_shape": [3, 3],
+                "axes": [0, 1],
+                "starts": [2, 2],
+                "ends": [5, 5],
+                "strides": [1, 1]
+            },
+            {
+                "inputs_shape": [10, 12],
+                "assign_shape": [5, 5],
+                "axes": [0, 1],
+                "starts": [1, 2],
+                "ends": [6, 1000],
+                "strides": [1, 2]
+            },
+            {
+                "inputs_shape": [10, 12],
+                "assign_shape": [3, 3],
+                "axes": [0, 1],
+                "starts": [2, 1],
+                "ends": [-1, 7],
+                "strides": [3, 2]
+            },
+            {
+                "inputs_shape": [10, 12],
+                "assign_shape": [6, 5],
+                "axes": [0, 1],
+                "starts": [2, 1000],
+                "ends": [8, 1],
+                "strides": [1, -2]
+            },
+            {
+                "inputs_shape": [10, 12],
+                "assign_shape": [4, 3],
+                "axes": [0, 1],
+                "starts": [-1, -2],
+                "ends": [-5, -8],
+                "strides": [-1, -2]
+            },
+            {
+                "inputs_shape": [121, 2],
+                "assign_shape": [121, 1],
+                "axes": [1],
+                "starts": [0],
+                "ends": [1],
+                "strides": [1]
+            },
+            {
+                "inputs_shape": [121, 2],
+                "assign_shape": [121, 1],
+                "axes": [1],
+                "starts": [1],
+                "ends": [2],
+                "strides": [1]
+            },
+            {
+                "inputs_shape": [121, 2],
+                "assign_shape": [121, 1],
+                "axes": [1],
+                "starts": [1],
+                "ends": [0],
+                "strides": [-1]
+            },
+            {
+                "inputs_shape": [121, 2, 2],
+                "assign_shape": [121, 2, 1],
+                "axes": [2],
+                "starts": [0],
+                "ends": [1],
+                "strides": [1]
+            },
+            {
+                "inputs_shape": [121, 2, 2],
+                "assign_shape": [121, 2, 1],
+                "axes": [2],
+                "starts": [1],
+                "ends": [2],
+                "strides": [1]
+            },
+            {
+                "inputs_shape": [121, 2, 2],
+                "assign_shape": [121, 2, 1],
+                "axes": [2],
+                "starts": [1],
+                "ends": [0],
+                "strides": [-1]
+            },
+        ]
+        self.dtypes = [{"dtype": "float32"}]
+        self.attrs = [
+            {
+                "assign_zeros": True,
+            },
+            {
+                "assign_zeros": False,
+            },
+        ]
 
 
-class TestSliceAssignCase2(TestSliceAssignOp):
-    def init_case(self):
-        self.inputs = {
-            "inputs": np.random.random([10, 12]).astype("float32"),
-            "assign": np.zeros([3, 3]).astype("float32")
-        }
-        self.axes = [0, 1]
-        self.starts = [2, 1]
-        self.ends = [-1, 7]
-        self.strides = [3, 2]
+class TestSliceAssignOpShapeTest(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestSliceAssignOpShapeTest"
+        self.cls = TestSliceAssignOp
+        self.inputs = [
+            {
+                "inputs_shape": [64],
+                "assign_shape": [3],
+                "axes": [0],
+                "starts": [2],
+                "ends": [5],
+                "strides": [1]
+            },
+            {
+                "inputs_shape": [128, 32],
+                "assign_shape": [32, 16],
+                "axes": [0, 1],
+                "starts": [24, 10],
+                "ends": [56, 26],
+                "strides": [1, 1]
+            },
+            {
+                "inputs_shape": [32, 10, 64],
+                "assign_shape": [8, 4, 16],
+                "axes": [0, 1, 2],
+                "starts": [24, 4, 0],
+                "ends": [32, 8, 64],
+                "strides": [1, 1, 4]
+            },
+            {
+                "inputs_shape": [10, 12, 9, 5],
+                "assign_shape": [3, 5, 4, 5],
+                "axes": [0, 1, 2],
+                "starts": [2, 4, 0],
+                "ends": [5, 9, 7],
+                "strides": [1, 1, 2]
+            },
+            {
+                "inputs_shape": [1],
+                "assign_shape": [1],
+                "axes": [0],
+                "starts": [0],
+                "ends": [1],
+                "strides": [1]
+            },
+            {
+                "inputs_shape": [1, 1, 1, 1, 1],
+                "assign_shape": [1, 1, 1, 1, 1],
+                "axes": [0],
+                "starts": [0],
+                "ends": [1],
+                "strides": [1]
+            },
+            {
+                "inputs_shape": [1024, 1, 2],
+                "assign_shape": [512, 1, 2],
+                "axes": [0],
+                "starts": [128],
+                "ends": [640],
+                "strides": [1]
+            },
+            {
+                "inputs_shape": [2, 4096, 8],
+                "assign_shape": [2, 2048, 8],
+                "axes": [1],
+                "starts": [1024],
+                "ends": [3072],
+                "strides": [1]
+            },
+        ]
+        self.dtypes = [
+            {
+                "dtype": "float32"
+            },
+        ]
+        self.attrs = [
+            {
+                "assign_zeros": False,
+            },
+        ]
 
 
-class TestSliceAssignCase3(TestSliceAssignOp):
-    def init_case(self):
-        self.inputs = {
-            "inputs": np.random.random([10, 12]).astype("float32"),
-            "assign": np.zeros([7, 5]).astype("float32")
-        }
-        self.axes = [0, 1]
-        self.starts = [2, 1000]
-        self.ends = [8, 1]
-        self.strides = [1, -2]
+class TestSliceAssignOpDtypeTest(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestSliceAssignOpDtypeTest"
+        self.cls = TestSliceAssignOp
+        self.inputs = [
+            {
+                "inputs_shape": [10, 12, 9, 5],
+                "assign_shape": [3, 5, 4, 5],
+                "axes": [0, 1, 2],
+                "starts": [2, 4, 0],
+                "ends": [5, 9, 7],
+                "strides": [1, 1, 2]
+            },
+        ]
+        self.dtypes = [
+            {
+                "dtype": "float32"
+            },
+            {
+                "dtype": "float64"
+            },
+            {
+                "dtype": "int32"
+            },
+            {
+                "dtype": "int64"
+            },
+            {
+                "dtype": "bool"
+            },
+        ]
+        self.attrs = [
+            {
+                "assign_zeros": False,
+            },
+        ]
 
 
-class TestSliceAssignCase4(TestSliceAssignOp):
-    def init_case(self):
-        self.inputs = {
-            "inputs": np.random.random([10, 12]).astype("float32"),
-            "assign": np.zeros([4, 3]).astype("float32")
-        }
-        self.axes = [0, 1]
-        self.starts = [-1, -2]
-        self.ends = [-5, -8]
-        self.strides = [-1, -2]
+class TestSliceAssignOpAxesTest(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestSliceAssignOpAxesTest"
+        self.cls = TestSliceAssignOp
+        self.inputs = [
+            {
+                "inputs_shape": [128, 32],
+                "assign_shape": [128, 16],
+                "axes": [1],
+                "starts": [10],
+                "ends": [26],
+                "strides": [1]
+            },
+            {
+                "inputs_shape": [32, 10, 64],
+                "assign_shape": [8, 10, 16],
+                "axes": [0, 2],
+                "starts": [24, 0],
+                "ends": [32, 64],
+                "strides": [1, 4]
+            },
+            {
+                "inputs_shape": [10, 12, 9, 5],
+                "assign_shape": [3, 12, 9, 3],
+                "axes": [0, 3],
+                "starts": [2, 0],
+                "ends": [5, 3],
+                "strides": [1, 1]
+            },
+        ]
+        self.dtypes = [
+            {
+                "dtype": "float32"
+            },
+        ]
+        self.attrs = [
+            {
+                "assign_zeros": False,
+            },
+        ]
 
 
-class TestSliceAssignAxes1Op(TestSliceAssignOp):
-    def init_case(self):
-        self.inputs = {
-            "inputs": np.random.random([121, 2]).astype("float32"),
-            "assign": np.zeros([121, 1]).astype("float32")
-        }
-        self.axes = [1]
-        self.starts = [0]
-        self.ends = [1]
-        self.strides = [1]
-
-    def build_paddle_program(self, target):
-        res = self.inputs["inputs"].copy()
-
-        for row_id in range(self.inputs["inputs"].shape[0]):
-            res[row_id][self.starts[0]:self.ends[0]:self.
-                        strides[0]] = self.inputs["assign"][row_id]
-
-        pd_res = paddle.to_tensor(res, stop_gradient=True)
-        self.paddle_outputs = [pd_res]
-
-
-class TestSliceAssignAxes1Case1(TestSliceAssignAxes1Op):
-    def init_case(self):
-        self.inputs = {
-            "inputs": np.random.random([121, 2]).astype("float32"),
-            "assign": np.zeros([121, 1]).astype("float32")
-        }
-        self.axes = [1]
-        self.starts = [1]
-        self.ends = [2]
-        self.strides = [1]
-
-
-class TestSliceAssignAxes1Case2(TestSliceAssignAxes1Op):
-    def init_case(self):
-        self.inputs = {
-            "inputs": np.random.random([121, 2]).astype("float32"),
-            "assign": np.zeros([121, 1]).astype("float32")
-        }
-        self.axes = [1]
-        self.starts = [1]
-        self.ends = [0]
-        self.strides = [-1]
-
-
-class TestSliceAssignAxes2Op(TestSliceAssignOp):
-    def init_case(self):
-        self.inputs = {
-            "inputs": np.random.random([121, 2, 2]).astype("float32"),
-            "assign": np.zeros([121, 2, 1]).astype("float32")
-        }
-        self.axes = [2]
-        self.starts = [0]
-        self.ends = [1]
-        self.strides = [1]
-
-    def build_paddle_program(self, target):
-        res = self.inputs["inputs"].copy()
-
-        row_len = self.num_of_slice(self.starts[0], self.ends[0],
-                                    self.strides[0])
-
-        for row_id in range(self.inputs["inputs"].shape[0]):
-            for col_id in range(self.inputs["inputs"].shape[1]):
-                res[row_id][col_id][self.starts[0]:self.ends[0]:self.
-                                    strides[0]] = self.inputs["assign"][
-                                        row_id][col_id]
-
-        pd_res = paddle.to_tensor(res, stop_gradient=True)
-        self.paddle_outputs = [pd_res]
-
-
-class TestSliceAssignAxes2Case1(TestSliceAssignAxes2Op):
-    def init_case(self):
-        self.inputs = {
-            "inputs": np.random.random([121, 2, 2]).astype("float32"),
-            "assign": np.zeros([121, 2, 1]).astype("float32")
-        }
-        self.axes = [2]
-        self.starts = [1]
-        self.ends = [2]
-        self.strides = [1]
-
-
-class TestSliceAssignAxes2Case2(TestSliceAssignAxes2Op):
-    def init_case(self):
-        self.inputs = {
-            "inputs": np.random.random([121, 2, 2]).astype("float32"),
-            "assign": np.zeros([121, 2, 1]).astype("float32")
-        }
-        self.axes = [2]
-        self.starts = [1]
-        self.ends = [0]
-        self.strides = [-1]
+class TestSliceAssignOpStridesTest(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestSliceAssignOpStridesTest"
+        self.cls = TestSliceAssignOp
+        self.inputs = [
+            {
+                "inputs_shape": [128, 32],
+                "assign_shape": [8, 16],
+                "axes": [0, 1],
+                "starts": [0, 0],
+                "ends": [128, 32],
+                "strides": [16, 2]
+            },
+            {
+                "inputs_shape": [32, 10, 64],
+                "assign_shape": [8, 10, 16],
+                "axes": [0, 2],
+                "starts": [16, 0],
+                "ends": [32, 64],
+                "strides": [2, 4]
+            },
+            {
+                "inputs_shape": [8, 16, 32, 64, 128],
+                "assign_shape": [8, 8, 8, 8, 8],
+                "axes": [0, 1, 2, 3, 4],
+                "starts": [0, 0, 0, 0, 0],
+                "ends": [8, 16, 32, 64, 128],
+                "strides": [1, 2, 4, 8, 16]
+            },
+        ]
+        self.dtypes = [
+            {
+                "dtype": "float32"
+            },
+        ]
+        self.attrs = [
+            {
+                "assign_zeros": False,
+            },
+        ]
 
 
 if __name__ == "__main__":
-    unittest.main()
+    TestSliceAssignOpLegacyTest().run()
+    TestSliceAssignOpShapeTest().run()
+    TestSliceAssignOpDtypeTest().run()
+    TestSliceAssignOpAxesTest().run()
+    TestSliceAssignOpStridesTest().run()

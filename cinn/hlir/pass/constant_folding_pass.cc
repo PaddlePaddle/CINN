@@ -70,6 +70,8 @@ class ConstantFoldingPassHelper : public FusionHelperBase {
         }
 
         if (!can_fold) continue;
+        // key = "${cur_node_id}_${producer_node_id}"", for example:
+        // "broadcast_to_fill_constant" means fill_constant->broadcast_to
         auto key = GetTypeName(node->safe_as<Node>());
         if (alter_function_.count(key)) {
           alter_function_[key](this, graph_, node->safe_as<Node>());

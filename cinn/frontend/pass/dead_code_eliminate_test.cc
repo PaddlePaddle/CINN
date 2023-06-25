@@ -19,11 +19,12 @@
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/tensor.h"
 #include "cinn/hlir/op/use_ops.h"
+#include "cinn/runtime/flags.h"
 
 namespace cinn::frontend {
 
 TEST(DeadCodeEliminate, remove_single) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     return;
   }
   //              <x>
@@ -51,7 +52,7 @@ TEST(DeadCodeEliminate, remove_single) {
 }
 
 TEST(DeadCodeEliminate, remove_multiple) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     return;
   }
   //              <x>

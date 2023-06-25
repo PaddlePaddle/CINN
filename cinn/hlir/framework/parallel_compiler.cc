@@ -28,6 +28,7 @@
 #include "cinn/common/context.h"
 #include "cinn/hlir/framework/pass.h"
 #include "cinn/ir/module.h"
+#include "cinn/runtime/flags.h"
 
 DECLARE_int32(cinn_parallel_compile_size);
 DECLARE_int32(cinn_parallel_compile_thread);
@@ -178,10 +179,9 @@ void ParallelCompiler::Task::CodegenAndJit() {
     backends::nvrtc::Compiler compiler;
     auto ptx = compiler(cuda_c);
     CHECK(!ptx.empty()) << "Compile PTX failed from source code:\n" << cuda_c;
-    graph->SavePTXCode(ptx);
-
     // load cumodule
     cumodule.reset(new CUDAModule(ptx, compiler.compile_to_cubin() ? CUDAModule::Kind::CUBIN : CUDAModule::Kind::PTX));
+
     // register kernel
     backends::RuntimeSymbols symbols;
     for (auto& fn : dmodule.functions()) {

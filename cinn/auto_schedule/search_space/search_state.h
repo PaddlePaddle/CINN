@@ -75,7 +75,7 @@ struct SearchStateEqual {
 /*!
  * \brief concatenate debug strings of all states with additional info
  * \param title head of the result string
- * \param states SearchState array to be debuged
+ * \param states SearchState array to be debugged
  * \param verbose whether to enable more verbose debug info
  * \return the concatenated debug string
  */

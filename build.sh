@@ -18,7 +18,7 @@ set -ex
 workspace=$PWD
 build_dir_name=${cinn_build:-build}
 build_dir=$workspace/${build_dir_name}
-py_version=${py_version:-3.6}
+py_version=${py_version:-3.8}
 cinn_whl_path=python/dist/cinn-0.0.0-py3-none-any.whl
 
 #export LLVM11_DIR=${workspace}/THIRDS/usr
@@ -108,17 +108,21 @@ function prepare_ci {
     apt install -y python${py_version}-dev
   fi
 
-  if ! python${py_version} -m venv $build_dir/ci-env &> /dev/null; then
-    apt install -y python${py_version}-venv
-    python${py_version} -m venv $build_dir/ci-env
+  if ! command -v virtualenv  &> /dev/null; then
+    apt install -y virtualenv
   fi
+
+  if [[ ! -e $build_dir/ci-env/bin/activate ]]; then
+    virtualenv ${build_dir}/ci-env -p python${py_version}
+  fi
+
   source $build_dir/ci-env/bin/activate
-  pip install -U --no-cache-dir pip
-  pip install pre-commit
-  pip install clang-format==13.0.0
-  pip install wheel
-  pip install sphinx==3.3.1 sphinx_gallery==0.8.1 recommonmark==0.6.0 exhale scipy breathe==4.24.0 matplotlib sphinx_rtd_theme
-  pip install paddlepaddle-gpu==2.3.1.post101 -f https://www.paddlepaddle.org.cn/whl/linux/mkl/avx/stable.html
+  python${py_version} -m pip install -U --no-cache-dir pip
+  python${py_version} -m pip install pre-commit
+  python${py_version} -m pip install clang-format==13.0.0
+  python${py_version} -m pip install wheel
+  python${py_version} -m pip install sphinx==3.3.1 sphinx_gallery==0.8.1 recommonmark==0.6.0 exhale scipy breathe==4.24.0 matplotlib sphinx_rtd_theme
+  python${py_version} -m pip install paddlepaddle-gpu==0.0.0.post112 -f https://www.paddlepaddle.org.cn/whl/linux/gpu/develop.html
 }
 
 function prepare_doc_model_file {
@@ -210,9 +214,9 @@ function prepare_model {
     fi
     tar -zxvf mkldnn.tgz
     cd $build_dir/thirds
-    python $workspace/python/tests/fake_model/naive_mul.py
-    python $workspace/python/tests/fake_model/naive_multi_fc.py
-    python $workspace/python/tests/fake_model/resnet_model.py
+    python${py_version} $workspace/python/tests/fake_model/naive_mul.py
+    python${py_version} $workspace/python/tests/fake_model/naive_multi_fc.py
+    python${py_version} $workspace/python/tests/fake_model/resnet_model.py
 }
 
 function codestyle_check {
@@ -233,8 +237,8 @@ function build {
     make -j $JOBS
 
     ls python/dist
-    pip${py_version} install xgboost
-    pip${py_version} install -U ${cinn_whl_path}
+    python${py_version} -m pip install xgboost
+    python${py_version} -m pip install -U ${cinn_whl_path}
 }
 
 function run_demo {
@@ -248,8 +252,10 @@ function run_demo {
 }
 
 function run_test {
+    source $build_dir/ci-env/bin/activate
     cd $build_dir
     export runtime_include_dir=$workspace/cinn/runtime/cuda
+
     if [ ${TESTING_DEBUG_MODE:-OFF} == "ON" ] ; then
         ctest --parallel 10 -V
     else

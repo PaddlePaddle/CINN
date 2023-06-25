@@ -29,7 +29,9 @@
 namespace cinn {
 
 namespace ir {
+using common::BFloat16;
 using common::Float;
+using common::Float16;
 using common::Int;
 using common::Type;
 using common::type_of;
@@ -303,8 +305,8 @@ struct Expr : public IrNodeRef {
   explicit Expr(uint32_t x) : IrNodeRef(new UIntImm(UInt(32), x)) {}
   explicit Expr(uint64_t x) : IrNodeRef(new UIntImm(UInt(64), x)) {}
 
-  explicit Expr(cinn::common::float16 x)
-      : IrNodeRef(new FloatImm(Float(16, 1, common::Type::specific_type_t::FP16), x)) {}
+  explicit Expr(cinn::common::bfloat16 x) : IrNodeRef(new FloatImm(BFloat16(), x)) {}
+  explicit Expr(cinn::common::float16 x) : IrNodeRef(new FloatImm(Float16(), x)) {}
   explicit Expr(float x) : IrNodeRef(new FloatImm(Float(32), x)) {}
   explicit Expr(double x) : IrNodeRef(new FloatImm(Float(64), x)) {}
 
@@ -327,6 +329,7 @@ struct Expr : public IrNodeRef {
   uint32_t as_uint32() const;
   uint64_t as_uint64() const;
 
+  cinn::common::bfloat16 as_bfloat16() const;
   cinn::common::float16 as_float16() const;
   float as_float() const;
   double as_double() const;
