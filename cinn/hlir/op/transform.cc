@@ -831,7 +831,6 @@ std::shared_ptr<OpStrategy> StrategyForReverse(const framework::NodeAttr &attrs,
   std::vector<int> axis;
   if (attrs.attr_store.find("axis") != attrs.attr_store.end()) {
     axis = absl::get<std::vector<int>>(attrs.attr_store.at("axis"));
-    CHECK(!axis.empty()) << "axis is empty! Please check setting.\n";
     for (auto &e : axis) {
       if (e >= static_cast<int>(output_shapes[0].size()) || e < -1 * static_cast<int>(output_shapes[0].size())) {
         LOG(FATAL) << "axis is not in [0, n_dim), Please check.";
@@ -840,8 +839,6 @@ std::shared_ptr<OpStrategy> StrategyForReverse(const framework::NodeAttr &attrs,
         e += output_shapes[0].size();
       }
     }
-  } else {
-    LOG(FATAL) << "axis is not be set! Please check.";
   }
 
   framework::CINNCompute reverse_compute([=](lang::Args args, lang::RetValue *ret) {
@@ -875,7 +872,6 @@ std::vector<framework::shape_t> InferShapeForReverse(const std::vector<framework
   std::vector<framework::shape_t> res{inputs_shape[0]};
   if (attrs.find("axis") != attrs.end()) {
     auto axis = absl::get<std::vector<int>>(attrs.at("axis"));
-    CHECK(!axis.empty()) << "axis is empty! Please check setting.\n";
     for (auto &e : axis) {
       if (e >= static_cast<int>(inputs_shape[0].size()) || e < -1 * static_cast<int>(inputs_shape[0].size())) {
         LOG(FATAL) << "axis is not in [-n_dim, n_dim), Please check.";
@@ -884,8 +880,6 @@ std::vector<framework::shape_t> InferShapeForReverse(const std::vector<framework
         e += inputs_shape[0].size();
       }
     }
-  } else {
-    LOG(FATAL) << "axis is not be set! Please check.";
   }
   return res;
 }
@@ -896,14 +890,11 @@ std::vector<std::vector<std::string>> InferLayoutForReverse(const std::vector<fr
                                                             const Target &target) {
   if (attrs.attr_store.find("axis") != attrs.attr_store.end()) {
     auto axis = absl::get<std::vector<int>>(attrs.attr_store.at("axis"));
-    CHECK(!axis.empty()) << "axis is empty! Please check setting.\n";
     for (auto &e : axis) {
       if (e >= static_cast<int>(input_shapes[0].size()) || e < -1 * static_cast<int>(input_shapes[0].size())) {
         LOG(FATAL) << "axis is not in [-n_dim, n_dim), Please check.";
       }
     }
-  } else {
-    LOG(FATAL) << "axis is not be set! Please check.";
   }
   CHECK_EQ(input_layouts.size(), 1U) << "The input's layout size is not 1! Please check again.";
   return {input_layouts, input_layouts};

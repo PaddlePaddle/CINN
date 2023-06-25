@@ -1,6 +1,4 @@
-#!/usr/bin/env python3
-
-# Copyright (c) 2022 CINN Authors. All Rights Reserved.
+# Copyright (c) 2023 CINN Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import numpy as np
 from op_test import OpTest, OpTestTool
 from op_test_helper import TestCaseHelper
 import paddle
@@ -25,49 +22,37 @@ from cinn.common import *
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
                     "x86 test will be skipped due to timeout.")
-class TestLogicalRightShift(OpTest):
+class TestRoundOp(OpTest):
     def setUp(self):
         # print(f"\n{self.__class__.__name__}: {self.case}")
         self.prepare_inputs()
 
     def prepare_inputs(self):
-        iinfo = np.iinfo(self.case["dtype"])
         self.x_np = self.random(
-            shape=self.case["shape"],
-            dtype=self.case["dtype"],
-            low=0,
-            high=iinfo.max)
-        self.y_np = self.random(
-            shape=self.case["shape"],
-            dtype=self.case["dtype"],
-            low=0,
-            high=iinfo.bits)
+            shape=self.case["shape"], dtype=self.case["dtype"])
 
     def build_paddle_program(self, target):
-        out_np = np.right_shift(self.x_np, self.y_np)
-        out = paddle.to_tensor(out_np, stop_gradient=True)
+        x = paddle.to_tensor(self.x_np, stop_gradient=False)
+        out = paddle.round(x)
         self.paddle_outputs = [out]
 
     def build_cinn_program(self, target):
-        builder = NetBuilder("logical_right_shift")
+        builder = NetBuilder("add")
         x = builder.create_input(
             self.nptype2cinntype(self.x_np.dtype), self.x_np.shape, "x")
-        y = builder.create_input(
-            self.nptype2cinntype(self.y_np.dtype), self.y_np.shape, "y")
-        out = builder.logical_right_shift(x, y)
+        out = builder.round(x)
         prog = builder.build()
-        res = self.get_cinn_output(prog, target, [x, y],
-                                   [self.x_np, self.y_np], [out])
+        res = self.get_cinn_output(prog, target, [x], [self.x_np], [out])
         self.cinn_outputs = res
 
     def test_check_results(self):
-        self.check_outputs_and_grads(all_equal=True)
+        self.check_outputs_and_grads()
 
 
-class TestLogicalRightShiftShape(TestCaseHelper):
+class TestRoundOpShape(TestCaseHelper):
     def init_attrs(self):
-        self.class_name = "TestLogicalRightShiftCase"
-        self.cls = TestLogicalRightShift
+        self.class_name = "TestRoundOpCase"
+        self.cls = TestRoundOp
         self.inputs = [
             {
                 "shape": [1],
@@ -90,16 +75,16 @@ class TestLogicalRightShiftShape(TestCaseHelper):
         ]
         self.dtypes = [
             {
-                "dtype": "int32",
+                "dtype": "float32",
             },
         ]
         self.attrs = []
 
 
-class TestLogicalRightShiftDtype(TestCaseHelper):
+class TestRoundOpDtype(TestCaseHelper):
     def init_attrs(self):
-        self.class_name = "TestLogicalRightShiftCase"
-        self.cls = TestLogicalRightShift
+        self.class_name = "TestRoundOpCase"
+        self.cls = TestRoundOp
         self.inputs = [
             {
                 "shape": [1024],
@@ -107,24 +92,21 @@ class TestLogicalRightShiftDtype(TestCaseHelper):
         ]
         self.dtypes = [
             {
-                "dtype": "uint8",
+                "dtype": "float16",
             },
             {
-                "dtype": "int8",
+                "dtype": "bfloat16",
             },
             {
-                "dtype": "int16",
+                "dtype": "float32",
             },
             {
-                "dtype": "int32",
-            },
-            {
-                "dtype": "int64",
+                "dtype": "float64",
             },
         ]
         self.attrs = []
 
 
 if __name__ == "__main__":
-    TestLogicalRightShiftShape().run()
-    TestLogicalRightShiftDtype().run()
+    TestRoundOpShape().run()
+    TestRoundOpDtype().run()
