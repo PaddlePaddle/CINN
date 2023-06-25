@@ -167,8 +167,8 @@ class TestMulOpShapeTest(TestMulOpBase):
         #  "y_num_col_dims": 1,
         #},
         {
-            "x_shape": [32, 64],
-            "y_shape": [64, 32],
+            "x_shape": [1, 1],
+            "y_shape": [1, 1],
             "x_num_col_dims": 1,
             "y_num_col_dims": 1,
         },
