@@ -16,8 +16,13 @@
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include <unordered_set>
+
+#include "cinn/common/target.h"
 
 #ifdef CINN_WITH_CUDNN
 DEFINE_bool(cinn_cudnn_deterministic,
@@ -33,6 +38,9 @@ using ::GFLAGS_NAMESPACE::Int64FromEnv;
 using ::GFLAGS_NAMESPACE::StringFromEnv;
 
 DEFINE_string(cinn_x86_builtin_code_root, StringFromEnv("FLAGS_cinn_x86_builtin_code_root", ""), "");
+DEFINE_string(cinn_nvcc_cmd_path,
+              StringFromEnv("FLAGS_cinn_nvcc_cmd_path", "/usr/local/cuda/bin"),
+              "Setting nvcc default path!");
 
 DEFINE_int32(cinn_parallel_compile_size,
              Int32FromEnv("FLAGS_cinn_parallel_compile_size", 16),
@@ -83,6 +91,10 @@ DEFINE_bool(nvrtc_compile_to_cubin,
             BoolFromEnv("FLAGS_nvrtc_compile_to_cubin", false),
             "Whether nvrtc compile cuda source into cubin instead of ptx (only works after cuda-11.1).");
 
+DEFINE_bool(cinn_compile_with_nvrtc,
+            BoolFromEnv("FLAGS_cinn_compile_with_nvrtc", true),
+            "Whether nvrtc compile cuda source with nvrtc(default nvcc).");
+
 // FLAGS for performance analysis and accuracy debug
 DEFINE_bool(cinn_sync_run,
             BoolFromEnv("FLAGS_cinn_sync_run", false),
@@ -122,6 +134,11 @@ DEFINE_bool(enhance_vertical_fusion_with_recompute,
 DEFINE_bool(verbose_function_register,
             BoolFromEnv("FLAGS_verbose_function_register", false),
             "Whether to verbose function regist log. This will only work if CINN build with flag -DWITH_DEBUG=ON.");
+
+DEFINE_int32(
+    cinn_profiler_state,
+    Int32FromEnv("FLAGS_cinn_profiler_state", -1),
+    "Specify the ProfilerState by Int in CINN, 0 for kDisabled, 1 for kCPU, 2 for kCUDA, 3 for kAll, default 0.");
 
 namespace cinn {
 namespace runtime {
@@ -172,6 +189,39 @@ unsigned long long RandomSeed::Clear() {
   seed_         = 0ULL;
   return old_seed;
 }
+
+bool CanUseNvccCompiler() {
+  std::string nvcc_dir = FLAGS_cinn_nvcc_cmd_path + "/nvcc";
+  return (access(nvcc_dir.c_str(), 0) == -1 ? false : true) && (!FLAGS_cinn_compile_with_nvrtc);
+}
+
+bool IsCompiledWithCUDA() {
+#if !defined(CINN_WITH_CUDA)
+  return false;
+#else
+  return true;
+#endif
+}
+
+bool IsCompiledWithCUDNN() {
+#if !defined(CINN_WITH_CUDNN)
+  return false;
+#else
+  return true;
+#endif
+}
+
+common::Target CurrentTarget::target_ = common::DefaultTarget();
+
+void CurrentTarget::SetCurrentTarget(const common::Target& target) {
+  if (!IsCompiledWithCUDA() && target.arch == common::Target::Arch::NVGPU) {
+    LOG(FATAL) << "Current CINN version does not support NVGPU, please try to recompile with -DWITH_CUDA.";
+  } else {
+    target_ = target;
+  }
+}
+
+common::Target& CurrentTarget::GetCurrentTarget() { return target_; }
 
 }  // namespace runtime
 }  // namespace cinn

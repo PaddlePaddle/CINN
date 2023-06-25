@@ -57,11 +57,11 @@ bool PassPrinter::Begin(const std::unordered_set<std::string>& fetch_ids) {
 }
 
 bool PassPrinter::PassBegin(const std::string& pass_name, const frontend::Program& program) {
-  const auto& program_info = utils::GetStreamCnt(program);
   if (save_path_.empty()) {
-    VLOG(3) << "Before " << pass_name << " Pass:\n" << program_info;
     return false;
   }
+  const auto& program_info = utils::GetStreamCnt(program);
+  VLOG(3) << "Before " << pass_name << " Pass:\n" << program_info;
   const std::string& file_path =
       utils::StringFormat("%s/pass_%d_%s_before.txt", save_path_.c_str(), pass_id_, pass_name.c_str());
   WriteToFile(file_path, program_info);
@@ -69,11 +69,11 @@ bool PassPrinter::PassBegin(const std::string& pass_name, const frontend::Progra
 }
 
 bool PassPrinter::PassEnd(const std::string& pass_name, const frontend::Program& program) {
-  const auto& program_info = utils::GetStreamCnt(program);
   if (save_path_.empty()) {
-    VLOG(3) << "After " << pass_name << " Pass:\n" << program_info;
     return false;
   }
+  const auto& program_info = utils::GetStreamCnt(program);
+  VLOG(3) << "After " << pass_name << " Pass:\n" << program_info;
   const std::string& file_path =
       utils::StringFormat("%s/pass_%d_%s_after.txt", save_path_.c_str(), pass_id_, pass_name.c_str());
   WriteToFile(file_path, program_info);
@@ -83,11 +83,11 @@ bool PassPrinter::PassEnd(const std::string& pass_name, const frontend::Program&
 }
 
 bool PassPrinter::PassBegin(const std::string& pass_name, Graph* g) {
-  const auto& graph_info = g->DebugGroupedGraph(fetch_ids_);
   if (save_path_.empty()) {
-    VLOG(3) << "Before " << pass_name << " Pass:\n" << graph_info;
     return false;
   }
+  const auto& graph_info = g->DebugGroupedGraph(fetch_ids_);
+  VLOG(3) << "Before " << pass_name << " Pass:\n" << graph_info;
   const std::string& file_path =
       utils::StringFormat("%s/pass_%d_%s_before.txt", save_path_.c_str(), pass_id_, pass_name.c_str());
   WriteToFile(file_path, graph_info);
@@ -100,11 +100,12 @@ bool PassPrinter::PassBegin(const std::string& pass_name, Graph* g) {
 }
 
 bool PassPrinter::PassEnd(const std::string& pass_name, Graph* g) {
-  const auto& graph_info = g->DebugGroupedGraph(fetch_ids_);
   if (save_path_.empty()) {
-    VLOG(3) << "After " << pass_name << " Pass:\n" << graph_info;
     return false;
   }
+  const auto& graph_info = g->DebugGroupedGraph(fetch_ids_);
+  VLOG(3) << "After " << pass_name << " Pass:\n" << graph_info;
+
   const std::string& file_path =
       utils::StringFormat("%s/pass_%d_%s_after.txt", save_path_.c_str(), pass_id_, pass_name.c_str());
   WriteToFile(file_path, graph_info);

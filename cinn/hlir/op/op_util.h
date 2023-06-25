@@ -22,17 +22,26 @@
 #include "cinn/hlir/framework/node.h"
 #include "cinn/ir/ir.h"
 #include "cinn/lang/packed_func.h"
+#include "cinn/utils/type_defs.h"
 
 namespace cinn {
 namespace hlir {
 
+template <typename T>
+T GetAttr(const cinn::utils::AttributeMap &attr_map, const std::string &attr_name) {
+  CHECK(attr_map.count(attr_name)) << "Cannot found attribute \"" << attr_name << "\"";
+  const auto &attr = attr_map.at(attr_name);
+
+  CHECK(absl::holds_alternative<T>(attr)) << "The type of attribute \"" << attr_name << "\" isn't " << typeid(T).name();
+  return absl::get<T>(attr_map.at(attr_name));
+}
+
 template <class T>
-T GetAttr(const absl::flat_hash_map<std::string, framework::AttrType> &attrs, const std::string &key, const T &&value) {
+T SafeGetAttr(const cinn::utils::AttributeMap &attrs, const std::string &key, const T &&value) {
   if (attrs.find(key) != attrs.end()) {
-    return absl::get<T>(attrs.at(key));
-  } else {
-    return value;
+    return GetAttr<T>(attrs, key);
   }
+  return value;
 }
 
 template <typename T = int>
@@ -88,7 +97,11 @@ std::vector<T> ToPodVector(const std::vector<Expr> &args) {
     for (auto &e : args) {
       shape_v.push_back(static_cast<T>(e.as_uint64()));
     }
-  } else if (type.is_float(16)) {
+  } else if (type.is_bfloat16()) {
+    for (auto &e : args) {
+      shape_v.push_back(static_cast<T>(e.as_bfloat16()));
+    }
+  } else if (type.is_float16()) {
     for (auto &e : args) {
       shape_v.push_back(static_cast<T>(e.as_float16()));
     }
@@ -116,7 +129,12 @@ CINNSchedule GetInjectiveScheduleFunc(const std::vector<std::vector<int>> &outpu
                                       const Target &target,
                                       bool vectorizable = true);
 
-std::string GetExternFuncName(const common::Target &target, const common::Type &type, const std::string &func_name);
+std::string GetExternFuncName(const common::Target &target,
+                              const common::Type &type,
+                              const std::string &func_name,
+                              const bool need_cinn   = true,
+                              const bool need_target = true,
+                              const bool need_type   = true);
 
 }  // namespace hlir
 }  // namespace cinn

@@ -145,7 +145,7 @@ void BatchNormGradOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperCon
 
   // batch norm grad, output(grad_x, grad_scale, grad_bias)
   auto outs = ctx.Builder()->BatchNormGrad(dy, x, scale, saved_mean, saved_variance, epsilon, data_layout);
-  CHECK_EQ(outs.size(), 3ul) << "batch_norm_grad API's should return 3 Variable!";
+  CHECK_EQ(outs.size(), 3ul) << "batch_norm_grad APIs should return 3 Variable!";
 
   for (int i = 0; i < outs.size(); i++) {
     if (output_names[i].empty()) {

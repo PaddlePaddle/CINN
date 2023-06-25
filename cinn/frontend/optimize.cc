@@ -43,6 +43,7 @@ namespace frontend {
 
 OptimizeOptions DefaultTrainingOptimizeOptions() {
   OptimizeOptions options;
+  options.program_passes.emplace_back("ExpandZeroDim");
   options.program_passes.emplace_back("AutoCast");
   options.program_passes.emplace_back("Decomposer");
   options.program_passes.emplace_back("RemoveIdentity");
@@ -66,6 +67,7 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
   }
 #endif
 
+  options.program_passes.emplace_back("AutoBroadcast");
   options.program_passes.emplace_back("FillConstantRewriter");
   if (FLAGS_cinn_use_fill_constant_folding) {
     options.program_passes.emplace_back("FillConstantFolding");
@@ -136,5 +138,40 @@ std::shared_ptr<hlir::framework::Graph> Optimize(frontend::Program* program,
   cinn::hlir::framework::PassPrinter::GetInstance()->End();
   return graph;
 }
+
+std::shared_ptr<hlir::framework::Graph> Optimize(frontend::Program* program,
+                                                 const std::unordered_set<std::string>& fetch_ids,
+                                                 common::Target target,
+                                                 const std::vector<std::string>& passes) {
+  OptimizeOptions options;
+
+  bool enbale_fusion = false;
+  if (!passes.empty()) {
+    for (const auto& pass : passes) {
+      auto* p_pass = ProgramPassRegistry::Global()->Find(pass);
+      auto* g_pass = Registry<hlir::framework::PassFunctionRegister>::Global()->Find(pass);
+      if (p_pass) {
+        options.program_passes.emplace_back(pass);
+      } else if (g_pass) {
+        options.graph_passes.emplace_back(pass);
+        if (pass == "OpFusionPass" || pass == "FusionMergePass") {
+          enbale_fusion = true;
+        }
+      } else {
+        LOG(FATAL) << "Pass " << pass << " unsupported in CINN! Please check.\n";
+      }
+    }
+
+    if (!enbale_fusion) {
+      options.graph_passes.emplace_back("BuildNonFusedGroupsPass");
+    }
+  } else {
+    // if pass empty, default enable all pass
+    options = DefaultTrainingOptimizeOptions();
+  }
+
+  return Optimize(program, fetch_ids, target, options);
+}
+
 }  // namespace frontend
 }  // namespace cinn

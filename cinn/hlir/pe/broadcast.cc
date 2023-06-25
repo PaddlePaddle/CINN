@@ -249,16 +249,18 @@ HLIR_IMP_BC_PE(Subtract, return a - b;);
 HLIR_IMP_BC_PE(Multiply, return a * b;);
 HLIR_IMP_BC_PE(Divide, return a / b;);
 HLIR_IMP_BC_PE(FloorDivide, return lang::FloorDivide(a, b););
-HLIR_IMP_BC_PE(Remainder, return a.type().is_int() ? a % b : lang::Remainder(a, b););
+HLIR_IMP_BC_PE(Remainder, return lang::Remainder(a, b););
 HLIR_IMP_BC_PE(Mod, return lang::Mod(a, b););
 HLIR_IMP_BC_PE(Maximum, return ir::Max::Make(a, b););
 HLIR_IMP_BC_PE(Minimum, return ir::Min::Make(a, b););
 HLIR_IMP_BC_PE(LeftShift, return a << b;);
 HLIR_IMP_BC_PE(RightShift, return a >> b;);
 HLIR_IMP_BC_PE(LogicalRightShift, return lang::LogicalRightShift(a, b););
-HLIR_IMP_BC_PE(LogicalAnd, return a && b;);
-HLIR_IMP_BC_PE(LogicalOr, return a || b;);
-HLIR_IMP_BC_PE(LogicalXOr, return (a || b) && !(a && b););
+HLIR_IMP_BC_PE(LogicalAnd, return ir::Cast::Make(Bool(), a) && ir::Cast::Make(Bool(), b););
+HLIR_IMP_BC_PE(LogicalOr, return ir::Cast::Make(Bool(), a) || ir::Cast::Make(Bool(), b););
+HLIR_IMP_BC_PE(LogicalXOr,
+               return (ir::Cast::Make(Bool(), a) || ir::Cast::Make(Bool(), b)) &&
+                      !(ir::Cast::Make(Bool(), a) && ir::Cast::Make(Bool(), b)););
 HLIR_IMP_BC_PE(BitwiseAnd, return a & b;);
 HLIR_IMP_BC_PE(BitwiseOr, return a | b;);
 HLIR_IMP_BC_PE(BitwiseXor, return a ^ b;);
@@ -280,7 +282,8 @@ Tensor Atan2(const Tensor& A, const Tensor& B, const std::string& output_name, c
     auto zero    = ir::Zero(atan->type());
     return ir::Select::Make(
         ir::EQ::Make(elem_b, zero),
-        ir::Select::Make(ir::GT::Make(elem_a, zero), half_pi, -half_pi),
+        ir::Select::Make(
+            ir::EQ::Make(elem_a, zero), zero, ir::Select::Make(ir::GT::Make(elem_a, zero), half_pi, -half_pi)),
         ir::Select::Make(
             ir::GT::Make(elem_b, zero), atan, ir::Select::Make(ir::GE::Make(elem_a, zero), atan + pi, atan - pi)));
   };

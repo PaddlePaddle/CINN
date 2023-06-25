@@ -33,6 +33,11 @@ void Atan2OpMapper(const paddle::cpp::OpDesc& op_desc, const cinn::frontend::OpM
   auto x1 = ctx.GetVar(x1_name);
   auto x2 = ctx.GetVar(x2_name);
 
+  if (x1->type.is_int() && x2->type.is_int()) {
+    x1 = ctx.Builder()->Cast(x1, "float64");
+    x2 = ctx.Builder()->Cast(x2, "float64");
+  }
+
   auto out = ctx.Builder()->Atan2(x1, x2);
 
   ctx.AddVar(out_name, out);

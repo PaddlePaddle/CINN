@@ -30,6 +30,7 @@
 
 #include <memory>
 
+#include "cinn/frontend/net_builder.h"
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/graph_compiler.h"
@@ -63,10 +64,11 @@ TEST(common_subexpression_elimination, common_subexpression_elimination_case1) {
   program.Validate();
   LOG(INFO) << "Program:\n" << program;
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  LOG(INFO) << "graph:\n" << graph->Visualize();
+  LOG(INFO) << "graph:\n" << graph->DebugGroupedGraph();
 
   hlir::framework::ApplyPass(graph.get(), "InferShape");
   hlir::framework::ApplyPass(graph.get(), "CommonSubexpressionEliminationPass");
+  hlir::framework::ApplyPass(graph.get(), "BuildNonFusedGroupsPass");
   auto scope = BuildScope(target, graph);
 
   hlir::framework::GraphCompiler gc(target, scope, graph);
@@ -84,7 +86,7 @@ TEST(common_subexpression_elimination, common_subexpression_elimination_case1) {
   SetRandData<float>(A1, target);
   SetRandData<float>(B1, target);
 
-  LOG(INFO) << "graph:\n" << graph->Visualize();
+  LOG(INFO) << "graph:\n" << graph->DebugGroupedGraph();
   runtime_program->Execute();
 }
 
@@ -106,10 +108,11 @@ TEST(common_subexpression_elimination, common_subexpression_elimination_case2) {
   program.Validate();
   LOG(INFO) << "Program:\n" << program;
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  LOG(INFO) << "graph:\n" << graph->Visualize();
+  LOG(INFO) << "graph:\n" << graph->DebugGroupedGraph();
 
   hlir::framework::ApplyPass(graph.get(), "InferShape");
   hlir::framework::ApplyPass(graph.get(), "CommonSubexpressionEliminationPass");
+  hlir::framework::ApplyPass(graph.get(), "BuildNonFusedGroupsPass");
   auto scope = BuildScope(target, graph);
 
   hlir::framework::GraphCompiler gc(target, scope, graph);
@@ -127,48 +130,51 @@ TEST(common_subexpression_elimination, common_subexpression_elimination_case2) {
   SetRandData<float>(A1, target);
   SetRandData<float>(B1, target);
 
-  LOG(INFO) << "graph:\n" << graph->Visualize();
+  LOG(INFO) << "graph:\n" << graph->DebugGroupedGraph();
   runtime_program->Execute();
 }
 
 #ifdef CINN_WITH_CUDA
 TEST(common_subexpression_elimination, common_subexpression_elimination_case3) {
-  Placeholder A(Float(32), {1, 3, 224, 224}, "A");
-  Placeholder B(Float(32), {1, 1, 224, 224}, "B", true);
+  auto strides     = std::vector<int>({2, 2});
+  auto dilations   = std::vector<int>({1, 1});
+  auto paddings    = std::vector<int>({3, 3});
+  auto data_format = "NCHW";
 
-  absl::flat_hash_map<std::string, Program::attr_t> attrs;
-  attrs["stride"]        = std::vector<int>({2, 2});
-  attrs["dilation"]      = std::vector<int>({1, 1});
-  attrs["padding"]       = std::vector<int>({3, 3});
-  std::string src_layout = "NCHW";
-  attrs["data_format"]   = src_layout;
+  NetBuilder builder("CSE");
+  auto A        = builder.CreateInput(Float(32), {1, 3, 224, 224}, "A");
+  auto B        = builder.CreateInput(Float(32), {1, 1, 224, 224}, "B");
+  auto add_1    = builder.Add(A, B);
+  auto weight_1 = builder.FillConstant<float>({64, 3, 7, 7}, 1.0f, "w1", false);
+  auto weight_2 = builder.FillConstant<float>({64, 3, 7, 7}, 1.0f, "w2", false);
+  auto bias     = builder.FillConstant<float>({1, 64, 112, 112}, 2.0f, "b1", false);
+  auto conv_1   = builder.Conv2d(add_1, weight_1, strides, paddings, dilations, 1, data_format);
+  auto add_2    = builder.Add(conv_1, bias);
+  auto relu_1   = builder.Relu(add_2);
+  auto conv_2   = builder.Conv2d(add_1, weight_2, strides, paddings, dilations, 1, data_format);
+  auto add_3    = builder.Add(conv_2, bias);
+  auto relu_2   = builder.Relu(add_3);
+  auto out1     = builder.Add(relu_1, add_2);
+  auto out2     = builder.Add(add_2, relu_2);
 
-  Program program;
-  auto add_1    = program.add(A, B);
-  auto weight_1 = program.fill_constant<float>({64, 3, 7, 7}, 1.0f, "", false, "w1");
-  auto weight_2 = program.fill_constant<float>({64, 3, 7, 7}, 1.0f, "", false, "w2");
-  auto bias     = program.fill_constant<float>({1, 64, 112, 112}, 2.0f, "", false, "b1");
-  auto conv_1   = program.conv2d(add_1, weight_1, attrs);
-  auto add_2    = program.add(conv_1, bias);
-  auto relu_1   = program.relu(add_2);
-  auto conv_2   = program.conv2d(add_1, weight_2, attrs);
-  auto add_3    = program.add(conv_2, bias);
-  auto relu_2   = program.relu(add_3);
-  auto out1     = program.add(relu_1, add_2);
-  auto out2     = program.add(add_2, relu_2);
-
-  Target target = common::DefaultTarget();
-  program.SetInputs({A, B});
-  program.Validate();
+  auto program = builder.Build();
   LOG(INFO) << "Program:\n" << program;
+
   std::unordered_set<std::string> fetch_list;
   fetch_list.insert(out1->id);
   fetch_list.insert(out2->id);
-  auto graph = std::make_shared<hlir::framework::Graph>(program, fetch_list, target);
-  LOG(INFO) << "graph:\n" << graph->Visualize();
+
+  Target target = common::DefaultNVGPUTarget();
+  auto graph    = std::make_shared<hlir::framework::Graph>(program, fetch_list, target);
+  LOG(INFO) << "graph:\n" << graph->DebugGroupedGraph(fetch_list);
 
   hlir::framework::ApplyPass(graph.get(), "InferShape");
   hlir::framework::ApplyPass(graph.get(), "CommonSubexpressionEliminationPass");
+  hlir::framework::ApplyPass(graph.get(), "TransToCustomCallPass");
+  hlir::framework::ApplyPass(graph.get(), "BuildNonFusedGroupsPass");
+
+  LOG(INFO) << "graph:\n" << graph->DebugGroupedGraph(fetch_list);
+
   auto scope = BuildScope(target, graph);
 
   hlir::framework::GraphCompiler gc(target, scope, graph);
@@ -184,8 +190,6 @@ TEST(common_subexpression_elimination, common_subexpression_elimination_case3) {
   auto B1 = scope->GetTensor("B");
   SetRandData<float>(A1, target);
   SetRandData<float>(B1, target);
-
-  LOG(INFO) << "graph:\n" << graph->Visualize();
   runtime_program->Execute();
 }
 #endif

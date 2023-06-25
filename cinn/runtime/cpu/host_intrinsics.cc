@@ -64,6 +64,20 @@ inline int cinn_host_find_float_nd(const cinn_buffer_t* buf, int size, float num
 
 #undef __cinn_host_find_kernel
 
+inline int cinn_host_next_smallest_int32(cinn_buffer_t* buf, int size, int num, int begin, int stride) {
+  int id = -1;
+  for (int i = begin; i < begin + size * stride; i += stride) {
+    if (id == -1 || reinterpret_cast<int*>(buf->memory)[i] < reinterpret_cast<int*>(buf->memory)[id]) {
+      id = i;
+    }
+  }
+  if (id != -1) {
+    reinterpret_cast<int*>(buf->memory)[id] = 2147483647;
+    return (id - begin) / stride;
+  }
+  return -1;
+}
+
 #define CINN_HOST_LT_NUM(TYPE_SUFFIX, TYPE)                                                           \
   inline int cinn_host_lt_num_##TYPE_SUFFIX(                                                          \
       const cinn_buffer_t* buf, const int size, const TYPE num, const int offset, const int stride) { \
@@ -218,11 +232,10 @@ inline double FN_FP64(pow)(double x, double y) { return pow(x, y); }
 #define FN_INT32(func) cinn_host_##func##_int32
 
 inline int FN_INT32(pow)(int x, int y) {
-  int res = 1;
-  for (int i = 0; i < y; ++i) {
-    res *= x;
+  if (x == 0 && y < 0) {
+    return -1;
   }
-  return res;
+  return pow(x, y);
 }
 
 inline int FN_INT32(clz)(int x) { return __builtin_clz(x); }
@@ -238,6 +251,10 @@ inline int FN_INT32(logical_right_shift)(int x, int y) { return ((unsigned int)x
 inline int64_t FN_INT64(clz)(int64_t x) { return __builtin_clzll(x); }
 
 inline int64_t FN_INT64(popc)(int64_t x) { return __builtin_popcountll(x); }
+
+inline int64_t FN_INT64(pow)(int64_t x, int64_t y) { return pow(x, y); }
+
+inline int64_t FN_INT64(logical_right_shift)(int64_t x, int64_t y) { return ((uint64_t)x >> y); }
 
 #undef FN_INT64
 }  // extern "C"
@@ -309,6 +326,15 @@ CINN_REGISTER_HELPER(host_intrinsics) {
 
 #undef REGISTER_EXTERN_FUNC_2_IN_1_INT32
 
+#define REGISTER_EXTERN_FUNC_2_IN_1_INT64(func__) \
+  REGISTER_EXTERN_FUNC_2_IN_1_OUT(cinn_host_##func__##_int64, host_target, int64_t, int64_t, int64_t);
+
+  REGISTER_EXTERN_FUNC_2_IN_1_INT64(pow)
+
+  REGISTER_EXTERN_FUNC_2_IN_1_INT64(logical_right_shift)
+
+#undef REGISTER_EXTERN_FUNC_2_IN_1_INT64
+
   REGISTER_EXTERN_FUNC_1_IN_1_OUT(cinn_host_clz_int32, host_target, int, int);
 
   REGISTER_EXTERN_FUNC_1_IN_1_OUT(cinn_host_clz_int64, host_target, int64_t, int64_t);
@@ -345,6 +371,15 @@ CINN_REGISTER_HELPER(host_intrinsics) {
       .AddInputType<cinn_buffer_t*>()
       .AddInputType<int>()
       .AddInputType<float>()
+      .AddInputType<int>()
+      .AddInputType<int>()
+      .End();
+
+  REGISTER_EXTERN_FUNC_HELPER(cinn_host_next_smallest_int32, host_target)
+      .SetRetType<int>()
+      .AddInputType<cinn_buffer_t*>()
+      .AddInputType<int>()
+      .AddInputType<int>()
       .AddInputType<int>()
       .AddInputType<int>()
       .End();

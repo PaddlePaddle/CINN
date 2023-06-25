@@ -13,9 +13,11 @@
 // limitations under the License.
 
 #include "cinn/common/graph_utils.h"
+#include "cinn/common/target.h"
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/pass/infershape.h"
+#include "cinn/hlir/pe/nn_util.h"
 
 namespace cinn {
 namespace hlir {
@@ -103,22 +105,49 @@ class ReduceSplitPass {
         }
         bool reduce_all =
             all_preceding_dim_reduced && std::find(dims.begin(), dims.end(), in_shape.size() - 1) != dims.end();
+        if (!all_preceding_dim_reduced || reduce_all) {
+          continue;
+        }
         int numel        = std::accumulate(in_shape.begin(), in_shape.end(), 1, std::multiplies<int>());
         int reduce_numel = std::accumulate(in_shape.begin(), in_shape.end() - 1, 1, std::multiplies<int>());
         CHECK(reduce_numel > 0);
-        VLOG(4) << n->id();
-        VLOG(4) << "numel: " << numel << ", reduce_numel: " << reduce_numel << ", MAX_NUM_THREADS: " << MAX_NUM_THREADS
-                << ", MAX_ITER_PER_THREAD: " << MAX_ITER_PER_THREAD;
-        VLOG(4) << "all_preceding_dim_reduced: " << all_preceding_dim_reduced << ", reduce_all: " << reduce_all;
         // if the numel is not large enough, it is no need to split
-        if ((!all_preceding_dim_reduced) || numel <= MAX_NUM_THREADS * MAX_ITER_PER_THREAD || reduce_all) {
-          continue;
-        }
+        // if loop times is too large with reduce optimize
+        int size   = std::accumulate(in_shape.begin(), (in_shape.end() - 1), 1, std::multiplies<int>());
+        int tail   = 0;
+        bool bound = true;
+        auto shape = pe::GetFirstStepReduceShape({size, in_shape.back()}, {0}, bound, tail);
+        CHECK(bound);
+        CHECK_EQ(shape.size(), 3);
 
         auto res          = DivideToClosetNum(reduce_numel);
         int reduce_numel0 = std::get<0>(res), reduce_numel1 = std::get<1>(res);
-        VLOG(4) << "reduce_numel0: " << reduce_numel0 << " reduce_numel1: " << reduce_numel1;
 
+        VLOG(3) << "InShape -> "
+                << std::accumulate(
+                       in_shape.begin(), in_shape.end(), std::string(""), [](const std::string& left, const int right) {
+                         return left + std::to_string(right) + " ";
+                       });
+        VLOG(3) << "  reduce  split : " << reduce_numel0 << " " << reduce_numel1 << " " << in_shape.back();
+        VLOG(3) << "  reshape split : "
+                << std::accumulate(shape.begin(), shape.end(), std::string(""), [](std::string left, int right) {
+                     return left + std::to_string(right) + " ";
+                   });
+
+        // Two do reduce split:
+        //   1. reshape_loop > split_loop
+        //   2. reshape thread > max_threads.
+        if (shape[0] <= reduce_numel0 && shape[1] * shape[2] <= common::GetMaxThreads()) {
+          VLOG(3) << "  Don't Do Reduce Split!";
+          continue;
+        }
+        VLOG(3) << "  Do Reduce Split!";
+
+        /*
+        if ((!all_preceding_dim_reduced) || numel <= MAX_NUM_THREADS * MAX_ITER_PER_THREAD || reduce_all) {
+          continue;
+        }
+        */
         // create reshape node0
         Node* reshape0 = new Node(Operator::Get("reshape"), "reshape", common::UniqName("reshape_split"));
         reshape0->attrs.attr_store["shape"] =

@@ -14,29 +14,30 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
-import numpy as np
-from op_test import OpTest, OpTestTool
 import paddle
 from cinn.frontend import *
 from cinn.common import *
+from op_test import OpTest, OpTestTool
+from op_test_helper import TestCaseHelper, run_test
 
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
                     "triangular solve op support GPU only now.")
 class TestTriangularSolveOp(OpTest):
     def setUp(self):
-        self.init_case()
+        print(f"\nRunning {self.__class__.__name__}: {self.case}")
+        self.inputs = {}
+        self.prepare_inputs()
 
-    def init_case(self):
+    def prepare_inputs(self):
         self.inputs = {
-            "input1": np.random.random((1, 3, 3)).astype(np.float32),
-            "input2": np.random.random((1, 3, 1)).astype(np.float32),
+            "input1": self.random(self.case["shape1"], self.case["dtype"]),
+            "input2": self.random(self.case["shape2"], self.case["dtype"])
         }
-        self.left_side = True
-        self.upper = True
-        self.transpose_a = False
-        self.unit_diagonal = False
+        self.left_side = self.case["left_side"]
+        self.upper = self.case["upper"]
+        self.transpose_a = self.case["transpose_a"]
+        self.unit_diagonal = self.case["unit_diagonal"]
 
     def build_paddle_program(self, target):
         def transpose_last_two_dims(x):
@@ -100,153 +101,193 @@ class TestTriangularSolveOp(OpTest):
         self.check_outputs_and_grads()
 
 
-@OpTestTool.skip_if(not is_compiled_with_cuda(),
-                    "triangular solve op support GPU only now.")
-class TestTriangularSolveOpUnitDiagonal(TestTriangularSolveOp):
-    def init_case(self):
-        self.inputs = {
-            "input1": np.random.random((1, 3, 3)).astype(np.float32),
-            "input2": np.random.random((1, 3, 1)).astype(np.float32),
-        }
-        self.left_side = True
-        self.upper = True
-        self.transpose_a = False
-        self.unit_diagonal = True
+class TestTriangularSolveOpShapeTest(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestTriangularSolveOpShapeTest"
+        self.cls = TestTriangularSolveOp
+        self.inputs = [
+            {
+                "shape1": [1, 3, 3],
+                "shape2": [1, 3, 1],
+            },
+            {
+                "shape1": [1, 1, 1],
+                "shape2": [1, 1, 1],
+            },
+            {
+                "shape1": [2, 3, 3],
+                "shape2": [2, 3, 10],
+            },
+        ]
+        self.dtypes = [
+            {
+                "dtype": "float32"
+            },
+        ]
+        self.attrs = [
+            {
+                "left_side": True,
+                "upper": True,
+                "transpose_a": False,
+                "unit_diagonal": False
+            },
+        ]
 
 
-@OpTestTool.skip_if(not is_compiled_with_cuda(),
-                    "triangular solve op support GPU only now.")
-class TestTriangularSolveOpLower(TestTriangularSolveOp):
-    def init_case(self):
-        self.inputs = {
-            "input1": np.random.random((1, 3, 3)).astype(np.float32),
-            "input2": np.random.random((1, 3, 1)).astype(np.float32),
-        }
-        self.left_side = True
-        self.upper = False
-        self.transpose_a = False
-        self.unit_diagonal = False
+class TestTriangularSolveOpDtypeTest(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestTriangularSolveOpDtypeTest"
+        self.cls = TestTriangularSolveOp
+        self.inputs = [
+            {
+                "shape1": [2, 8, 8],
+                "shape2": [2, 8, 1],
+            },
+        ]
+        self.dtypes = [
+            {
+                "dtype": "float32"
+            },
+            {
+                "dtype": "float64"
+            },
+        ]
+        self.attrs = [
+            {
+                "left_side": True,
+                "upper": True,
+                "transpose_a": False,
+                "unit_diagonal": False
+            },
+        ]
 
 
-@OpTestTool.skip_if(not is_compiled_with_cuda(),
-                    "triangular solve op support GPU only now.")
-class TestTriangularSolveOpZeroBatchDim1(TestTriangularSolveOp):
-    def init_case(self):
-        self.inputs = {
-            "input1": np.random.random((3, 3)).astype(np.float32),
-            "input2": np.random.random((3, 1)).astype(np.float32),
-        }
-        self.left_side = True
-        self.upper = True
-        self.transpose_a = False
-        self.unit_diagonal = False
+class TestTriangularSolveOpBatchDimTest(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestTriangularSolveOpBatchDimTest"
+        self.cls = TestTriangularSolveOp
+        self.inputs = [
+            {
+                "shape1": [8, 8],
+                "shape2": [8, 4],
+            },
+            {
+                "shape1": [3, 16, 16],
+                "shape2": [16, 4],
+            },
+            {
+                "shape1": [16, 16],
+                "shape2": [5, 16, 4],
+            },
+            {
+                "shape1": [5, 16, 16],
+                "shape2": [5, 16, 4],
+            },
+        ]
+        self.dtypes = [
+            {
+                "dtype": "float32"
+            },
+        ]
+        self.attrs = [
+            {
+                "left_side": True,
+                "upper": True,
+                "transpose_a": False,
+                "unit_diagonal": False
+            },
+        ]
 
 
-@OpTestTool.skip_if(not is_compiled_with_cuda(),
-                    "triangular solve op support GPU only now.")
-class TestTriangularSolveOpZeroBatchDim2(TestTriangularSolveOp):
-    def init_case(self):
-        self.inputs = {
-            "input1": np.random.random((1, 3, 3)).astype(np.float32),
-            "input2": np.random.random((3, 1)).astype(np.float32),
-        }
-        self.left_side = True
-        self.upper = True
-        self.transpose_a = False
-        self.unit_diagonal = False
+class TestTriangularSolveOpBroadcastTest(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestTriangularSolveOpBroadcastTest"
+        self.cls = TestTriangularSolveOp
+        self.inputs = [
+            {
+                "shape1": [2, 2, 3, 3, 3],
+                "shape2": [1, 3, 4],
+            },
+            {
+                "shape1": [3, 3, 3],
+                "shape2": [2, 2, 3, 3, 4],
+            },
+            {
+                "shape1": [2, 1, 3, 3, 3],
+                "shape2": [2, 2, 3, 3, 4],
+            },
+            {
+                "shape1": [5, 1, 3, 3, 3],
+                "shape2": [1, 2, 1, 3, 4],
+            },
+        ]
+        self.dtypes = [
+            {
+                "dtype": "float32"
+            },
+        ]
+        self.attrs = [
+            {
+                "left_side": True,
+                "upper": True,
+                "transpose_a": False,
+                "unit_diagonal": False
+            },
+        ]
 
 
-@OpTestTool.skip_if(not is_compiled_with_cuda(),
-                    "triangular solve op support GPU only now.")
-class TestTriangularSolveOpZeroBatchDim3(TestTriangularSolveOp):
-    def init_case(self):
-        self.inputs = {
-            "input1": np.random.random((3, 3)).astype(np.float32),
-            "input2": np.random.random((1, 3, 1)).astype(np.float32),
-        }
-        self.left_side = True
-        self.upper = True
-        self.transpose_a = False
-        self.unit_diagonal = False
-
-
-@OpTestTool.skip_if(not is_compiled_with_cuda(),
-                    "triangular solve op support GPU only now.")
-class TestTriangularSolveOpBroadCast(TestTriangularSolveOp):
-    def init_case(self):
-        self.inputs = {
-            "input1": np.random.random((2, 2, 3, 3, 3)).astype(np.float32),
-            "input2": np.random.random((1, 3, 4)).astype(np.float32),
-        }
-        self.left_side = True
-        self.upper = True
-        self.transpose_a = False
-        self.unit_diagonal = False
-
-
-@OpTestTool.skip_if(not is_compiled_with_cuda(),
-                    "triangular solve op support GPU only now.")
-class TestTriangularSolveOpBroadCast1(TestTriangularSolveOp):
-    def init_case(self):
-        self.inputs = {
-            "input1": np.random.random((3, 3, 3)).astype(np.float32),
-            "input2": np.random.random((2, 2, 3, 3, 4)).astype(np.float32),
-        }
-        self.left_side = True
-        self.upper = True
-        self.transpose_a = False
-        self.unit_diagonal = False
-
-
-@OpTestTool.skip_if(not is_compiled_with_cuda(),
-                    "triangular solve op support GPU only now.")
-class TestTriangularSolveOpBroadCast2(TestTriangularSolveOp):
-    def init_case(self):
-        self.inputs = {
-            "input1": np.random.random((2, 1, 3, 3, 3)).astype(np.float32),
-            "input2": np.random.random((2, 2, 3, 3, 4)).astype(np.float32),
-        }
-        self.left_side = True
-        self.upper = True
-        self.transpose_a = False
-        self.unit_diagonal = False
-
-
-@OpTestTool.skip_if(not is_compiled_with_cuda(),
-                    "triangular solve op support GPU only now.")
-class TestTriangularSolveOpBroadCast3(TestTriangularSolveOp):
-    def init_case(self):
-        self.inputs = {
-            "input1": np.random.random((5, 1, 3, 3, 3)).astype(np.float32),
-            "input2": np.random.random((1, 2, 1, 3, 4)).astype(np.float32),
-        }
-        self.left_side = True
-        self.upper = True
-        self.transpose_a = False
-        self.unit_diagonal = False
-
-
-@OpTestTool.skip_if(not is_compiled_with_cuda(),
-                    "triangular solve op support GPU only now.")
-class TestTriangularSolveOpTranspose(TestTriangularSolveOp):
-    def init_case(self):
-        self.inputs = {
-            "input1": np.random.random((1, 3, 3)).astype(np.float32),
-            "input2": np.random.random((1, 3, 1)).astype(np.float32),
-        }
-        self.left_side = True
-        self.upper = True
-        self.transpose_a = True
-        self.unit_diagonal = False
+class TestTriangularSolveOpAttributeTest(TestCaseHelper):
+    def init_attrs(self):
+        self.class_name = "TestTriangularSolveOpAttributeTest"
+        self.cls = TestTriangularSolveOp
+        self.inputs = [
+            {
+                "shape1": [1, 3, 3],
+                "shape2": [1, 3, 1],
+            },
+            {
+                "shape1": [2, 3, 3],
+                "shape2": [2, 3, 10],
+            },
+        ]
+        self.dtypes = [
+            {
+                "dtype": "float32"
+            },
+        ]
+        self.attrs = [
+            {
+                "left_side": True,
+                "upper": True,
+                "transpose_a": False,
+                "unit_diagonal": False
+            },
+            {
+                "left_side": True,
+                "upper": True,
+                "transpose_a": False,
+                "unit_diagonal": True
+            },
+            {
+                "left_side": True,
+                "upper": True,
+                "transpose_a": True,
+                "unit_diagonal": False
+            },
+        ]
 
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
                     "triangular solve op support GPU only now.")
 class TestTriangularSolveOpRightSide(TestTriangularSolveOp):
-    def init_case(self):
+    def setUp(self):
+        self.inputs = {}
+        self.prepare_inputs()
+
+    def prepare_inputs(self):
         self.inputs = {
-            "input1": np.random.random((2, 3, 3)).astype(np.float32),
-            "input2": np.random.random((2, 1, 3)).astype(np.float32),
+            "input1": self.random([2, 3, 3], "float32"),
+            "input2": self.random([2, 1, 3], "float32")
         }
         self.left_side = False
         self.upper = True
@@ -254,57 +295,13 @@ class TestTriangularSolveOpRightSide(TestTriangularSolveOp):
         self.unit_diagonal = False
 
 
-@OpTestTool.skip_if(not is_compiled_with_cuda(),
-                    "triangular solve op support GPU only now.")
-class TestTriangularSolveOpRightSide1(TestTriangularSolveOp):
-    def init_case(self):
+class TestTriangularSolveOpRightSide1(TestTriangularSolveOpRightSide):
+    def prepare_inputs(self):
         self.inputs = {
-            "input1": np.random.random((1, 3, 2, 3, 3)).astype(np.float32),
-            "input2": np.random.random((2, 1, 2, 1, 3)).astype(np.float32),
+            "input1": self.random([1, 3, 2, 3, 3], "float32"),
+            "input2": self.random([2, 1, 2, 1, 3], "float32")
         }
         self.left_side = False
-        self.upper = True
-        self.transpose_a = False
-        self.unit_diagonal = False
-
-
-@OpTestTool.skip_if(not is_compiled_with_cuda(),
-                    "triangular solve op support GPU only now.")
-class TestTriangularSolveOpDoubleFloat(TestTriangularSolveOp):
-    def init_case(self):
-        self.inputs = {
-            "input1": np.random.random((1, 3, 3)).astype(np.float64),
-            "input2": np.random.random((1, 3, 1)).astype(np.float64),
-        }
-        self.left_side = True
-        self.upper = True
-        self.transpose_a = True
-        self.unit_diagonal = False
-
-
-@OpTestTool.skip_if(not is_compiled_with_cuda(),
-                    "triangular solve op support GPU only now.")
-class TestTriangularSolveOpBatch(TestTriangularSolveOp):
-    def init_case(self):
-        self.inputs = {
-            "input1": np.random.random((5, 3, 3)).astype(np.float32),
-            "input2": np.random.random((5, 3, 1)).astype(np.float32),
-        }
-        self.left_side = True
-        self.upper = True
-        self.transpose_a = False
-        self.unit_diagonal = False
-
-
-@OpTestTool.skip_if(not is_compiled_with_cuda(),
-                    "triangular solve op support GPU only now.")
-class TestTriangularSolveOpMultipleRightHandSides(TestTriangularSolveOp):
-    def init_case(self):
-        self.inputs = {
-            "input1": np.random.random((2, 3, 3)).astype(np.float32),
-            "input2": np.random.random((2, 3, 10)).astype(np.float32),
-        }
-        self.left_side = True
         self.upper = True
         self.transpose_a = False
         self.unit_diagonal = False
@@ -313,10 +310,14 @@ class TestTriangularSolveOpMultipleRightHandSides(TestTriangularSolveOp):
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
                     "triangular solve op support GPU only now.")
 class TestTriangularSolveOpSingular(TestTriangularSolveOp):
-    def init_case(self):
+    def setUp(self):
+        self.inputs = {}
+        self.prepare_inputs()
+
+    def prepare_inputs(self):
         self.inputs = {
-            "input1": np.random.random((1, 3, 3)).astype(np.float32),
-            "input2": np.random.random((1, 3, 1)).astype(np.float32),
+            "input1": self.random([1, 3, 3], "float32"),
+            "input2": self.random([1, 3, 1], "float32")
         }
         # set one dim to zeros to make a singular matrix
         self.inputs["input1"][0][0] = 0
@@ -329,13 +330,11 @@ class TestTriangularSolveOpSingular(TestTriangularSolveOp):
         self.check_outputs_and_grads(equal_nan=True)
 
 
-@OpTestTool.skip_if(not is_compiled_with_cuda(),
-                    "triangular solve op support GPU only now.")
-class TestTriangularSolveOpSingular1(TestTriangularSolveOp):
-    def init_case(self):
+class TestTriangularSolveOpSingular1(TestTriangularSolveOpSingular):
+    def prepare_inputs(self):
         self.inputs = {
-            "input1": np.random.random((1, 3, 3)).astype(np.float32),
-            "input2": np.random.random((1, 3, 1)).astype(np.float32),
+            "input1": self.random([1, 3, 3], "float32"),
+            "input2": self.random([1, 3, 1], "float32")
         }
         # set one dim to zeros to make a singular matrix
         self.inputs["input1"][0][2] = 0
@@ -344,9 +343,50 @@ class TestTriangularSolveOpSingular1(TestTriangularSolveOp):
         self.transpose_a = True
         self.unit_diagonal = False
 
+
+@OpTestTool.skip_if(not is_compiled_with_cuda(),
+                    "triangular solve op support GPU only now.")
+class TestTriangularSolveOpLarge(TestTriangularSolveOp):
+    def setUp(self):
+        self.inputs = {}
+        self.prepare_inputs()
+
+    def prepare_inputs(self):
+        self.inputs = {
+            "input1": self.random([1, 1024, 1024], "float64", -0.01, 0.01),
+            "input2": self.random([1, 1024, 512], "float64", -0.01, 0.01)
+        }
+        self.left_side = True
+        self.upper = True
+        self.transpose_a = False
+        self.unit_diagonal = False
+
     def test_check_results(self):
         self.check_outputs_and_grads(equal_nan=True)
 
 
+class TestTriangularSolveOpLarge1(TestTriangularSolveOpLarge):
+    def prepare_inputs(self):
+        self.inputs = {
+            "input1": self.random([1, 2048, 2048], "float64", -0.01, 0.01),
+            "input2": self.random([1, 2048, 512], "float64", -0.01, 0.01)
+        }
+        self.left_side = True
+        self.upper = True
+        self.transpose_a = False
+        self.unit_diagonal = False
+
+
 if __name__ == "__main__":
-    unittest.main()
+    TestTriangularSolveOpShapeTest().run()
+    TestTriangularSolveOpDtypeTest().run()
+    TestTriangularSolveOpBatchDimTest().run()
+    TestTriangularSolveOpBroadcastTest().run()
+    TestTriangularSolveOpAttributeTest().run()
+
+    run_test(TestTriangularSolveOpRightSide)
+    run_test(TestTriangularSolveOpRightSide1)
+    run_test(TestTriangularSolveOpSingular)
+    run_test(TestTriangularSolveOpSingular1)
+    run_test(TestTriangularSolveOpLarge)
+    run_test(TestTriangularSolveOpLarge1)

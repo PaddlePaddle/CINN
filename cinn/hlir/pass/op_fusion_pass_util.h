@@ -30,7 +30,7 @@ CONDITION_FUNC(no_fuse) { return false; }
 
 CONDITION_FUNC(is_same_shape) {
   auto master_node = consumer->master_nodes.begin();
-  return helper->GetNodeDataShape(producer) == helper->GetNodeDataShape(*master_node) ? true : false;
+  return helper->GetNodeDataShape(producer) == helper->GetNodeDataShape(*master_node);
 }
 
 CONDITION_FUNC(is_same_size) {
@@ -71,52 +71,37 @@ CONDITION_FUNC(reduce_fuse_reduce) {
 
   for (auto& dim : producer_reduce_dim) {
     // if dim = -1, set as shape.size() - 1
-    if (dim == -1) {
-      dim = producer_input_shape.size() - 1;
+    if (dim < 0) {
+      dim += producer_input_shape.size();
     }
   }
 
   for (auto& dim : reducer_reduce_dim) {
     // if dim = -1,  set as shape.size() - 1
-    if (dim == -1) {
-      dim = reducer_input_shape.size() - 1;
+    if (dim < 0) {
+      dim += reducer_input_shape.size();
     }
   }
 
-  // check shape is same
-  if (producer_input_shape == reducer_input_shape && producer_output_shape == reducer_output_shape &&
-      producer_reduce_dim == reducer_reduce_dim) {
-    auto shared_size = helper->GetSharedSize(producer);
-    for (auto* master : consumer->master_nodes) {
-      if (helper->GetOpKind(master) == framework::kReduction) {
-        shared_size += helper->GetSharedSize(master);
+  if (producer_output_shape == reducer_output_shape && producer_reduce_dim == reducer_reduce_dim) {
+    bool input_shape_same = producer_input_shape == reducer_input_shape;
+    bool without_last_dim = helper->WithoutLastDimInReduce(producer_input_shape, producer_reduce_dim) &&
+                            helper->WithoutLastDimInReduce(reducer_input_shape, reducer_reduce_dim);
+    // check shape is same
+    if (input_shape_same || without_last_dim) {
+      auto shared_size = helper->GetSharedSize(producer);
+      for (auto* master : consumer->master_nodes) {
+        if (helper->GetOpKind(master) == framework::kReduction) {
+          shared_size += helper->GetSharedSize(master);
+        }
       }
-    }
 
-#define MAX_AVAILABLE_SHREAD 32 * 1024
-    if (shared_size > MAX_AVAILABLE_SHREAD) {
-      return false;
-    }
-#undef MAX_AVAILABLE_SHREAD
-    return true;
-  }
-
-  if (helper->WithoutLastDimInReduce(producer_input_shape, producer_reduce_dim) &&
-      helper->WithoutLastDimInReduce(reducer_input_shape, reducer_reduce_dim) &&
-      producer_output_shape == reducer_output_shape && producer_reduce_dim == reducer_reduce_dim) {
-    auto shared_size = helper->GetSharedSize(producer);
-    for (auto* master : consumer->master_nodes) {
-      if (helper->GetOpKind(master) == framework::kReduction) {
-        shared_size += helper->GetSharedSize(master);
+      constexpr int MAX_AVAILABLE_SHREAD = 32 * 1024;
+      if (shared_size > MAX_AVAILABLE_SHREAD) {
+        return false;
       }
+      return true;
     }
-
-#define MAX_AVAILABLE_SHREAD 32 * 1024
-    if (shared_size > MAX_AVAILABLE_SHREAD) {
-      return false;
-    }
-#undef MAX_AVAILABLE_SHREAD
-    return true;
   }
 
   return false;
@@ -184,8 +169,8 @@ CONDITION_FUNC(horizontal_or_vertical_reduce_relation) {
   auto reduce_axes  = absl::get<std::vector<int>>(reducer->attrs.attr_store.at("dim"));
   for (auto& axis : reduce_axes) {
     // if axis = -1, set as shape.size() - 1
-    if (axis == -1) {
-      axis = reduce_shape.size() - 1;
+    if (axis < 0) {
+      axis += reduce_shape.size();
     }
   }
 
@@ -243,20 +228,14 @@ CONDITION_FUNC(horizontal_or_can_inline) {
 }
 
 CONDITION_FUNC(horizontal_with_same_size) {
+  return is_horizontal_relation(helper, producer, consumer) && is_same_size(helper, producer, consumer);
+}
+
+CONDITION_FUNC(reduce_fuse_broadcast) {
   if (is_horizontal_relation(helper, producer, consumer)) {
     if (is_same_size(helper, producer, consumer)) {
       return true;
     }
-  }
-  return false;
-}
-
-CONDITION_FUNC(reduce_fuse_broadcast) {
-  if (horizontal_with_same_size(helper, producer, consumer)) {
-    return true;
-  }
-
-  if (is_horizontal_relation(helper, producer, consumer)) {
     return false;
   }
 
@@ -268,8 +247,8 @@ CONDITION_FUNC(reduce_fuse_broadcast) {
   auto reduce_axes  = absl::get<std::vector<int>>(producer->attrs.attr_store.at("dim"));
   auto keep_dim     = absl::get<bool>(producer->attrs.attr_store.at("keep_dim"));
   for (auto& axis : reduce_axes) {
-    if (axis == -1) {
-      axis = rinput_shape.size() - 1;
+    if (axis < 0) {
+      axis += rinput_shape.size();
     }
   }
 
@@ -317,37 +296,38 @@ CONDITION_FUNC(reduce_fuse_broadcast) {
       continue;
     }
 
-    auto shape = absl::get<std::vector<int>>(node->attrs.attr_store.at("out_shape"));
-    auto axes  = absl::get<std::vector<int>>(node->attrs.attr_store.at("broadcast_axes"));
-    for (auto& axis : axes) {
-      if (axis == -1) {
-        axis = shape.size() - 1;
+    auto broadcast_shape = absl::get<std::vector<int>>(node->attrs.attr_store.at("out_shape"));
+    auto broadcast_axes  = absl::get<std::vector<int>>(node->attrs.attr_store.at("broadcast_axes"));
+    for (auto& axis : broadcast_axes) {
+      if (axis < 0) {
+        axis += broadcast_shape.size();
       }
     }
 
-    if (rinput_shape != shape) {
+    if (rinput_shape != broadcast_shape) {
       return false;
     }
     // if keep dim = true.
-    if (rinput_shape == shape && keep_dim) {
-      return true;
+    if (keep_dim) {
+      continue;
     } else {
       // if routput_shape = [1]
       if (routput_shape.size() == 1 && routput_shape[0] == 1) {
-        return true;
+        continue;
       }
       // check [reduce_axes, axes] = {0, 1, 2, 3, 4, 5, 6, ...}
       for (int idx = 0; idx < rinput_shape.size(); ++idx) {
-        if (!(std::find(axes.begin(), axes.end(), idx) == axes.end()) ^
+        // note: !x ^ y == (!x) ^ y == !(x ^ y)
+        if ((std::find(broadcast_axes.begin(), broadcast_axes.end(), idx) != broadcast_axes.end()) ^
             std::find(reduce_axes.begin(), reduce_axes.end(), idx) == reduce_axes.end()) {
           return false;
         }
       }
-      return true;
+      continue;
     }
     return false;
   }
-  return false;
+  return true;
 }
 
 #undef CONDITION_FUNC

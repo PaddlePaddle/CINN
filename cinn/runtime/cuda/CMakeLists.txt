@@ -11,6 +11,7 @@ gather_srcs(cinnapi_src SRCS
         cuda_intrinsics.cc
         cuda_intrinsics_reduce.cc
         cuda_instrinsics_float16.cc
+        cuda_instrinsics_bfloat16.cc
         )
 
 

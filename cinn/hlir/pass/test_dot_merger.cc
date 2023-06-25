@@ -14,6 +14,7 @@
 
 #include "cinn/frontend/net_builder.h"
 #include "cinn/frontend/pass/pass_test_helper.h"
+#include "cinn/runtime/flags.h"
 #include "gtest/gtest.h"
 
 namespace cinn::frontend::pass {
@@ -32,7 +33,7 @@ namespace cinn::frontend::pass {
  */
 
 TEST(DotMerger, lhs) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     // because op def changes with the macro
     return;
   }
@@ -75,7 +76,7 @@ TEST(DotMerger, lhs) {
  */
 
 TEST(DotMerger, rhs) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     return;
   }
   NetBuilder builder("net_builder");

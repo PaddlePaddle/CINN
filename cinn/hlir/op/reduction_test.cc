@@ -135,9 +135,53 @@ std::pair<ir::Module, std::string> GenReduceCode(const std::vector<int>& shape,
   } else {
     source_code = codegen.Compile(device_module);
   }
-  LOG(INFO) << "compiled code:\n" << source_code;
+  // LOG(INFO) << "compiled code:\n" << device_module;
 
   return std::pair<ir::Module, std::string>(host_module, source_code);
+}
+
+// last dimension not in reduce
+TEST(Operator, Operator_Reduce_Without_Last_Channel_Case_5) {
+  std::vector<int> shape = {128, 112, 112, 128};
+  std::vector<int> dim   = {0, 1, 2};
+
+  GenReduceCode(shape, dim, "Reduce_Without_Last_Channel_Case_5");
+}
+
+// last dimension not in reduce
+TEST(Operator, Operator_Reduce_Without_Last_Channel_Case_4) {
+  std::vector<int> shape = {16, 16, 8, 8, 16, 16};
+  std::vector<int> dim   = {0, 2, 3};
+
+  GenReduceCode(shape, dim, "Reduce_Without_Last_Channel_Case_4");
+}
+// case 3
+TEST(Operator, Operator_Reduce_Without_Last_Channel_Case_3) {
+  std::vector<int> shape = {16, 16, 16, 16, 16};
+  std::vector<int> dim   = {0, 2};
+
+  GenReduceCode(shape, dim, "Reduce_Without_Last_Channel_Case_3");
+}
+// case 2
+TEST(Operator, Operator_Reduce_Without_Last_Channel_Case_2) {
+  std::vector<int> shape = {16, 16, 16, 16};
+  std::vector<int> dim   = {0, 1};
+
+  GenReduceCode(shape, dim, "Reduce_Without_Last_Channel_Case_2");
+}
+// case 1
+TEST(Operator, Operator_Reduce_Without_Last_Channel_Case_1) {
+  std::vector<int> shape = {16, 16, 16, 16};
+  std::vector<int> dim   = {1};
+
+  GenReduceCode(shape, dim, "Reduce_Without_Last_Channel_Case_1");
+}
+// case 0
+TEST(Operator, Operator_Reduce_Without_Last_Channel_Case_0) {
+  std::vector<int> shape = {16, 16, 32};
+  std::vector<int> dim   = {1};
+
+  GenReduceCode(shape, dim, "Reduce_Without_Last_Channel_Case_0");
 }
 
 TEST(Operator, Operator_Reduction_Case_Last_Dim_1) {
@@ -465,6 +509,53 @@ TEST(Operator, Operator_Reduction_Case_11) {
   GenReduceCode(shape, dim, "Operator_Reduction_Case_11");
 }
 
+TEST(Operator, Operator_Reduction_Case_Warp_Reduce) {
+  int sm_count              = common::DefaultNVGPUTarget().get_multi_processor_count();
+  int max_threads_per_sm    = common::DefaultNVGPUTarget().get_max_threads_per_sm();
+  int warp_reduce_threshold = sm_count * max_threads_per_sm / 32;
+
+  std::vector<int> shape = {warp_reduce_threshold + 10, 256};
+  std::vector<int> dim   = {1};
+
+  auto res = GenReduceCode(shape, dim, "Operator_Reduction_Case_Warp_Reduce");
+  CHECK(res.second.find("threadIdx.x < 32") != std::string::npos);
+}
+
+TEST(Operator, Operator_Reduction_Case_Block_Reduce) {
+  int sm_count              = common::DefaultNVGPUTarget().get_multi_processor_count();
+  int max_threads_per_sm    = common::DefaultNVGPUTarget().get_max_threads_per_sm();
+  int warp_reduce_threshold = sm_count * max_threads_per_sm / 32;
+
+  std::vector<int> shape = {warp_reduce_threshold - 10, 33};
+  std::vector<int> dim   = {1};
+
+  auto res = GenReduceCode(shape, dim, "Operator_Reduction_Case_Block_Reduce");
+  CHECK(res.second.find("threadIdx.x < 32") == std::string::npos);
+}
+
+TEST(Operator, Operator_Reduction_Case_Warp_Reduce_Case_1) {
+  int sm_count              = common::DefaultNVGPUTarget().get_multi_processor_count();
+  int max_threads_per_sm    = common::DefaultNVGPUTarget().get_max_threads_per_sm();
+  int warp_reduce_threshold = sm_count * max_threads_per_sm / 32;
+
+  std::vector<int> shape = {(warp_reduce_threshold + 32) / 2, 2, 10, 256};
+  std::vector<int> dim   = {2, 3};
+
+  auto res = GenReduceCode(shape, dim, "Operator_Reduction_Case_Warp_Reduce_Case_1");
+  CHECK(res.second.find("threadIdx.x < 32") != std::string::npos);
+}
+
+TEST(Operator, Operator_Reduction_Case_Block_Reduce_Case_1) {
+  int sm_count              = common::DefaultNVGPUTarget().get_multi_processor_count();
+  int max_threads_per_sm    = common::DefaultNVGPUTarget().get_max_threads_per_sm();
+  int warp_reduce_threshold = sm_count * max_threads_per_sm / 32;
+
+  std::vector<int> shape = {(warp_reduce_threshold - 32) / 2, 2, 10, 33};
+  std::vector<int> dim   = {2, 3};
+
+  auto res = GenReduceCode(shape, dim, "Operator_Reduction_Case_Block_Reduce_Case_2");
+  CHECK(res.second.find("threadIdx.x < 32") == std::string::npos);
+}
 }  // namespace framework
 }  // namespace hlir
 }  // namespace cinn

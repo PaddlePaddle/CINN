@@ -28,9 +28,10 @@ namespace pass {
 namespace {
 using CastImplFunc = std::function<void(NetBuilder* builder, const Instruction&)>;
 
-bool IsInputHasFP16(const std::vector<Variable>& inputs) {
-  return std::find_if(inputs.begin(), inputs.end(), [](const Variable& var) { return var->type.is_float(16); }) !=
-         inputs.end();
+bool IsInputHasFP16OrBF16(const std::vector<Variable>& inputs) {
+  return std::find_if(inputs.begin(), inputs.end(), [](const Variable& var) {
+           return var->type.is_float16() || var->type.is_bfloat16();
+         }) != inputs.end();
 }
 
 Instruction CreateNewCastInstruction(const Variable& input, const Variable& output) {
@@ -48,24 +49,24 @@ Instruction CreateNewIdentityInstruction(const Variable& input, const Variable& 
 }
 
 void CommonCastImpl(NetBuilder* builder, const Instruction& instr) {
-  if (!IsInputHasFP16(instr->inputs)) {
+  if (!IsInputHasFP16OrBF16(instr->inputs)) {
     // DO NOT NEED CAST
     builder->AppendInstruction(instr);
     return;
   }
 
-  // Cast all fp16 inputs to fp32
+  // Cast all fp16/bf16 inputs to fp32
   std::vector<Variable> casted_inputs;
   for (const auto& var : instr->inputs) {
     auto casted_var = var;
-    if (var->type.is_float(16)) {
+    if (var->type.is_float16() || var->type.is_bfloat16()) {
       casted_var = builder->Cast(var, "float32");
     }
     casted_inputs.emplace_back(casted_var);
   }
   // Run fp32 op
   const auto& outputs = builder->CustomInstr(instr->op_type, casted_inputs, instr->attrs);
-  // Cast all fp32 outputs to fp16
+  // Cast all fp32 outputs to fp16/bf16
   for (int i = 0; i < outputs.size(); ++i) {
     if (outputs[i]->type.is_float(32)) {
       builder->AppendInstruction(CreateNewCastInstruction(outputs[i], instr->outputs[i]));
@@ -101,12 +102,11 @@ static std::unordered_map<std::string, CastImplFunc> need_cast_list = {
     {"reduce_prod", CommonCastImpl},
     // composite function
     {"sigmoid", CommonCastImpl},
-    {"sum", CommonCastImpl},
     {"softmax", CommonCastImpl},
     {"gelu", CommonCastImpl},
     {"batch_norm",
      [](NetBuilder* builder, const Instruction& instr) {
-       if (!IsInputHasFP16(instr->inputs)) {
+       if (!IsInputHasFP16OrBF16(instr->inputs)) {
          // DO NOT NEED CAST
          builder->AppendInstruction(instr);
          return;
@@ -124,7 +124,7 @@ static std::unordered_map<std::string, CastImplFunc> need_cast_list = {
        CHECK(instr->inputs[4]->type.is_float(32))
            << instr->op_type << "'s input [moving_variance] should be float32, but here " << instr->inputs[1]->type;
 
-       // Cast input [X] from fp16 to fp32
+       // Cast input [X] from fp16/bf16 to fp32
        const auto& x        = instr->inputs[0];
        const auto& x_casted = builder->Cast(x, "float32");
 
@@ -132,12 +132,12 @@ static std::unordered_map<std::string, CastImplFunc> need_cast_list = {
        casted_inputs[0]   = x_casted;
        // Run fp32 function
        const auto& outputs = builder->CustomInstr(instr->op_type, casted_inputs, instr->attrs);
-       // Cast output [Y] to fp16, no other output
+       // Cast output [Y] to fp16/bf16, no other output
        builder->AppendInstruction(CreateNewCastInstruction(outputs[0], instr->outputs[0]));
      }},
     {"batch_norm_train",
      [](NetBuilder* builder, const Instruction& instr) {
-       if (!IsInputHasFP16(instr->inputs)) {
+       if (!IsInputHasFP16OrBF16(instr->inputs)) {
          // DO NOT NEED CAST
          builder->AppendInstruction(instr);
          return;
@@ -155,7 +155,7 @@ static std::unordered_map<std::string, CastImplFunc> need_cast_list = {
        CHECK(instr->inputs[4]->type.is_float(32))
            << instr->op_type << "'s input [moving_variance] should be float32, but here " << instr->inputs[1]->type;
 
-       // Cast input [X] from fp16 to fp32
+       // Cast input [X] from fp16/bf16 to fp32
        const auto& x        = instr->inputs[0];
        const auto& x_casted = builder->Cast(x, "float32");
 
@@ -163,7 +163,7 @@ static std::unordered_map<std::string, CastImplFunc> need_cast_list = {
        casted_inputs[0]   = x_casted;
        // Run fp32 function
        const auto& outputs = builder->CustomInstr(instr->op_type, casted_inputs, instr->attrs);
-       // Cast output [Y] to fp16
+       // Cast output [Y] to fp16/bf16
        builder->AppendInstruction(CreateNewCastInstruction(outputs[0], instr->outputs[0]));
        // Identity other output
        for (int i = 1; i < outputs.size(); ++i) {
@@ -171,7 +171,7 @@ static std::unordered_map<std::string, CastImplFunc> need_cast_list = {
        }
      }},
     {"batch_norm_grad", [](NetBuilder* builder, const Instruction& instr) {
-       if (!IsInputHasFP16(instr->inputs)) {
+       if (!IsInputHasFP16OrBF16(instr->inputs)) {
          // DO NOT NEED CAST
          builder->AppendInstruction(instr);
          return;
@@ -189,11 +189,11 @@ static std::unordered_map<std::string, CastImplFunc> need_cast_list = {
        CHECK(instr->inputs[4]->type.is_float(32))
            << instr->op_type << "'s input [save_variance] should be float32, but here " << instr->inputs[1]->type;
 
-       // Cast input [Y@GRAD] from fp16 to fp32
+       // Cast input [Y@GRAD] from fp16/bf16 to fp32
        const auto& y_grad        = instr->inputs[0];
        const auto& y_grad_casted = builder->Cast(y_grad, "float32");
 
-       // Cast input [X] from fp16 to fp32
+       // Cast input [X] from fp16/bf16 to fp32
        const auto& x        = instr->inputs[1];
        const auto& x_casted = builder->Cast(x, "float32");
 
@@ -202,7 +202,7 @@ static std::unordered_map<std::string, CastImplFunc> need_cast_list = {
        casted_inputs[1]   = x_casted;
        // Run fp32 function
        const auto& outputs = builder->CustomInstr(instr->op_type, casted_inputs, instr->attrs);
-       // Cast output [X@GRAD] to fp16
+       // Cast output [X@GRAD] to fp16/bf16
        builder->AppendInstruction(CreateNewCastInstruction(outputs[0], instr->outputs[0]));
        // Identity other output
        for (int i = 1; i < outputs.size(); ++i) {

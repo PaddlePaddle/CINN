@@ -22,6 +22,7 @@
 #include "cinn/common/target.h"
 #include "cinn/frontend/net_builder.h"
 #include "cinn/frontend/optimize.h"
+#include "cinn/frontend/paddle_model_convertor.h"
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/node.h"
@@ -31,10 +32,10 @@
 #include "cinn/utils/data_util.h"
 #include "tests/program_builder.h"
 
-/* This test is used as a tool to evalute or compare performance of 3 schedules(no scheudle, manual schedule,
+/* This test is used as a tool to evaluate or compare performance of 3 schedules(no schedule, manual schedule,
  * auto-schedule). One can specify which schedules to be evaluated through `FLAGS_evaluate_knobs` and specify which
  * operator or model through `--gtest_filter=PerformanceTester.xx`, for example, `FLAGS_evaluate_knobs=4
- * --gtest_filter=PerformanceTester.Matmul` means it will evalute auto-schedule on Matmul operator. You can refer to
+ * --gtest_filter=PerformanceTester.Matmul` means it will evaluate auto-schedule on Matmul operator. You can refer to
  * explanation of following flags or parameters for more detail.
  */
 
@@ -293,16 +294,16 @@ TEST_F(PerformanceTester, LookupTable) {
 TEST_F(PerformanceTester, Gather) {
   int axis = 3;
 
-  Evaluate(tests::OpBuilder("gather").Build({{"operand", {10, 12, 128, 512}}, {"index", {128}, common::Int(32)}},
-                                            {{"axis", axis}}));
+  Evaluate(tests::OpBuilder("gather").Build(
+      {{"operand", {10, 12, 128, 512}}, {"index", {1, 1, 1, 128}, common::Int(32)}}, {{"axis", axis}}));
 }
 
 // paddle model test
 TEST_F(PerformanceTester, ResNet50) {
   CHECK_NE(FLAGS_resnet50_model_dir, "");
-
-  Evaluate(tests::PaddleModelBuilder(FLAGS_resnet50_model_dir, common::DefaultNVGPUTarget())
-               .Build({{"inputs", {batch_size, 3, 224, 224}}}));
+  std::unordered_map<std::string, std::vector<int64_t>> feeds = {{"inputs", {batch_size, 3, 224, 224}}};
+  Evaluate(cinn::frontend::PaddleModelConvertor(common::DefaultNVGPUTarget())
+               .LoadModel(FLAGS_resnet50_model_dir, true, feeds));
 }
 
 }  // namespace auto_schedule

@@ -17,18 +17,17 @@
 from ast import arg
 import os
 import logging
-from typing import Any
-import unittest
-import numpy as np
 
 import paddle
-from paddle.fluid.framework import Variable as PaddleVariable
+from paddle.static import Variable as PaddleVariable
 from paddle.fluid.layer_helper import LayerHelper
 
 from cinn.frontend import NetBuilder, PaddleModelConvertor
 from cinn.common import is_compiled_with_cuda
 from cinn.framework import Scope
 
+import sys
+sys.path.append("/work/dev_CINN/build/python/tests")
 from tests.ops.op_test import OpTest, OpTestTool
 
 logging.basicConfig(level=os.environ.get('LOG_LEVEL', 'INFO').upper())
@@ -199,8 +198,7 @@ class OpMapperTest(OpTest):
                 self.assertIsInstance(
                     var,
                     PaddleVariable,
-                    msg=
-                    "The type of argument should be paddle.fluid.framework.Variable"
+                    msg="The type of argument should be paddle.static.Variable"
                 )
                 self.assertTrue(
                     (var.name not in arg_maps) or (arg_maps[var.name] == var),
@@ -282,6 +280,13 @@ class OpMapperTest(OpTest):
             self.feed_data,
             fetch_list=self.fetch_targets,
             return_numpy=True)
+
+        # NOTE: The unittest of `test_reduce_op`, `test_argmax_op`, `test_argmin_op` will
+        # output 0D-Tensor, hence we need to reshape them into 1D-Tensor temporarily.
+        # After corresponding CINN op supports 0D-Tensor, this trick can be removed safely.
+        for i in range(len(results)):
+            if results[i] is not None and len(results[i].shape) == 0:
+                results[i] = results[i].reshape(1)
 
         logger.debug(msg="Paddle result:")
         self.paddle_outputs = self.__remove_skip_outputs(results)
@@ -394,6 +399,7 @@ class OpMapperTest(OpTest):
             paddle.int64: "int64",
             paddle.uint8: "uint8",
             paddle.bool: "bool",
+            paddle.fluid.core.VarDesc.VarType.RAW: "unk",
         }
         assert dtype in switch_map, str(dtype) + " not support in CINN"
         return switch_map[dtype]
@@ -410,6 +416,8 @@ class OpMapperTest(OpTest):
             "int64": paddle.int64,
             "uint8": paddle.uint8,
             "bool": paddle.bool,
+            # The paddle's phi::DataType::UNDEFINED is mapped into ProtoDataType::RAW,
+            "unk": paddle.fluid.core.VarDesc.VarType.RAW,
         }
         assert dtype in switch_map, dtype + " not support in CINN"
         return switch_map[dtype]

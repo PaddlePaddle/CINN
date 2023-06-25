@@ -138,6 +138,7 @@ if '${WITH_MKL_CBLAS}' == 'ON':
 if '${WITH_CUDA}' == 'ON':
     cinnlibs.append('${CMAKE_BINARY_DIR}/dist/cinn/include/cinn/runtime/cuda/cinn_cuda_runtime_source.cuh')
     cinnlibs.append('${CMAKE_BINARY_DIR}/dist/cinn/include/cinn/runtime/cuda/float16.h')
+    cinnlibs.append('${CMAKE_BINARY_DIR}/dist/cinn/include/cinn/runtime/cuda/bfloat16.h')
 
 for lib in cinnlibs:
     shutil.copy(lib, libs_path)

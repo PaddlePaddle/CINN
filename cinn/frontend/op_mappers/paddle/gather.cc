@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <numeric>
+
 #include "cinn/frontend/op_mapper_registry.h"
 #include "cinn/frontend/op_mappers/common_utils.h"
 
@@ -34,6 +36,20 @@ void GatherOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
 
   VLOG(4) << "Gather X:" << x_name << "[" << cinn::utils::Join(x->shape, ",") << "] with index:" << index_name << "["
           << cinn::utils::Join(index->shape, ",") << "] at axis=" << axis;
+
+  if (index->shape.size() > 1) {
+    // reshape index if the rank of index is greater than 1
+    bool is_rank_1 = false;
+    for (auto dim : index->shape) {
+      if (dim != 1) {
+        CHECK(!is_rank_1) << "The \"index\" of \"Gather\" only support rank 1 tensor, but here index.shape=["
+                          << cinn::utils::Join(index->shape, ",") << "]";
+        is_rank_1 = true;
+      }
+    }
+    auto num = std::accumulate(index->shape.begin(), index->shape.end(), 1, std::multiplies<int>());
+    index    = ctx.Builder()->Reshape(index, {num});
+  }
 
   // now paddle science only need reduce sum
   auto out = ctx.Builder()->Gather(x, index, axis);

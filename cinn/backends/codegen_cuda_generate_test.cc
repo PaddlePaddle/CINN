@@ -42,14 +42,7 @@ namespace backends {
 TEST(CUDAFile, Module_output) {
   std::string cuda_source_name = "_generated1.cu";
   std::string cuda_source_code = R"ROC(
-#include "cinn_cuda_runtime_source.cuh"
-
-#ifdef __CUDACC_RTC__
-typedef int int32_t;
-typedef char int8_t;
-#endif
-
-
+extern "C" {
 
 __global__
 void __launch_bounds__(200) elementwise_mul(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
@@ -60,9 +53,12 @@ void __launch_bounds__(200) elementwise_mul(const float* __restrict__ A, const f
     };
   };
 }
+
+}
   )ROC";
   std::ofstream file(cuda_source_name);
   CHECK(file.is_open()) << "failed to open file " << cuda_source_name;
+  file << CodeGenCUDA_Dev::GetSourceHeader();
   file << cuda_source_code;
   file.close();
   LOG(WARNING) << "Output C source to file " << cuda_source_name;

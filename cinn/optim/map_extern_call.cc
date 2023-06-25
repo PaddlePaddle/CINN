@@ -15,6 +15,7 @@
 #include "cinn/optim/map_extern_call.h"
 
 #include "cinn/cinn.h"
+#include "cinn/hlir/op/op_util.h"
 #include "cinn/ir/ir_mutator.h"
 #include "cinn/runtime/cpu/host_intrinsics.h"
 
@@ -63,9 +64,12 @@ void MapExternCall(Expr *e, Target target) {
     void DealWithCpuintrinsics(ir::Call *node, Expr *expr) {
       if (kExternFp32CallsCPU.count(node->name)) {
         CHECK_GE(node->read_args.size(), 1UL);
-        CHECK_EQ(node->read_args.front().type(), Float(32));
-        auto out_type = node->type();
-        *expr         = lang::CallExtern(node->name + "f", node->read_args);
+        CHECK(node->read_args.front().type().is_float())
+            << "CPU extern call instrinsices only support float now! Please check.";
+        if (node->read_args.front().type().is_float(32)) {
+          auto out_type = node->type();
+          *expr         = lang::CallExtern(node->name + "f", node->read_args);
+        }
       }
     }
 
@@ -84,26 +88,8 @@ void MapExternCall(Expr *e, Target target) {
         return;
       }
 
-      std::string suffix;
-      if (dtype.is_int() && node_in_extern_int32) {
-        if (dtype.is_int(32)) {
-          suffix = "_int32";
-        } else if (dtype.is_int(64)) {
-          suffix = "_int64";
-        }
-      } else if (dtype.is_float() && node_in_extern_fp32) {
-        if (dtype.is_float(64)) {
-          suffix = "_fp64";
-        } else if (dtype.is_float(32)) {
-          suffix = "_fp32";
-        } else if (dtype.is_float(16)) {
-          suffix = "_fp16";
-        }
-      }
-      CHECK(!suffix.empty()) << name << " not support data type " << dtype;
-      std::string extern_func = "cinn_nvgpu_" + name + suffix;
-
-      *expr = lang::CallExtern(extern_func, node->read_args);
+      std::string extern_func = hlir::GetExternFuncName(common::DefaultNVGPUTarget(), dtype, name);
+      *expr                   = lang::CallExtern(extern_func, node->read_args, node->attrs);
     }
 
     // Replace pow(x, 0.5) to sqrt(x) and pow(x, -0.5) to rsqrt(x), which

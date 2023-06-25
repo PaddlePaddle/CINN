@@ -174,9 +174,9 @@ void CheckFusionAccuracyPass::CreateCheckNodeOutputs(Node* old_node, NodePtr new
     const auto& out_node_id = out_node->id();
     // If the check node's output variable node not created
     if (!FusionHelperBase::IsConstOp(old_node)) {
-      // note the const op will recompute in group, so that the op may disappear in many group
-      CHECK_EQ(old2new_nodedata_map_.count(out_node), 0)
-          << "Var " << out_node_id << " repeated! The graph is not a SSA graph! Please check.";
+      // note the const op will recompute in group, so that the op may appear in many group
+      // CHECK_EQ(old2new_nodedata_map_.count(out_node), 0)
+      //    << "Var " << out_node_id << " repeated! The graph is not a SSA graph! Please check.";
     }
 
     const auto& check_out_node_id = GenerateAccCheckNodeId(out_node_id);

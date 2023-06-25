@@ -55,6 +55,7 @@ namespace cinn {
 namespace backends {
 
 using BinaryInstruction = llvm::Instruction::BinaryOps;
+using common::bfloat16;
 using common::float16;
 
 namespace {
@@ -238,7 +239,9 @@ llvm::Value *CodeGenLLVM::Visit(const ir::FloatImm *op) {
     return llvm::ConstantFP::get(b_->getDoubleTy(), op->value);
   } else if (op->type().is_float(32)) {
     return llvm::ConstantFP::get(b_->getFloatTy(), op->value);
-  } else if (op->type().is_float(16)) {
+  } else if (op->type().is_bfloat16()) {
+    return llvm::ConstantFP::get(b_->getBFloatTy(), op->value);
+  } else if (op->type().is_float16()) {
     return llvm::ConstantFP::get(b_->getHalfTy(), op->value);
   } else {
     LOG(FATAL) << "illegal float type.";
@@ -381,7 +384,9 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Cast *op) {
       callee = m_->getFunction(runtime::intrinsic::pod_value_to_float);
     } else if (op->type().is_float(64)) {
       callee = m_->getFunction(runtime::intrinsic::pod_value_to_double);
-    } else if (op->type().is_float(16)) {
+    } else if (op->type().is_bfloat16()) {
+      callee = m_->getFunction(runtime::intrinsic::pod_value_to_bfloat16);
+    } else if (op->type().is_float16()) {
       callee = m_->getFunction(runtime::intrinsic::pod_value_to_float16);
     } else if (op->type() == type_of<void *>()) {
       callee = m_->getFunction(runtime::intrinsic::pod_value_to_void_p);
@@ -943,7 +948,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::_LoweredFunc_ *op) {
   init_function_state();
 
   CHECK_EQ(op->alloc_output_buffer_exprs.size(), op->dealloc_output_buffer_exprs.size())
-      << "the count of allocation and deallocaton expressions is not match";
+      << "the count of allocation and deallocation expressions is not match";
 
   std::vector<Expr> new_body;
   auto create_temp_buffers   = op->PrepareCreateTempBufferExprs();
@@ -1290,7 +1295,7 @@ void CodeGenLLVM::AddTbaaMetadata(llvm::Instruction *inst, absl::string_view buf
   llvm::MDNode *tbaa = builder.createTBAARoot("cinn buffer");
   tbaa               = builder.createTBAAScalarTypeNode(std::string(buffer), tbaa);
 
-  // Add metadata fro constant indices to allow loads and stores to the same buffer to get reordered.
+  // Add metadata for constant indices to allow loads and stores to the same buffer to get reordered.
   if (constant_index) {
     for (int w = 1024; w >= width; w /= 2) {
       int b = (base / w) * w;
@@ -1482,6 +1487,8 @@ llvm::Value *CodeGenLLVM::Visit(const ir::intrinsics::PodValueToX *op) {
     callee = m_->getFunction(runtime::intrinsic::pod_value_to_float);
   } else if (to_type == type_of<double>()) {
     callee = m_->getFunction(runtime::intrinsic::pod_value_to_double);
+  } else if (to_type == type_of<bfloat16>()) {
+    callee = m_->getFunction(runtime::intrinsic::pod_value_to_bfloat16);
   } else if (to_type == type_of<float16>()) {
     callee = m_->getFunction(runtime::intrinsic::pod_value_to_float16);
   } else if (to_type == type_of<bool>()) {
