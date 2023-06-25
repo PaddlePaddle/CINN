@@ -701,6 +701,8 @@ void BindFrontend(pybind11::module *m) {
            py::arg("max")   = 0,
            py::arg("seed")  = 0,
            py::arg("dtype") = "int64")
+      .def("repeat", &NetBuilder::Repeat, py::arg("x"), py::arg("repeats"), py::arg("axis"))
+      .def("flip", &NetBuilder::Flip, py::arg("x"), py::arg("axis"))
       .def("cholesky", &NetBuilder::Cholesky, py::arg("x"), py::arg("upper") = false)
       .def("triangular_solve",
            &NetBuilder::TriangularSolve,

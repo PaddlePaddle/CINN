@@ -107,7 +107,17 @@ Expr One(const Type& type) { return ir::One(type); }
 
 Expr FloorDivide(Expr a, Expr b) {
   CHECK_EQ(a.type(), b.type()) << "FloorDivide's inputs type not equal, where a:" << a.type() << " but b:" << b.type();
-  return a.type().is_float() ? Floor(a / b) : a / b;
+  if (a.type().is_float()) {
+    return Floor(a / b);
+  } else if (a.type().is_uint()) {
+    return a / b;
+  } else {
+    auto div = a / b;
+    auto mod = a % b;
+    auto ret = ir::Select::Make(
+        ir::EQ::Make(mod, common::make_const(a.type(), 0)), div, div - common::make_const(a.type(), 1));
+    return ir::Select::Make((a > 0 && b > 0) || (a < 0 && b < 0), div, ret);
+  }
 }
 
 Expr min_value(const Type& type) {
