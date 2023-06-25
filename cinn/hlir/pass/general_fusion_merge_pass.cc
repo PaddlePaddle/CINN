@@ -659,13 +659,13 @@ class DefaultRecomputeFusePass final : public RecomputeFusePass {
 };
 
 struct LightwareFusePassComparator {
-  bool operator()(const std::shared_ptr<LightwareFusePass>& lhs, const std::shared_ptr<LightwareFusePass>& rhs) {
+  bool operator()(const std::shared_ptr<LightwareFusePass>& lhs, const std::shared_ptr<LightwareFusePass>& rhs) const{
     return lhs->Benefit() > rhs->Benefit();
   }
 };
 
 struct InputFusePassComparator {
-  bool operator()(const std::shared_ptr<InputFusePass>& lhs, const std::shared_ptr<InputFusePass>& rhs) {
+  bool operator()(const std::shared_ptr<InputFusePass>& lhs, const std::shared_ptr<InputFusePass>& rhs) const {
     return lhs->Benefit() > rhs->Benefit();
   }
 };
