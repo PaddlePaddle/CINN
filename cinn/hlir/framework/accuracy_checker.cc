@@ -27,6 +27,7 @@ namespace cinn {
 namespace hlir {
 namespace framework {
 
+using cinn::common::bfloat16;
 using cinn::common::float16;
 
 template <typename T>
@@ -78,6 +79,8 @@ std::string GetTypeString() {
     return "float";
   } else if (std::is_same<T, double>::value) {
     return "double";
+  } else if (std::is_same<T, bfloat16>::value) {
+    return "bfloat16";
   } else if (std::is_same<T, float16>::value) {
     return "float16";
   } else if (std::is_same<T, int8_t>::value) {
@@ -160,7 +163,9 @@ std::string AccuracyChecker::operator()(const std::string& arg_name) {
     return CheckTensor<float>(tensor, arg_name);
   } else if (tensor->type().is_float(64)) {
     return CheckTensor<double>(tensor, arg_name);
-  } else if (tensor->type().is_float(16)) {
+  } else if (tensor->type().is_bfloat16()) {
+    return CheckTensor<bfloat16>(tensor, arg_name);
+  } else if (tensor->type().is_float16()) {
     return CheckTensor<float16>(tensor, arg_name);
   } else if (tensor->type().is_int(8)) {
     return CheckTensor<int8_t>(tensor, arg_name);
@@ -194,6 +199,8 @@ std::string AccuracyChecker::operator()(const std::map<std::string, cinn_pod_val
     return CheckBuffer<float>(buffer, arg_name);
   } else if (buffer->type == cinn_float64_t()) {
     return CheckBuffer<double>(buffer, arg_name);
+  } else if (buffer->type == cinn_bfloat16_t()) {
+    return CheckBuffer<bfloat16>(buffer, arg_name);
   } else if (buffer->type == cinn_float16_t()) {
     return CheckBuffer<float16>(buffer, arg_name);
   } else if (buffer->type == cinn_int8_t()) {

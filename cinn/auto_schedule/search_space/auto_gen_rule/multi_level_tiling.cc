@@ -301,7 +301,7 @@ void MultiLevelTiling::ApplyCacheRead(ir::IRSchedule* ir_schedule, ir::Expr& blo
         continue;
       }
 
-      // 2.Do CacheRead and get the cahce block
+      // 2.Do CacheRead and get the cache block
       ir::Expr cache_block = ir_schedule->CacheRead(block_expr, read_buffer_index, config_.read_cache_memory_type);
       std::string cache_block_name =
           cache_block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->name;

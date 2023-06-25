@@ -27,6 +27,7 @@
 #include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/op/use_ops.h"
 #include "cinn/hlir/pass/use_pass.h"
+#include "cinn/runtime/flags.h"
 #include "cinn/utils/data_util.h"
 
 namespace cinn::frontend {
@@ -43,7 +44,7 @@ void RunWithProgram(const Program& program,
 }
 
 TEST(TransposeFoldingInput, FoldIntoDotBatchedCase1) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     return;
   }
   NetBuilder builder("net_builder");
@@ -65,7 +66,7 @@ TEST(TransposeFoldingInput, FoldIntoDotBatchedCase1) {
 }
 
 TEST(TransposeFoldingInput, FoldIntoDotBachedCase2) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     return;
   }
   NetBuilder builder("net_builder");
@@ -87,7 +88,7 @@ TEST(TransposeFoldingInput, FoldIntoDotBachedCase2) {
 }
 
 TEST(TransposeFoldingInput, FoldIntoDotBachedCase3) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     return;
   }
   NetBuilder builder("net_builder");
@@ -110,7 +111,7 @@ TEST(TransposeFoldingInput, FoldIntoDotBachedCase3) {
 }
 
 TEST(TransposeFoldingInput, FoldIntoDotCase1) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     return;
   }
   NetBuilder builder("net_builder");
@@ -132,7 +133,7 @@ TEST(TransposeFoldingInput, FoldIntoDotCase1) {
 }
 
 TEST(TransposeFoldingInput, FoldIntoDotCase2) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     return;
   }
   NetBuilder builder("net_builder");
@@ -159,7 +160,7 @@ TEST(TransposeFoldingInput, FoldIntoDotCase2) {
 }
 
 TEST(TransposeFoldingInput, TransposeOutInFetchIds) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     return;
   }
   NetBuilder builder("net_builder");
@@ -181,7 +182,7 @@ TEST(TransposeFoldingInput, TransposeOutInFetchIds) {
 }
 
 TEST(TransposeFoldingInput, TransposeOutUsedByOtherInstrs) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     return;
   }
   NetBuilder builder("net_builder");
@@ -204,7 +205,7 @@ TEST(TransposeFoldingInput, TransposeOutUsedByOtherInstrs) {
 }
 
 TEST(TransposeFoldingInput, TransposeTwiceWithMatmul) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     return;
   }
   NetBuilder builder("net_builder");
@@ -230,7 +231,7 @@ TEST(TransposeFoldingInput, TransposeTwiceWithMatmul) {
 }
 
 TEST(TransposeFoldingInput, TransposeWithMultiMamtul) {
-  if (!IsCompiledWithCUDA()) {
+  if (!cinn::runtime::IsCompiledWithCUDA()) {
     return;
   }
   NetBuilder builder("net_builder");

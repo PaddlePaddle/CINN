@@ -27,6 +27,7 @@
 namespace cinn {
 namespace backends {
 
+using cinn::common::bfloat16;
 using cinn::common::float16;
 
 const int kArgsArrayMaxLen = 20;
@@ -103,7 +104,9 @@ llvm::Value* CodeGenCUDA_Host::LowerGPUKernelLauncher(const ir::_LoweredFunc_* f
         args_type.push_back(CinnTypeToLLVMType(type_of<float>(), m_));
       } else if (r_arg.type().is_float(64)) {
         args_type.push_back(CinnTypeToLLVMType(type_of<double>(), m_));
-      } else if (r_arg.type().is_float(16)) {
+      } else if (r_arg.type().is_bfloat16()) {
+        args_type.push_back(CinnTypeToLLVMType(type_of<bfloat16>(), m_));
+      } else if (r_arg.type().is_float16()) {
         args_type.push_back(CinnTypeToLLVMType(type_of<float16>(), m_));
       } else {
         CINN_NOT_IMPLEMENTED;
@@ -148,7 +151,10 @@ llvm::Value* CodeGenCUDA_Host::LowerGPUKernelLauncher(const ir::_LoweredFunc_* f
         call_args.push_back(llvm::ConstantFP::get(b_->getFloatTy(), llvm::APFloat(r_arg.as_float())));
       } else if (r_arg.type().is_float(64)) {
         call_args.push_back(llvm::ConstantFP::get(b_->getDoubleTy(), llvm::APFloat(r_arg.as_double())));
-      } else if (r_arg.type().is_float(16)) {
+      } else if (r_arg.type().is_bfloat16()) {
+        call_args.push_back(
+            llvm::ConstantFP::get(b_->getBFloatTy(), llvm::APFloat(static_cast<float>(r_arg.as_bfloat16()))));
+      } else if (r_arg.type().is_float16()) {
         call_args.push_back(
             llvm::ConstantFP::get(b_->getHalfTy(), llvm::APFloat(static_cast<float>(r_arg.as_float16()))));
       } else {

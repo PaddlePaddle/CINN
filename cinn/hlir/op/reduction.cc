@@ -256,7 +256,7 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
 
             std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
             *ret = CINNValuePack{res};
-          } else if (arg_pack.size() == 5) {
+          } else if (arg_pack.size() == 6) {
             CHECK_EQ(vec_tensor.size(), 3);
             Expr reduce_out      = vec_tensor[0];
             Expr reduce_internal = vec_tensor[1];

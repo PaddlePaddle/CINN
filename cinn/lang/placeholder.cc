@@ -19,6 +19,7 @@
 namespace cinn {
 namespace lang {
 
+using cinn::common::bfloat16;
 using cinn::common::float16;
 
 ir::Tensor CreatePlaceHolder(const std::vector<int> &shape, Type type, const std::string &name) {
@@ -34,7 +35,9 @@ ir::Tensor CreatePlaceHolder(const std::vector<Expr> &shape, Type type, const st
     return Placeholder<float>(name, shape);
   } else if (type.is_float(64)) {
     return Placeholder<double>(name, shape);
-  } else if (type.is_float(16)) {
+  } else if (type.is_bfloat16()) {
+    return Placeholder<bfloat16>(name, shape);
+  } else if (type.is_float16()) {
     return Placeholder<float16>(name, shape);
   } else if (type.is_int(8)) {
     return Placeholder<int8_t>(name, shape);

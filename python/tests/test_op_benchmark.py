@@ -15,7 +15,7 @@
 # limitations under the License.
 
 import paddle
-import paddle.fluid as fluid
+import paddle.static as static
 from cinn.frontend import *
 from cinn import Target
 from cinn.framework import *
@@ -42,10 +42,10 @@ class TestBenchmark(unittest.TestCase):
     def paddle_verify(self, result):
         paddle.enable_static()
 
-        a = fluid.layers.data(name='A', shape=[128, 28, 28], dtype='float32')
-        e = fluid.initializer.NumpyArrayInitializer(
+        a = static.data(name='A', shape=[1, 128, 28, 28], dtype='float32')
+        e = paddle.nn.initializer.NumpyArrayInitializer(
             np.array(result[1]).reshape((256, 128, 1, 1)).astype("float32"))
-        res = fluid.layers.conv2d(
+        res = static.nn.conv2d(
             input=a,
             num_filters=256,
             filter_size=1,
@@ -54,8 +54,8 @@ class TestBenchmark(unittest.TestCase):
             dilation=1,
             param_attr=e)
 
-        exe = fluid.Executor(fluid.CPUPlace())
-        exe.run(fluid.default_startup_program())
+        exe = static.Executor(paddle.CPUPlace())
+        exe.run(static.default_startup_program())
 
         x = np.array(result[0]).reshape((1, 128, 28, 28)).astype("float32")
         output = exe.run(feed={"A": x}, fetch_list=[res])

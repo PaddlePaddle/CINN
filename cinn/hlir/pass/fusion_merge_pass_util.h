@@ -80,7 +80,7 @@ CONDITION_FUNC(elementwise_fuse_broadcast) {
   if (is_const_group(helper, first)) {
     return true;
   }
-  // if sampe shape with horizontal relation
+  // if same shape with horizontal relation
   if (is_same_size(helper, first, second)) {
     return true;
   }
@@ -101,6 +101,34 @@ CONDITION_FUNC(elementwise_fuse_broadcast) {
   return true;
 }
 
+CONDITION_FUNC(honrizontal_elementwise_fuse_reduce) {
+  std::shared_ptr<Graph::Group> ele_group, reduce_group;
+  if (first->op_pattern_kind == framework::kReduction) {
+    ele_group    = second;
+    reduce_group = first;
+  } else {
+    ele_group    = first;
+    reduce_group = second;
+  }
+  // if same shape with horizontal relation
+  if (is_same_size(helper, first, second)) {
+    return true;
+  }
+
+  shape_t ele_node_shape = helper->GetNodeDataShape(*ele_group->master_nodes.begin());
+  int32_t size_ele       = std::accumulate(ele_node_shape.begin(), ele_node_shape.end(), 1, std::multiplies<int>());
+  for (Node* master : reduce_group->master_nodes) {
+    shape_t master_node_shape = helper->GetNodeDataShape(master);
+    int32_t size_master =
+        std::accumulate(master_node_shape.begin(), master_node_shape.end(), 1, std::multiplies<int>());
+    if (size_ele == size_master) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 CONDITION_FUNC(elementwise_fuse_reduce) {
   if (helper->target_ == common::DefaultHostTarget()) {
     return true;
@@ -109,6 +137,55 @@ CONDITION_FUNC(elementwise_fuse_reduce) {
   if (is_same_size(helper, first, second)) {
     return true;
   }
+
+  // if reduce nodes not in consumers of first group
+  std::queue<Node*> candidates;
+  std::unordered_set<Node*> first_node_set  = first->NodeSet();
+  std::unordered_set<Node*> second_node_set = second->NodeSet();
+  for (const auto& pair : second->input_nodes) {
+    if (first_node_set.find(pair.first) != first_node_set.end()) {
+      candidates.push(pair.first);
+    }
+  }
+  std::unordered_set<Node*> visited;
+  std::unordered_set<Node*> masters_in_consumers;
+
+  while (!candidates.empty()) {
+    Node* candidate = candidates.front();
+    candidates.pop();
+
+    std::vector<Node*> consumers = helper->GetConsumerNode(candidate);
+    for (auto consumer : consumers) {
+      if (visited.count(consumer)) {
+        continue;
+      }
+      if (second_node_set.find(consumer) != second_node_set.end()) {
+        visited.insert(consumer);
+        candidates.push(consumer);
+      }
+      if (second->master_nodes.count(consumer)) {
+        masters_in_consumers.insert(consumer);
+      }
+    }
+  }
+  if (!masters_in_consumers.empty()) {
+    bool flag                = true;
+    shape_t first_node_shape = helper->GetNodeDataShape(*first->master_nodes.begin());
+    int32_t size_first = std::accumulate(first_node_shape.begin(), first_node_shape.end(), 1, std::multiplies<int>());
+    for (Node* master : masters_in_consumers) {
+      shape_t second_node_shape = helper->GetNodeDataShape(master);
+      int32_t size_second =
+          std::accumulate(second_node_shape.begin(), second_node_shape.end(), 1, std::multiplies<int>());
+      if (size_first != size_second) {
+        flag = false;
+        break;
+      }
+    }
+    if (flag) {
+      return true;
+    }
+  }
+
   // if reduce using block_reduce, can't fuse producer.
   Node* reducer = nullptr;
   for (auto& node : second->master_nodes) {
@@ -119,7 +196,7 @@ CONDITION_FUNC(elementwise_fuse_reduce) {
   }
   CHECK(reducer) << "Can't find reduce op in group " << second->group_id;
 
-  // If the elementwise's output should be fetched, the output var cannot be compute inline
+  // If the elementwise's output should be fetched, the output var cannot be computed inline
   // into reduce's loop, in other words, the elementwise's cannot fused into reduce's loop
   // Like: group1 = {cast_0}, group2={broadcast_0 -> elementwise_0 -> cast_1 -> reduce_max_0}
   if (helper->output_nodes_set_.count(*first->master_nodes.begin())) {
@@ -238,7 +315,7 @@ inline bool horizontal_relation(const FusionHelperBase* helper,
       candidates.pop();
       // visit all producer node
       for (auto producer : helper->GetProducerNode(candidate)) {
-        // check depency.
+        // check dependency.
         if (first_set.count(producer)) {
           return true;
         }
@@ -246,7 +323,7 @@ inline bool horizontal_relation(const FusionHelperBase* helper,
         if (!second_set.count(producer)) {
           continue;
         }
-        // recored visited node.
+        // recorded visited node.
         if (!visited_set.count(producer)) {
           visited_set.insert(producer);
           candidates.push(producer);
@@ -285,11 +362,110 @@ CONDITION_FUNC(injective_horizontal_with_reduce) {
   return elementwise_fuse_reduce(helper, first, second);
 }
 
-CONDITION_FUNC(reduce_fuse_reduce) {
-  // check reduce horizontal with reduce.
-  if (!horizontal_relation(helper, first, second, framework::OpPatternKind::kReduction)) {
-    return false;
+CONDITION_FUNC(reduce_fuse_broadcast) {
+  // if same shape with horizontal relation
+  if (is_same_size(helper, first, second)) {
+    return true;
   }
+
+  // Traversing all reducers in all producers requires two types of conditions to be met.
+  // The first type is the condition that the reducer itself needs to meet,
+  // and the second type is the condition that the relationship between each reducer and its consumers with type of
+  // Broadcast needs to meet. It is required that each consumer of type Broadcast meet the same shape after broadcast as
+  // before reduce.
+  for (auto& node_in_master : first->master_nodes) {
+    if (helper->GetOpKind(node_in_master) != OpPatternKind::kReduction) {
+      continue;
+    }
+    Node* reducer = node_in_master;
+    // First type conditions
+    // Get some reduce information
+    auto reducer_input_shape  = helper->GetNodeInputShape(reducer);
+    auto reducer_output_shape = helper->GetNodeDataShape(reducer);
+    auto reduce_axes          = absl::get<std::vector<int>>(reducer->attrs.attr_store.at("dim"));
+    auto keep_dim             = absl::get<bool>(reducer->attrs.attr_store.at("keep_dim"));
+    for (auto& axis : reduce_axes) {
+      if (axis == -1) {
+        axis = reducer_input_shape.size() - 1;
+      }
+    }
+    // Check if the reduce axes are continuous
+    int reduce_size = reducer_input_shape.back();
+    for (auto idx = reduce_axes.size() - 1; idx >= 1; --idx) {
+      if (reduce_axes[idx] != reduce_axes[idx - 1] + 1) {
+        return false;
+      }
+      reduce_size *= reducer_input_shape[idx - 1];
+    }
+    // Check if the reduce size exceeds the hardware limit
+    if (helper->target_ == common::DefaultNVGPUTarget() && reduce_size > helper->target_.max_num_threads()) {
+      return false;
+    }
+
+    // Second type conditions
+    // Find directly or indirectly consumers with type of Broadcast in the second group
+    auto find_broadcasters_in_descendants = [&](const Node* producer) -> std::unordered_set<const Node*> {
+      std::queue<const Node*> candidates;
+      std::unordered_set<const Node*> visited_set;
+      std::unordered_set<const Node*> broadcasters;
+      candidates.push(producer);
+
+      while (!candidates.empty()) {
+        auto candidate = candidates.front();
+        candidates.pop();
+
+        for (auto consumer : helper->GetConsumerNode(candidate)) {
+          if (!visited_set.count(consumer)) {
+            visited_set.insert(consumer);
+            candidates.push(consumer);
+          }
+          if (helper->GetOpKind(consumer) == OpPatternKind::kBroadcast &&
+              second->NodeSet().find(consumer) != second->NodeSet().end()) {
+            broadcasters.insert(consumer);
+          }
+        }
+      }
+
+      return broadcasters;
+    };
+
+    // Check if each broadcast node meets the conditions
+    std::unordered_set<const Node*> broadcasters_in_consumers = find_broadcasters_in_descendants(reducer);
+    for (auto broadcaster : broadcasters_in_consumers) {
+      auto broadcaster_output_shape = absl::get<std::vector<int>>(broadcaster->attrs.attr_store.at("out_shape"));
+      auto broadcast_axes           = absl::get<std::vector<int>>(broadcaster->attrs.attr_store.at("broadcast_axes"));
+      for (auto& axis : broadcast_axes) {
+        if (axis == -1) {
+          axis = broadcaster_output_shape.size() - 1;
+        }
+      }
+
+      if (reducer_input_shape != broadcaster_output_shape) {
+        return false;
+      }
+
+      if (keep_dim) {
+        continue;
+      } else {
+        // if reducer_output_shape = [1]
+        if (reducer_output_shape.size() == 1 && reducer_output_shape[0] == 1) {
+          continue;
+        }
+        // check union [reduce_axes, broadcast_axes] = reducer_input_shape
+        for (int idx = 0; idx < reducer_input_shape.size(); ++idx) {
+          if (!(std::find(broadcast_axes.begin(), broadcast_axes.end(), idx) == broadcast_axes.end()) ^
+              std::find(reduce_axes.begin(), reduce_axes.end(), idx) == reduce_axes.end()) {
+            return false;
+          }
+        }
+      }
+    }
+  }
+
+  return true;
+}
+
+CONDITION_FUNC(reduce_fuse_reduce) {
   if (!limit_args(helper, first, second)) {
     return false;
   }

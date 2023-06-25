@@ -18,6 +18,7 @@
 #include <gtest/gtest.h>
 
 #include "cinn/cinn.h"
+#include "cinn/common/context.h"
 #include "cinn/utils/string.h"
 
 namespace cinn {
@@ -35,8 +36,13 @@ TEST(TestIrCompare, SingleFunction) {
   ir::Tensor C = lang::Compute(
       {M, N}, [&](Var i, Var j) { return A(i, j) + ir::Expr(2.f); }, "C");
 
+  cinn::common::Context::Global().ResetNameId();
   auto funcs_1 = lang::LowerVec("add_const", poly::CreateStages({A, B}), {A, B}, {}, {}, nullptr, target, true);
+
+  cinn::common::Context::Global().ResetNameId();
   auto funcs_2 = lang::LowerVec("add_const", poly::CreateStages({A, B}), {A, B}, {}, {}, nullptr, target, true);
+
+  cinn::common::Context::Global().ResetNameId();
   auto funcs_3 = lang::LowerVec("add_const", poly::CreateStages({A, C}), {A, C}, {}, {}, nullptr, target, true);
 
   ASSERT_EQ(funcs_1.size(), 1);
@@ -63,7 +69,7 @@ TEST(TestIrCompare, SingleFunction) {
 
   std::string func2_str = R"ROC(function add_const (_A, _B)
 {
-  ScheduleBlock(root_0)
+  ScheduleBlock(root)
   {
     serial for (i, 0, 32)
     {
@@ -81,7 +87,7 @@ TEST(TestIrCompare, SingleFunction) {
 
   std::string func3_str = R"ROC(function add_const (_A, _C)
 {
-  ScheduleBlock(root_1)
+  ScheduleBlock(root)
   {
     serial for (i, 0, 32)
     {
@@ -103,7 +109,7 @@ TEST(TestIrCompare, SingleFunction) {
 
   IrEqualVisitor compartor;
   // they are different at the name of root ScheduleBlock
-  ASSERT_FALSE(compartor.Compare(funcs_1.front(), funcs_2.front()));
+  ASSERT_TRUE(compartor.Compare(funcs_1.front(), funcs_2.front()));
   // compare with itself
   ASSERT_TRUE(compartor.Compare(funcs_1.front(), funcs_1.front()));
   IrEqualVisitor compartor_allow_suffix_diff(true);

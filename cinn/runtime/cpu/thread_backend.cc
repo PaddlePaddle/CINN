@@ -17,6 +17,10 @@
 #include <algorithm>
 #include <vector>
 
+#ifdef CINN_USE_OPENMP
+#include <omp.h>
+#endif  // CINN_USE_OPENMP
+
 #include "cinn/backends/extern_func_jit_register.h"
 #include "cinn/backends/llvm/runtime_symbol_registry.h"
 #include "cinn/common/cas.h"
@@ -42,12 +46,16 @@ int max_concurrency() {
 int cinn_backend_parallel_launch(FCINNParallelLambda flambda, void* datas, int num_task) {
   int num_workers = max_concurrency();
   if (num_task == 0) num_task = num_workers;
+#ifdef CINN_USE_OPENMP
   omp_set_num_threads(num_task);
 #pragma omp parallel num_threads(num_task)
   {
     int thread_num = omp_get_thread_num();
     (*flambda)(thread_num, num_task, datas);
   }
+#else
+  LOG(FATAL) << "CINN host parallel launch need OpenMP! Please check.";
+#endif  // CINN_USE_OPENMP
   return 0;
 }
 

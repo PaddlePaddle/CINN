@@ -24,6 +24,7 @@
 #include "cinn/hlir/pe/ir_schedule_pe.h"
 #include "cinn/hlir/pe/nn.h"
 #include "cinn/hlir/pe/schedule.h"
+#include "cinn/ir/ir.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/utils/functional.h"
 
@@ -201,6 +202,7 @@ std::shared_ptr<OpStrategy> StrategyForConstScalar(const framework::NodeAttr &at
   framework::CINNCompute const_scalar_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of const_float compute is empty! Please check.";
     auto scalar             = GetScalarExpr(attrs.attr_store.at("value"));
+    auto scalar_type        = out_type.at(0);
     CINNValuePack pack_args = args[0];
     std::string tensor_name = UniqName("const_scalar_Out");
     if (FLAGS_cinn_ir_schedule) {
@@ -210,7 +212,12 @@ std::shared_ptr<OpStrategy> StrategyForConstScalar(const framework::NodeAttr &at
     }
 
     auto out = lang::Compute(
-        {Expr(1)}, [=](const std::vector<Expr> &indice) { return scalar; }, tensor_name);
+        {Expr(1)},
+        [=](const std::vector<Expr> &indice) {
+          auto res = (scalar_type == scalar->type()) ? scalar : ir::Cast::Make(scalar_type, scalar);
+          return res;
+        },
+        tensor_name);
     CHECK(out.defined()) << "can't create const scalar with the given type " << out_type[0];
     auto stages = CreateStages({out});
     *ret        = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
@@ -229,9 +236,16 @@ std::vector<shape_t> InferShapeForConstScalar(const std::vector<shape_t> &inputs
 }
 
 std::vector<Type> InferDtypeForConstScalar(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
-  CHECK(attrs.count("value"));
-  auto scalar   = GetScalarExpr(attrs.at("value"));
-  auto out_type = scalar->type();
+  Type out_type;
+  if (attrs.find("dtype") != attrs.end()) {
+    auto dtype_str = absl::get<std::string>(attrs.at("dtype"));
+    if (!dtype_str.empty()) {
+      out_type = common::Str2Type(dtype_str);
+    }
+  } else {
+    auto scalar = GetScalarExpr(attrs.at("value"));
+    out_type    = scalar->type();
+  }
   VLOG(3) << "scalar type: " << out_type;
   return {out_type};
 }
@@ -248,7 +262,45 @@ std::shared_ptr<OpStrategy> StrategyForSum(const framework::NodeAttr &attrs,
                                            const std::vector<Type> &out_type,
                                            const std::vector<std::vector<int>> &output_shapes,
                                            const Target &target) {
-  LOG(FATAL) << "The operator will be decomposed into several primitive operators. Please Use Decomposer Program Pass.";
+  framework::CINNCompute sum_compute([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of const_float compute is empty! Please check.";
+
+    CINNValuePack pack_args = args[0];
+    CHECK_GE(pack_args.size(), 2U) << "The sum op should has at least 1 inputs.";
+
+    // the front args are tensor
+    std::vector<ir::Tensor> inputs;
+    for (int i = 0; i < pack_args.size() - 1; ++i) {
+      Expr arg = pack_args[i];
+      CHECK(arg.as_tensor());
+      inputs.emplace_back(arg.as_tensor_ref());
+    }
+    // the last arg is tensor name
+    CHECK(pack_args.back().is_string()) << "Cannot run at FLAGS_cinn_ir_schedule=false! Please check.";
+    auto tensor_name = pack_args.back().operator std::string();
+
+    auto out = lang::Compute(
+        {ToCinnExprs(output_shapes.at(0))},
+        [=](const std::vector<Expr> &indice) {
+          std::vector<Expr> nums;
+          for (auto &in : inputs) {
+            nums.emplace_back(in(indice));
+          }
+          return ir::Sum::Make(nums);
+        },
+        tensor_name);
+    CHECK(out.defined()) << "can't create sum op";
+
+    auto tensors = inputs;
+    tensors.emplace_back(out);
+    auto stages = CreateStages(tensors);
+    *ret        = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
+  });
+
+  auto strategy = std::make_shared<framework::OpStrategy>();
+  strategy->AddImpl(sum_compute, GetElementwiseScheduleFunc(output_shapes, target), "strategy.const_scalar.x86", 1);
+
+  return strategy;
 }
 
 std::vector<shape_t> InferShapeForSum(const std::vector<shape_t> &inputs_shape, const framework::AttrMapType &attrs) {
@@ -295,7 +347,7 @@ std::shared_ptr<OpStrategy> StrategyForFillConstant(const framework::NodeAttr &a
 
     if (force_cpu && target != common::DefaultHostTarget()) {
       LOG(WARNING) << "The attribute \"force_cpu\" of \"fill_constant\" not supported in CINN! The \"fill_constant\"'s "
-                      "output tensot will placed on "
+                      "output tensor will placed on "
                    << target;
     }
 
@@ -339,10 +391,10 @@ std::vector<Type> InferDtypeForFillConstant(const std::vector<Type> &inputs_type
     out_type       = common::Str2Type(dtype_str);
     VLOG(3) << "FillConstant output dtype (from [dtype]): " << dtype_str;
   } else {
-    // attribute [dtype] no given, infered by value's type
+    // attribute [dtype] no given, inferred by value's type
     auto scalar = GetScalarExpr(attrs.at("value"));
     out_type    = scalar->type();
-    VLOG(3) << "FillConstant scalar type (from [vaule]): " << common::Type2Str(out_type);
+    VLOG(3) << "FillConstant scalar type (from [value]): " << common::Type2Str(out_type);
   }
   return {out_type};
 }
@@ -356,10 +408,10 @@ std::vector<std::vector<std::string>> InferLayoutForFillConstant(const std::vect
 
 #define EXPAND_ATTR_TYPE(MACRO) \
   MACRO(bool)                   \
-  MACRO(float)                  \
   MACRO(int)                    \
   MACRO(int64_t)                \
-  MACRO(double)
+  MACRO(double)                 \
+  MACRO(float)
 
 std::shared_ptr<OpStrategy> StrategyForAssignValue(const framework::NodeAttr &attrs,
                                                    const std::vector<ir::Tensor> &inputs,
@@ -593,6 +645,9 @@ std::vector<std::vector<int>> InferShapeForSqueeze(const std::vector<std::vector
 
   VLOG(4) << "The output calculated in Squeeze: " << cinn::utils::Join(output_shape, ", ");
 
+  if (output_shape.size() == 0) {
+    output_shape.push_back(1);
+  }
   return {output_shape};
 }
 
@@ -715,7 +770,6 @@ std::vector<std::vector<int>> InferShapeForReshape(const std::vector<std::vector
   for (auto i : inputs_shape[0]) {
     tensor_size *= i;
   }
-  CHECK(!output_shape.empty()) << "infer_shape for reshape turns out to be empty. Please check\n";
   int flag_index = -1;
   for (int i = 0; i < output_shape.size(); i++) {
     if (output_shape[i] > 0) {
@@ -843,6 +897,10 @@ std::vector<Type> InferDtypeForArange(const std::vector<Type> &inputs_type, cons
   return {common::Str2Type(absl::get<std::string>(attrs.at("dtype")))};
 }
 
+std::vector<Type> InferDtypeForLogicalNot(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
+  return {common::Bool()};
+}
+
 }  // namespace op
 }  // namespace hlir
 }  // namespace cinn
@@ -886,7 +944,6 @@ CINN_REGISTER_HELPER(elementwise_ops) {
 
   CINN_REGISTER_UNARY(negative, Negative)
   CINN_REGISTER_UNARY(identity, Identity)
-  CINN_REGISTER_UNARY(logical_not, LogicalNot)
   CINN_REGISTER_UNARY(sign, Sign)
   CINN_REGISTER_UNARY(abs, Abs)
   CINN_REGISTER_UNARY(rsqrt, Rsqrt)
@@ -1036,6 +1093,17 @@ CINN_REGISTER_HELPER(elementwise_ops) {
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForElementwise))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForElementwise))
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElementWise);
+
+  CINN_REGISTER_OP(logical_not)
+      .describe("Logical not function")
+      .set_num_inputs(1)
+      .set_num_outputs(1)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForLogicalNot)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForElementwise))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForLogicalNot))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForElementwise))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElementWise)
+      .set_support_level(4);
 
   return true;
 }

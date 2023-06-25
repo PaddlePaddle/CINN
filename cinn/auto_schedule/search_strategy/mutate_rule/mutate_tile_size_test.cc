@@ -72,23 +72,23 @@ TEST(MutateTileSize, Basic) {
   std::string target_new_ir = R"ROC({
   ScheduleBlock(root)
   {
-    serial for (i_0, 0, 2)
+    serial for (i_1, 0, 2)
     {
-      serial for (i_1, 0, 16)
+      serial for (i_2, 0, 16)
       {
         serial for (j, 0, 32)
         {
           ScheduleBlock(C__reduce_init)
           {
-            i0, i1 = axis.bind(((16 * i_0) + i_1), j)
+            i0, i1 = axis.bind(((16 * i_1) + i_2), j)
             C__reduce_init[i0, i1] = 0.00000000f
           }
           serial for (reduce_axis_k, 0, 32)
           {
             ScheduleBlock(C)
             {
-              i0, i1, i2 = axis.bind(((16 * i_0) + i_1), j, reduce_axis_k)
-              C[i0, i1] = (C[i0, i1] + (A[i0, i2] * B[i2, i1]))
+              i0_0, i1_0, i2 = axis.bind(((16 * i_1) + i_2), j, reduce_axis_k)
+              C[i0_0, i1_0] = (C[i0_0, i1_0] + (A[i0_0, i2] * B[i2, i1_0]))
             }
           }
         }
@@ -104,7 +104,7 @@ TEST(MutateTileSize, Basic) {
     ss << exprs[0];
     return ss.str();
   };
-  CHECK_EQ(get_ir_str(&new_ir_schedule), target_new_ir);
+  ASSERT_EQ(get_ir_str(&new_ir_schedule), target_new_ir);
 
   std::vector<int> last_tile_factors = {2, 16};
   for (int i = 0; i < 10; ++i) {
@@ -112,10 +112,10 @@ TEST(MutateTileSize, Basic) {
     for (auto&& step : sch_desc.Steps()) {
       if (step.type == "SamplePerfectTile") {
         std::vector<int> tile_factors = absl::get<std::vector<int>>(step.attrs.at("decision"));
-        CHECK_EQ(tile_factors.size(), last_tile_factors.size());
-        CHECK_NE(tile_factors[0], last_tile_factors[0]);
-        CHECK_NE(tile_factors[1], last_tile_factors[1]);
-        CHECK_EQ(tile_factors[0] * tile_factors[1], kSize);
+        ASSERT_EQ(tile_factors.size(), last_tile_factors.size());
+        ASSERT_NE(tile_factors[0], last_tile_factors[0]);
+        ASSERT_NE(tile_factors[1], last_tile_factors[1]);
+        ASSERT_EQ(tile_factors[0] * tile_factors[1], kSize);
         last_tile_factors = tile_factors;
       }
     }

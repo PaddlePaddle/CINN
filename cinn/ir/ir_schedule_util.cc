@@ -211,7 +211,7 @@ std::vector<int> ValidateFactors(const std::vector<int>& factors, int total_exte
   }
   std::vector<int> validated_factors = factors;
   if (!has_minus_one) {
-    CHECK_EQ(product, total_extent)
+    CHECK_GE(product, total_extent)
         << "In Split, the factors' product should be equal to original loop's extent! Please check.";
     return validated_factors;
   } else {

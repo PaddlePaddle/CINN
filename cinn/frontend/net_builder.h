@@ -350,7 +350,7 @@ class NetBuilder {
                           const std::string& id_hint = "");
 
   /**
-   * @brief Create constant tensor with the specific value/vector and type, the type is infered from value.
+   * @brief Create constant tensor with the specific value/vector and type
    * @param value The constant value to be set.
    * @param name The name of output variable.
    * @return The result variable.
@@ -408,11 +408,21 @@ class NetBuilder {
    * @param force_cpu Whether the variable should force placed in cpu, default in device memory. Default is false.
    * @return The result variable.
    */
+  template <typename T = float>
   Variable FillConstant(const cinn::utils::ShapeType& shape,
-                        float value,
+                        T value,
                         const std::string& name,
                         const std::string& dtype,
-                        bool force_cpu = false);
+                        bool force_cpu = false) {
+    auto out =
+        CustomInstr(
+            "fill_constant", {}, {{"shape", shape}, {"value", value}, {"dtype", dtype}, {"force_cpu", force_cpu}})
+            .front();
+    if (!name.empty()) {
+      out.set_id(cinn::utils::TransValidVarName(name));
+    }
+    return out;
+  }
 
   /**
    * @brief The op return a variable with the specific string value, shape and type.
@@ -442,7 +452,7 @@ class NetBuilder {
                         T value,
                         const std::string& name = "",
                         bool force_cpu          = false) {
-    return FillConstant(shape, static_cast<float>(value), name, common::Type2Str(common::type_of<T>()), force_cpu);
+    return FillConstant<T>(shape, value, name, common::Type2Str(common::type_of<T>()), force_cpu);
   }
 
   /**
@@ -492,24 +502,24 @@ class NetBuilder {
    * @param x The input variable of pooling operator which is a 4-D variable with shape [N, C, H, W]. The format of
    * input variable is “NCHW” or “NHWC”, where N is batch size, C is the number of channels, H is the height of the
    * feature, and W is the width of the feature.
-   * @param pooling_type pooling type, can be “max” for max-pooling and “avg” for average-pooling
+   * @param pooling_type Pooling type, can be “max” for max-pooling and “avg” for average-pooling
    * @param ksize The pool kernel size. If pool kernel size is a tuple or list, it must contain two integers,
    * (pool_size_Height, pool_size_Width). Otherwise, the pool kernel size will be a square of an int.
    * @param strides  The pool stride size. If pool stride size is a tuple or list, it must contain two integers,
    * (pool_stride_Height, pool_stride_Width). Otherwise, the pool stride size will be a square of an int. Default is {1,
    * 1}.
-   * @param paddings he padding size. If padding is a list/tuple, it must contain two integers, (padding_H, padding_W).
+   * @param paddings The padding size. If padding is a list/tuple, it must contain two integers, (padding_H, padding_W).
    * Otherwise, the padding_H = padding_W = padding. Default: padding = {0, 0}.
    * @param ceil_mode Whether to use the ceil function to calculate output height and width. False is the default. If it
    * is set to False, the floor function will be used. Default False
    * @param exclusive Whether to exclude padding points in average pooling mode, default is true.
    * @param global_pooling Whether to use the global pooling. If global_pooling = true, kernel size and paddings will be
-   * ignored. Default False
+   * ignored. Default False.
    * @param data_format Data format that specifies the layout of input. It can be "NCHW" or "NHWC". Default: "NCHW".
    * @param adaptive When true, will perform adaptive pooling instead, output shape in H and W dimensions will be same
    * as ksize, input data will be divided into grids specify by ksize averagely and perform pooling in each grid area to
    * get output pooling value. Default: False.
-   * @param padding_algorithm CINN not support! It can be "EXPLICIT"/"SAME"/"VALID". Default: "EXPLICIT".
+   * @param padding_algorithm Can be "EXPLICIT"/"SAME"/"VALID". Default: "EXPLICIT".
    * @return The output variable of pooling result. The data type is same as input variable.
    */
   Variable Pool2d(const Variable& x,
@@ -535,21 +545,21 @@ class NetBuilder {
    * @param pooling_type pooling type, can be “max” for max-pooling and “avg” for average-pooling
    * @param ksize The pool kernel size. If pool kernel size is a tuple or list, it must contain two integers,
    * (pool_size_Height, pool_size_Width). Otherwise, the pool kernel size will be a square of an int.
-   * @param strides  The pool stride size. If pool stride size is a tuple or list, it must contain two integers,
+   * @param strides The pool stride size. If pool stride size is a tuple or list, it must contain two integers,
    * (pool_stride_Height, pool_stride_Width). Otherwise, the pool stride size will be a square of an int. Default is {1,
    * 1}.
-   * @param paddings he padding size. If padding is a list/tuple, it must contain two integers, (padding_H, padding_W).
+   * @param paddings The padding size. If padding is a list/tuple, it must contain two integers, (padding_H, padding_W).
    * Otherwise, the padding_H = padding_W = padding. Default: padding = {0, 0}.
    * @param ceil_mode Whether to use the ceil function to calculate output height and width. False is the default. If it
    * is set to False, the floor function will be used. Default False
    * @param exclusive Whether to exclude padding points in average pooling mode, default is true.
    * @param global_pooling Whether to use the global pooling. If global_pooling = true, kernel size and paddings will be
-   * ignored. Default False
+   * ignored. Default False.
    * @param data_format Data format that specifies the layout of input. It can be "NCHW" or "NHWC". Default: "NCHW".
    * @param adaptive When true, will perform adaptive pooling instead, output shape in H and W dimensions will be same
    * as ksize, input data will be divided into grids specify by ksize averagely and perform pooling in each grid area to
    * get output pooling value. Default: False.
-   * @param padding_algorithm CINN not support! It can be "EXPLICIT"/"SAME"/"VALID". Default: "EXPLICIT".
+   * @param padding_algorithm Can be "EXPLICIT"/"SAME"/"VALID". Default: "EXPLICIT".
    * @return The gradient variable of pooling input "X". The data type is same as input variable.
    */
   Variable Pool2dGrad(const Variable& x,
@@ -685,6 +695,7 @@ class NetBuilder {
    * @param ends The ending indices of corresponding axis in axes. Default: None.
    * @param infer_flags Whether the output shape can be infered in compile time. Now only support all 1. Default: None.
    * @param strides The slice step of corresponding axis in axes. Default: None.
+   * @param decrease_axis Eliminate the specified dimension. Default: None.
    * @return A variable with the same dimension as x. The data type is same as x.
    */
   Variable Slice(const Variable& x,
@@ -890,7 +901,10 @@ class NetBuilder {
                   const std::string& padding_algorithm = "EXPLICIT");
 
   /**
-   * This API flipes the Variable x along the given axis.
+   * @brief This API reverse the Variable x along the given axis.
+   * @param x An N-D variable.
+   * @param axis Specify the axis to operate on the input reverse.
+   * @return A reversed variable with the same data type as x.
    */
   Variable Flip(const Variable& operand, const std::vector<int>& axes);
 

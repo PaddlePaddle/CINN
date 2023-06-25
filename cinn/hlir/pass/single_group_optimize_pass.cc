@@ -56,17 +56,24 @@ class SingleGroupOptimizePass {
   bool CanReplaceToMemset(Node* node) const;
   bool CanReplaceToMemcpy(Node* node) const;
 
+  void InitNodeToGroups();
+
  private:
   Graph* graph_;
 
   const ShapeDict& shape_dict_;
   const DtypeDict& dtype_dict_;
+  std::unordered_map<Node*, int> node_to_groups_;
 };
 
 SingleGroupOptimizePass::SingleGroupOptimizePass(Graph* graph)
     : graph_(graph),
       shape_dict_(graph->GetMutableAttrs<ShapeDict>("infershape")),
-      dtype_dict_(graph->GetMutableAttrs<DtypeDict>("inferdtype")) {}
+      dtype_dict_(graph->GetMutableAttrs<DtypeDict>("inferdtype")) {
+  // NOTE(jeff41404): to count how many times each node are used by group.
+  // if a node used by more than one group, then will not be optimized.
+  InitNodeToGroups();
+}
 
 std::vector<std::shared_ptr<Group>> SingleGroupOptimizePass::Apply() {
   std::vector<std::shared_ptr<Group>> optimized_groups;
@@ -81,7 +88,13 @@ std::vector<std::shared_ptr<Group>> SingleGroupOptimizePass::Apply() {
       optimized_groups.emplace_back(group);
       continue;
     }
-
+    CHECK(node_to_groups_.count(nodes.front())) << "Can't find node " << nodes.front()->id() << " in node_to_groups_!";
+    // NOTE(jeff41404): if a node used by more than one group, then will not be optimized to avoid unexpected changes to
+    // other group which has multiple nodes.
+    if (node_to_groups_[nodes.front()] > 1) {
+      optimized_groups.emplace_back(group);
+      continue;
+    }
     // replace some const node like fill_constant/const_scalar to Memset,
     // replace some copy node like identity to Memcpy
     bool has_replaced = TryReplaceNodeToCustomCall(nodes.front());
@@ -162,6 +175,19 @@ void SingleGroupOptimizePassImpl(Graph* graph) {
     return;
   }
   graph->fusion_groups = SingleGroupOptimizePass(graph).Apply();
+}
+
+void SingleGroupOptimizePass::InitNodeToGroups() {
+  for (const auto& group : graph_->fusion_groups) {
+    const auto& nodes = group->CollectNodes();
+    for (const auto& node : nodes) {
+      if (!node_to_groups_.count(node)) {
+        node_to_groups_[node] = 1;
+      } else {
+        node_to_groups_[node] += 1;
+      }
+    }
+  }
 }
 }  // namespace cinn::hlir::pass
 

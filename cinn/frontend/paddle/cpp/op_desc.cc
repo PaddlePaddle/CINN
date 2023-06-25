@@ -36,6 +36,8 @@ inline std::string AttrTypeToString(paddle::cpp::OpDescAPI::AttrType attr_type) 
     EXPAND_SWITCH_CASE(LONGS)
     EXPAND_SWITCH_CASE(FLOAT64S)
     EXPAND_SWITCH_CASE(FLOAT64)
+    EXPAND_SWITCH_CASE(SCALAR)
+    EXPAND_SWITCH_CASE(SCALARS)
 #undef EXPAND_SWITCH_CASE
   };
   return "Invlid AttrType";

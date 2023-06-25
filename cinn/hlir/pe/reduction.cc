@@ -18,12 +18,16 @@
 
 #include <algorithm>
 
+#include "cinn/common/common.h"
 #include "cinn/common/ir_util.h"
 #include "cinn/hlir/pe/broadcast.h"
+#include "cinn/hlir/pe/elementwise.h"
+#include "cinn/hlir/pe/nn_util.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/tensor.h"
 #include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
+#include "cinn/utils/string.h"
 
 namespace cinn {
 namespace hlir {
@@ -69,7 +73,9 @@ std::string Type2StrForReduce(common::Type type) {
     return "_int32";
   } else if (type.is_int(64)) {
     return "_int64";
-  } else if (type.is_float(16)) {
+  } else if (type.is_bfloat16()) {
+    return "_bf16";
+  } else if (type.is_float16()) {
     return "_fp16";
   } else if (type.is_float(32)) {
     return "_fp32";
@@ -139,9 +145,11 @@ Tensor DoReduce(const Tensor& tensor,
                 Expr initial,
                 const std::string& output_name) {
   std::vector<Var> reduce_axes;
+  int reduce_k_id = 0;
   for (auto& axis : real_axes) {
-    std::string name = UniqName("kk");
+    std::string name = cinn::UniqName(std::string("reduce_k_") + std::to_string(reduce_k_id));
     reduce_axes.push_back(Var(tensor->shape[axis], name));
+    reduce_k_id++;
   }
   auto compute = [&](const std::vector<Expr>& indices) -> Expr {
     std::vector<Expr> eval_indice;
@@ -513,12 +521,23 @@ std::vector<ir::Tensor> BlockReduceAny(const ir::Tensor& A,
   return BlockReduce(A, axes, block_size, keep_dim, "cinn_block_reduce_any", output_name);
 }
 
-int GetParallelThreads(const ir::Tensor& A, const std::vector<int>& axes) {
-  int parallel_threads = 1;
+int GetPostParallelSize(const ir::Tensor& A, const std::vector<int>& axes) {
+  int parallel_size = 1;
   for (int idx = axes.back() + 1; idx < A->shape.size(); ++idx) {
-    parallel_threads *= A->shape[idx].as_int32();
+    parallel_size *= A->shape[idx].as_int32();
   }
-  return parallel_threads;
+  return parallel_size;
+}
+
+int GetParallelSize(const ir::Tensor& A, const std::vector<int>& axes) {
+  int parallel_size = 1;
+  for (int idx = 0; idx < A->shape.size(); ++idx) {
+    if (std::find(axes.begin(), axes.end(), idx) != axes.end()) {
+      continue;
+    }
+    parallel_size *= A->shape[idx].as_int32();
+  }
+  return parallel_size;
 }
 
 using ReduceFunc =
@@ -529,121 +548,91 @@ std::vector<ir::Tensor> ReduceInternal(const ir::Tensor& A,
                                        const bool keep_dim,
                                        const std::string& output_name,
                                        ReduceFunc reduce_func,
-                                       ir::Expr initial) {
-  int lane            = GetParallelThreads(A, axes);
-  int max_num_threads = common::DefaultNVGPUTarget().max_num_threads();
-  CHECK_LE(lane, max_num_threads / 2) << "lane must less eqaul than mamax_num_threads / 2 !";
-  int index = axes.size() - 1;
-  for (; index >= 0; --index) {
-    if (index + 1 < axes.size() && axes[index] != axes[index + 1] - 1) {
-      break;
-    }
-    lane *= A->shape[axes[index]].as_int32();
-    if (lane > max_num_threads / 2) {
-      break;
-    }
-  }
-  // if lane > (max_num_threads / 2),the loop break from lane > max_num_threads / 2.
-  int axis = lane > (max_num_threads / 2) ? axes[index] : axes[index + 1];
-  // collect out shape from[0, axis).
-  std::vector<Expr> out_shape(A->shape.begin(), A->shape.begin() + axis);
-  // insert 1 to keep shape as tail to be fused.
-  int tail_count = axes.size() - 1 - index;
-  for (int idx = 0; idx < tail_count; ++idx) {
-    out_shape.emplace_back(1);
-  }
-  bool check_bound = true;
-  if (lane <= max_num_threads) {
-    if (out_shape.size() == axes.back()) {
-      out_shape.emplace_back(1);
-    }
-    out_shape.emplace_back(lane);
-    check_bound = false;
-  } else {
-    int prefix = A->shape[axis].as_int32();
-    int tail   = lane / prefix;
-    for (int idx = max_num_threads / tail; idx > ((max_num_threads / 2) / tail); --idx) {
-      if (prefix % idx == 0) {
-        out_shape.emplace_back(prefix / idx);
-        out_shape.emplace_back(idx * tail);
-        check_bound = false;
+                                       ir::Expr initial,
+                                       std::string reduce_type) {
+  int tail     = 0;
+  bool inbound = true;
+  std::vector<int> inshape;
+  std::transform(
+      A->shape.begin(), A->shape.end(), std::back_inserter(inshape), [](ir::Expr expr) { return expr.as_int32(); });
+  auto reduce_shape = GetFirstStepReduceShape(inshape, axes, inbound, tail);
+  CHECK_GT(reduce_shape.size(), 0);
+
+  VLOG(4) << "Reduce " << output_name << " on " << reduce_type << " with input shape=["
+          << cinn::utils::Join(inshape, ", ") << "], and first step reduce_shape=["
+          << cinn::utils::Join(reduce_shape, ", ") << "] at axes=[" << cinn::utils::Join(axes, ", ") << "]";
+
+  // reshape input
+  auto do_reshape_inbound = [&]() {
+    int axis = axes.back();
+    std::vector<ir::Expr> reshape_output_shape;
+    // last successive axis in reduce axes.
+    int axis_index = axes.size() - 1;
+    for (; axis_index >= 1; --axis_index) {
+      if (axes[axis_index] - 1 != axes[axis_index - 1]) {
         break;
       }
     }
-    if (check_bound) {
-      int idx = max_num_threads / tail;
-      out_shape.emplace_back((prefix + idx - 1) / idx);
-      out_shape.emplace_back(idx * tail);
+    // compute reduce stride.
+    std::vector<ir::Expr> strides(1, ir::Expr(1));
+    for (int idx = axes.back(); idx > axes[axis_index]; --idx) {
+      strides.insert(strides.begin(), strides.front() * ir::Expr(inshape[idx]));
     }
-  }
+    CHECK_EQ(strides.size(), axes.size() - axis_index);
+    std::transform(reduce_shape.begin(), reduce_shape.end(), std::back_inserter(reshape_output_shape), [](int val) {
+      return ir::Expr(val);
+    });
+    return Compute(
+        reshape_output_shape,
+        [=](const std::vector<Expr>& indexs) -> Expr {
+          // index is last axis in axes and index is last axis >= tail.
+          auto selected = ir::And::Make(ir::EQ::Make(indexs[axis], ir::Expr(reduce_shape[axis] - 1)),
+                                        ir::GE::Make(indexs[axis + 1], ir::Expr(tail)));
+          auto index    = indexs[axis] * ir::Expr(reshape_output_shape[axis + 1]) + indexs[axis + 1];
 
-  std::vector<int> tail_strides(A->shape.size() - axis, 1);
-  for (int idx = tail_strides.size() - 2, index = A->shape.size() - 1; idx >= 0; --idx, --index) {
-    tail_strides[idx] = tail_strides[idx + 1] * A->shape[index].as_int32();
-  }
+          // first part index
+          std::vector<ir::Expr> tmp_indexs(indexs.begin(), indexs.begin() + axes[axis_index]);
+          // second part index
+          for (int idx = 0; idx < strides.size(); ++idx) {
+            tmp_indexs.push_back(index / strides[idx]);
+            index = index % strides[idx];
+          }
+          // third part index
+          for (int idx = axis + 2; idx < indexs.size(); ++idx) {
+            tmp_indexs.push_back(indexs[idx]);
+          }
 
-  int tail_elements = 1;
-  for (int idx = axis; idx < A->shape.size(); ++idx) {
-    tail_elements *= A->shape[idx].as_int32();
-  }
-  CHECK_EQ(out_shape.size(), axes.back() + 2) << "Reshape output shape error!";
-
-  auto out = Compute(
-      out_shape,
-      [=](const std::vector<Expr>& indexs) -> Expr {
-        Expr index    = indexs[out_shape.size() - 2] * out_shape.back() + indexs.back();
-        auto selected = ir::LT::Make(index, Expr(tail_elements));
-
-        std::vector<Expr> tmp_indexs(indexs.begin(), indexs.begin() + axis);
-        // last and the second of last.
-        for (auto tail_stride : tail_strides) {
-          tmp_indexs.push_back(index / Expr(tail_stride));
-          index = index % Expr(tail_stride);
-        }
-
-        CHECK_EQ(tmp_indexs.size(), A->shape.size()) << "Indexs size is not equal to Input shape!";
-        if (check_bound) {
+          CHECK_EQ(tmp_indexs.size(), A->shape.size()) << "Indexs size is not equal to Input shape!";
           return ir::Select::Make(selected, A(tmp_indexs), initial);
-        } else {
-          return A(tmp_indexs);
-        }
-      },
-      UniqName(output_name + "_reshape"));
-  return {reduce_func(out, axes, keep_dim, output_name + "_internal"), out};
-}
-
-ir::Tensor BlockShuffleReduce(const ir::Tensor& A,
-                              std::vector<Expr>& tail,
-                              const std::string& reduce_type,
-                              const std::string& output_name) {
-  std::vector<Expr> out_shape(A->shape.begin(), A->shape.begin() + A->shape.size() - 1);
-  int stride = 1;
-  for (auto& t : tail) {
-    stride *= t.as_int32();
-    out_shape.push_back(t);
+        },
+        UniqName(output_name + "_reshape"));
+  };
+  auto reshape = inbound ? pe::Reshape(A, reduce_shape, output_name + "_reshape") : do_reshape_inbound();
+  // do first step reduce
+  auto internal = reduce_func(reshape, axes, keep_dim, output_name + "_internal");
+  // do second step reduce
+  std::vector<int> s_axes = {};
+  if (keep_dim) {
+    s_axes = {axes.back() + 1};
+  } else {
+    s_axes = {axes.back() + 1 - static_cast<int>(axes.size())};
   }
+  auto reduce_out = reduce_func(internal, s_axes, false, output_name);
 
-  CHECK(A->buffer.defined()) << "Buffer is not defined!";
-  auto out = Compute(
-      out_shape,
-      [=](const std::vector<Expr>& indexs) -> Expr {
-        return lang::CallExtern(reduce_type, {A, A->shape.back(), Expr(stride)});
-      },
-      output_name);
-  return out;
+  return {reduce_out, internal, reshape};
 }
 
 #define BLOCK_SHUFFLE_REDUCE(name, reduce_type, initial)                                                        \
   std::vector<ir::Tensor> BlockShuffleReduce##name(                                                             \
       const ir::Tensor& A, const std::vector<int>& axes, const bool keep_dim, const std::string& output_name) { \
-    if (GetParallelThreads(A, axes) > common::DefaultNVGPUTarget().max_num_threads() / 2) {                     \
+    if (common::GetMaxThreads() / GetParallelSize(A, axes) <= 1) {                                              \
       return {Reduce##name(A, axes, keep_dim, output_name)};                                                    \
     } else {                                                                                                    \
-      auto res = ReduceInternal(A, axes, keep_dim, output_name, Reduce##name, initial);                         \
-      std::vector<Expr> tail(A->shape.begin() + axes.back() + 1, A->shape.end());                               \
-      res[0]->WithBuffer("shared");                                                                             \
-      auto reduce_out = BlockShuffleReduce(res[0], tail, reduce_type, output_name);                             \
-      return {reduce_out, res[0], res[1]};                                                                      \
+      auto rs = ReduceInternal(A, axes, keep_dim, output_name, Reduce##name, initial, reduce_type);             \
+      if (rs.size() == 0) {                                                                                     \
+        return {Reduce##name(A, axes, keep_dim, output_name)};                                                  \
+      } else                                                                                                    \
+        return rs;                                                                                              \
     }                                                                                                           \
   }
 
@@ -684,10 +673,25 @@ std::vector<ir::Tensor> TwoStepBlockReduceInternal(const ir::Tensor& A,
                                                    BlockReduceFunc block_reduce_func,
                                                    ir::Expr initial) {
   CHECK(!WithoutLastDimInReduce(A->shape, axes)) << "Can't find last axis in reduce!";
+  // If the number of current device SM is smaller than the number of SM
+  // required by Warp Reduce, the performance of Warp Reduce is better.
+  // Otherwise, use Block Reduce.
+  auto max_num_threads       = common::DefaultNVGPUTarget().max_num_threads();
+  int need_reduce_last_count = 1;
+  for (int i = 0; i < A->shape.size(); i++) {
+    if (find(axes.begin(), axes.end(), i) == axes.end()) {
+      need_reduce_last_count *= A->shape[i].as_int32();
+    }
+  }
+  int warp_reduce_need_sm_count =
+      ceil((need_reduce_last_count * 32) / float(common::DefaultNVGPUTarget().get_max_threads_per_sm()));
+  // Set Num_max_threads to 32 is Warp Reduce
+  if (common::DefaultNVGPUTarget().get_multi_processor_count() < warp_reduce_need_sm_count) {
+    max_num_threads = 32;
+  }
 
-  int lane             = A->shape[axes.back()].as_int32();
-  int index            = static_cast<int>(axes.size()) - 2;
-  auto max_num_threads = common::DefaultNVGPUTarget().max_num_threads();
+  int lane  = A->shape[axes.back()].as_int32();
+  int index = static_cast<int>(axes.size()) - 2;
   for (; index >= 0; --index) {
     if (lane >= max_num_threads / 2) {
       break;

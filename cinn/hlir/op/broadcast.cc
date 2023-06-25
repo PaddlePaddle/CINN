@@ -205,6 +205,7 @@ std::vector<shape_t> InferShapeForBroadcastTo(const std::vector<shape_t> &inputs
   out_shape      = absl::get<std::vector<int>>(attrs.at("out_shape"));
   broadcast_axes = absl::get<std::vector<int>>(attrs.at("broadcast_axes"));
 
+  VLOG(3) << "broadcast input shape: " << utils::Join(inputs_shape[0], ", ");
   VLOG(3) << "broadcast out shape: " << utils::Join(out_shape, ", ");
   VLOG(3) << "broadcast_axes shape: " << utils::Join(broadcast_axes, ", ");
   CHECK_EQ(inputs_shape[0].size(), broadcast_axes.size())
@@ -338,8 +339,8 @@ StrategyForBinary(pow, Pow);
 StrategyForBinary(logical_and, LogicalAnd);
 StrategyForBinary(logical_or, LogicalOr);
 StrategyForBinary(logical_xor, LogicalXOr);
-StrategyForBinary(greater, Greater);
-StrategyForBinary(less, Less);
+StrategyForBinary(greater_than, Greater);
+StrategyForBinary(less_than, Less);
 StrategyForBinary(equal, Equal);
 StrategyForBinary(not_equal, NotEqual);
 StrategyForBinary(greater_equal, GreaterEqual);
@@ -399,8 +400,8 @@ CINN_REGISTER_HELPER(broadcast_ops) {
   CINN_REGISTER_BINARY_CMP(logical_and, LogicalAnd);
   CINN_REGISTER_BINARY_CMP(logical_or, LogicalOr);
   CINN_REGISTER_BINARY_CMP(logical_xor, LogicalXOr);
-  CINN_REGISTER_BINARY_CMP(greater, Greater);
-  CINN_REGISTER_BINARY_CMP(less, Less);
+  CINN_REGISTER_BINARY_CMP(greater_than, Greater);
+  CINN_REGISTER_BINARY_CMP(less_than, Less);
   CINN_REGISTER_BINARY_CMP(equal, Equal);
   CINN_REGISTER_BINARY_CMP(not_equal, NotEqual);
   CINN_REGISTER_BINARY_CMP(greater_equal, GreaterEqual);

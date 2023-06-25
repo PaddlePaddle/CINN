@@ -67,6 +67,16 @@ class FusionHelperBase {
     }
   }
 
+  static std::vector<NodeData*> GetNodeDatas(const Node* node) {
+    std::vector<NodeData*> consumer_node_data;
+    for (auto& edge : node->outlinks_in_order()) {
+      auto output = edge->sink()->safe_as<NodeData>();
+      CHECK(output) << "The op \"" << node->id() << "\" output should not be empty!";
+      consumer_node_data.push_back(output);
+    }
+    return consumer_node_data;
+  }
+
   NodeData* GetNodeData(const Node* node) const {
     auto node_data = (*node->outlinks().begin())->sink()->safe_as<NodeData>();
     CHECK(node_data);
@@ -74,8 +84,7 @@ class FusionHelperBase {
   }
 
   shape_t GetNodeDataShape(const Node* node) const {
-    auto node_data = (*node->outlinks().begin())->sink()->safe_as<NodeData>();
-    CHECK(node_data);
+    auto* node_data = GetNodeData(node);
     CHECK(shape_dict_.count(node_data->id())) << "Can't find " << node_data->id() << " 's shape!";
     return shape_dict_.at(node_data->id());
   }
@@ -110,6 +119,17 @@ class FusionHelperBase {
       }
     }
     return producer_node;
+  }
+
+  std::vector<Node*> GetConsumerNode(const Node* node) const {
+    std::vector<Node*> consumer_nodes;
+    auto node_data = GetNodeData(node);
+    for (auto& link : node_data->outlinks()) {
+      auto consumer = link->sink()->safe_as<Node>();
+      CHECK(consumer);
+      consumer_nodes.push_back(consumer);
+    }
+    return consumer_nodes;
   }
 
   bool WithoutLastDimInReduce(const std::vector<int>& inshape, const std::vector<int>& axes) const {
