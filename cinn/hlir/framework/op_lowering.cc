@@ -170,7 +170,7 @@ std::vector<ir::LoweredFunc> OpLowerer::PostProcess(ir::IRSchedule* ir_sch,
                                                     const std::unordered_map<std::string, ir::Tensor>& tensor_map,
                                                     std::vector<ir::Tensor>* group_func_arg_tensors,
                                                     bool done_op_schedule) {
-  // function args
+  // 1.Prepare function args
   group->input_names.clear();
   std::vector<ir::Argument> group_func_args;
   for (auto& arg_tensor : *group_func_arg_tensors) {
@@ -217,11 +217,14 @@ std::vector<ir::LoweredFunc> OpLowerer::PostProcess(ir::IRSchedule* ir_sch,
   optim::OptimizeExprGPU(&(func_body));
 #endif
 
+  // 2.Prepare temp buffers
   poly::StageMap stages;
   auto temp_buffers = lang::GetTempBuffers(*group_func_arg_tensors, stages, func_body);
-  auto func         = ir::_LoweredFunc_::Make(
+  // 3.Building LoweredFunc
+  auto func = ir::_LoweredFunc_::Make(
       group->GetFuncName(), group_func_args, ir_sch->GetModule().GetExprs().at(0), temp_buffers);
   func->PrepareBufferCastExprs();
+  // 4.Apply low level pass
   func = optim::Optimize(Expr(func), target_, false).as_lowered_func_ref();
   return {func};
 }
@@ -234,7 +237,7 @@ std::vector<ir::Expr> OpLowerer::LowerOps(const std::vector<Node*>& nodes,
   auto& strategy = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
   std::vector<Expr> func_bodies;
   for (Node* node : nodes) {
-    // 1. select Op impl
+    // 1.Select Op impl
     std::vector<Type> out_types;
     std::vector<std::vector<int>> out_shapes;
     std::vector<NodeData*> node_datas = GetAllNodeData(node);
@@ -247,11 +250,11 @@ std::vector<ir::Expr> OpLowerer::LowerOps(const std::vector<Node*>& nodes,
     auto op_impl = OpStrategy::SelectImpl(
         strategy[node->op()](node->attrs, op_func_arg_tensors, out_types, out_shapes, this->target_));
 
-    // 2. perform the lower process of Op
+    // 2.Perform the lower process of Op
     std::vector<ir::LoweredFunc> funcs = DoOpLower(node, op_impl, tensor_map, &op_func_arg_tensors);
 
     if (apply_op_schedule && (this->*schedule_determine_func)(node)) {
-      // 3. perform the schedule of Op
+      // 3.Perform the schedule of Op
       func_bodies.push_back(DoOpSchedule(op_impl, op_func_arg_tensors, funcs));
     } else {
       for (const ir::LoweredFunc& func : funcs) {
@@ -322,15 +325,15 @@ ir::Expr OpLowerer::DoOpSchedule(std::shared_ptr<hlir::framework::OpImpl> op_imp
                                  const std::vector<ir::Tensor>& op_func_arg_tensors,
                                  const std::vector<ir::LoweredFunc>& lowered_funcs) {
   std::vector<common::CINNValue> schedule_inputs;
-  // collect tensors
+  // 1.Collect tensors
   for (const ir::Tensor& op_func_arg_tensor : op_func_arg_tensors) {
     schedule_inputs.push_back(common::CINNValue(op_func_arg_tensor));
   }
-  // collect bodies to be scheduled
+  // 2.Collect bodies to be scheduled
   for (const ir::LoweredFunc& func : lowered_funcs) {
     schedule_inputs.push_back(common::CINNValue(func->body));
   }
-  // do schedule on AST
+  // 3.Do schedule on AST
   common::CINNValuePack expr_pack = op_impl->fschedule(common::CINNValuePack{schedule_inputs});
 
   return expr_pack[0].operator ir::Expr();
