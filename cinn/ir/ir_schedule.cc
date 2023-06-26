@@ -50,8 +50,10 @@ namespace ir {
 class ScheduleImpl {
  public:
   ScheduleImpl() = default;
-  explicit ScheduleImpl(const ModuleExpr& module_expr, bool debug_flag = false)
-      : module_expr_(module_expr), debug_flag_(debug_flag) {}
+  explicit ScheduleImpl(const ModuleExpr& module_expr,
+                        bool debug_flag                         = false,
+                        ScheduleErrorMessageLevel err_msg_level = ScheduleErrorMessageLevel::kBlank)
+      : module_expr_(module_expr), debug_flag_(debug_flag), err_msg_level_(err_msg_level) {}
   explicit ScheduleImpl(ModuleExpr&& module_expr) : module_expr_(std::move(module_expr)) {}
 
   //! Set the debug flag.
@@ -114,7 +116,31 @@ class ScheduleImpl {
 
   ModuleExpr module_expr_;
   bool debug_flag_{false};
+  ScheduleErrorMessageLevel err_msg_level_;
 };
+
+/** \brief A macro that guards the beginning of each implementation of schedule */
+#define CINN_IR_SCHEDULE_BEGIN() try {
+/**
+ * \brief A macro that pairs with `CINN_IR_SCHEDULE_BEGIN`, handling potential errors and error
+ * message printing
+ * \param primitive A string representing the kind of schedule primitive
+ * \param err_msg_level A ScheduleErrorMessageLevel enum, level of error message printing
+ */
+#define CINN_IR_SCHEDULE_END(primitive, err_msg_level)                                 \
+  }                                                                                    \
+  catch (const IRScheduleErrorHandler& err_hanlder) {                                  \
+    switch (err_msg_level) {                                                           \
+      case ScheduleErrorMessageLevel::kDetailed:                                       \
+        throw std::runtime_error(err_hanlder.FormatErrorMessage(primitive));           \
+      case ScheduleErrorMessageLevel::kGenearl:                                        \
+        throw std::runtime_error(err_hanlder.GeneralErrorMessage());                   \
+      case ScheduleErrorMessageLevel::kBlank:                                          \
+        throw std::runtime_error("IRScheduleError occurred! (No more error message)"); \
+      default:                                                                         \
+        throw std::runtime_error("IRScheduleError occurred! (No more error message)"); \
+    }                                                                                  \
+  }
 
 std::vector<Expr> ScheduleImpl::Split(const Expr& loop, const std::vector<int>& factors) {
   CHECK(loop.As<ir::For>()) << "Expr param of Split must be For node! Please check.";
@@ -126,8 +152,10 @@ std::vector<Expr> ScheduleImpl::Split(const Expr& loop, const std::vector<int>& 
   VLOG(3) << "Try Split loop from (" << for_node->loop_var->name << ", 0, " << tot_extent << ") to ("
           << cinn::utils::Join(factors, ", ") << ") at loop:\n"
           << loop;
-
-  auto processed_factors = ValidateFactors(factors, tot_extent);
+  std::vector<int> processed_factors;
+  CINN_IR_SCHEDULE_BEGIN();
+  processed_factors = ValidateFactors(factors, tot_extent);
+  CINN_IR_SCHEDULE_END("split", this->err_msg_level_);
   int prod_size = std::accumulate(processed_factors.begin(), processed_factors.end(), 1, std::multiplies<int>());
   std::vector<Var> new_loop_vars;
   Expr substitute_value(0);
@@ -1971,8 +1999,11 @@ Expr ScheduleImpl::SampleCategorical(utils::LinearRandomEngine::StateType* rand_
 
 IRSchedule::IRSchedule() {}
 
-IRSchedule::IRSchedule(const ModuleExpr& module_expr, utils::LinearRandomEngine::StateType rand_seed, bool debug_flag) {
-  impl_ = std::make_unique<ScheduleImpl>(module_expr, debug_flag);
+IRSchedule::IRSchedule(const ModuleExpr& module_expr,
+                       utils::LinearRandomEngine::StateType rand_seed,
+                       bool debug_flag,
+                       ScheduleErrorMessageLevel err_msg_level) {
+  impl_ = std::make_unique<ScheduleImpl>(module_expr, debug_flag, err_msg_level);
   this->InitSeed(rand_seed);
 }
 

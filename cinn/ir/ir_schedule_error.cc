@@ -17,11 +17,11 @@
 namespace cinn {
 namespace ir {
 
-std::string IRScheduleErrorHandler::FormatErrorMessage(const std::string &primitive) {
+std::string IRScheduleErrorHandler::FormatErrorMessage(const std::string &primitive) const {
   std::ostringstream os;
   std::string err_msg = DetailedErrorMessage();
 
-  os << "[IRScheduleError] An error occurred in the schedue primitive <" << primitive << ">. " << std::endl;
+  os << "[IRScheduleError] An error occurred in the scheduel primitive <" << primitive << ">. " << std::endl;
   os << "Error info: " << err_msg;
   return os.str();
 }

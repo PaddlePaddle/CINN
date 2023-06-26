@@ -36,7 +36,7 @@ enum class ScheduleErrorMessageLevel : int32_t {
 };
 
 /**
- * This handler is to deal with the errors happens in in the current Scheduling.
+ * This handler is dealing with the errors happen in in the current Scheduling.
  */
 class IRScheduleErrorHandler : public std::runtime_error {
  public:
@@ -50,17 +50,17 @@ class IRScheduleErrorHandler : public std::runtime_error {
   /**
    * \brief Returns a detailed error message corresponding to the kDetailed error level.
    */
-  std::string FormatErrorMessage(const std::string &primitive);
-
-  /**
-   * \brief Returns a detailed error message corresponding to the kDetailed error level.
-   */
-  virtual std::string DetailedErrorMessage() const = 0;
+  std::string FormatErrorMessage(const std::string &primitive) const;
 
   /**
    * \brief Returns a short error message corresponding to the kGeneral error level.
    */
   virtual std::string GeneralErrorMessage() const = 0;
+
+  /**
+   * \brief Returns a detailed error message corresponding to the kDetailed error level.
+   */
+  virtual std::string DetailedErrorMessage() const = 0;
 };
 
 }  // namespace ir
