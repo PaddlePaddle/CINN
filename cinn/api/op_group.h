@@ -24,76 +24,121 @@
 namespace cinn {
 namespace api {
 
+using Comparator = hlir::framework::Graph::Group::SharedGroupComparator;
+using Hasher     = hlir::framework::Graph::Group::SharedGroupHasher;
+
 class OpGroup {
  public:
-  OpGroup(const hlir::pass::FusionHelperBase* helper, const std::shared_ptr<hlir::framework::Graph::Group>& group) : helper_(helper), group_(group) {}
+  OpGroup(const hlir::framework::Graph* graph, const std::shared_ptr<hlir::framework::Graph::Group>& group) : graph_(graph), group_(group) {}
 
   OpGroup(const OpGroup& other) = default;
 
-  class iterator {
+  class OpNodeListView {
    public:
-    iterator(std::unordered_map<std::shared_ptr<hlir::framework::Graph::Group>, TensorInterfaceList>::iterator it, const hlir::pass::FusionHelperBase* helper) : iter_(it), helper_(helper) {}
+    explicit OpNodeListView(std::vector<hlir::framework::Node*> op_nodes, const cinn::hlir::framework::Graph* graph) : op_nodes_(std::move(op_nodes)), graph_(graph) {}
 
-    iterator& operator++() {
-      ++iter_;
-      return *this;
-    }
+    class Iterator {
+     public:
+      Iterator(std::vector<hlir::framework::Node*>::const_iterator it, const hlir::framework::Graph* graph) : iter_(it), graph_(graph) {}
 
-    iterator operator++(int) {
-      iterator tmp = *this;
-      ++iter_;
-      return tmp;
-    }
+      Iterator& operator++() {
+        ++iter_;
+        return *this;
+      }
 
-    OpGroup operator*() {
-      return OpGroup(helper_, iter_->first);
-    }
+      Iterator operator++(int) {
+        Iterator tmp = *this;
+        ++iter_;
+        return tmp;
+      }
 
-    bool operator==(const iterator& other) const {
-      return iter_ == other.iter_;
-    }
+      bool operator==(const Iterator& other) const {
+        return iter_ == other.iter_;
+      }
 
-    bool operator!=(const iterator& other) const {
-        return !(*this == other);
-    }
+      bool operator!=(const Iterator& other) const {
+          return !(*this == other);
+      }
+
+      OpNode operator*() const {
+        return OpNode(graph_, *iter_);
+      }
+
+     private:
+      std::vector<hlir::framework::Node*>::const_iterator iter_;
+      const hlir::framework::Graph* graph_;
+    };
+
+    size_t size() const { return op_nodes_.size(); }
+
+    Iterator begin() { return Iterator(op_nodes_.begin(), graph_); }
+
+    Iterator end() { return Iterator(op_nodes_.begin(), graph_); }
+   private:
+    std::vector<hlir::framework::Node*> op_nodes_;
+    const cinn::hlir::framework::Graph* graph_;
+  };
+
+  class OpGroupListView {
+   public:
+    OpGroupListView(const std::unordered_map<std::shared_ptr<hlir::framework::Graph::Group>, TensorInterfaceList, Hasher, Comparator>& group_map, const hlir::framework::Graph* graph) : op_group_map_(group_map), graph_(graph) {}
+    class Iterator {
+     public:
+      Iterator(std::unordered_map<std::shared_ptr<hlir::framework::Graph::Group>, TensorInterfaceList, Hasher, Comparator>::const_iterator it, const hlir::framework::Graph* graph) : iter_(it), graph_(graph) {}
+
+      Iterator& operator++() {
+        ++iter_;
+        return *this;
+      }
+
+      Iterator operator++(int) {
+        Iterator tmp = *this;
+        ++iter_;
+        return tmp;
+      }
+
+      bool operator==(const Iterator& other) const {
+        return iter_ == other.iter_;
+      }
+
+      bool operator!=(const Iterator& other) const {
+          return !(*this == other);
+      }
+
+      OpGroup operator*() const{
+        return OpGroup(graph_, iter_->first);
+      }
+
+     private:
+      std::unordered_map<std::shared_ptr<hlir::framework::Graph::Group>, TensorInterfaceList, Hasher, Comparator>::const_iterator iter_;
+      const hlir::framework::Graph* graph_;
+    };
+
+    size_t size() const { return op_group_map_.size(); }
+
+    Iterator begin() { return Iterator(op_group_map_.begin(), graph_); }
+
+    Iterator end() { return Iterator(op_group_map_.begin(), graph_); }
 
    private:
-    std::unordered_map<std::shared_ptr<hlir::framework::Graph::Group>, TensorInterfaceList>::iterator iter_;
-    const hlir::pass::FusionHelperBase* helper_;
+    const std::unordered_map<std::shared_ptr<hlir::framework::Graph::Group>, TensorInterfaceList, Hasher, Comparator>& op_group_map_;
+    const cinn::hlir::framework::Graph* graph_;
   };
+
+
 
   hlir::framework::OpPatternKind kind() const { return group_->kind(); }
 
-  size_t OpSize() const {
-    return group_->CollectNodes().size();
+  OpNodeListView Ops() const {
+    return OpNodeListView(group_->CollectNodes(), graph_);
   }
 
-  OpNode GetOp(size_t index) const {
-    return OpNode(helper_, group_->CollectNodes()[index]);
+  OpGroupListView Producers() const {
+    return OpGroupListView(group_->producer_groups(), graph_);
   }
 
-  size_t ProducerSize() const {
-    return group_->producer_groups().size();
-  }
-
-  size_t ConsumerSize() const {
-    return group_->consumer_groups().size();
-  }
-
-  iterator ProducerBegin() const {
-    return iterator(group_->mut_producer_groups()->begin(), helper_);
-  }
-
-  iterator ProducerEnd() const {
-    return iterator(group_->mut_producer_groups()->end(), helper_);
-  }
-
-  iterator ConsumerBegin() const {
-    return iterator(group_->mut_consumer_groups()->begin(), helper_);
-  }
-
-  iterator ConsumerEnd() const {
-    return iterator(group_->mut_consumer_groups()->end(), helper_);
+  OpGroupListView Consumers() const {
+    return OpGroupListView(group_->consumer_groups(), graph_);
   }
 
   std::shared_ptr<hlir::framework::Graph::Group> GetGroup() const {
@@ -109,7 +154,7 @@ class OpGroup {
   }
 
  private:
-  const hlir::pass::FusionHelperBase* helper_;
+  const hlir::framework::Graph* graph_;
   const std::shared_ptr<hlir::framework::Graph::Group> group_;
 };
 

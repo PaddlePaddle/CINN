@@ -116,7 +116,8 @@ class GraphGroupFuseHelper final : public FuseHelper {
       return node.GetGroup()->max_depth;
     };
     const auto& VisitNextNodes = [&](OpGroupPtr node, const std::function<void(OpGroupPtr)>& Visit) {
-      for(auto iter = node.ProducerBegin(); iter != node.ProducerEnd(); ++iter) {
+      auto producer_groups = producer.Producers();
+      for(auto iter = producer_groups.begin(); iter != producer_groups.end(); ++iter) {
         if (node == consumer && *iter == producer) {
           continue;
         }
@@ -317,6 +318,25 @@ bool GraphGroupFuseHelper<FusePassCtxT>::ReduceFuseReduce(const OpGroupPtr& src,
                             dst.GetGroup());
 }
 
+// limit the group args number to less equal 512, as args stack size is 4K.
+// static bool limit_args(const OpGroupPtr& first, const OpGroupPtr& second) {
+//   std::unordered_set<Node*> args;
+//   for (auto& group : {first, second}) {
+//     for (auto node : group->input_nodes) {
+//       args.insert(node.first);
+//     }
+//     for (auto node : group->output_nodes) {
+//       args.insert(node);
+//     }
+//   }
+
+//   if (args.size() > 512) {
+//     return false;
+//   } else {
+//     return true;
+//   }
+// }
+
 template <typename FusePassCtxT>
 struct HorizontalFuseUtil {
   using KindKeyT = std::pair<OpPatternKind, OpPatternKind>;
@@ -363,22 +383,22 @@ struct HorizontalFuseUtil {
   }
 
   static api::OpNode GetMasterNode(FusePassCtxT* ctx, const OpGroupPtr& op_group) {
-    size_t op_num = op_group.OpSize();
-    for (size_t i = 0; i < op_num; ++i) {
-      api::OpNode node = op_group.GetOp(i);
+    auto ops = op_group.Ops();
+    for (auto iter = ops.begin(); iter != ops.end(); ++iter) {
+      api::OpNode node = *iter;
       if (node.kind() == OpPatternKind::kReduction) {
         return node;
       }
     }
-    return op_group.GetOp(0);
+    return *ops.begin();
   }
 
   static bool IsSameSize(FusePassCtxT* ctx, const OpGroupPtr& src, const OpGroupPtr& dst) {
     api::OpNode src_master_node = GetMasterNode(ctx, src);
     api::OpNode dst_master_node = GetMasterNode(ctx, dst);
 
-    const auto& output_var_0 = src_master_node.GetOutput(0).Shape();
-    const auto& output_var_1 = dst_master_node.GetOutput(0).Shape();
+    const auto& output_var_0 = src_master_node.Outputs()[0].Shape();
+    const auto& output_var_1 = dst_master_node.Outputs()[0].Shape();
     if (output_var_0 == output_var_1) {
       return true;
     }
@@ -389,14 +409,13 @@ struct HorizontalFuseUtil {
   }
 
   static bool HorizontalElementwiseFuseReduce(FusePassCtxT* ctx, const OpGroupPtr& src, const OpGroupPtr& dst) {
-    return ctx->fuse_helper().HorizontalElementwiseFuseReduce(src, dst);
     // if same shape with horizontal relation
     if (IsSameSize(ctx, src, dst)) {
       return true;
     }
 
-    const OpGroupPtr* ele_group;
-    const OpGroupPtr* reduce_group;
+    const OpGroupPtr* ele_group = nullptr;
+    const OpGroupPtr* reduce_group = nullptr;
 
     if (src.kind() == framework::kReduction) {
       ele_group    = &dst;
@@ -406,14 +425,14 @@ struct HorizontalFuseUtil {
       reduce_group = &dst;
     }
 
-    shape_t ele_node_shape = GetMasterNode(ctx, *ele_group).GetOutput(0).Shape();
+    shape_t ele_node_shape = GetMasterNode(ctx, *ele_group).Outputs()[0].Shape();
     int32_t size_ele       = std::accumulate(ele_node_shape.begin(), ele_node_shape.end(), 1, std::multiplies<int>());
 
-    size_t op_num = reduce_group->OpSize();
-    for (size_t i = 0; i < op_num; ++i) {
-      api::OpNode node = reduce_group->GetOp(i);
+    auto ops = reduce_group->Ops();
+    for (auto iter = ops.begin(); iter!= ops.end(); ++iter) {
+      api::OpNode node = *iter;
       if (node.kind() == OpPatternKind::kReduction) {
-        shape_t master_node_shape = node.GetOutput(0).Shape();
+        shape_t master_node_shape = node.Outputs()[0].Shape();
         int32_t size_master =
           std::accumulate(master_node_shape.begin(), master_node_shape.end(), 1, std::multiplies<int>());
         if (size_ele == size_master) {
@@ -483,6 +502,7 @@ class DefaultInputFusePass final : public InputFusePass {
         return;
       }
     }
+    VLOG(1) << "DefaultInputFusePass Finish";
   }
 };
 
@@ -525,7 +545,8 @@ class DefaultHorizontalFusePass final : public HorizontalFusePass {
     const auto& producer        = ctx->PickOpGroup();
     const OpGroupList consumers = [&]() {
       OpGroupList consumers;
-      for(auto iter = producer.ConsumerBegin(); iter!= producer.ConsumerEnd(); ++iter) {
+      auto consumer_groups = producer.Consumers();
+      for(auto iter = consumer_groups.begin(); iter != consumer_groups.end(); ++iter) {
         consumers.push_back(*iter);
       }
       return consumers;
@@ -575,7 +596,8 @@ class DefaultVerticalFusePass final : public VerticalFusePass {
     const auto& producer        = ctx->PickOpGroup();
     const OpGroupList consumers = [&]() {
       OpGroupList consumers;
-      for(auto iter = producer.ConsumerBegin(); iter!= producer.ConsumerEnd(); ++iter) {
+      auto consumer_groups = producer.Consumers();
+      for(auto iter = consumer_groups.begin(); iter != consumer_groups.end(); ++iter) {
         consumers.push_back(*iter);
       }
       return consumers;
@@ -701,7 +723,8 @@ class DefaultRecomputeFusePass final : public RecomputeFusePass {
     const auto& producer        = ctx->PickOpGroup();
     const OpGroupList consumers = [&]() {
       OpGroupList consumers;
-      for(auto iter = producer.ConsumerBegin(); iter!= producer.ConsumerEnd(); ++iter) {
+      auto consumer_groups = producer.Consumers();
+      for(auto iter = consumer_groups.begin(); iter != consumer_groups.end(); ++iter) {
         consumers.push_back(*iter);
       }
       return consumers;
@@ -826,7 +849,7 @@ class FusionPassRegistrar final : public Registrar {
 // code generation.
 class GeneralFusionMergePassHelper : public FusionHelperBase {
  public:
-  GeneralFusionMergePassHelper(const Graph* graph) : FusionHelperBase(graph) {
+  GeneralFusionMergePassHelper(const Graph* graph) : FusionHelperBase(graph), graph_(graph) {
     fusion_groups_ = graph->fusion_groups;
     // init fusion relation.
     InitFusionRelation();
@@ -1020,7 +1043,7 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
 
   void EnableFusedHorizontalGroups(LightwareFusePassCtx* ctx) const {
     const auto& producer = ctx->PickOpGroup();
-    if (producer.ConsumerSize() <= 1) {
+    if (producer.Consumers().size() <= 1) {
       return;
     }
     const auto& fuse_passes = GetHorizontalFusePasses();
@@ -1037,7 +1060,7 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
       const auto& EnableFuse = [&](const OpGroupPtr& first, const OpGroupPtr& second) {
         tagged_sets.insert(std::make_pair(first, second));
       };
-      GraphGroupLightwareFusePassCtx fuse_ctx(this, api::OpGroup(this, producer), EnableFuse);
+      GraphGroupLightwareFusePassCtx fuse_ctx(this, api::OpGroup(this->graph_,  producer), EnableFuse);
       EnableFusedHorizontalGroups(&fuse_ctx);
       return tagged_sets;
     };
@@ -1089,7 +1112,7 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
       OpGroupList consumer_groups;
       consumer_groups.reserve(consumers.size());
       for(auto& consumer : consumers) {
-        consumer_groups.push_back(api::OpGroup(this, consumer));
+        consumer_groups.push_back(api::OpGroup(this->graph_, consumer));
       }
       GraphGroupInputFusePassCtx fuse_ctx(this, consumer_groups, EnableFuse);
       EnableFusedInputGroups(&fuse_ctx);
@@ -1410,7 +1433,7 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
 
   void TagVerticalGroups(LightwareFusePassCtx* ctx) const {
     const auto& producer = ctx->PickOpGroup();
-    if (producer.ConsumerSize() == 0) {
+    if (producer.Consumers().size() == 0) {
       return;
     }
     const auto& fuse_passes = GetVerticalFusePasses();
@@ -1427,7 +1450,7 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
       const auto& EnableFuse = [&](const OpGroupPtr& first, const OpGroupPtr& second) {
         tagged_sets.push_back(std::make_pair(first, second));
       };
-      GraphGroupLightwareFusePassCtx fuse_ctx(this, api::OpGroup(this, producer), EnableFuse);
+      GraphGroupLightwareFusePassCtx fuse_ctx(this, api::OpGroup(this->graph_, producer), EnableFuse);
       TagVerticalGroups(&fuse_ctx);
       return tagged_sets;
     };
@@ -1657,7 +1680,7 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
 
   void TagRecomputeGroups(LightwareFusePassCtx* ctx) const {
     const auto& producer = ctx->PickOpGroup();
-    if (producer.ConsumerSize() <= 1) {
+    if (producer.Consumers().size() <= 1) {
       return;
     }
     const auto& fuse_passes = GetRecomputeFusePasses();
@@ -1674,7 +1697,7 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
       const auto& EnableFuse = [&](const OpGroupPtr& first, const OpGroupPtr& second) {
         tagged_sets.insert(std::make_pair(first, second));
       };
-      GraphGroupLightwareFusePassCtx fuse_ctx(this, api::OpGroup(this, producer), EnableFuse);
+      GraphGroupLightwareFusePassCtx fuse_ctx(this, api::OpGroup(this->graph_, producer), EnableFuse);
       TagRecomputeGroups(&fuse_ctx);
       return tagged_sets;
     };
@@ -2091,6 +2114,7 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
     }
   }
 
+  const Graph* graph_;
   GroupList fusion_groups_;
   std::unordered_map<GroupPtr, int> fusion_groups_index_;
   std::unordered_map<NodeData*, std::unordered_set<GroupPtr, Hasher, Comparator>> input_to_consumers_;

@@ -20,20 +20,12 @@ namespace cinn {
 namespace api {
 
 OpNode TensorNode::Producer() const {
-  return OpNode(helper_, node_data_->source_node.get());
+  return OpNode(graph_, node_data_->source_node.get());
 }
 
-OpNode TensorNode::Consumer(size_t index) const {
-  std::vector<hlir::framework::Node*> consumer_nodes;
-  for (auto& link : node_data_->outlinks()) {
-    auto consumer = link->sink()->safe_as<hlir::framework::Node>();
-    consumer_nodes.push_back(consumer);
-  }
-  return OpNode(helper_, consumer_nodes[index]);
+OpNode TensorNode::ConsumerOpListView::Iterator::operator * () const{
+  return OpNode(graph_, (*iter_)->sink()->safe_as<hlir::framework::Node>());
 }
-
-
-
 
 }  // namespace api
 }  // namespace cinn

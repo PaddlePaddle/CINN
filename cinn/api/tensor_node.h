@@ -14,10 +14,9 @@
 
 #pragma once
 
-#include "cinn/hlir/framework/node.h"
+#include "cinn/hlir/framework/graph.h"
 #include "cinn/utils/type_defs.h"
 #include "cinn/hlir/pass/fusion_helper_base.h"
-
 
 namespace cinn {
 namespace api {
@@ -28,24 +27,76 @@ using shape_t = utils::ShapeType;
 
 class TensorNode {
  public:
-  TensorNode(const hlir::pass::FusionHelperBase* helper, const hlir::framework::NodeData* node_data) : helper_(helper), node_data_(node_data) {}
+  TensorNode(const hlir::framework::Graph* graph, const hlir::framework::NodeData* node_data) : graph_(graph), node_data_(node_data) {}
 
   // Get the shape of tensor.
   const shape_t& Shape() const {
-    CHECK(helper_->shape_dict_.count(node_data_->id())) << "Can't find " << node_data_->id() << " 's shape!";
-    return helper_->shape_dict_.at(node_data_->id());
+    const auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
+    CHECK(shape_dict.count(node_data_->id())) << "Can't find " << node_data_->id() << " 's shape!";
+    return shape_dict.at(node_data_->id());
   }
 
   OpNode Producer() const;
+
+  class ConsumerOpListView {
+   public:
+    ConsumerOpListView(const std::set<common::Shared<common::GraphEdge>, common::GraphEdgeCompare>& edges, const hlir::framework::Graph* graph) : edges_(edges), graph_(graph) {}
+
+    class Iterator {
+     public:
+      Iterator(std::set<common::Shared<common::GraphEdge>, common::GraphEdgeCompare>::const_iterator it, const hlir::framework::Graph* graph) : iter_(it), graph_(graph) {}
+
+      Iterator& operator++() {
+        ++iter_;
+        return *this;
+      }
+
+      Iterator operator++(int) {
+        Iterator tmp = *this;
+        ++iter_;
+        return tmp;
+      }
+
+      bool operator==(const Iterator& other) const {
+        return iter_ == other.iter_;
+      }
+
+      bool operator!=(const Iterator& other) const {
+          return !(*this == other);
+      }
+
+      OpNode operator*() const;
+
+     private:
+      std::set<common::Shared<common::GraphEdge>, common::GraphEdgeCompare>::const_iterator iter_;
+      const hlir::framework::Graph* graph_;
+    };
+
+    size_t size() const { return edges_.size(); }
+
+    Iterator begin() const {
+      return  Iterator(this->edges_.begin(), graph_);
+    }
+
+    Iterator end() const {
+      return  Iterator(this->edges_.end(), graph_);
+    }
+
+   private:
+    const std::set<Shared<common::GraphEdge>, common::GraphEdgeCompare>& edges_;
+    const hlir::framework::Graph* graph_;
+  };
 
   size_t ConsumerSize() const {
     return node_data_->outlinks().size();
   }
 
-  OpNode Consumer(size_t index) const;
+  ConsumerOpListView Consumers() const {
+    return ConsumerOpListView(node_data_->outlinks(), graph_);
+  }
 
  private:
-  const hlir::pass::FusionHelperBase* helper_;
+  const hlir::framework::Graph* graph_;
   const hlir::framework::NodeData* node_data_;
 };
 

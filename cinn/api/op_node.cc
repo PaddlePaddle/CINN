@@ -17,14 +17,12 @@
 namespace cinn {
 namespace api {
 
-TensorNode OpNode::GetInput(size_t i) const {
-  auto edges = node_->inlinks_in_order();
-  return TensorNode(helper_, edges[i]->source()->safe_as<hlir::framework::NodeData>());
+TensorNode OpNode::InputTensorListView::operator[](size_t index) const {
+  return TensorNode(graph_, edges_[index]->source()->safe_as<hlir::framework::NodeData>());
 }
 
-TensorNode OpNode::GetOutput(size_t i) const {
-  auto edges = node_->outlinks_in_order();
-  return TensorNode(helper_, edges[i]->sink()->safe_as<hlir::framework::NodeData>());
+TensorNode OpNode::OutputTensorListView::operator[](size_t index) const {
+  return TensorNode(graph_, edges_[index]->sink()->safe_as<hlir::framework::NodeData>());
 }
 
 }  // namespace api
