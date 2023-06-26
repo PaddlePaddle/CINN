@@ -102,6 +102,7 @@ static std::unordered_map<std::string, CastImplFunc> need_cast_list = {
     {"reduce_prod", CommonCastImpl},
     // composite function
     {"sigmoid", CommonCastImpl},
+    {"sum", CommonCastImpl},
     {"softmax", CommonCastImpl},
     {"gelu", CommonCastImpl},
     {"batch_norm",

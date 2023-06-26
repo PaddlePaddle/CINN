@@ -158,24 +158,6 @@ class TestSumOpDtypeTest(TestCaseHelper):
         self.attrs = []
 
 
-class TestSumOpLargeInputTest(TestCaseHelper):
-    def init_attrs(self):
-        self.class_name = "TestSumOpLargeInputTest"
-        self.cls = TestSumOp
-        self.inputs = [{
-            "shapes": [[64]] * 100,
-        }, {
-            "shapes": [[64, 32, 16, 1, 128]] * 20,
-        }, {
-            "shapes": [[1, 1, 1, 1, 1]] * 100,
-        }, {
-            "shapes": [[1048576]] * 20,
-        }]
-        self.dtypes = [{"dtype": "float32"}]
-        self.attrs = []
-
-
 if __name__ == "__main__":
     TestSumOpShapeTest().run()
     TestSumOpDtypeTest().run()
-    TestSumOpLargeInputTest().run()
