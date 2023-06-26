@@ -131,13 +131,13 @@ class TestMulOpBase(TestCaseHelper):
     attrs = [
         {
             "x_low": -10,
-            "x_high": 10,
+            "x_high": -1,
             "y_low": -10,
             "y_high": -1,
             "is_infer": False
         },
         {
-            "x_low": -10,
+            "x_low": 1,
             "x_high": 10,
             "y_low": 1,
             "y_high": 10,
@@ -208,20 +208,20 @@ class TestMulOpPolarityTest(TestMulOpBase):
         self.class_name = "TestMulOpPolarityTest"
         self.cls = TestMulOp
         self.attrs = [
-            {
-                "x_low": -10,
-                "x_high": 10,
-                "y_low": -10,
-                "y_high": -1,
-                "is_infer": False
-            },
-            {
-                "x_low": -10,
-                "x_high": 10,
-                "y_low": 1,
-                "y_high": 10,
-                "is_infer": False
-            },
+        {
+            "x_low": -10,
+            "x_high": -1,
+            "y_low": -10,
+            "y_high": -1,
+            "is_infer": False
+        },
+        {
+            "x_low": 1,
+            "x_high": 10,
+            "y_low": 1,
+            "y_high": 10,
+            "is_infer": False
+        },
         ]
 
 
