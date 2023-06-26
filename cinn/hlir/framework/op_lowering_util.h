@@ -29,8 +29,8 @@ ir::Tensor GetTensor(const NodeData* node_data,
                      const absl::flat_hash_map<std::string, shape_t>& shape_dict);
 
 std::vector<ir::Tensor> CollectInputTensor(const Node* node,
-                                           std::vector<ir::Tensor>& func_args,
-                                           std::unordered_map<std::string, ir::Tensor>& tensor_map,
+                                           std::vector<ir::Tensor>* func_args,
+                                           std::unordered_map<std::string, ir::Tensor>* tensor_map,
                                            const absl::flat_hash_map<std::string, Type>& type_dict,
                                            const absl::flat_hash_map<std::string, shape_t>& shape_dict);
 

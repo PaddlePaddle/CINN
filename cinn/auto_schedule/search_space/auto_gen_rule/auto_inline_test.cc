@@ -156,7 +156,7 @@ TEST(AutoInline, AddReluInline) {
   auto op_lowerer        = std::make_unique<hlir::framework::OpLowerer>(dtype_dict, shape_dict, target);
 
   EXPECT_EQ(graph->fusion_groups.size(), 1UL);
-  std::vector<ir::LoweredFunc> funcs = op_lowerer->LowerWithoutSchedule(graph->fusion_groups[0]);
+  std::vector<ir::LoweredFunc> funcs = op_lowerer->Lower(graph->fusion_groups[0], false, false);
 
   VLOG(6) << "Expr before auto inline: " << funcs[0]->body;
 

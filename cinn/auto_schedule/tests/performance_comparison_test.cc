@@ -130,7 +130,7 @@ class PerformanceTester : public ::testing::Test {
     compile_options.groups = graph->fusion_groups;
 
     for (auto group : graph->fusion_groups) {
-      compile_options.lowered_funcs.push_back(op_lowerer->LowerWithoutSchedule(group));
+      compile_options.lowered_funcs.push_back(op_lowerer->Lower(group, false, false));
     }
 
     VLOG(3) << "===========================No Schedule LoweredFunc Begin===========================";

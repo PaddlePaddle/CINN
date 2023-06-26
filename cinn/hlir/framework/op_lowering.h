@@ -39,45 +39,60 @@ using GroupPtr = std::shared_ptr<Graph::Group>;
 using common::Target;
 
 class OpLowerer;
-typedef std::vector<Expr> (OpLowerer::*IRComputeFunction)(poly::StageMap&,
-                                                          std::vector<ir::Tensor>&,
-                                                          std::unordered_map<std::string, ir::Tensor>&,
-                                                          const GroupPtr&,
-                                                          const GroupPtr&,
-                                                          bool);
+
+typedef bool (OpLowerer::*ScheduleDetermineFunction)(Node*);
 
 class OpLowerer {
  public:
   OpLowerer(const absl::flat_hash_map<std::string, Type>&,
             const absl::flat_hash_map<std::string, shape_t>&,
             const Target&);
-  std::vector<ir::LoweredFunc> Lower(GroupPtr& group);
-  std::vector<ir::LoweredFunc> LowerWithoutSchedule(GroupPtr& group);
+
+  /**
+   * @brief Lower a group to CINN IR
+   * @param apply_op_schedule Whether to schedule at Op level.
+   * @param apply_group_schedule Whether to schedule at group level.
+   */
+  std::vector<ir::LoweredFunc> Lower(GroupPtr& group, bool apply_op_schedule = true, bool apply_group_schedule = true);
 
  private:
-  std::vector<ir::LoweredFunc> IRLowerOp(IRComputeFunction, GroupPtr&);
-  std::vector<ir::LoweredFunc> IRLowerNonFusibleOp(GroupPtr&, bool);
-  std::vector<ir::LoweredFunc> IRLowerOpWithoutSchedule(IRComputeFunction, GroupPtr&);
+  std::vector<ir::LoweredFunc> LowerGroup(GroupPtr& group,
+                                          bool apply_op_schedule,
+                                          bool apply_group_schedule,
+                                          ScheduleDetermineFunction schedule_determine_func);
 
-  std::vector<ir::LoweredFunc> LowerGroup(IRComputeFunction, GroupPtr&, bool);
+  std::vector<ir::LoweredFunc> LowerCustomCall(GroupPtr& group);
 
-#define DEFINE_IR_COMPUTE(type)                                                                \
-  std::vector<Expr> IR##type##Compute(poly::StageMap& stages,                                  \
-                                      std::vector<ir::Tensor>& func_args,                      \
-                                      std::unordered_map<std::string, ir::Tensor>& tensor_map, \
-                                      const GroupPtr& group,                                   \
-                                      const GroupPtr& sub_group,                               \
-                                      bool apply_impl_schedule = false);
+  std::vector<ir::LoweredFunc> PostProcess(ir::IRSchedule* ir_sch,
+                                           const GroupPtr& group,
+                                           const std::unordered_map<std::string, ir::Tensor>& tensor_map,
+                                           std::vector<ir::Tensor>* group_func_arg_tensors,
+                                           bool done_op_schedule);
 
-  // compute and schedule
-  DEFINE_IR_COMPUTE(Elementwise);
-  DEFINE_IR_COMPUTE(Reduce);
-  DEFINE_IR_COMPUTE(OutEWiseFusable);
+  std::vector<ir::Expr> LowerOps(const std::vector<Node*>& nodes,
+                                 std::vector<ir::Tensor>* group_func_arg_tensors,
+                                 std::unordered_map<std::string, ir::Tensor>* tensor_map,
+                                 bool apply_op_schedule,
+                                 ScheduleDetermineFunction schedule_determine_func);
 
-  void IRSchedule(ir::IRSchedule& ir_sch,
-                  const GroupPtr& group,
-                  const std::unordered_map<std::string, ir::Tensor>& tensor_map);
+  std::vector<ir::LoweredFunc> DoOpLower(Node* node,
+                                         std::shared_ptr<hlir::framework::OpImpl> op_impl,
+                                         std::unordered_map<std::string, ir::Tensor>* tensor_map,
+                                         std::vector<ir::Tensor>* op_func_arg_tensors);
 
+  ir::Expr DoOpSchedule(std::shared_ptr<hlir::framework::OpImpl> op_impl,
+                        const std::vector<ir::Tensor>& op_func_arg_tensors,
+                        const std::vector<ir::LoweredFunc>& lowered_funcs);
+
+  ir::Expr DoGroupSchedule(ir::IRSchedule& ir_sch,
+                           const GroupPtr& group,
+                           const std::unordered_map<std::string, ir::Tensor>& tensor_map);
+
+  inline bool ReduceScheduleDetermineFunction(Node* node);
+  inline bool ElementwiseScheduleDetermineFunction(Node* node);
+  inline bool NonFusibleScheduleDetermineFunction(Node* node);
+
+ private:
   Target target_;
   const absl::flat_hash_map<std::string, Type>& type_dict_;
   const absl::flat_hash_map<std::string, shape_t>& shape_dict_;

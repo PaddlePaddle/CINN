@@ -37,7 +37,7 @@ void TuneTask::Initialize(const absl::flat_hash_map<std::string, hlir::framework
   op_lowerer = lower_handler;
 
   // Set lowered_funcs and analyze output names.
-  this->lowered_funcs  = op_lowerer->LowerWithoutSchedule(subgraph);
+  this->lowered_funcs  = op_lowerer->Lower(subgraph, false, false);
   this->output_names   = GetOutputNamesFromLoweredFunc(this->lowered_funcs);
   this->serialized_key = SerializeToString(shape_dict, dtype_dict);
 }
