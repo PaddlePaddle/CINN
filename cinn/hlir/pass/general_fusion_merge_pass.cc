@@ -116,7 +116,7 @@ class GraphGroupFuseHelper final : public FuseHelper {
       return node.GetGroup()->max_depth;
     };
     const auto& VisitNextNodes = [&](const OpGroupPtr& node, const std::function<void(OpGroupPtr)>& Visit) {
-      const auto& producer_groups = producer.producers();
+      const auto producer_groups = producer.producers();
       for(auto iter = producer_groups.begin(); iter != producer_groups.end(); ++iter) {
         if (node == consumer && *iter == producer) {
           continue;
@@ -318,7 +318,12 @@ bool GraphGroupFuseHelper<FusePassCtxT>::ReduceFuseReduce(const OpGroupPtr& src,
                             dst.GetGroup());
 }
 
-// limit the group args number to less equal 512, as args stack size is 4K.
+// static std::vector<api::OpNode> GetInputOps(const OpGroupPtr& op_group) {
+//   std::unordered_set<api::OpNode> ops_set(op_group.ops().begin(), op_group.ops().end());
+
+// }
+
+// // limit the group args number to less equal 512, as args stack size is 4K.
 // static bool limit_args(const OpGroupPtr& first, const OpGroupPtr& second) {
 //   std::unordered_set<Node*> args;
 //   for (auto& group : {first, second}) {
@@ -383,7 +388,7 @@ struct HorizontalFuseUtil {
   }
 
   static api::OpNode GetMasterNode(FusePassCtxT* ctx, const OpGroupPtr& op_group) {
-    const auto& ops = op_group.ops();
+    const auto ops = op_group.ops();
     for (auto iter = ops.begin(); iter != ops.end(); ++iter) {
       api::OpNode node = *iter;
       if (node.kind() == OpPatternKind::kReduction) {
@@ -422,7 +427,7 @@ struct HorizontalFuseUtil {
 
     size_t size_ele = GetMasterNode(ctx, *ele_group).outputs()[0].shape().numel();
 
-    const auto& ops = reduce_group->ops();
+    const auto ops = reduce_group->ops();
     for (auto iter = ops.begin(); iter!= ops.end(); ++iter) {
       api::OpNode node = *iter;
       if (node.kind() == OpPatternKind::kReduction) {
@@ -537,7 +542,7 @@ class DefaultHorizontalFusePass final : public HorizontalFusePass {
     const auto& producer        = ctx->PickOpGroup();
     const OpGroupList consumers = [&]() {
       OpGroupList consumers;
-      const auto& consumer_groups = producer.consumers();
+      const auto consumer_groups = producer.consumers();
       for(auto iter = consumer_groups.begin(); iter != consumer_groups.end(); ++iter) {
         consumers.push_back(*iter);
       }
@@ -588,7 +593,7 @@ class DefaultVerticalFusePass final : public VerticalFusePass {
     const auto& producer        = ctx->PickOpGroup();
     const OpGroupList consumers = [&]() {
       OpGroupList consumers;
-      const auto& consumer_groups = producer.consumers();
+      const auto consumer_groups = producer.consumers();
       for(auto iter = consumer_groups.begin(); iter != consumer_groups.end(); ++iter) {
         consumers.push_back(*iter);
       }
@@ -715,7 +720,7 @@ class DefaultRecomputeFusePass final : public RecomputeFusePass {
     const auto& producer        = ctx->PickOpGroup();
     const OpGroupList consumers = [&]() {
       OpGroupList consumers;
-      const auto& consumer_groups = producer.consumers();
+      const auto consumer_groups = producer.consumers();
       for(auto iter = consumer_groups.begin(); iter != consumer_groups.end(); ++iter) {
         consumers.push_back(*iter);
       }

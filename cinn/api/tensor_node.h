@@ -30,7 +30,7 @@ class OpNode;
 
 class Shape final {
  public:
-  explicit Shape(const utils::ShapeType& shape) : shape_(shape) {}
+  explicit Shape(const utils::ShapeType& shape) : shape_(shape.begin(), shape.end()) {}
 
   Shape(const Shape& other) = delete;
   Shape(Shape&& other) = delete;
@@ -45,11 +45,11 @@ class Shape final {
   }
 
   size_t operator[] (size_t index) const {
-    return shape_.at(index);
+    return shape_[index];
   }
 
   size_t at(size_t index) const {
-    return shape_.at(index);
+    return shape_[index];
   }
 
   size_t size() const {
@@ -62,7 +62,7 @@ class Shape final {
   }
 
  private:
-  const shape_t& shape_;
+  cinn::utils::SmallVector<int64_t, 12> shape_;
 };
 
 
@@ -71,7 +71,7 @@ class TensorNode final {
   TensorNode(const hlir::framework::NodeData* node_data, const hlir::framework::Graph* graph) : node_data_(node_data), graph_(graph), consumers_(node_data_->outlinks(), graph_) {
     const auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
     CHECK(shape_dict.count(node_data_->id())) << "Can't find " << node_data_->id() << " 's shape!";
-    shape_.reset(new Shape(shape_dict.find(node_data_->id())->second));
+    shape_ = std::make_shared<Shape>(shape_dict.find(node_data_->id())->second);
   }
 
   // Get the shape of tensor.
@@ -143,7 +143,7 @@ class TensorNode final {
   const hlir::framework::NodeData* node_data_;
   const hlir::framework::Graph* graph_;
 
-  std::unique_ptr<Shape> shape_;
+  std::shared_ptr<Shape> shape_;
   const ConsumerOpListView consumers_;
 };
 

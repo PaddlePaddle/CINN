@@ -81,6 +81,14 @@ class OpNode {
     const hlir::framework::Graph* graph_;
   };
 
+  bool operator == (const OpNode& other) const {
+    return node_ == other.node_;
+  }
+
+  bool operator < (const OpNode& other) const {
+    return node_ < other.node_;
+  }
+
   const InputTensorListView& inputs() const {
     return input_tensors_;
   }
@@ -99,6 +107,8 @@ class OpNode {
     return node_->attrs.attr_store.at(attr_name);
   }
 
+  friend struct std::hash<OpNode>;
+
   const hlir::framework::Node* node_;
   const hlir::framework::Graph* graph_;
 
@@ -108,3 +118,14 @@ class OpNode {
 
 }  // namespace api
 }  // namespace cinn
+
+namespace std {
+
+template <>
+struct hash<cinn::api::OpNode> {
+  size_t operator()(const cinn::api::OpNode& obj) const {
+    return std::hash<int64_t>()(reinterpret_cast<uint64_t>(obj.node_));
+  }
+};
+
+} // namespace std
