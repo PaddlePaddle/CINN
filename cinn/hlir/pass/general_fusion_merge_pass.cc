@@ -109,14 +109,14 @@ class GraphGroupFuseHelper final : public FuseHelper {
 
  private:
   bool ReachableIfDirectEdgeIgnored(const OpGroupPtr& producer, const OpGroupPtr& consumer) const {
-    const auto& MinDepth4Node = [&](OpGroupPtr node) {
+    const auto& MinDepth4Node = [&](const OpGroupPtr& node) {
       return node.GetGroup()->min_depth;
     };
-    const auto& MaxDepth4Node = [&](OpGroupPtr node) {
+    const auto& MaxDepth4Node = [&](const OpGroupPtr& node) {
       return node.GetGroup()->max_depth;
     };
-    const auto& VisitNextNodes = [&](OpGroupPtr node, const std::function<void(OpGroupPtr)>& Visit) {
-      auto producer_groups = producer.Producers();
+    const auto& VisitNextNodes = [&](const OpGroupPtr& node, const std::function<void(OpGroupPtr)>& Visit) {
+      const auto& producer_groups = producer.producers();
       for(auto iter = producer_groups.begin(); iter != producer_groups.end(); ++iter) {
         if (node == consumer && *iter == producer) {
           continue;
@@ -192,7 +192,7 @@ class GraphGroupLightwareFusePassCtx final : public LightwareFusePassCtx {
  private:
   // static std::unordered_map<api::OpGroup, absl::any> cache_data_;
   const FusionHelperBase* graph_group_fusion_helper_;
-  OpGroupPtr group_;
+  const OpGroupPtr& group_;
   const std::function<void(const OpGroupPtr& first, const OpGroupPtr& second)> EnableFuse_;
   const std::unique_ptr<const FuseHelper> fuse_helper_;
 };
@@ -383,7 +383,7 @@ struct HorizontalFuseUtil {
   }
 
   static api::OpNode GetMasterNode(FusePassCtxT* ctx, const OpGroupPtr& op_group) {
-    auto ops = op_group.ops();
+    const auto& ops = op_group.ops();
     for (auto iter = ops.begin(); iter != ops.end(); ++iter) {
       api::OpNode node = *iter;
       if (node.kind() == OpPatternKind::kReduction) {
@@ -397,8 +397,8 @@ struct HorizontalFuseUtil {
     api::OpNode src_master_node = GetMasterNode(ctx, src);
     api::OpNode dst_master_node = GetMasterNode(ctx, dst);
 
-    auto size_0 = src_master_node.Outputs()[0].shape().numel();
-    auto size_1 = dst_master_node.Outputs()[0].shape().numel();
+    auto size_0 = src_master_node.outputs()[0].shape().numel();
+    auto size_1 = dst_master_node.outputs()[0].shape().numel();
 
     return size_0 == size_1;
   }
@@ -420,13 +420,13 @@ struct HorizontalFuseUtil {
       reduce_group = &dst;
     }
 
-    size_t size_ele = GetMasterNode(ctx, *ele_group).Outputs()[0].shape().numel();
+    size_t size_ele = GetMasterNode(ctx, *ele_group).outputs()[0].shape().numel();
 
-    auto ops = reduce_group->ops();
+    const auto& ops = reduce_group->ops();
     for (auto iter = ops.begin(); iter!= ops.end(); ++iter) {
       api::OpNode node = *iter;
       if (node.kind() == OpPatternKind::kReduction) {
-        size_t size_master = node.Outputs()[0].shape().numel();
+        size_t size_master = node.outputs()[0].shape().numel();
         if (size_ele == size_master) {
           return true;
         }
@@ -537,7 +537,7 @@ class DefaultHorizontalFusePass final : public HorizontalFusePass {
     const auto& producer        = ctx->PickOpGroup();
     const OpGroupList consumers = [&]() {
       OpGroupList consumers;
-      auto consumer_groups = producer.Consumers();
+      const auto& consumer_groups = producer.consumers();
       for(auto iter = consumer_groups.begin(); iter != consumer_groups.end(); ++iter) {
         consumers.push_back(*iter);
       }
@@ -588,7 +588,7 @@ class DefaultVerticalFusePass final : public VerticalFusePass {
     const auto& producer        = ctx->PickOpGroup();
     const OpGroupList consumers = [&]() {
       OpGroupList consumers;
-      auto consumer_groups = producer.Consumers();
+      const auto& consumer_groups = producer.consumers();
       for(auto iter = consumer_groups.begin(); iter != consumer_groups.end(); ++iter) {
         consumers.push_back(*iter);
       }
@@ -715,7 +715,7 @@ class DefaultRecomputeFusePass final : public RecomputeFusePass {
     const auto& producer        = ctx->PickOpGroup();
     const OpGroupList consumers = [&]() {
       OpGroupList consumers;
-      auto consumer_groups = producer.Consumers();
+      const auto& consumer_groups = producer.consumers();
       for(auto iter = consumer_groups.begin(); iter != consumer_groups.end(); ++iter) {
         consumers.push_back(*iter);
       }
@@ -1035,7 +1035,7 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
 
   void EnableFusedHorizontalGroups(LightwareFusePassCtx* ctx) const {
     const auto& producer = ctx->PickOpGroup();
-    if (producer.Consumers().size() <= 1) {
+    if (producer.consumers().size() <= 1) {
       return;
     }
     const auto& fuse_passes = GetHorizontalFusePasses();
@@ -1425,7 +1425,7 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
 
   void TagVerticalGroups(LightwareFusePassCtx* ctx) const {
     const auto& producer = ctx->PickOpGroup();
-    if (producer.Consumers().size() == 0) {
+    if (producer.consumers().size() == 0) {
       return;
     }
     const auto& fuse_passes = GetVerticalFusePasses();
@@ -1672,7 +1672,7 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
 
   void TagRecomputeGroups(LightwareFusePassCtx* ctx) const {
     const auto& producer = ctx->PickOpGroup();
-    if (producer.Consumers().size() <= 1) {
+    if (producer.consumers().size() <= 1) {
       return;
     }
     const auto& fuse_passes = GetRecomputeFusePasses();

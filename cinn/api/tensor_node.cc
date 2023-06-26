@@ -19,7 +19,7 @@
 namespace cinn {
 namespace api {
 
-OpNode TensorNode::Producer() const {
+OpNode TensorNode::producer() const {
   return OpNode(node_data_->source_node.get(), graph_);
 }
 

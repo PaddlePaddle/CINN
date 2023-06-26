@@ -44,8 +44,8 @@ class Shape final {
     return std::equal(shape_.begin(), shape_.end(), other.shape_.begin());
   }
 
-  const size_t& operator[] (size_t index) const {
-    return shape_[index];
+  size_t operator[] (size_t index) const {
+    return shape_.at(index);
   }
 
   size_t at(size_t index) const {
@@ -68,7 +68,7 @@ class Shape final {
 
 class TensorNode final {
  public:
-  TensorNode(const hlir::framework::NodeData* node_data, const hlir::framework::Graph* graph) : node_data_(node_data), graph_(graph) {
+  TensorNode(const hlir::framework::NodeData* node_data, const hlir::framework::Graph* graph) : node_data_(node_data), graph_(graph), consumers_(node_data_->outlinks(), graph_) {
     const auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
     CHECK(shape_dict.count(node_data_->id())) << "Can't find " << node_data_->id() << " 's shape!";
     shape_.reset(new Shape(shape_dict.find(node_data_->id())->second));
@@ -79,7 +79,7 @@ class TensorNode final {
     return *shape_;
   }
 
-  OpNode Producer() const;
+  OpNode producer() const;
 
   class ConsumerOpListView {
    public:
@@ -135,18 +135,16 @@ class TensorNode final {
     const hlir::framework::Graph* graph_;
   };
 
-  size_t ConsumerSize() const {
-    return node_data_->outlinks().size();
-  }
-
-  ConsumerOpListView Consumers() const {
-    return ConsumerOpListView(node_data_->outlinks(), graph_);
+  const ConsumerOpListView& consumers() const {
+    return consumers_;
   }
 
  private:
   const hlir::framework::NodeData* node_data_;
   const hlir::framework::Graph* graph_;
+
   std::unique_ptr<Shape> shape_;
+  const ConsumerOpListView consumers_;
 };
 
 }  // namespace api

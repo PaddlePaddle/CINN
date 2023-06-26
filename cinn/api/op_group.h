@@ -29,9 +29,16 @@ using Hasher     = hlir::framework::Graph::Group::SharedGroupHasher;
 
 class OpGroup {
  public:
-  OpGroup(const std::shared_ptr<hlir::framework::Graph::Group>& group, const hlir::framework::Graph* graph) : group_(group), graph_(graph) {}
+  OpGroup(const std::shared_ptr<hlir::framework::Graph::Group>& group, const hlir::framework::Graph* graph)
+         : group_(group), graph_(graph),
+           producers_(group_->producer_groups(), graph_),
+           consumers_(group_->consumer_groups(), graph_),
+           ops_(group_->CollectNodes(), graph_) {}
 
-  OpGroup(const OpGroup& other) = default;
+  OpGroup(const OpGroup& other) : group_(other.group_), graph_(other.graph_),
+           producers_(group_->producer_groups(), graph_),
+           consumers_(group_->consumer_groups(), graph_),
+           ops_(group_->CollectNodes(), graph_) {}
 
   class OpNodeListView {
    public:
@@ -76,11 +83,11 @@ class OpGroup {
 
     size_t size() const { return op_nodes_.size(); }
 
-    Iterator begin() { return Iterator(op_nodes_.begin(), graph_); }
+    Iterator begin() const { return Iterator(op_nodes_.begin(), graph_); }
 
-    Iterator end() { return Iterator(op_nodes_.begin(), graph_); }
+    Iterator end() const { return Iterator(op_nodes_.begin(), graph_); }
    private:
-    std::vector<hlir::framework::Node*> op_nodes_;
+    const std::vector<hlir::framework::Node*> op_nodes_;
     const cinn::hlir::framework::Graph* graph_;
   };
 
@@ -127,9 +134,9 @@ class OpGroup {
 
     size_t size() const { return op_group_map_.size(); }
 
-    Iterator begin() { return Iterator(op_group_map_.begin(), graph_); }
+    Iterator begin() const { return Iterator(op_group_map_.begin(), graph_); }
 
-    Iterator end() { return Iterator(op_group_map_.begin(), graph_); }
+    Iterator end() const { return Iterator(op_group_map_.begin(), graph_); }
 
    private:
     const std::unordered_map<std::shared_ptr<hlir::framework::Graph::Group>, TensorInterfaceList, Hasher, Comparator>& op_group_map_;
@@ -140,16 +147,16 @@ class OpGroup {
 
   hlir::framework::OpPatternKind kind() const { return group_->kind(); }
 
-  OpNodeListView ops() const {
-    return OpNodeListView(group_->CollectNodes(), graph_);
+  const OpNodeListView& ops() const {
+    return ops_;
   }
 
-  OpGroupListView Producers() const {
-    return OpGroupListView(group_->producer_groups(), graph_);
+  const OpGroupListView& producers() const {
+    return producers_;
   }
 
-  OpGroupListView Consumers() const {
-    return OpGroupListView(group_->consumer_groups(), graph_);
+  const OpGroupListView &consumers() const {
+    return consumers_;
   }
 
   std::shared_ptr<hlir::framework::Graph::Group> GetGroup() const {
@@ -167,6 +174,11 @@ class OpGroup {
  private:
   const std::shared_ptr<hlir::framework::Graph::Group> group_;
   const hlir::framework::Graph* graph_;
+
+  const OpGroupListView producers_;
+  const OpGroupListView consumers_;
+
+  const OpNodeListView ops_;
 };
 
 }  // namespace api

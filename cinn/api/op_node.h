@@ -28,10 +28,9 @@ using Attribute = cinn::utils::Attribute;
 
 class OpNode {
  public:
-  OpNode(const hlir::framework::Node* node, const hlir::framework::Graph* graph) : node_(node), graph_(graph) {
-    input_edges_ = node->inlinks_in_order();
-    output_edges_ = node->outlinks_in_order();
-  }
+  OpNode(const hlir::framework::Node* node, const hlir::framework::Graph* graph) : node_(node), graph_(graph), input_tensors_(node->inlinks_in_order(), graph_), output_tensors_(node->outlinks_in_order(), graph_) {}
+
+  OpNode(const OpNode& other) : node_(other.node_), graph_(other.graph_), input_tensors_(node_->inlinks_in_order(), graph_), output_tensors_(node_->outlinks_in_order(), graph_) {}
 
   OpPatternKind kind () const {
     thread_local const static hlir::framework::OpValueType<OpPatternKind>& op_pattern_dict = hlir::framework::Operator::GetAttrs<OpPatternKind>("OpPattern");
@@ -48,7 +47,7 @@ class OpNode {
 
   class InputTensorListView {
    public:
-    InputTensorListView(const hlir::framework::Graph* graph, const std::vector<common::Shared<common::GraphEdge>>& edges) : graph_(graph), edges_(edges) {}
+    InputTensorListView(const std::vector<common::Shared<common::GraphEdge>>& edges, const hlir::framework::Graph* graph) : edges_(edges), graph_(graph) {}
 
     InputTensorListView(const InputTensorListView& other) = delete;
     InputTensorListView(InputTensorListView&& other) = delete;
@@ -60,41 +59,34 @@ class OpNode {
     TensorNode operator[](size_t index) const;
 
    private:
+    std::vector<common::Shared<common::GraphEdge>> edges_;
     const hlir::framework::Graph* graph_;
-    const std::vector<common::Shared<common::GraphEdge>>& edges_;
   };
 
   class OutputTensorListView {
    public:
-    OutputTensorListView(const hlir::framework::Graph* graph, const std::vector<common::Shared<common::GraphEdge>>& edges) : graph_(graph), edges_(edges) {}
+    OutputTensorListView(const std::vector<common::Shared<common::GraphEdge>>& edges, const hlir::framework::Graph* graph) : edges_(edges), graph_(graph) {}
 
     OutputTensorListView(const OutputTensorListView& other) = delete;
-
     OutputTensorListView(OutputTensorListView&& other) = delete;
+
+    OutputTensorListView& operator=(const OutputTensorListView& other) = delete;
 
     size_t size() const { return edges_.size(); }
 
     TensorNode operator[](size_t index) const;
 
    private:
+    std::vector<common::Shared<common::GraphEdge>> edges_;
     const hlir::framework::Graph* graph_;
-    const std::vector<common::Shared<common::GraphEdge>>& edges_;
   };
 
-  size_t InputsSize() const {
-    return node_->inlinks().size();
+  const InputTensorListView& inputs() const {
+    return input_tensors_;
   }
 
-  size_t OutputsSize() const {
-    return node_->outlinks().size();
-  }
-
-  InputTensorListView Inputs() const {
-    return InputTensorListView(graph_, input_edges_);
-  }
-
-  OutputTensorListView Outputs() const {
-    return OutputTensorListView(graph_, output_edges_);
+  const OutputTensorListView& outputs() const {
+    return output_tensors_;
   }
 
   template <typename T>
@@ -110,8 +102,8 @@ class OpNode {
   const hlir::framework::Node* node_;
   const hlir::framework::Graph* graph_;
 
-  std::vector<common::Shared<common::GraphEdge>> input_edges_;
-  std::vector<common::Shared<common::GraphEdge>> output_edges_;
+  const InputTensorListView input_tensors_;
+  const OutputTensorListView output_tensors_;
 };
 
 }  // namespace api
