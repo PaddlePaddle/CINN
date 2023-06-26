@@ -242,8 +242,8 @@ struct GE : public BinaryOpNode<GE> {
  */
 struct And : public BinaryOpNode<And> {
   And(Expr a, Expr b) : BinaryOpNode<And>(a.type(), a, b) {
-    a.as_bool();
-    b.as_bool();
+    CHECK(a->type().is_bool());
+    CHECK(b->type().is_bool());
   }
 
   Type type() const { return Bool(a()->type().lanes()); }
