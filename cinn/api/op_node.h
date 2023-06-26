@@ -51,8 +51,9 @@ class OpNode {
     InputTensorListView(const hlir::framework::Graph* graph, const std::vector<common::Shared<common::GraphEdge>>& edges) : graph_(graph), edges_(edges) {}
 
     InputTensorListView(const InputTensorListView& other) = delete;
-
     InputTensorListView(InputTensorListView&& other) = delete;
+
+    InputTensorListView& operator=(const InputTensorListView& other) = delete;
 
     size_t size() const { return edges_.size(); }
 

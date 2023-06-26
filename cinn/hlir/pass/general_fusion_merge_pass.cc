@@ -383,7 +383,7 @@ struct HorizontalFuseUtil {
   }
 
   static api::OpNode GetMasterNode(FusePassCtxT* ctx, const OpGroupPtr& op_group) {
-    auto ops = op_group.Ops();
+    auto ops = op_group.ops();
     for (auto iter = ops.begin(); iter != ops.end(); ++iter) {
       api::OpNode node = *iter;
       if (node.kind() == OpPatternKind::kReduction) {
@@ -397,14 +397,9 @@ struct HorizontalFuseUtil {
     api::OpNode src_master_node = GetMasterNode(ctx, src);
     api::OpNode dst_master_node = GetMasterNode(ctx, dst);
 
-    const auto& output_var_0 = src_master_node.Outputs()[0].Shape();
-    const auto& output_var_1 = dst_master_node.Outputs()[0].Shape();
-    if (output_var_0 == output_var_1) {
-      return true;
-    }
+    auto size_0 = src_master_node.Outputs()[0].shape().numel();
+    auto size_1 = dst_master_node.Outputs()[0].shape().numel();
 
-    auto size_0 = std::accumulate(output_var_0.begin(), output_var_0.end(), 1, std::multiplies<int>());
-    auto size_1 = std::accumulate(output_var_1.begin(), output_var_1.end(), 1, std::multiplies<int>());
     return size_0 == size_1;
   }
 
@@ -425,16 +420,13 @@ struct HorizontalFuseUtil {
       reduce_group = &dst;
     }
 
-    shape_t ele_node_shape = GetMasterNode(ctx, *ele_group).Outputs()[0].Shape();
-    int32_t size_ele       = std::accumulate(ele_node_shape.begin(), ele_node_shape.end(), 1, std::multiplies<int>());
+    size_t size_ele = GetMasterNode(ctx, *ele_group).Outputs()[0].shape().numel();
 
-    auto ops = reduce_group->Ops();
+    auto ops = reduce_group->ops();
     for (auto iter = ops.begin(); iter!= ops.end(); ++iter) {
       api::OpNode node = *iter;
       if (node.kind() == OpPatternKind::kReduction) {
-        shape_t master_node_shape = node.Outputs()[0].Shape();
-        int32_t size_master =
-          std::accumulate(master_node_shape.begin(), master_node_shape.end(), 1, std::multiplies<int>());
+        size_t size_master = node.Outputs()[0].shape().numel();
         if (size_ele == size_master) {
           return true;
         }

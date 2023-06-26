@@ -14,26 +14,69 @@
 
 #pragma once
 
+#include <memory>
+
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/utils/type_defs.h"
 #include "cinn/hlir/pass/fusion_helper_base.h"
+#include "cinn/utils/small_vector.h"
 
 namespace cinn {
 namespace api {
 
-class OpNode;
-
 using shape_t = utils::ShapeType;
 
-class TensorNode {
- public:
-  TensorNode(const hlir::framework::NodeData* node_data, const hlir::framework::Graph* graph) : node_data_(node_data), graph_(graph) {}
+class OpNode;
 
-  // Get the shape of tensor.
-  const shape_t& Shape() const {
+class Shape final {
+ public:
+  explicit Shape(const utils::ShapeType& shape) : shape_(shape) {}
+
+  Shape(const Shape& other) = delete;
+  Shape(Shape&& other) = delete;
+
+  Shape& operator=(const Shape& other) = delete;
+
+  bool operator == (const Shape& other) const {
+    if (shape_.size() != other.shape_.size()) {
+        return false;
+    }
+    return std::equal(shape_.begin(), shape_.end(), other.shape_.begin());
+  }
+
+  const size_t& operator[] (size_t index) const {
+    return shape_[index];
+  }
+
+  size_t at(size_t index) const {
+    return shape_.at(index);
+  }
+
+  size_t size() const {
+    return shape_.size();
+  }
+
+  // Returns the total number of elements in the shape.
+  size_t numel() const {
+    return std::accumulate(shape_.begin(), shape_.end(), 1, std::multiplies<int>());;
+  }
+
+ private:
+  const shape_t& shape_;
+};
+
+
+class TensorNode final {
+ public:
+  TensorNode(const hlir::framework::NodeData* node_data, const hlir::framework::Graph* graph) : node_data_(node_data), graph_(graph) {
     const auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
     CHECK(shape_dict.count(node_data_->id())) << "Can't find " << node_data_->id() << " 's shape!";
-    return shape_dict.at(node_data_->id());
+    shape_.reset(new Shape(shape_dict.find(node_data_->id())->second));
+  }
+
+  // Get the shape of tensor.
+  const Shape& shape() const {
+    return *shape_;
   }
 
   OpNode Producer() const;
@@ -44,6 +87,8 @@ class TensorNode {
 
     ConsumerOpListView(const ConsumerOpListView& other) = delete;
     ConsumerOpListView(ConsumerOpListView&& other) = delete;
+
+    ConsumerOpListView& operator=(const ConsumerOpListView& other) = delete;
 
     class Iterator {
      public:
@@ -101,6 +146,7 @@ class TensorNode {
  private:
   const hlir::framework::NodeData* node_data_;
   const hlir::framework::Graph* graph_;
+  std::unique_ptr<Shape> shape_;
 };
 
 }  // namespace api

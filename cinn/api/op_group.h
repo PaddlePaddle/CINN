@@ -40,6 +40,8 @@ class OpGroup {
     OpNodeListView(const OpNodeListView& other) = delete;
     OpNodeListView(OpNodeListView&& other) = delete;
 
+    OpNodeListView& operator=(const OpNodeListView& other) = delete;
+
     class Iterator {
      public:
       Iterator(std::vector<hlir::framework::Node*>::const_iterator it, const hlir::framework::Graph* graph) : iter_(it), graph_(graph) {}
@@ -89,6 +91,8 @@ class OpGroup {
     OpGroupListView(const OpGroupListView& other) = delete;
     OpGroupListView(OpGroupListView&& other) = delete;
 
+    OpGroupListView& operator=(const OpGroupListView& other) = delete;
+
     class Iterator {
      public:
       Iterator(std::unordered_map<std::shared_ptr<hlir::framework::Graph::Group>, TensorInterfaceList, Hasher, Comparator>::const_iterator it, const hlir::framework::Graph* graph) : iter_(it), graph_(graph) {}
@@ -136,7 +140,7 @@ class OpGroup {
 
   hlir::framework::OpPatternKind kind() const { return group_->kind(); }
 
-  OpNodeListView Ops() const {
+  OpNodeListView ops() const {
     return OpNodeListView(group_->CollectNodes(), graph_);
   }
 
