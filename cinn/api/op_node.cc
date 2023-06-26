@@ -18,11 +18,11 @@ namespace cinn {
 namespace api {
 
 TensorNode OpNode::InputTensorListView::operator[](size_t index) const {
-  return TensorNode(graph_, edges_[index]->source()->safe_as<hlir::framework::NodeData>());
+  return TensorNode(edges_[index]->source()->safe_as<hlir::framework::NodeData>(), graph_);
 }
 
 TensorNode OpNode::OutputTensorListView::operator[](size_t index) const {
-  return TensorNode(graph_, edges_[index]->sink()->safe_as<hlir::framework::NodeData>());
+  return TensorNode(edges_[index]->sink()->safe_as<hlir::framework::NodeData>(), graph_);
 }
 
 }  // namespace api

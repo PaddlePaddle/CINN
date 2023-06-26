@@ -27,7 +27,7 @@ using shape_t = utils::ShapeType;
 
 class TensorNode {
  public:
-  TensorNode(const hlir::framework::Graph* graph, const hlir::framework::NodeData* node_data) : graph_(graph), node_data_(node_data) {}
+  TensorNode(const hlir::framework::NodeData* node_data, const hlir::framework::Graph* graph) : node_data_(node_data), graph_(graph) {}
 
   // Get the shape of tensor.
   const shape_t& Shape() const {
@@ -41,6 +41,9 @@ class TensorNode {
   class ConsumerOpListView {
    public:
     ConsumerOpListView(const std::set<common::Shared<common::GraphEdge>, common::GraphEdgeCompare>& edges, const hlir::framework::Graph* graph) : edges_(edges), graph_(graph) {}
+
+    ConsumerOpListView(const ConsumerOpListView& other) = delete;
+    ConsumerOpListView(ConsumerOpListView&& other) = delete;
 
     class Iterator {
      public:
@@ -96,8 +99,8 @@ class TensorNode {
   }
 
  private:
-  const hlir::framework::Graph* graph_;
   const hlir::framework::NodeData* node_data_;
+  const hlir::framework::Graph* graph_;
 };
 
 }  // namespace api

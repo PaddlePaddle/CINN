@@ -20,11 +20,11 @@ namespace cinn {
 namespace api {
 
 OpNode TensorNode::Producer() const {
-  return OpNode(graph_, node_data_->source_node.get());
+  return OpNode(node_data_->source_node.get(), graph_);
 }
 
 OpNode TensorNode::ConsumerOpListView::Iterator::operator * () const{
-  return OpNode(graph_, (*iter_)->sink()->safe_as<hlir::framework::Node>());
+  return OpNode((*iter_)->sink()->safe_as<hlir::framework::Node>(), graph_);
 }
 
 }  // namespace api

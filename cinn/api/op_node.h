@@ -28,12 +28,12 @@ using Attribute = cinn::utils::Attribute;
 
 class OpNode {
  public:
-  OpNode(const hlir::framework::Graph* graph, const hlir::framework::Node* node) : graph_(graph), node_(node) {
+  OpNode(const hlir::framework::Node* node, const hlir::framework::Graph* graph) : node_(node), graph_(graph) {
     input_edges_ = node->inlinks_in_order();
     output_edges_ = node->outlinks_in_order();
   }
 
-  OpPatternKind kind () {
+  OpPatternKind kind () const {
     thread_local const static hlir::framework::OpValueType<OpPatternKind>& op_pattern_dict = hlir::framework::Operator::GetAttrs<OpPatternKind>("OpPattern");
     auto kind = op_pattern_dict[node_->op()];
 
@@ -106,8 +106,8 @@ class OpNode {
     return node_->attrs.attr_store.at(attr_name);
   }
 
-  const hlir::framework::Graph* graph_;
   const hlir::framework::Node* node_;
+  const hlir::framework::Graph* graph_;
 
   std::vector<common::Shared<common::GraphEdge>> input_edges_;
   std::vector<common::Shared<common::GraphEdge>> output_edges_;

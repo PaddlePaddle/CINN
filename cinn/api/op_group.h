@@ -29,13 +29,16 @@ using Hasher     = hlir::framework::Graph::Group::SharedGroupHasher;
 
 class OpGroup {
  public:
-  OpGroup(const hlir::framework::Graph* graph, const std::shared_ptr<hlir::framework::Graph::Group>& group) : graph_(graph), group_(group) {}
+  OpGroup(const std::shared_ptr<hlir::framework::Graph::Group>& group, const hlir::framework::Graph* graph) : group_(group), graph_(graph) {}
 
   OpGroup(const OpGroup& other) = default;
 
   class OpNodeListView {
    public:
     explicit OpNodeListView(std::vector<hlir::framework::Node*> op_nodes, const cinn::hlir::framework::Graph* graph) : op_nodes_(std::move(op_nodes)), graph_(graph) {}
+
+    OpNodeListView(const OpNodeListView& other) = delete;
+    OpNodeListView(OpNodeListView&& other) = delete;
 
     class Iterator {
      public:
@@ -61,7 +64,7 @@ class OpGroup {
       }
 
       OpNode operator*() const {
-        return OpNode(graph_, *iter_);
+        return OpNode(*iter_, graph_);
       }
 
      private:
@@ -82,6 +85,10 @@ class OpGroup {
   class OpGroupListView {
    public:
     OpGroupListView(const std::unordered_map<std::shared_ptr<hlir::framework::Graph::Group>, TensorInterfaceList, Hasher, Comparator>& group_map, const hlir::framework::Graph* graph) : op_group_map_(group_map), graph_(graph) {}
+
+    OpGroupListView(const OpGroupListView& other) = delete;
+    OpGroupListView(OpGroupListView&& other) = delete;
+
     class Iterator {
      public:
       Iterator(std::unordered_map<std::shared_ptr<hlir::framework::Graph::Group>, TensorInterfaceList, Hasher, Comparator>::const_iterator it, const hlir::framework::Graph* graph) : iter_(it), graph_(graph) {}
@@ -106,7 +113,7 @@ class OpGroup {
       }
 
       OpGroup operator*() const{
-        return OpGroup(graph_, iter_->first);
+        return OpGroup(iter_->first, graph_);
       }
 
      private:
@@ -154,8 +161,8 @@ class OpGroup {
   }
 
  private:
-  const hlir::framework::Graph* graph_;
   const std::shared_ptr<hlir::framework::Graph::Group> group_;
+  const hlir::framework::Graph* graph_;
 };
 
 }  // namespace api

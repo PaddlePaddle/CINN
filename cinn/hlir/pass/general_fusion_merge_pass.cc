@@ -1060,7 +1060,7 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
       const auto& EnableFuse = [&](const OpGroupPtr& first, const OpGroupPtr& second) {
         tagged_sets.insert(std::make_pair(first, second));
       };
-      GraphGroupLightwareFusePassCtx fuse_ctx(this, api::OpGroup(this->graph_,  producer), EnableFuse);
+      GraphGroupLightwareFusePassCtx fuse_ctx(this, api::OpGroup(producer, this->graph_), EnableFuse);
       EnableFusedHorizontalGroups(&fuse_ctx);
       return tagged_sets;
     };
@@ -1112,7 +1112,7 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
       OpGroupList consumer_groups;
       consumer_groups.reserve(consumers.size());
       for(auto& consumer : consumers) {
-        consumer_groups.push_back(api::OpGroup(this->graph_, consumer));
+        consumer_groups.push_back(api::OpGroup(consumer, this->graph_));
       }
       GraphGroupInputFusePassCtx fuse_ctx(this, consumer_groups, EnableFuse);
       EnableFusedInputGroups(&fuse_ctx);
@@ -1450,7 +1450,7 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
       const auto& EnableFuse = [&](const OpGroupPtr& first, const OpGroupPtr& second) {
         tagged_sets.push_back(std::make_pair(first, second));
       };
-      GraphGroupLightwareFusePassCtx fuse_ctx(this, api::OpGroup(this->graph_, producer), EnableFuse);
+      GraphGroupLightwareFusePassCtx fuse_ctx(this, api::OpGroup(producer, this->graph_), EnableFuse);
       TagVerticalGroups(&fuse_ctx);
       return tagged_sets;
     };
@@ -1697,7 +1697,7 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
       const auto& EnableFuse = [&](const OpGroupPtr& first, const OpGroupPtr& second) {
         tagged_sets.insert(std::make_pair(first, second));
       };
-      GraphGroupLightwareFusePassCtx fuse_ctx(this, api::OpGroup(this->graph_, producer), EnableFuse);
+      GraphGroupLightwareFusePassCtx fuse_ctx(this, api::OpGroup(producer, this->graph_), EnableFuse);
       TagRecomputeGroups(&fuse_ctx);
       return tagged_sets;
     };
