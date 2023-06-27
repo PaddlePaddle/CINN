@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 # Copyright (c) 2021 CINN Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,28 +29,38 @@ import sys
 class TestMulOp(OpTest):
     def setUp(self):
         print(f"\nRunning {self.__class__.__name__}: {self.case}")
-        self.inputs = {}
         self.prepare_inputs()
 
     def prepare_inputs(self):
-        self.inputs = {
-            "x_np":
-            self.random(
-                shape=self.case["x_shape"],
-                dtype=self.case["x_dtype"],
-                low=self.case["x_low"],
-                high=self.case["x_high"]),
-            "y_np":
-            self.random(
-                shape=self.case["y_shape"],
-                dtype=self.case["y_dtype"],
-                low=self.case["y_low"],
-                high=self.case["y_high"]),
-        }
+        self.x_np = self.random(
+            shape=self.case["x_shape"],
+            dtype=self.case["x_dtype"],
+            low=self.case["x_low"],
+            high=self.case["x_high"])
+        self.y_np = self.random(
+            shape=self.case["y_shape"],
+            dtype=self.case["y_dtype"],
+            low=self.case["y_low"],
+            high=self.case["y_high"])
 
     def build_paddle_program(self, target):
-        numpy_out = np.dot(self.inputs["x_np"], self.inputs["y_np"])
-        out = paddle.to_tensor(numpy_out, stop_gradient=False)
+        x = paddle.to_tensor(self.x_np, stop_gradient=False)
+        y = paddle.to_tensor(self.y_np, stop_gradient=False)
+        x_num_col_dim = self.x_np.size
+        y_num_col_dim = self.y_np.size
+        print("x_num_col_dim", x_num_col_dim)
+        print("y_num_col_dim", y_num_col_dim)
+        x_weight = reduce(lambda x, y: x * y, x[:x_num_col_dim])
+        x_weight.astype(int)
+        x_height = reduce(lambda x, y: x * y, x[x_num_col_dim:])
+        x_height.astype(int)
+        x = paddle.reshape(x, [x_weight, x_height])
+        y_weight = reduce(lambda y, x: x * y, y[:y_num_col_dim])
+        y_weight.astype(int)
+        y_height = reduce(lambda y, x: x * y, y[y_num_col_dim:])
+        y_height.astype(int)
+        y = paddle.reshape(y, [y_weight, y_height])
+        out = paddle.matmul(x, y)
         self.paddle_outputs = [out]
 
     def build_cinn_program(self, target):
@@ -70,9 +79,7 @@ class TestMulOp(OpTest):
             is_infer=self.case["is_infer"])
         prog = builder.build()
         res = self.get_cinn_output(prog, target, [x, y],
-                                   [self.inputs["x_np"], self.inputs["y_np"]],
-                                   [out])
-
+                                   [self.x_np, self.y_np], [out])
         self.cinn_outputs = [res[0]]
 
     def test_check_results(self):
@@ -111,14 +118,12 @@ class TestMulOpBase(TestCaseHelper):
         "x_num_col_dims": 1,
         "y_num_col_dims": 3,
     }]
-
     dtypes = [
         {
             "x_dtype": "float32",
             "y_dtype": "float32",
         },
     ]
-
     attrs = [
         {
             "x_low": -10,
@@ -128,7 +133,6 @@ class TestMulOpBase(TestCaseHelper):
             "is_infer": False,
         },
     ]
-
     def init_attrs(self):
         self.class_name = "TestMulOpBase"
         self.cls = TestMulOp
@@ -231,7 +235,6 @@ class TestMulOpBroadcastTest(TestMulOpBase):
             "y_num_col_dims": 2,
         }]
 # yapf: enable
-
 if __name__ == "__main__":
     TestMulOpShapeTest().run()
     TestMulOpDtypeTest().run()
