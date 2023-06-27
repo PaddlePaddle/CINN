@@ -70,7 +70,8 @@ class TestMulOp(OpTest):
             is_infer=self.case["is_infer"])
         prog = builder.build()
         res = self.get_cinn_output(prog, target, [x, y],
-                                   [self.x_np, self.y_np], [out])
+                                   [self.inputs["x_np"], self.inputs["y_np"]],
+                                   [out])
 
         self.cinn_outputs = [res[0]]
 
