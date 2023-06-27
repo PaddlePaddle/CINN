@@ -173,11 +173,13 @@ std::vector<ir::LoweredFunc> OpLowerer::PostProcess(ir::IRSchedule* ir_sch,
   // 1.Prepare function args
   group->input_names.clear();
   std::vector<ir::Argument> group_func_args;
+  std::unordered_set<std::string> arg_name_set;
   for (auto& arg_tensor : *group_func_arg_tensors) {
     // input node data name.
     group->input_names.push_back(arg_tensor->name);
     // input args
     group_func_args.emplace_back(arg_tensor->buffer, ir::Argument::IO::kInput);
+    arg_name_set.insert(arg_tensor->buffer->name);
   }
 
   group->output_names.clear();
@@ -186,12 +188,19 @@ std::vector<ir::LoweredFunc> OpLowerer::PostProcess(ir::IRSchedule* ir_sch,
     for (auto node_data : GetAllNodeData(node)) {
       std::string output_node_data_name = node_data->id();
       group->output_names.push_back(output_node_data_name);
-      CHECK(tensor_map.count(output_node_data_name)) << "Can't find output tensor " << output_node_data_name;
+      // CHECK(tensor_map.count(output_node_data_name)) << "Can't find output tensor " << output_node_data_name;
+      if (tensor_map.count(output_node_data_name) == 0) {
+        continue;
+      }
       auto tensor = tensor_map.at(output_node_data_name);
+      if (arg_name_set.count(tensor->buffer->name) != 0) {
+        continue;
+      }
       // output arg tensors
       group_func_arg_tensors->push_back(tensor);
       // output args
       group_func_args.emplace_back(tensor->buffer, ir::Argument::IO::kOutput);
+      arg_name_set.insert(tensor->buffer->name);
     }
   }
 
@@ -295,8 +304,8 @@ std::vector<ir::LoweredFunc> OpLowerer::DoOpLower(Node* node,
       (*tensor_map)[node_datas[0]->id() + post] = expr.as_tensor_ref();
       post                                      = "_" + std::to_string(idx);
     } else {
-      // If the number of output tensors defined by Compute is same with the output node_data on the graph, then there
-      // is a one-to-one correspondence.
+      // If the number of output tensors defined by Compute is less equal than the output node_data on the graph,
+      // then there is a one-to-one correspondence, and the redundant output node_data contact empty.
       (*tensor_map)[node_datas[idx]->id()] = expr.as_tensor_ref();
     }
 
