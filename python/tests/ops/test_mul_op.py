@@ -24,6 +24,13 @@ from cinn.common import *
 import sys
 
 
+def accumulate_reduce(arr, start, end):
+    res = 1
+    for i in range(start, end):
+        res = res * arr[i]
+    return res
+
+
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
                     "x86 test will be skipped due to timeout.")
 class TestMulOp(OpTest):
@@ -46,18 +53,16 @@ class TestMulOp(OpTest):
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.x_np, stop_gradient=False)
         y = paddle.to_tensor(self.y_np, stop_gradient=False)
-        x_num_col_dim = self.x_np.size
-        y_num_col_dim = self.y_np.size
-        print("x_num_col_dim", x_num_col_dim)
-        print("y_num_col_dim", y_num_col_dim)
-        x_weight = reduce(lambda x, y: x * y, x[:x_num_col_dim])
+        x_num_col_dim = x.ndim
+        y_num_col_dim = y.ndim
+        x_weight = accumulate_reduce(x.shape, 0, x_num_col_dim)
         x_weight.astype(int)
-        x_height = reduce(lambda x, y: x * y, x[x_num_col_dim:])
+        x_height = accumulate_reduce(x.shape, x_num_col_dim, len(x.shape))
         x_height.astype(int)
         x = paddle.reshape(x, [x_weight, x_height])
-        y_weight = reduce(lambda y, x: x * y, y[:y_num_col_dim])
+        y_weight = accumulate_reduce(y.shape, 0, y_num_col_dim)
         y_weight.astype(int)
-        y_height = reduce(lambda y, x: x * y, y[y_num_col_dim:])
+        y_height = accumulate_reduce(y.shape, y_num_col_dim, len(y.shape))
         y_height.astype(int)
         y = paddle.reshape(y, [y_weight, y_height])
         out = paddle.matmul(x, y)
