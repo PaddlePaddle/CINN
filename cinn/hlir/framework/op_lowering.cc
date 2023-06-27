@@ -104,7 +104,7 @@ std::vector<ir::LoweredFunc> OpLowerer::LowerGroup(GroupPtr& group,
   ir::IRSchedule ir_sch(mod_expr);
   ir_sch.MergeExprs();
   VLOG(3) << "After lower, ir is: \n" << ir_sch.GetModule().GetExprs().at(0);
-  if (apply_group_schedule && nodes.size() > 1) {
+  if (apply_group_schedule && func_bodies.size() > 1) {
     DoGroupSchedule(ir_sch, group, tensor_map);
     VLOG(3) << "After group schedule, ir is: \n" << ir_sch.GetModule().GetExprs().at(0);
   }
