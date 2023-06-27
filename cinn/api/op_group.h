@@ -43,26 +43,26 @@ class OpGroup {
 
     OpNodeListView& operator=(const OpNodeListView& other) = delete;
 
-    class Iterator {
+    class iterator {
      public:
-      Iterator(std::vector<hlir::framework::Node*>::const_iterator it, const hlir::framework::Graph* graph) : iter_(it), graph_(graph) {}
+      iterator(std::vector<hlir::framework::Node*>::const_iterator it, const hlir::framework::Graph* graph) : iter_(it), graph_(graph) {}
 
-      Iterator& operator++() {
+      iterator& operator++() {
         ++iter_;
         return *this;
       }
 
-      Iterator operator++(int) {
-        Iterator tmp = *this;
+      iterator operator++(int) {
+        iterator tmp = *this;
         ++iter_;
         return tmp;
       }
 
-      bool operator==(const Iterator& other) const {
+      bool operator==(const iterator& other) const {
         return iter_ == other.iter_;
       }
 
-      bool operator!=(const Iterator& other) const {
+      bool operator!=(const iterator& other) const {
           return !(*this == other);
       }
 
@@ -77,9 +77,9 @@ class OpGroup {
 
     size_t size() const { return op_nodes_.size(); }
 
-    Iterator begin() const { return Iterator(op_nodes_.begin(), graph_); }
+    iterator begin() const { return iterator(op_nodes_.begin(), graph_); }
 
-    Iterator end() const { return Iterator(op_nodes_.begin(), graph_); }
+    iterator end() const { return iterator(op_nodes_.end(), graph_); }
    private:
     const std::vector<hlir::framework::Node*> op_nodes_;
     const cinn::hlir::framework::Graph* graph_;
@@ -132,7 +132,7 @@ class OpGroup {
 
     const_iterator begin() const { return const_iterator(group_.lock()->producer_groups().begin(), graph_); }
 
-    const_iterator end() const { return const_iterator(group_.lock()->producer_groups().begin(), graph_); }
+    const_iterator end() const { return const_iterator(group_.lock()->producer_groups().end(), graph_); }
 
    private:
     const std::weak_ptr<hlir::framework::Graph::Group> group_;
@@ -154,13 +154,16 @@ class OpGroup {
 
     const_iterator begin() const { return const_iterator(group_.lock()->consumer_groups().begin(), graph_); }
 
-    const_iterator end() const { return const_iterator(group_.lock()->consumer_groups().begin(), graph_); }
+    const_iterator end() const { return const_iterator(group_.lock()->consumer_groups().end(), graph_); }
 
    private:
     const std::weak_ptr<hlir::framework::Graph::Group> group_;
     const cinn::hlir::framework::Graph* graph_;
   };
 
+  const std::string& group_id() const {
+    return group_.lock()->group_id;
+  }
 
 
   hlir::framework::OpPatternKind kind() const { return group_.lock()->kind(); }

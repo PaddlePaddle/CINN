@@ -79,6 +79,11 @@ class TensorNode final {
     return *shape_;
   }
 
+  // Input data has no producer.
+  bool HasProducer() const {
+    return node_data_->source_node.get() != nullptr;
+  }
+
   OpNode producer() const;
 
   class ConsumerOpListView {
