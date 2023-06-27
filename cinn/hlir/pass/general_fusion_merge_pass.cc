@@ -1192,6 +1192,8 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
         // TODO: Do not add any TensorInterface into any TensorInterfaceList in this file which will be deprecated.
         (*gconsumer->mut_producer_groups())[fused_group] += {};
       }
+      fused_group->mut_consumer_groups()->erase(fused_group);
+      fused_group->mut_producer_groups()->erase(fused_group);
       // belongs group
       consumer->belong_groups.insert(fused_group);
 
