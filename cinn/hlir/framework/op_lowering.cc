@@ -202,7 +202,7 @@ std::vector<ir::LoweredFunc> OpLowerer::PostProcess(ir::IRSchedule* ir_sch,
     }
 
     for (auto& tensor_pair : tensor_map) {
-      if (args_set.count("_" + tensor_pair.first)) {
+      if (args_set.count("_" + tensor_pair.second->name)) {
         continue;
       }
       group_func_arg_tensors->push_back(tensor_pair.second);
