@@ -30,38 +30,28 @@ import sys
 class TestMulOp(OpTest):
     def setUp(self):
         print(f"\nRunning {self.__class__.__name__}: {self.case}")
+        self.inputs = {}
         self.prepare_inputs()
 
     def prepare_inputs(self):
-        self.x_np = self.random(
-            shape=self.case["x_shape"],
-            dtype=self.case["x_dtype"],
-            low=self.case["x_low"],
-            high=self.case["x_high"])
-        self.y_np = self.random(
-            shape=self.case["y_shape"],
-            dtype=self.case["y_dtype"],
-            low=self.case["y_low"],
-            high=self.case["y_high"])
+        self.inputs = {
+            "x_np":
+            self.random(
+                shape=self.case["x_shape"],
+                dtype=self.case["x_dtype"],
+                low=self.case["x_low"],
+                high=self.case["x_high"]),
+            "y_np":
+            self.random(
+                shape=self.case["y_shape"],
+                dtype=self.case["y_dtype"],
+                low=self.case["y_low"],
+                high=self.case["y_high"]),
+        }
 
     def build_paddle_program(self, target):
-        x = paddle.to_tensor(self.x_np, stop_gradient=False)
-        y = paddle.to_tensor(self.y_np, stop_gradient=False)
-        x_num_col_dim = x.ndim
-        y_num_col_dim = y.ndim
-        print("x_num_col_dim", x_num_col_dim)
-        print("y_num_col_dim", y_num_col_dim)
-        x_weight = reduce(lambda x, y: x * y, x[:x_num_col_dim])
-        x_weight.astype(int)
-        x_height = reduce(lambda x, y: x * y, x[x_num_col_dim:])
-        x_height.astype(int)
-        x = paddle.reshape(x, [x_weight, x_height])
-        y_weight = reduce(lambda y, x: x * y, y[:y_num_col_dim])
-        y_weight.astype(int)
-        y_height = reduce(lambda y, x: x * y, y[y_num_col_dim:])
-        y_height.astype(int)
-        y = paddle.reshape(y, [y_weight, y_height])
-        out = paddle.matmul(x, y)
+        numpy_out = np.dot(self.inputs["x_np"], self.inputs["y_np"])
+        out = paddle.to_tensor(numpy_out, stop_gradient=False)
         self.paddle_outputs = [out]
 
     def build_cinn_program(self, target):
@@ -131,17 +121,10 @@ class TestMulOpBase(TestCaseHelper):
     attrs = [
         {
             "x_low": -10,
-            "x_high": -1,
-            "y_low": -10,
-            "y_high": -1,
-            "is_infer": False
-        },
-        {
-            "x_low": 1,
             "x_high": 10,
-            "y_low": 1,
+            "y_low": -10,
             "y_high": 10,
-            "is_infer": False
+            "is_infer": False,
         },
     ]
 
@@ -210,17 +193,10 @@ class TestMulOpPolarityTest(TestMulOpBase):
         self.attrs = [
         {
             "x_low": -10,
-            "x_high": -1,
-            "y_low": -10,
-            "y_high": -1,
-            "is_infer": False
-        },
-        {
-            "x_low": 1,
             "x_high": 10,
-            "y_low": 1,
+            "y_low": -10,
             "y_high": 10,
-            "is_infer": False
+            "is_infer": False,
         },
         ]
 
