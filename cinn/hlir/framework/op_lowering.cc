@@ -296,7 +296,7 @@ std::vector<ir::LoweredFunc> OpLowerer::DoOpLower(Node* node,
       post                                      = "_" + std::to_string(idx);
     } else {
       // If the number of output tensors defined by Compute is same with the output node_data on the graph, then there
-      // is a one-to-one correspondence. CHECK_EQ(node_datas[idx]->id(), expr.as_tensor_ref()->name);
+      // is a one-to-one correspondence.
       (*tensor_map)[node_datas[idx]->id()] = expr.as_tensor_ref();
     }
 
@@ -324,6 +324,7 @@ std::vector<ir::LoweredFunc> OpLowerer::DoOpLower(Node* node,
 ir::Expr OpLowerer::DoOpSchedule(std::shared_ptr<hlir::framework::OpImpl> op_impl,
                                  const std::vector<ir::Tensor>& op_func_arg_tensors,
                                  const std::vector<ir::LoweredFunc>& lowered_funcs) {
+  VLOG(4) << "Do op schedule";
   std::vector<common::CINNValue> schedule_inputs;
   // 1.Collect tensors
   for (const ir::Tensor& op_func_arg_tensor : op_func_arg_tensors) {
@@ -335,6 +336,7 @@ ir::Expr OpLowerer::DoOpSchedule(std::shared_ptr<hlir::framework::OpImpl> op_imp
   }
   // 3.Do schedule on AST
   common::CINNValuePack expr_pack = op_impl->fschedule(common::CINNValuePack{schedule_inputs});
+  VLOG(4) << "After op schedule: " << expr_pack[0].operator ir::Expr();
 
   return expr_pack[0].operator ir::Expr();
 }
