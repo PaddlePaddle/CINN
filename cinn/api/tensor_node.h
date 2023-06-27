@@ -20,6 +20,7 @@
 #include "cinn/utils/type_defs.h"
 #include "cinn/hlir/pass/fusion_helper_base.h"
 #include "cinn/utils/small_vector.h"
+#include "cinn/api/shape.h"
 
 namespace cinn {
 namespace api {
@@ -27,44 +28,6 @@ namespace api {
 using shape_t = utils::ShapeType;
 
 class OpNode;
-
-class Shape final {
- public:
-  explicit Shape(const utils::ShapeType& shape) : shape_(shape.begin(), shape.end()) {}
-
-  Shape(const Shape& other) = delete;
-  Shape(Shape&& other) = delete;
-
-  Shape& operator=(const Shape& other) = delete;
-
-  bool operator == (const Shape& other) const {
-    if (shape_.size() != other.shape_.size()) {
-        return false;
-    }
-    return std::equal(shape_.begin(), shape_.end(), other.shape_.begin());
-  }
-
-  size_t operator[] (size_t index) const {
-    return shape_[index];
-  }
-
-  size_t at(size_t index) const {
-    return shape_[index];
-  }
-
-  size_t size() const {
-    return shape_.size();
-  }
-
-  // Returns the total number of elements in the shape.
-  size_t numel() const {
-    return std::accumulate(shape_.begin(), shape_.end(), 1, std::multiplies<int>());;
-  }
-
- private:
-  cinn::utils::SmallVector<int64_t, 12> shape_;
-};
-
 
 class TensorNode final {
  public:
