@@ -48,7 +48,7 @@ class OpFusionPassHelper : public FusionHelperBase {
       auto node = graph_node->safe_as<Node>();
       if (node) {
         nodes_.push_back(node);
-        auto group = std::make_shared<Graph::Group>();
+        auto group = std::make_shared<Graph::Group>(graph);
         // init group
         group->nodes.push_back(node);
         group->nodes_set.insert(node);

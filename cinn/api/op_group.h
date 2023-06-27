@@ -29,8 +29,8 @@ using Hasher     = hlir::framework::Graph::Group::SharedGroupHasher;
 
 class OpGroup {
  public:
-  OpGroup(const std::shared_ptr<hlir::framework::Graph::Group>& group, const hlir::framework::Graph* graph)
-         : group_(group), graph_(graph) {}
+  OpGroup(const std::shared_ptr<hlir::framework::Graph::Group>& group)
+         : group_(group) {}
 
   OpGroup(const OpGroup& other) = default;
 
@@ -87,7 +87,7 @@ class OpGroup {
 
   class OpGroupListIterator {
      public:
-      OpGroupListIterator(std::unordered_map<std::shared_ptr<hlir::framework::Graph::Group>, TensorInterfaceList, Hasher, Comparator>::const_iterator it, const hlir::framework::Graph* graph) : iter_(it), graph_(graph) {}
+      OpGroupListIterator(std::unordered_map<std::shared_ptr<hlir::framework::Graph::Group>, TensorInterfaceList, Hasher, Comparator>::const_iterator it) : iter_(it) {}
 
       OpGroupListIterator& operator++() {
         ++iter_;
@@ -109,17 +109,16 @@ class OpGroup {
       }
 
       OpGroup operator*() const{
-        return OpGroup(iter_->first, graph_);
+        return OpGroup(iter_->first);
       }
 
      private:
       std::unordered_map<std::shared_ptr<hlir::framework::Graph::Group>, TensorInterfaceList, Hasher, Comparator>::const_iterator iter_;
-      const hlir::framework::Graph* graph_;
   };
 
   class ProducerOpGroupListView {
    public:
-    ProducerOpGroupListView(const std::weak_ptr<hlir::framework::Graph::Group>& group, const hlir::framework::Graph* graph) : group_(group), graph_(graph) {}
+    ProducerOpGroupListView(const std::weak_ptr<hlir::framework::Graph::Group>& group) : group_(group) {}
 
     ProducerOpGroupListView(const ProducerOpGroupListView& other) = delete;
     ProducerOpGroupListView(ProducerOpGroupListView&& other) = delete;
@@ -130,18 +129,17 @@ class OpGroup {
 
     size_t size() const { return group_.lock()->producer_groups().size(); }
 
-    const_iterator begin() const { return const_iterator(group_.lock()->producer_groups().begin(), graph_); }
+    const_iterator begin() const { return const_iterator(group_.lock()->producer_groups().begin()); }
 
-    const_iterator end() const { return const_iterator(group_.lock()->producer_groups().end(), graph_); }
+    const_iterator end() const { return const_iterator(group_.lock()->producer_groups().end()); }
 
    private:
     const std::weak_ptr<hlir::framework::Graph::Group> group_;
-    const cinn::hlir::framework::Graph* graph_;
   };
 
   class ConsumerOpGroupListView {
    public:
-    ConsumerOpGroupListView(const std::weak_ptr<hlir::framework::Graph::Group>& group, const hlir::framework::Graph* graph) : group_(group), graph_(graph) {}
+    ConsumerOpGroupListView(const std::weak_ptr<hlir::framework::Graph::Group>& group) : group_(group) {}
 
     ConsumerOpGroupListView(const ConsumerOpGroupListView& other) = delete;
     ConsumerOpGroupListView(ConsumerOpGroupListView&& other) = delete;
@@ -152,13 +150,12 @@ class OpGroup {
 
     size_t size() const { return group_.lock()->consumer_groups().size(); }
 
-    const_iterator begin() const { return const_iterator(group_.lock()->consumer_groups().begin(), graph_); }
+    const_iterator begin() const { return const_iterator(group_.lock()->consumer_groups().begin()); }
 
-    const_iterator end() const { return const_iterator(group_.lock()->consumer_groups().end(), graph_); }
+    const_iterator end() const { return const_iterator(group_.lock()->consumer_groups().end()); }
 
    private:
     const std::weak_ptr<hlir::framework::Graph::Group> group_;
-    const cinn::hlir::framework::Graph* graph_;
   };
 
   const std::string& group_id() const {
@@ -169,15 +166,15 @@ class OpGroup {
   hlir::framework::OpPatternKind kind() const { return group_.lock()->kind(); }
 
   OpNodeListView ops() const {
-    return OpNodeListView(group_.lock()->CollectNodes(), graph_);
+    return OpNodeListView(group_.lock()->CollectNodes(), group_.lock()->graph_);
   }
 
   ProducerOpGroupListView producers() const {
-    return ProducerOpGroupListView(group_, graph_);
+    return ProducerOpGroupListView(group_);
   }
 
   ConsumerOpGroupListView consumers() const {
-    return ConsumerOpGroupListView(group_, graph_);
+    return ConsumerOpGroupListView(group_);
   }
 
   std::shared_ptr<hlir::framework::Graph::Group> GetGroup() const {
@@ -194,7 +191,6 @@ class OpGroup {
 
  private:
   const std::weak_ptr<hlir::framework::Graph::Group> group_;
-  const hlir::framework::Graph* graph_;
 };
 
 }  // namespace api

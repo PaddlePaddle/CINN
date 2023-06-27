@@ -61,6 +61,13 @@ class Graph : public cinn::common::Graph {
 
   std::vector<std::vector<Node*>> groups;
   struct Group {
+    Group() = default;
+
+    Group(const Graph* graph) : graph_(graph) {}
+
+    // The graph that group belongs to.
+    const Graph* graph_ = nullptr;
+
     // distance to last group.
     int depth{0};
     int max_depth{0};

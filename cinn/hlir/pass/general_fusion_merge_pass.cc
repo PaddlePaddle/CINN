@@ -43,7 +43,6 @@ using Comparator = Graph::Group::SharedGroupComparator;
 using Hasher     = Graph::Group::SharedGroupHasher;
 
 using OpGroupPtr  = api::OpGroup;
-// using OpGroupPtr  = api::OpGroup;
 using OpGroupList = std::vector<OpGroupPtr>;
 
 using ConditionFunction = std::function<bool(const FusionHelperBase*, const GroupPtr&, const GroupPtr&)>;
@@ -1242,7 +1241,7 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
       const auto& EnableFuse = [&](const OpGroupPtr& first, const OpGroupPtr& second) {
         tagged_sets.insert(std::make_pair(first, second));
       };
-      GraphGroupLightwareFusePassCtx fuse_ctx(this, api::OpGroup(producer, this->graph_), EnableFuse);
+      GraphGroupLightwareFusePassCtx fuse_ctx(this, api::OpGroup(producer), EnableFuse);
       EnableFusedHorizontalGroups(&fuse_ctx);
       return tagged_sets;
     };
@@ -1294,7 +1293,7 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
       OpGroupList consumer_groups;
       consumer_groups.reserve(consumers.size());
       for(auto& consumer : consumers) {
-        consumer_groups.push_back(api::OpGroup(consumer, this->graph_));
+        consumer_groups.push_back(api::OpGroup(consumer));
       }
       GraphGroupInputFusePassCtx fuse_ctx(this, consumer_groups, EnableFuse);
       EnableFusedInputGroups(&fuse_ctx);
@@ -1390,7 +1389,7 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
   void HorizontalFuse(const GroupList& consumers) {
     VLOG(3) << "HorizontalFuse Groups...";
     // create fusion group
-    auto fused_group = std::make_shared<Graph::Group>();
+    auto fused_group = std::make_shared<Graph::Group>(graph_);
     // As recompute exist which may case sub-group used by more than one time.
     std::vector<GroupPtr> repeat_sub_groups;
     std::unordered_set<GroupPtr, Hasher, Comparator> sub_group_set;
@@ -1632,7 +1631,7 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
       const auto& EnableFuse = [&](const OpGroupPtr& first, const OpGroupPtr& second) {
         tagged_sets.push_back(std::make_pair(first, second));
       };
-      GraphGroupLightwareFusePassCtx fuse_ctx(this, api::OpGroup(producer, this->graph_), EnableFuse);
+      GraphGroupLightwareFusePassCtx fuse_ctx(this, api::OpGroup(producer), EnableFuse);
       TagVerticalGroups(&fuse_ctx);
       return tagged_sets;
     };
@@ -1666,7 +1665,7 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
     GroupList fused_groups;
     GroupPtr master_fuesd_group(nullptr);
     for (auto& consumer : fusionable_consumers) {
-      auto fused_group = std::make_shared<Graph::Group>();
+      auto fused_group = std::make_shared<Graph::Group>(graph_);
       // update depth using consumer depth.
       fused_group->max_depth = std::max(producer->max_depth, consumer->max_depth);
       fused_group->min_depth = std::min(producer->min_depth, consumer->min_depth);
@@ -1879,7 +1878,7 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
       const auto& EnableFuse = [&](const OpGroupPtr& first, const OpGroupPtr& second) {
         tagged_sets.insert(std::make_pair(first, second));
       };
-      GraphGroupLightwareFusePassCtx fuse_ctx(this, api::OpGroup(producer, this->graph_), EnableFuse);
+      GraphGroupLightwareFusePassCtx fuse_ctx(this, api::OpGroup(producer), EnableFuse);
       TagRecomputeGroups(&fuse_ctx);
       return tagged_sets;
     };
@@ -2162,7 +2161,7 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
     // init the postion of groups in fusion groups.
     for (int idx = 0; idx < fusion_groups_.size(); ++idx) {
       auto group        = fusion_groups_[idx];
-      auto belong_group = std::make_shared<Graph::Group>();
+      auto belong_group = std::make_shared<Graph::Group>(graph_);
       // copy from group.
       belong_group->max_depth                = group->depth;
       belong_group->min_depth                = group->depth;
