@@ -56,14 +56,10 @@ class TestMulOp(OpTest):
         x_num_col_dim = x.ndim
         y_num_col_dim = y.ndim
         x_weight = accumulate_reduce(x.shape, 0, x_num_col_dim)
-        x_weight.astype(int)
         x_height = accumulate_reduce(x.shape, x_num_col_dim, len(x.shape))
-        x_height.astype(int)
         x = paddle.reshape(x, [x_weight, x_height])
         y_weight = accumulate_reduce(y.shape, 0, y_num_col_dim)
-        y_weight.astype(int)
         y_height = accumulate_reduce(y.shape, y_num_col_dim, len(y.shape))
-        y_height.astype(int)
         y = paddle.reshape(y, [y_weight, y_height])
         out = paddle.matmul(x, y)
         self.paddle_outputs = [out]
