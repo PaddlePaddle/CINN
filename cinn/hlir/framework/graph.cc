@@ -80,6 +80,12 @@ void Graph::Initialize(const frontend::Program& prog,
   }
   this->attrs["infershape"] = std::make_shared<absl::any>(shape_dict);
   this->attrs["inferdtype"] = std::make_shared<absl::any>(dtype_dict);
+  groups_ = std::make_shared<std::unordered_set<std::shared_ptr<Group>>>();
+}
+
+std::weak_ptr<Graph::Group> Graph::CreateGroup() {
+  std::shared_ptr<Group> group(std::weak_ptr<std::unordered_set<std::shared_ptr<Group>>>(groups_));
+  return std::weak_ptr<Graph::Group>(group);
 }
 
 std::vector<std::vector<Node*>> Graph::FusionGroupsToGroups() {
