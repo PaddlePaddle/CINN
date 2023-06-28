@@ -349,7 +349,8 @@ void OpFusionPassInternal(Graph* graph) {
   for (auto& group : graph->fusion_groups) {
     VLOG(3) << "Group Id : " << group->group_id;
     for (auto& producer : group->producer_groups) {
-      VLOG(3) << "  producer group -> " << producer->group_id;
+      CHECK(!producer.expired());
+      VLOG(3) << "  producer group -> " << producer.lock()->group_id;
     }
     for (auto& consumer : group->consumer_groups) {
       VLOG(3) << "  consumer group -> " << consumer->group_id;

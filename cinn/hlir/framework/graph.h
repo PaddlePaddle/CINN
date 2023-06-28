@@ -89,14 +89,25 @@ class Graph : public cinn::common::Graph {
         return first.get() == second.get();
       }
     };
+
+    struct WeakGroupHasher {
+      size_t operator()(const std::weak_ptr<Group>& group) const noexcept {
+        return std::hash<uint64_t>()(reinterpret_cast<uint64_t>(group.lock().get()));
+      }
+    };
+    struct WeakGroupComparator {
+      bool operator()(const std::weak_ptr<Group>& first, const std::weak_ptr<Group>& second) const noexcept {
+        return first.lock().get() == second.lock().get();
+      }
+    };
     // input groups
-    std::unordered_set<std::shared_ptr<Group>, SharedGroupHasher, SharedGroupComparator> producer_groups;
+    std::unordered_set<std::weak_ptr<Group>, WeakGroupHasher, WeakGroupComparator> producer_groups;
     // output grous
     std::unordered_set<std::shared_ptr<Group>, SharedGroupHasher, SharedGroupComparator> consumer_groups;
     // fused sub-groups, used for fusion merge pass
     std::vector<std::shared_ptr<Group>> fused_sub_groups;
     // if as sub-group, used for belong groups.
-    std::unordered_set<std::shared_ptr<Group>, SharedGroupHasher, SharedGroupComparator> belong_groups;
+    std::unordered_set<std::weak_ptr<Group>, WeakGroupHasher, WeakGroupComparator> belong_groups;
 
     // for op lowering.
     std::vector<std::string> input_names;

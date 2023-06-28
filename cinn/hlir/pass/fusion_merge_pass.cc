@@ -32,8 +32,13 @@ using common::GraphNode;
 using Comparator = Graph::Group::SharedGroupComparator;
 using Hasher     = Graph::Group::SharedGroupHasher;
 
+using WeakComparator = Graph::Group::WeakGroupComparator;
+using WeakHasher     = Graph::Group::WeakGroupHasher;
+
 using GroupPtr  = std::shared_ptr<Graph::Group>;
 using GroupList = std::vector<GroupPtr>;
+
+using WeakGroupPtr = std::weak_ptr<Graph::Group>;
 
 using ConditionFunction = std::function<bool(const FusionHelperBase*, const GroupPtr&, const GroupPtr&)>;
 
@@ -62,7 +67,8 @@ class FusionMergePassHelper : public FusionHelperBase {
         VLOG(3) << "  Fused Sub-Group -> " << sub_group->group_id;
       }
       for (auto& producer : group->producer_groups) {
-        VLOG(3) << "  Producer -> " << producer->group_id;
+        CHECK(!producer.expired());
+        VLOG(3) << "  Producer -> " << producer.lock()->group_id;
       }
       for (auto& consumer : group->consumer_groups) {
         VLOG(3) << "  Consumer -> " << consumer->group_id;
@@ -151,8 +157,9 @@ class FusionMergePassHelper : public FusionHelperBase {
 
         bool exist = false;
         for (auto& producer : group->producer_groups) {
-          if (fusion_groups_set.count(producer)) {
-            VLOG(4) << group->group_id << " " << producer->group_id;
+          CHECK(!producer.expired());
+          if (fusion_groups_set.count(producer.lock())) {
+            VLOG(4) << group->group_id << " " << producer.lock()->group_id;
             exist = true;
             break;
           }
@@ -316,10 +323,11 @@ class FusionMergePassHelper : public FusionHelperBase {
       }
       // producer group
       for (auto& producer : consumer->producer_groups) {
-        fused_group->producer_groups.insert(producer);
+        CHECK(!producer.expired());
+        fused_group->producer_groups.insert(producer.lock());
         // update producer's consumer
-        producer->consumer_groups.erase(consumer);
-        producer->consumer_groups.insert(fused_group);
+        producer.lock()->consumer_groups.erase(consumer);
+        producer.lock()->consumer_groups.insert(fused_group);
       }
       // consumer group
       for (auto& gconsumer : consumer->consumer_groups) {
@@ -500,10 +508,11 @@ class FusionMergePassHelper : public FusionHelperBase {
 
       // producer groups
       for (auto& group : producer->producer_groups) {
+        CHECK(!group.expired());
         fused_group->producer_groups.insert(group);
         // update producer's producer's consumer
-        group->consumer_groups.erase(producer);
-        group->consumer_groups.insert(fused_group);
+        group.lock()->consumer_groups.erase(producer);
+        group.lock()->consumer_groups.insert(fused_group);
       }
 
       // sub groups
@@ -550,11 +559,12 @@ class FusionMergePassHelper : public FusionHelperBase {
 
       // producer nodes
       for (auto& group : consumer->producer_groups) {
-        if (group.get() != producer.get()) {
+        CHECK(!group.expired());
+        if (group.lock().get() != producer.get()) {
           fused_group->producer_groups.insert(group);
           // update consumer's producer's consumer
-          group->consumer_groups.erase(consumer);
-          group->consumer_groups.insert(fused_group);
+          group.lock()->consumer_groups.erase(consumer);
+          group.lock()->consumer_groups.insert(fused_group);
         }
       }
       // consumer nodes
@@ -748,15 +758,16 @@ class FusionMergePassHelper : public FusionHelperBase {
       auto& candidate = candidates.front();
       candidates.pop();
       for (auto& producer : candidate->producer_groups) {
-        if (producer.get() == producer_g.get()) {
+        CHECK(!producer.expired());
+        if (producer.lock().get() == producer_g.get()) {
           continue;
         }
-        if (consumers.count(producer)) {
+        if (consumers.count(producer.lock())) {
           return true;
         }
-        if (!visited_set.count(producer)) {
-          visited_set.insert(producer);
-          candidates.push(producer);
+        if (!visited_set.count(producer.lock())) {
+          visited_set.insert(producer.lock());
+          candidates.push(producer.lock());
         }
       }
     }
@@ -775,18 +786,19 @@ class FusionMergePassHelper : public FusionHelperBase {
       auto& candidate = candidates.front();
       candidates.pop();
       for (auto& producer : candidate->producer_groups) {
-        if (producer.get() == producer_g.get()) {
+        CHECK(!producer.expired());
+        if (producer.lock().get() == producer_g.get()) {
           continue;
         }
-        if (producer->min_depth > check_upper_depth) {
+        if (producer.lock()->min_depth > check_upper_depth) {
           continue;
         }
-        if (consumers.count(producer)) {
+        if (consumers.count(producer.lock())) {
           return true;
         }
-        if (!visited_set.count(producer)) {
-          visited_set.insert(producer);
-          candidates.push(producer);
+        if (!visited_set.count(producer.lock())) {
+          visited_set.insert(producer.lock());
+          candidates.push(producer.lock());
         }
       }
     }
@@ -830,10 +842,11 @@ class FusionMergePassHelper : public FusionHelperBase {
             updated_consumers.insert(cur);
           } else {
             for (auto& belong_group : cur->belong_groups) {
-              if (belong_group->group_id == cur->group_id) {
-                updated_consumers.insert(belong_group);
+              CHECK(!belong_group.expired());
+              if (belong_group.lock()->group_id == cur->group_id) {
+                updated_consumers.insert(belong_group.lock());
               } else {
-                fused_groups.push(belong_group);
+                fused_groups.push(belong_group.lock());
               }
             }
           }
@@ -887,16 +900,18 @@ class FusionMergePassHelper : public FusionHelperBase {
 
     // update producer and consumer.
     for (auto& group : fusion_groups_) {
-      std::unordered_set<GroupPtr, Hasher, Comparator> producers;
+      std::unordered_set<WeakGroupPtr, WeakHasher, WeakComparator> producers;
       std::unordered_set<GroupPtr, Hasher, Comparator> consumers;
 
       for (auto& producer : group->producer_groups) {
-        CHECK(producer->belong_groups.size());
-        producers.insert(*producer->belong_groups.begin());
+        CHECK(!producer.expired());
+        CHECK(producer.lock()->belong_groups.size());
+        producers.insert(*producer.lock()->belong_groups.begin());
       }
       for (auto& consumer : group->consumer_groups) {
         CHECK(consumer->belong_groups.size());
-        consumers.insert(*consumer->belong_groups.begin());
+        CHECK(!consumer->belong_groups.begin()->expired());
+        consumers.insert(consumer->belong_groups.begin()->lock());
       }
       CHECK_EQ(group->producer_groups.size(), producers.size());
       CHECK_EQ(group->consumer_groups.size(), consumers.size());
