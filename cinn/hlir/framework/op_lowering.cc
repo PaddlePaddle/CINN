@@ -232,7 +232,9 @@ std::vector<ir::LoweredFunc> OpLowerer::PostProcess(ir::IRSchedule* ir_sch,
   // 3.Building LoweredFunc
   auto func = ir::_LoweredFunc_::Make(
       group->GetFuncName(), group_func_args, ir_sch->GetModule().GetExprs().at(0), temp_buffers);
-  func->PrepareBufferCastExprs();
+  if (!done_op_schedule) {
+    func->PrepareBufferCastExprs();
+  }
   // 4.Apply low level pass
   func = optim::Optimize(Expr(func), target_, false).as_lowered_func_ref();
   return {func};
