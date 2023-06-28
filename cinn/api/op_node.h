@@ -28,7 +28,9 @@ using Attribute = cinn::utils::Attribute;
 
 class OpNode {
  public:
-  OpNode(const hlir::framework::Node* node, const hlir::framework::Graph* graph) : node_(node), graph_(graph), input_tensors_(node->inlinks_in_order(), graph_), output_tensors_(node->outlinks_in_order(), graph_) {}
+  OpNode(const hlir::framework::Node* node, const hlir::framework::Graph* graph) : node_(node), graph_(graph), input_tensors_(node->inlinks_in_order(), graph_), output_tensors_(node->outlinks_in_order(), graph_) {
+    VLOG(1) << "[OpNode] node: " << node->id();
+  }
 
   OpNode(const OpNode& other) : node_(other.node_), graph_(other.graph_), input_tensors_(node_->inlinks_in_order(), graph_), output_tensors_(node_->outlinks_in_order(), graph_) {}
 

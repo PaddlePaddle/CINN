@@ -130,6 +130,20 @@ class Graph : public cinn::common::Graph {
       }
     }
 
+    void WalkNodes(const std::function<void(const Node*)>& VisitNode) const {
+      if (fused_sub_groups.size()) {
+        for (auto& group : fused_sub_groups) {
+          for (const auto* node : group->nodes) {
+            VisitNode(node);
+          }
+        }
+      } else {
+        for (const auto* node : nodes) {
+          VisitNode(node);
+        }
+      }
+    }
+
     std::unordered_set<Node*> NodeSet() {
       std::unordered_set<Node*> node_set;
       for (auto node : CollectNodes()) {

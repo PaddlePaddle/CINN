@@ -34,57 +34,6 @@ class OpGroup {
 
   OpGroup(const OpGroup& other) = default;
 
-  class OpNodeListView {
-   public:
-    explicit OpNodeListView(std::vector<hlir::framework::Node*> op_nodes, const cinn::hlir::framework::Graph* graph) : op_nodes_(std::move(op_nodes)), graph_(graph) {}
-
-    OpNodeListView(const OpNodeListView& other) = delete;
-    OpNodeListView(OpNodeListView&& other) = delete;
-
-    OpNodeListView& operator=(const OpNodeListView& other) = delete;
-
-    class iterator {
-     public:
-      iterator(std::vector<hlir::framework::Node*>::const_iterator it, const hlir::framework::Graph* graph) : iter_(it), graph_(graph) {}
-
-      iterator& operator++() {
-        ++iter_;
-        return *this;
-      }
-
-      iterator operator++(int) {
-        iterator tmp = *this;
-        ++iter_;
-        return tmp;
-      }
-
-      bool operator==(const iterator& other) const {
-        return iter_ == other.iter_;
-      }
-
-      bool operator!=(const iterator& other) const {
-          return !(*this == other);
-      }
-
-      OpNode operator*() const {
-        return OpNode(*iter_, graph_);
-      }
-
-     private:
-      std::vector<hlir::framework::Node*>::const_iterator iter_;
-      const hlir::framework::Graph* graph_;
-    };
-
-    size_t size() const { return op_nodes_.size(); }
-
-    iterator begin() const { return iterator(op_nodes_.begin(), graph_); }
-
-    iterator end() const { return iterator(op_nodes_.end(), graph_); }
-   private:
-    const std::vector<hlir::framework::Node*> op_nodes_;
-    const cinn::hlir::framework::Graph* graph_;
-  };
-
   class OpGroupListIterator {
      public:
       OpGroupListIterator(std::unordered_set<std::shared_ptr<hlir::framework::Graph::Group>, Hasher, Comparator>::const_iterator it) : iter_(it) {}
@@ -165,8 +114,27 @@ class OpGroup {
 
   hlir::framework::OpPatternKind kind() const { return group_.lock()->kind(); }
 
-  OpNodeListView ops() const {
-    return OpNodeListView(group_.lock()->CollectNodes(), group_.lock()->graph_);
+  // The WalkOpNodes function is used to traverse the op_nodes in the group and execute
+  // the VisitOpNode function for each OpNode. This function is equivalent to for loop
+  // for op_nodes in graph.
+  //
+  // In order to avoid unnecessary memory copies, we use WalkOpNodes function instead of
+  // providing a function to get all op_nodes directly.
+  //
+  // Example: Get the all Reduction op_nodes in the group.
+  //   OpGroup group = ...;
+  //   std::set<api::OpNode> reduce_ op_set;
+  //   // The lambda funtion of VisitOpNode to get reduction op_nodes.
+  //   auto get_reduce_op = [&reduce_op_set](const api::OpNode& op){
+  //     if (op.kind() == OpPatternKind::kReduction) {
+  //       reduce_op_set.insert(op);
+  //     }
+  //   };
+  //   group.WalkOpNodes(get_reduce_op);
+  void WalkOpNodes(const std::function<void(const OpNode&)>& VisitOpNode) const {
+    group_.lock()->WalkNodes([&](const hlir::framework::Node* node){
+      VisitOpNode(OpNode(node, group_.lock()->graph_));
+    });
   }
 
   ProducerOpGroupListView producers() const {

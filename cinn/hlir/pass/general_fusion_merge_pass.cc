@@ -316,13 +316,13 @@ bool GraphGroupFuseHelper<FusePassCtxT>::ReduceFuseReduce(const OpGroupPtr& src,
 }
 
 static std::unordered_set<api::OpNode> GetInputOps(const OpGroupPtr& op_group) {
-  const auto& ops =  op_group.ops();
   std::unordered_set<api::OpNode> ops_set;
-  for (const auto& op : ops) {
-    ops_set.insert(op);
-  }
+  op_group.WalkOpNodes([&ops_set](const api::OpNode& op_node){
+    ops_set.insert(op_node);
+  });
+
   std::unordered_set<api::OpNode> input_ops;
-  for (const auto& op : ops) {
+  op_group.WalkOpNodes([&](const api::OpNode& op){
     const auto& input_tensors = op.inputs();
     for (size_t i = 0; i < input_tensors.size(); ++i) {
       if(input_tensors[i].HasProducer()) {
@@ -332,18 +332,17 @@ static std::unordered_set<api::OpNode> GetInputOps(const OpGroupPtr& op_group) {
         }
       }
     }
-  }
+  });
   return input_ops;
 }
 
 static std::unordered_set<api::OpNode> GetOutputOps(const OpGroupPtr& op_group) {
-  auto ops =  op_group.ops();
   std::unordered_set<api::OpNode> ops_set;
-  for (const auto& op : ops) {
-    ops_set.insert(op);
-  }
+  op_group.WalkOpNodes([&ops_set](const api::OpNode& op_node){
+    ops_set.insert(op_node);
+  });
   std::unordered_set<api::OpNode> output_ops;
-  for (const auto& op : ops) {
+  op_group.WalkOpNodes([&](const api::OpNode& op){
     const auto& output_tensors = op.outputs();
     for (size_t i = 0; i < output_tensors.size(); ++i) {
       const auto& consumers = output_tensors[i].consumers();
@@ -354,7 +353,7 @@ static std::unordered_set<api::OpNode> GetOutputOps(const OpGroupPtr& op_group) 
         }
       }
     }
-  }
+  });
   return output_ops;
 }
 
@@ -399,7 +398,7 @@ bool WithoutLastDimInReduce(const api::Shape& inshape, const std::vector<int>& a
 static int GetSharedSize(const api::OpNode& op_node) {
   const auto& producers = op_node.inputs();
   CHECK_GT(producers.size(), 0);
-  const auto& inshape =producers[0].shape();
+  const auto& inshape = producers[0].shape();
   const auto& axes    = op_node.GetAttr<std::vector<int>>("dim");
   if (WithoutLastDimInReduce(inshape, axes)) {
     int lane = 1;
@@ -444,21 +443,20 @@ static bool CanReduceFuseReduce(const OpGroupPtr& first, const OpGroupPtr& secon
     return false;
   }
   std::unique_ptr<api::OpNode> reducer_0 = nullptr;
-  for (const auto& op : first.ops()) {
-    if (op.kind() == OpPatternKind::kReduction) {
+  first.WalkOpNodes([&](const api::OpNode& op){
+    if (!reducer_0 && op.kind() == OpPatternKind::kReduction) {
       reducer_0.reset(new api::OpNode(op));
-      break;
     }
-  }
+  });
   CHECK(reducer_0) << "Can't find reduce op in group " << first.group_id();
 
   std::unique_ptr<api::OpNode> reducer_1 = nullptr;
-  for (const auto& op : second.ops()) {
-    if (op.kind() == OpPatternKind::kReduction) {
+  second.WalkOpNodes([&](const api::OpNode& op){
+    if (!reducer_1 && op.kind() == OpPatternKind::kReduction) {
       reducer_1.reset(new api::OpNode(op));
-      break;
     }
-  }
+  });
+
   CHECK(reducer_1) << "Can't find reduce op in group " << second.group_id();
 
   // check reduce has same input shape and output shape
@@ -490,11 +488,11 @@ static bool CanReduceFuseReduce(const OpGroupPtr& first, const OpGroupPtr& secon
       reducer_0_reduce_dim == reducer_1_reduce_dim) {
     auto shared_size = 0;
     for (auto& fusion_group : {first, second}) {
-      for (const auto& node : fusion_group.ops()) {
-        if (node.kind() == OpPatternKind::kReduction) {
-          shared_size += GetSharedSize(*reducer_0);
+      fusion_group.WalkOpNodes([&](const api::OpNode& op){
+        if (op.kind() == OpPatternKind::kReduction) {
+          shared_size += GetSharedSize(op);
         }
-      }
+      });
     }
 
 #define MAX_AVAILABLE_SHREAD 32 * 1024
@@ -510,11 +508,11 @@ static bool CanReduceFuseReduce(const OpGroupPtr& first, const OpGroupPtr& secon
       reducer_0_output_shape == reducer_1_output_shape && reducer_0_reduce_dim == reducer_1_reduce_dim) {
     auto shared_size = 0;
     for (auto& fusion_group : {first, second}) {
-      for (const auto& node : fusion_group.ops()) {
-        if (node.kind() == OpPatternKind::kReduction) {
-          shared_size += GetSharedSize(*reducer_0);
+      fusion_group.WalkOpNodes([&](const api::OpNode& op){
+        if (op.kind() == OpPatternKind::kReduction) {
+          shared_size += GetSharedSize(op);
         }
-      }
+      });
     }
 
 #define MAX_AVAILABLE_SHREAD 32 * 1024
@@ -574,14 +572,13 @@ struct HorizontalFuseUtil {
   }
 
   static api::OpNode GetMasterNode(FusePassCtxT* ctx, const OpGroupPtr& op_group) {
-    const auto ops = op_group.ops();
-    for (auto iter = ops.begin(); iter != ops.end(); ++iter) {
-      api::OpNode node = *iter;
-      if (node.kind() == OpPatternKind::kReduction) {
-        return node;
+    std::vector<api::OpNode> master_nodes;
+    op_group.WalkOpNodes([&](const api::OpNode& op){
+      if (master_nodes.empty() || op.kind() == OpPatternKind::kReduction) {
+        master_nodes.push_back(op);
       }
-    }
-    return *ops.begin();
+    });
+    return master_nodes.back();
   }
 
   static bool IsSameSize(FusePassCtxT* ctx, const OpGroupPtr& src, const OpGroupPtr& dst) {
@@ -613,18 +610,17 @@ struct HorizontalFuseUtil {
 
     size_t size_ele = GetMasterNode(ctx, *ele_group).outputs()[0].shape().numel();
 
-    const auto ops = reduce_group->ops();
-    for (auto iter = ops.begin(); iter!= ops.end(); ++iter) {
-      api::OpNode node = *iter;
-      if (node.kind() == OpPatternKind::kReduction) {
-        size_t size_master = node.outputs()[0].shape().numel();
+    bool can_fuse = false;
+    reduce_group->WalkOpNodes([&](const api::OpNode& op) {
+      if (op.kind() == OpPatternKind::kReduction) {
+        size_t size_master = op.outputs()[0].shape().numel();
         if (size_ele == size_master) {
-          return true;
+          can_fuse = true;
         }
       }
-    }
+    });
 
-    return false;
+    return can_fuse;
   }
 
   static bool ReduceFuseReduce(FusePassCtxT* ctx, const OpGroupPtr& src, const OpGroupPtr& dst) {
