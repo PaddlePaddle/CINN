@@ -78,10 +78,10 @@ class FusionMergePassHelper : public FusionHelperBase {
     VLOG(3) << "DoFusionMerge...!";
     // while (DoHorizontalFusion()) {
     // }
-    // while (DoVerticalFusion(/* recompute=*/false)) {
-    // }
-    while (DoVerticalFusion(/* recompute=*/true)) {
+    while (DoVerticalFusion(/* recompute=*/false)) {
     }
+    // while (DoVerticalFusion(/* recompute=*/true)) {
+    // }
   }
 
   bool DoHorizontalFusion() {
@@ -454,15 +454,15 @@ class FusionMergePassHelper : public FusionHelperBase {
       }
     }
 
-    // if (fuse_consumers.size()) {
-    //   SelectConsumerToFuse(producer, fuse_consumers);
-    // }
+    if (fuse_consumers.size()) {
+      SelectConsumerToFuse(producer, fuse_consumers);
+    }
 
-    // // if fusionable consumers exist
-    // if (fuse_consumers.size()) {
-    //   VerticalFuse(producer, fuse_consumers);
-    //   return true;
-    // }
+    // if fusionable consumers exist
+    if (fuse_consumers.size()) {
+      VerticalFuse(producer, fuse_consumers);
+      return true;
+    }
 
     return false;
   }

@@ -670,10 +670,16 @@ class DefaultRecomputeFusePass final : public RecomputeFusePass {
       }
       unsafe_candidates.push_back(consumer);
       if (ctx->fuse_helper().DetectCycleIfFuse(producer, consumer)) {
+        VLOG(1) << "DEBUG consumer " << std::dynamic_pointer_cast<Graph::Group>(consumer)->group_id << " has loop";
         continue;
       }
       candidates.push_back(consumer);
     }
+
+    if (candidates.empty()) {
+      VLOG(1) << "DEBUG fuse_consumers.empty(), exit fuse group " << std::dynamic_pointer_cast<Graph::Group>(producer)->group_id;
+    }
+    VLOG(1) << "DEBUG fuse_consumers_unsafe.size() = " << unsafe_candidates.size();
 
     if (!candidates.empty() && unsafe_candidates.size() == consumers.size() && producer->kind() == framework::kElementWise) {
       for (const auto& consumer : consumers) {
@@ -819,10 +825,10 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
     VLOG(3) << "DoFusionMerge...!";
     // while (DoGeneralHorizontalFusion()) {
     // }
-    // while (DoGeneralVerticalFusion()) {
-    // }
-    while (DoGeneralRecomputeAndVerticalFusion()) {
+    while (DoGeneralVerticalFusion()) {
     }
+    // while (DoGeneralRecomputeAndVerticalFusion()) {
+    // }
   }
 
   bool DoGeneralHorizontalFusion() {
@@ -836,7 +842,8 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
         continue;
       }
       // do horizontal fusion.
-      updated |= GeneralHorizontalFuse(producer);
+      // updated |= GeneralHorizontalFuse(producer);
+      updated |= HorizontalFusion(producer, producer->CollectConsumerGroups());
     }
 
     if (updated) {
@@ -881,12 +888,14 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
         continue;
       }
       // do horizontal fusion.
-      updated |= GeneralHorizontalFuse(producer);
+      // updated |= GeneralHorizontalFuse(producer);
+      updated |= HorizontalFusion(producer, producer->CollectConsumerGroups());
       updated |= GeneralVerticalFuse(producer);
     }
 
     // fuse input consumers
-    updated |= GeneralInputFuse();
+    // updated |= GeneralInputFuse();
+    updated |= FuseInputToConsumers();
 
     if (updated) {
       UpdateFusionGroup();
@@ -906,14 +915,15 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
       }
       // do horizontal fusion.
       bool recompute_success = GeneralRecomputeFuse(producer);
-      // updated |= recompute_success;
-      // if (!recompute_success) {
-      //   updated |= GeneralVerticalFuse(producer);
-      // }
+      updated |= recompute_success;
+      if (!recompute_success) {
+        updated |= GeneralVerticalFuse(producer);
+      }
     }
 
     // fuse input consumers
-    updated |= GeneralInputFuse();
+    // updated |= GeneralInputFuse();
+    updated |= FuseInputToConsumers();
 
     if (updated) {
       UpdateFusionGroup();
@@ -1039,20 +1049,45 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
     }
   }
 
+  std::unordered_set<GroupPtr> UpdateMutConsumers(const std::unordered_set<GroupPtr>& consumers) {
+    std::unordered_set<GroupPtr> updated_consumers;
+    for (auto& consumer : consumers) {
+      std::queue<GroupPtr> fused_groups;
+      fused_groups.push(consumer);
+      while (!fused_groups.empty()) {
+        auto& cur = fused_groups.front();
+        fused_groups.pop();
+        // if group is sub group
+        if (cur->belong_groups.empty()) {
+          updated_consumers.insert(cur);
+        } else {
+          for (auto& belong_group : cur->belong_groups) {
+            if (belong_group->group_id == cur->group_id) {
+              updated_consumers.insert(belong_group);
+            } else {
+              fused_groups.push(belong_group);
+            }
+          }
+        }
+      }
+    }
+    return updated_consumers;
+  }
+
   bool CallGeneralInputFusePass(const std::unordered_set<GroupPtr>& consumers) {
     VLOG(3) << "CallGeneralInputFusePass...!";
     using OpGroupSets                       = std::set<std::set<OpGroupPtr>>;
-    const auto& GetFusableConsumerGroupSets = [&]() -> OpGroupSets {
+    const auto& GetFusableConsumerGroupSets = [&](const std::unordered_set<GroupPtr>& input_consumers) -> OpGroupSets {
       OpGroupSets tagged_sets;
       const auto& EnableFuse = [&](const OpGroupPtr& first, const OpGroupPtr& second) {
         tagged_sets.insert(std::set<OpGroupPtr>{first, second});
       };
-      GraphGroupInputFusePassCtx fuse_ctx(this, consumers, EnableFuse);
+      GraphGroupInputFusePassCtx fuse_ctx(this, input_consumers, EnableFuse);
       EnableFusedInputGroups(&fuse_ctx);
       return tagged_sets;
     };
-    const auto& GetFusableConsumerGroupList = [&]() -> GroupList {
-      const auto& group_sets = GetFusableConsumerGroupSets();
+    const auto& GetFusableConsumerGroupList = [&](const std::unordered_set<GroupPtr>& input_consumers) -> GroupList {
+      const auto& group_sets = GetFusableConsumerGroupSets(input_consumers);
       if (group_sets.empty()) {
         return GroupList{};
       }
@@ -1062,12 +1097,18 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
       }
       return ret;
     };
-    const auto& groups = GetFusableConsumerGroupList();
-    if (groups.size() <= 1) {
-      return false;
+    bool update = false;
+    std::unordered_set<GroupPtr> mut_consumers(consumers);
+    while (true) {
+      const auto& groups = GetFusableConsumerGroupList(mut_consumers);
+      if (groups.size() <= 1) {
+        return false;
+      }
+      HorizontalFuse(groups);
+      mut_consumers = UpdateMutConsumers(mut_consumers);
+      update = true;
     }
-    HorizontalFuse(groups);
-    return true;
+    return update;
   }
 
   bool HorizontalFusion(GroupPtr producer, const std::unordered_set<GroupPtr>& consumers) {
@@ -1619,6 +1660,7 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
 
   bool GeneralRecomputeFuse(GroupPtr& producer) {
     VLOG(3) << "GeneralRecomputeFuse...!";
+    VLOG(1) << "DEBUG VerticalFusion, begin check : " << producer->group_id;
     using GroupSets                           = std::set<std::pair<OpGroupPtr, OpGroupPtr>>;
     const auto& GetFusableConsumerOpGroupSets = [&]() -> GroupSets {
       GroupSets tagged_sets;
@@ -1646,6 +1688,7 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
     auto consumer_groups = GetFusableConsumerGroupSet();
     if (consumer_groups.size() > 0) {
       CHECK(consumer_groups.size() == producer->mut_consumer_groups()->size()) << "Recompute requires fuse all consumers!";
+      VLOG(1) << "DEBUG begin recompute fuse group " << producer->group_id;
       RecomputeFuse(producer, consumer_groups);
       update = true;
     }
@@ -1848,11 +1891,12 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
         continue;
       }
       // do input fusion.
-      while (CallGeneralInputFusePass(input_consumers.second)) {
+      auto st = CallGeneralInputFusePass(input_consumers.second);
+      if (st) {
         // fused consumers, update
         UpdateInputToConsumers();
-        updated = true;
       }
+      updated |= st;
     }
 
     return updated;
