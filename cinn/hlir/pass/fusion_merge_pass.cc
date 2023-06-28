@@ -35,9 +35,6 @@ using GroupList = std::vector<GroupPtr>;
 using Comparator = Graph::Group::SharedGroupComparator;
 using Hasher     = Graph::Group::SharedGroupHasher;
 
-using OpGroupPtr  = std::shared_ptr<api::OpGroupInterface>;
-using OpGroupList = std::vector<OpGroupPtr>;
-
 using ConditionFunction = std::function<bool(const FusionHelperBase*, const GroupPtr&, const GroupPtr&)>;
 
 // Op Fusion Pass which performs Ops fusion, Ops are fused

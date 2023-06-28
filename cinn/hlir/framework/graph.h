@@ -21,7 +21,6 @@
 #include <string>
 #include <vector>
 
-#include "cinn/api/op_group_interface.h"
 #include "cinn/common/graph_utils.h"
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/node.h"
@@ -29,9 +28,6 @@
 namespace cinn {
 namespace hlir {
 namespace framework {
-
-using OpGroupInterface    = cinn::api::OpGroupInterface;
-using TensorInterfaceList = cinn::api::TensorInterfaceList;
 
 /**
  * \brief Symbolic computation graph.
