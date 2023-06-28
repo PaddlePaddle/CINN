@@ -92,6 +92,7 @@ class TestLoadResnetModel(unittest.TestCase):
             self.model_dir, x_data)
 
         print("result in test_model: \n")
+        print("output shape is", out.shape[0])
         out = out.reshape(-1)
         target_result = target_result.reshape(-1)
         for i in range(0, min(out.shape[0], 200)):
