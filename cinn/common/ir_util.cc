@@ -101,6 +101,12 @@ Expr RampRelatedAdd(Expr a, Expr b) {
     CHECK_EQ(a_broadcast->lanes, b_broadcast->lanes);
     return ir::Broadcast::Make(a_broadcast->value + b_broadcast->value, a_broadcast->lanes);
   } else {
+    if (a.As<ir::Add>() && (a.As<ir::Add>()->a().As<ir::Ramp>() || a.As<ir::Add>()->b().As<ir::Ramp>())) {
+      return RampRelatedAdd(RampRelatedAdd(a.As<ir::Add>()->a(), a.As<ir::Add>()->b()), b);
+    } else if (b.As<ir::Add>() && (b.As<ir::Add>()->a().As<ir::Ramp>() || b.As<ir::Add>()->b().As<ir::Ramp>())) {
+      return RampRelatedAdd(a, RampRelatedAdd(b.As<ir::Add>()->a(), b.As<ir::Add>()->b()));
+    }
+    VLOG(3) << "a is : " << a << " \n and b is : " << b;
     CINN_NOT_IMPLEMENTED
   }
 }
@@ -126,7 +132,12 @@ Expr RampRelatedMul(Expr a, Expr b) {
     CHECK_EQ(a_broadcast->lanes, b_broadcast->lanes);
     return ir::Broadcast::Make(a_broadcast->value * b_broadcast->value, a_broadcast->lanes);
   } else {
-    VLOG(3) << "a,b: " << a << " " << b;
+    if (a.As<ir::Add>()) {
+      return RampRelatedMul(a.As<ir::Add>()->a(), b) + RampRelatedMul(a.As<ir::Add>()->b(), b);
+    } else if (b.As<ir::Add>()) {
+      return RampRelatedMul(a, b.As<ir::Add>()->a()) + RampRelatedMul(a, b.As<ir::Add>()->b());
+    }
+    VLOG(3) << "a is : " << a << " \n and b is : " << b;
     CINN_NOT_IMPLEMENTED
   }
 }
