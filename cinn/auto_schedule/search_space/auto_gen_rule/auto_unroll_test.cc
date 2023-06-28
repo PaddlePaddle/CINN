@@ -17,8 +17,11 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
+#include "cinn/auto_schedule/search_space/auto_gen_rule/test_helper.h"
 #include "cinn/cinn.h"
 #include "cinn/lang/lower.h"
+#include "tests/concrete_program_builder.h"
+#include "tests/program_builder.h"
 
 namespace cinn {
 namespace auto_schedule {
@@ -102,6 +105,95 @@ TEST(AutoUnroll, UnrollableApply) {
   test_func(&ir_schedule);
   test_func(&states[0]->ir_schedule);
 }
+
+#ifdef CINN_WITH_CUDA
+class TestAutoUnroll : public TestAutoGenRuleBase {
+ public:
+  std::vector<std::string> default_input_names  = {"X", "Y"};
+  std::vector<std::string> default_output_names = {"temp_matmul_out"};
+};
+
+/* Before AutoUnroll:
+ * for (i=0; i < 4; i++):
+ *   for(j=0; j < 4; j++):
+ *       for(k=0; k < 4; k++):
+ *           C(i, j) = C(i, j) + A(i, k) * B(k, j)
+ *
+ * After AutoUnroll on 'k', the third loop is unrolled.
+ * for(i=0; i < 4; i++):
+ *    for(j=0; j < 4; j++):
+ *        C(i, j) = C(i, j) + A(i, 0) * B(0, j)
+ *        C(i, j) = C(i, j) + A(i, 1) * B(1, j)
+ *        C(i, j) = C(i, j) + A(i, 2) * B(2, j)
+ *        C(i, j) = C(i, j) + A(i, 3) * B(3, j)
+ */
+TEST_F(TestAutoUnroll, ApplyOnMatmulWithUnroll) {
+  frontend::Program matmul_op = tests::OpBuilder("matmul").Build({{"X", {4, 4}}, {"Y", {4, 4}}});
+  Initialize(common::DefaultNVGPUTarget());
+  ir::IRSchedule ir_schedule       = MakeIRSchedule(matmul_op);
+  std::vector<ir::Expr> func_bodys = ir_schedule.GetModule().GetExprs();
+  ASSERT_EQ(func_bodys.size(), 1UL);
+  VLOG(6) << "Original Expr:\n" << func_bodys[0];
+
+  // Construct the computation graph and convert it to ir::Expr
+  AutoUnroll auto_unroll(target_);
+  SearchState state(ir_schedule, 0, {});
+  const std::string& applied_block_name = default_output_names.back();
+  EXPECT_EQ(auto_unroll.AnalyseApplyType(state, applied_block_name), RuleApplyType::kApplyAndPruneOtherRules);
+  auto new_states             = auto_unroll.ApplyOnBlock(state, applied_block_name);
+  std::vector<ir::Expr> exprs = new_states[0]->ir_schedule.GetModule().GetExprs();
+  EXPECT_EQ(exprs.size(), 1UL);
+
+  // Check if the block has an 'auto_unroll_max_step' attribute
+  auto* applied_block_realize  = exprs.front().As<ir::Block>()->stmts.front().As<ir::ScheduleBlockRealize>();
+  auto* applied_schedule_block = applied_block_realize->schedule_block.As<ir::ScheduleBlock>();
+  ASSERT_FALSE(applied_schedule_block->attrs.empty());
+  EXPECT_EQ(applied_schedule_block->attrs.count(ir::attr::auto_unroll_max_step), 1);
+  const auto& attr_value = applied_schedule_block->attrs.at(ir::attr::auto_unroll_max_step);
+  const int* max_step    = absl::get_if<int>(&attr_value);
+  EXPECT_NE(max_step, nullptr);
+  EXPECT_LE(*max_step, 128);
+  VLOG(6) << "Expr after AutoUnroll applied on block:max_step=" << *max_step << ", Ast:\n" << exprs.front();
+
+  // build ir::Module and debug source code
+  auto build_module = BuildIRModule(new_states[0]->ir_schedule);
+  auto source_code  = GenSourceCode(build_module);
+  VLOG(6) << " auto-schedule source code:\n" << source_code;
+  // execute and check precision
+  CheckResult(GenExecutableKernel(build_module),
+              GenExecutableKernel(BuildIRModule(MakeIRSchedule(matmul_op, -1, true))),
+              default_input_names,
+              default_output_names,
+              {{4, 4}, {4, 4}},
+              {{4, 4}},
+              target_);
+}
+
+/* Operators of type elementwise or injective can not be auto-unrolled.*/
+TEST_F(TestAutoUnroll, PureSpatial) {
+  Target target = common::DefaultNVGPUTarget();
+  Initialize(target);
+  std::vector<std::string> input_names  = {"x", "y"};
+  std::vector<std::string> output_names = {
+      "var_6", "var_4", "constant_idx_last", "constant_idx_first", "var_2", "var_5"};
+  std::vector<int32_t> input_shape{256, 256};
+  std::vector<tests::VariableInfo> inputs_varinfo({{"x", input_shape}, {"y", input_shape}});
+
+  // Construct the computation graph and convert it to ir::Expr
+  Context::Global().ResetNameId();
+  ir::IRSchedule ir_schedule = MakeIRSchedule(tests::GatherAddSubBuilder().Build(inputs_varinfo));
+  SearchState state(ir_schedule, 0, {});
+  std::vector<ir::Expr> func_bodys = ir_schedule.GetModule().GetExprs();
+  ASSERT_EQ(func_bodys.size(), 1UL);
+  VLOG(6) << "Original Expr:\n" << func_bodys[0];
+
+  // Analyzes whether the block can be unrolled
+  AutoUnroll auto_unroll(target_);
+  for (const auto& applied_block_name : output_names) {
+    EXPECT_EQ(auto_unroll.AnalyseApplyType(state, applied_block_name), RuleApplyType::kCannotApply);
+  }
+}
+#endif
 
 }  // namespace auto_schedule
 }  // namespace cinn
