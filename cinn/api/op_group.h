@@ -87,7 +87,7 @@ class OpGroup {
 
   class OpGroupListIterator {
      public:
-      OpGroupListIterator(std::unordered_map<std::shared_ptr<hlir::framework::Graph::Group>, TensorInterfaceList, Hasher, Comparator>::const_iterator it) : iter_(it) {}
+      OpGroupListIterator(std::unordered_set<std::shared_ptr<hlir::framework::Graph::Group>, Hasher, Comparator>::const_iterator it) : iter_(it) {}
 
       OpGroupListIterator& operator++() {
         ++iter_;
@@ -109,11 +109,11 @@ class OpGroup {
       }
 
       OpGroup operator*() const{
-        return OpGroup(iter_->first);
+        return OpGroup(*iter_);
       }
 
      private:
-      std::unordered_map<std::shared_ptr<hlir::framework::Graph::Group>, TensorInterfaceList, Hasher, Comparator>::const_iterator iter_;
+      std::unordered_set<std::shared_ptr<hlir::framework::Graph::Group>, Hasher, Comparator>::const_iterator iter_;
   };
 
   class ProducerOpGroupListView {

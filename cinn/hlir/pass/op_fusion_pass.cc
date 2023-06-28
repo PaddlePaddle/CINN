@@ -100,18 +100,13 @@ class OpFusionPassHelper : public FusionHelperBase {
     for (auto& consumer : fusion_groups) {
       for (auto& input_node : consumer->input_nodes) {
         auto& producer = fusion_groups_[input_node.first];
-        // TODO: Do not add any TensorInterface into any TensorInterfaceList in this file which will be deprecated.
-        (*consumer->mut_producer_groups())[producer] += {};
-        // TODO: Do not add any TensorInterface into any TensorInterfaceList in this file which will be deprecated.
-        (*producer->mut_consumer_groups())[consumer] += {};
       }
     }
 
     // init group depth.
     for (auto& group : fusion_groups) {
-      for (const auto& consumer_and_list : group->consumer_groups()) {
+      for (const auto& consumer : group->consumer_groups()) {
         // update depth.
-        const auto& consumer = std::dynamic_pointer_cast<Graph::Group>(consumer_and_list.first);
         group->depth         = std::max(group->depth, consumer->depth + 1);
       }
     }
@@ -351,11 +346,11 @@ void OpFusionPassInternal(Graph* graph) {
 
   for (auto& group : graph->fusion_groups) {
     VLOG(3) << "Group Id : " << group->group_id;
-    for (const auto& producer_and_list : group->producer_groups()) {
-      VLOG(3) << "  producer group -> " << std::dynamic_pointer_cast<Graph::Group>(producer_and_list.first)->group_id;
+    for (const auto& producer : group->producer_groups()) {
+      VLOG(3) << "  producer group -> " << producer->group_id;
     }
-    for (const auto& consumer_and_list : group->consumer_groups()) {
-      VLOG(3) << "  consumer group -> " << std::dynamic_pointer_cast<Graph::Group>(consumer_and_list.first)->group_id;
+    for (const auto& consumer : group->consumer_groups()) {
+      VLOG(3) << "  consumer group -> " << consumer->group_id;
     }
   }
   VLOG(3) << "OpFusionPass Finish...!";

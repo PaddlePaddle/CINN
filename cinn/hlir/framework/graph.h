@@ -22,7 +22,6 @@
 #include <vector>
 
 #include "cinn/api/op_group_interface.h"
-#include "cinn/api/tensor_interface_list.h"
 #include "cinn/common/graph_utils.h"
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/node.h"
@@ -114,7 +113,7 @@ class Graph : public cinn::common::Graph {
     std::unordered_set<std::shared_ptr<Group>, SharedGroupHasher, SharedGroupComparator> CollectConsumerGroups() {
       std::unordered_set<std::shared_ptr<Group>, SharedGroupHasher, SharedGroupComparator> groups;
       for (const auto& consumer_and_list : consumer_groups_) {
-        groups.insert(std::dynamic_pointer_cast<Graph::Group>(consumer_and_list.first));
+        groups.insert(std::dynamic_pointer_cast<Graph::Group>(consumer_and_list));
       }
       return groups;
     }
@@ -145,19 +144,19 @@ class Graph : public cinn::common::Graph {
     std::string GetFuncName() { return "fn_" + group_id + unique_id; }
 
    public:
-    const std::unordered_map<std::shared_ptr<Group>, TensorInterfaceList, SharedGroupHasher, SharedGroupComparator>& producer_groups() const {
+    const std::unordered_set<std::shared_ptr<Group>, SharedGroupHasher, SharedGroupComparator>& producer_groups() const {
       return producer_groups_;
     }
 
-    const std::unordered_map<std::shared_ptr<Group>, TensorInterfaceList, SharedGroupHasher, SharedGroupComparator>& consumer_groups() const {
+    const std::unordered_set<std::shared_ptr<Group>, SharedGroupHasher, SharedGroupComparator>& consumer_groups() const {
       return consumer_groups_;
     }
 
-    std::unordered_map<std::shared_ptr<Group>, TensorInterfaceList, SharedGroupHasher, SharedGroupComparator>* mut_producer_groups() {
+    std::unordered_set<std::shared_ptr<Group>, SharedGroupHasher, SharedGroupComparator>* mut_producer_groups() {
       return &producer_groups_;
     }
 
-    std::unordered_map<std::shared_ptr<Group>, TensorInterfaceList, SharedGroupHasher, SharedGroupComparator>* mut_consumer_groups() {
+    std::unordered_set<std::shared_ptr<Group>, SharedGroupHasher, SharedGroupComparator>* mut_consumer_groups() {
       return &consumer_groups_;
     }
 
@@ -165,9 +164,9 @@ class Graph : public cinn::common::Graph {
 
    private:
     // input groups
-    std::unordered_map<std::shared_ptr<Group>, TensorInterfaceList, SharedGroupHasher, SharedGroupComparator> producer_groups_;
+    std::unordered_set<std::shared_ptr<Group>, SharedGroupHasher, SharedGroupComparator> producer_groups_;
     // output grous
-    std::unordered_map<std::shared_ptr<Group>, TensorInterfaceList, SharedGroupHasher, SharedGroupComparator> consumer_groups_;
+    std::unordered_set<std::shared_ptr<Group>, SharedGroupHasher, SharedGroupComparator> consumer_groups_;
   };
   std::vector<std::shared_ptr<Group>> fusion_groups;
 
