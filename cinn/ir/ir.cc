@@ -72,7 +72,7 @@ void Sub::Verify() const { BinaryNodeVerify(a(), b(), "Sub"); }
 Expr Mul::Make(Expr a, Expr b) {
   CHECK(a.defined());
   CHECK(b.defined());
-  CHECK_EQ(a.type(), b.type()) << "a=" << a << ", b=" << b;
+  // CHECK_EQ(a.type(), b.type()) << "a=" << a << ", b=" << b;
   auto node = make_shared<Mul>(a, b);
   return Expr(node);
 }
@@ -656,7 +656,7 @@ Expr Sum::Make(const std::vector<Expr> &vs) {
 
   auto *n   = make_shared<Sum>();
   auto type = vs.front().type();
-  for (auto &v : vs) CHECK_EQ(v.type(), type) << vs.front() << " " << v;
+  // for (auto &v : vs) CHECK_EQ(v.type(), type) << vs.front() << " " << v;
 
   n->operands() = vs;
 
@@ -670,7 +670,7 @@ Expr Product::Make(const std::vector<Expr> &vs) {
 
   auto *n   = make_shared<Product>();
   auto type = vs.front().type();
-  for (auto &v : vs) CHECK_EQ(v.type(), type);
+  // for (auto &v : vs) CHECK_EQ(v.type(), type);
 
   n->operands() = vs;
 

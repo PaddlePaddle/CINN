@@ -341,7 +341,7 @@ void CodeGenCUDA_Dev::Visit(const ir::Let *op) {
 }
 
 bool CodeGenCUDA_Dev::PrintBuiltinVectorAccess(const ir::LoadStoreAddrMnger *op, ir::Expr index_expr, bool is_store) {
-  static constexpr char index2suffix[8] = {'x', 'y', 'z', 'w', 'v', 'u', 't', 's'};
+  // static constexpr char index2suffix[8] = {'x', 'y', 'z', 'w', 'v', 'u', 't', 's'};
 
   // addr of op should be a place of tensor and the index is simple int number
   if (!op->is_addr_tensor() || !index_expr.As<ir::IntImm>()) {
@@ -363,7 +363,12 @@ bool CodeGenCUDA_Dev::PrintBuiltinVectorAccess(const ir::LoadStoreAddrMnger *op,
   if (is_store && tensor->type().is_cpp_handle()) {
     os() << tensor->name << "[" << index << "]";
   } else {
-    os() << tensor->name << (tensor->type().is_cpp_handle() ? "->" : ".") << index2suffix[index];
+    if (tensor->type().is_cpp_handle()) {
+      // os() << "(*" << tensor->name << ")[" << index << "]";
+      os() << "(*" << tensor->name << ")";
+    } else {
+      os() << tensor->name;
+    }
   }
   return true;
 }
