@@ -284,6 +284,7 @@ void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& origin_
   {
     // create base Directory
     viz_path_ = utils::StringFormat("%s/fusion_groups_%d/", FLAGS_cinn_fusion_groups_graphviz_dir.c_str(), viz_id);
+    VLOG(1) << "DEBUG Visualize directory id = " << viz_id;
     if (!MakeDirectory(viz_path_, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)) {
       LOG_IF(WARNING, viz_id == 0) << "Failed to make directory: \"" << viz_path_
                                    << "\", the CINN subgraph's fusion group information will not print.";
