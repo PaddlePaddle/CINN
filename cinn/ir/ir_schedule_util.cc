@@ -29,6 +29,7 @@
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"
+#include "cinn/ir/ir_schedule_error.h"
 #include "cinn/ir/ir_visitor.h"
 #include "cinn/lang/compute.h"
 #include "cinn/optim/ir_copy.h"
@@ -196,14 +197,66 @@ void ReplaceExpr(Expr* source, const std::vector<Var>& replaced, const std::vect
 }
 
 std::vector<int> ValidateFactors(const std::vector<int>& factors, int total_extent) {
+  class NegativeFactorErrorHandler : public IRScheduleErrorHandler {
+   public:
+    explicit NegativeFactorErrorHandler(int64_t factor, size_t idx) : factor_(factor), idx_(idx) {}
+
+    std::string GeneralErrorMessage() const final {
+      return "[IRScheduleError]: The params in factors of Split should be positive. However, some "
+             "factor is zero or negative.";
+    }
+
+    std::string DetailedErrorMessage() const final {
+      std::ostringstream os;
+      os << "The params in factors of Split should be positive. However, the factor at position " << idx_ << " is "
+         << factor_;
+      return os.str();
+    }
+
+   private:
+    int64_t factor_;
+    size_t idx_;
+  };
+
+  class InferFactorErrorHandler : public IRScheduleErrorHandler {
+   public:
+    std::string GeneralErrorMessage() const final {
+      return "[IRScheduleError]: The params in factors of Split should not be less than -1 or have more than one -1!";
+    }
+
+    std::string DetailedErrorMessage() const final {
+      std::ostringstream os;
+      os << "The params in factors of Split should not be less than -1 or have more than one -1!";
+      return os.str();
+    }
+  };
+
+  class FactorProductErrorHandler : public IRScheduleErrorHandler {
+   public:
+    std::string GeneralErrorMessage() const final {
+      return "[IRScheduleError]: In Split, the factors' product should be not larger than or equal to original loop's "
+             "extent!";
+    }
+
+    std::string DetailedErrorMessage() const final {
+      std::ostringstream os;
+      os << "In Split, the factors' product should be not larger than or equal to original loop's extent!";
+      return os.str();
+    }
+  };
+
   CHECK(!factors.empty()) << "The factors param of Split should not be empty! Please check.";
   bool has_minus_one = false;
   int product        = 1;
+  int idx            = -1;
   for (auto& i : factors) {
-    CHECK(i != 0) << "The params in factors of Split should not be 0! Please check.";
-    CHECK(i >= -1) << "The params in factors of Split should not be less than -1! Please check.";
-    if (i == -1) {
-      CHECK(!has_minus_one) << "The params in factors of Split should not have more than one -1! Please check.";
+    idx++;
+    if (i == 0 || i < -1) {
+      throw NegativeFactorErrorHandler(i, idx);
+    } else if (i == -1) {
+      if (has_minus_one) {
+        throw InferFactorErrorHandler();
+      }
       has_minus_one = true;
     } else {
       product *= i;
@@ -211,12 +264,14 @@ std::vector<int> ValidateFactors(const std::vector<int>& factors, int total_exte
   }
   std::vector<int> validated_factors = factors;
   if (!has_minus_one) {
-    CHECK_GE(product, total_extent)
-        << "In Split, the factors' product should be equal to original loop's extent! Please check.";
+    if (product < total_extent) {
+      throw FactorProductErrorHandler();
+    }
     return validated_factors;
   } else {
-    CHECK_LE(product, total_extent) << "In Split, when there is -1 in factors, the other factors' product should be <= "
-                                       "original loop's extent! Please check.";
+    if (product > total_extent) {
+      throw FactorProductErrorHandler();
+    }
     int minus_one_candidate = (int)ceil((double)total_extent / (double)product);
     for (int i = 0; i < validated_factors.size(); ++i) {
       if (validated_factors[i] == -1) {

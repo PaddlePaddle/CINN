@@ -22,6 +22,7 @@
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_mutator.h"
+#include "cinn/ir/ir_schedule_error.h"
 #include "cinn/ir/schedule_desc.h"
 #include "cinn/ir/tensor.h"
 #include "cinn/utils/random_engine.h"
@@ -67,7 +68,8 @@ class IRSchedule {
   IRSchedule();
   explicit IRSchedule(const ModuleExpr& modexpr,
                       utils::LinearRandomEngine::StateType rand_seed = -1,
-                      bool debug_flag                                = false);
+                      bool debug_flag                                = false,
+                      ScheduleErrorMessageLevel err_msg_level        = ScheduleErrorMessageLevel::kBlank);
   IRSchedule(ir::ModuleExpr&& mod_expr, ScheduleDesc&& trace, utils::LinearRandomEngine::StateType rand_seed = -1);
   IRSchedule(const IRSchedule& other);
   IRSchedule& operator=(const IRSchedule& src);
