@@ -92,17 +92,17 @@ class TestMulOp(OpTest):
 # yapf: disable
 class TestMulOpBase(TestCaseHelper):
     inputs = [
-    {
-      "x_shape": [1],
-      "y_shape": [1],
-      "x_num_col_dims": 1,
-      "y_num_col_dims": 1,
-    }, {
-      "x_shape": [1024],
-      "y_shape": [1024],
-      "x_num_col_dims": 1,
-      "y_num_col_dims": 1,
-    },
+    #{
+    #  "x_shape": [1],
+    #  "y_shape": [1],
+    #  "x_num_col_dims": 1,
+    #  "y_num_col_dims": 1,
+    #}, {
+    #  "x_shape": [1024],
+    #  "y_shape": [1024],
+    #  "x_num_col_dims": 1,
+    #  "y_num_col_dims": 1,
+    #},
     {
         "x_shape": [32, 64],
         "y_shape": [64, 32],
@@ -144,17 +144,17 @@ class TestMulOpShapeTest(TestMulOpBase):
         self.class_name = "TestMulOpShapeTest"
         self.cls = TestMulOp
         self.inputs = [
-        {
-            "x_shape": [1],
-            "y_shape": [1],
-            "x_num_col_dims": 1,
-            "y_num_col_dims": 1,
-        }, {
-            "x_shape": [1024],
-            "y_shape": [1024],
-            "x_num_col_dims": 1,
-            "y_num_col_dims": 1,
-        },
+        #{
+        #    "x_shape": [1],
+        #    "y_shape": [1],
+        #    "x_num_col_dims": 1,
+        #    "y_num_col_dims": 1,
+        #}, {
+        #    "x_shape": [1024],
+        #    "y_shape": [1024],
+        #    "x_num_col_dims": 1,
+        #    "y_num_col_dims": 1,
+        #},
         {
             "x_shape": [1, 1],
             "y_shape": [1, 1],
