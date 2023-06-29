@@ -186,9 +186,6 @@ class InputFusePassCtx : public FusePassCtx {
 
   virtual void EnableFuse(const OpGroupPtr& first, const OpGroupPtr& second) = 0;
 
-  // virtual absl::any* FindOrCreateCachedGroupInfo(const OpGroupPtr& op_group,
-  // const std::function<absl::any(const OpGroupPtr& op_group)>& create_fn) = 0;
-
  protected:
   InputFusePassCtx() = default;
 };

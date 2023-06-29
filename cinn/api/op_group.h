@@ -17,7 +17,6 @@
 #include <memory>
 
 #include "cinn/api/op_node.h"
-
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/pass/fusion_helper_base.h"
 
@@ -29,40 +28,35 @@ using Hasher     = hlir::framework::Graph::Group::SharedGroupHasher;
 
 class OpGroup {
  public:
-  OpGroup(const std::shared_ptr<hlir::framework::Graph::Group>& group)
-         : group_(group) {}
+  OpGroup(const std::shared_ptr<hlir::framework::Graph::Group>& group) : group_(group) {}
 
   OpGroup(const OpGroup& other) = default;
 
   class OpGroupListIterator {
-     public:
-      OpGroupListIterator(std::unordered_set<std::shared_ptr<hlir::framework::Graph::Group>, Hasher, Comparator>::const_iterator it) : iter_(it) {}
+   public:
+    OpGroupListIterator(
+        std::unordered_set<std::shared_ptr<hlir::framework::Graph::Group>, Hasher, Comparator>::const_iterator it)
+        : iter_(it) {}
 
-      OpGroupListIterator& operator++() {
-        ++iter_;
-        return *this;
-      }
+    OpGroupListIterator& operator++() {
+      ++iter_;
+      return *this;
+    }
 
-      OpGroupListIterator operator++(int) {
-        OpGroupListIterator tmp = *this;
-        ++iter_;
-        return tmp;
-      }
+    OpGroupListIterator operator++(int) {
+      OpGroupListIterator tmp = *this;
+      ++iter_;
+      return tmp;
+    }
 
-      bool operator==(const OpGroupListIterator& other) const {
-        return iter_ == other.iter_;
-      }
+    bool operator==(const OpGroupListIterator& other) const { return iter_ == other.iter_; }
 
-      bool operator!=(const OpGroupListIterator& other) const {
-          return !(*this == other);
-      }
+    bool operator!=(const OpGroupListIterator& other) const { return !(*this == other); }
 
-      OpGroup operator*() const{
-        return OpGroup(*iter_);
-      }
+    OpGroup operator*() const { return OpGroup(*iter_); }
 
-     private:
-      std::unordered_set<std::shared_ptr<hlir::framework::Graph::Group>, Hasher, Comparator>::const_iterator iter_;
+   private:
+    std::unordered_set<std::shared_ptr<hlir::framework::Graph::Group>, Hasher, Comparator>::const_iterator iter_;
   };
 
   class ProducerOpGroupListView {
@@ -70,7 +64,7 @@ class OpGroup {
     ProducerOpGroupListView(const std::weak_ptr<hlir::framework::Graph::Group>& group) : group_(group) {}
 
     ProducerOpGroupListView(const ProducerOpGroupListView& other) = delete;
-    ProducerOpGroupListView(ProducerOpGroupListView&& other) = delete;
+    ProducerOpGroupListView(ProducerOpGroupListView&& other)      = delete;
 
     ProducerOpGroupListView& operator=(const ProducerOpGroupListView& other) = delete;
 
@@ -91,7 +85,7 @@ class OpGroup {
     ConsumerOpGroupListView(const std::weak_ptr<hlir::framework::Graph::Group>& group) : group_(group) {}
 
     ConsumerOpGroupListView(const ConsumerOpGroupListView& other) = delete;
-    ConsumerOpGroupListView(ConsumerOpGroupListView&& other) = delete;
+    ConsumerOpGroupListView(ConsumerOpGroupListView&& other)      = delete;
 
     ConsumerOpGroupListView& operator=(const ConsumerOpGroupListView& other) = delete;
 
@@ -107,10 +101,7 @@ class OpGroup {
     const std::weak_ptr<hlir::framework::Graph::Group> group_;
   };
 
-  const std::string& group_id() const {
-    return group_.lock()->group_id;
-  }
-
+  const std::string& group_id() const { return group_.lock()->group_id; }
 
   hlir::framework::OpPatternKind kind() const { return group_.lock()->kind(); }
 
@@ -123,39 +114,27 @@ class OpGroup {
   //
   // Example: Get the all Reduction op_nodes in the group.
   //   OpGroup group = ...;
-  //   std::set<api::OpNode> reduce_ op_set;
-  //   // The lambda funtion of VisitOpNode to get reduction op_nodes.
-  //   auto get_reduce_op = [&reduce_op_set](const api::OpNode& op){
+  //   std::set<api::OpNode> reduce_op_set;
+  //   group.WalkOpNodes([&reduce_op_set](const api::OpNode& op){
+  //     // The lambda funtion of VisitOpNode to get reduction op_nodes.
   //     if (op.kind() == OpPatternKind::kReduction) {
   //       reduce_op_set.insert(op);
   //     }
-  //   };
-  //   group.WalkOpNodes(get_reduce_op);
+  //   });
   void WalkOpNodes(const std::function<void(const OpNode&)>& VisitOpNode) const {
-    group_.lock()->WalkNodes([&](const hlir::framework::Node* node){
-      VisitOpNode(OpNode(node, group_.lock()->graph_));
-    });
+    group_.lock()->WalkNodes(
+        [&](const hlir::framework::Node* node) { VisitOpNode(OpNode(node, group_.lock()->graph_)); });
   }
 
-  ProducerOpGroupListView producers() const {
-    return ProducerOpGroupListView(group_);
-  }
+  ProducerOpGroupListView producers() const { return ProducerOpGroupListView(group_); }
 
-  ConsumerOpGroupListView consumers() const {
-    return ConsumerOpGroupListView(group_);
-  }
+  ConsumerOpGroupListView consumers() const { return ConsumerOpGroupListView(group_); }
 
-  std::shared_ptr<hlir::framework::Graph::Group> GetGroup() const {
-    return group_.lock();
-  }
+  std::shared_ptr<hlir::framework::Graph::Group> GetGroup() const { return group_.lock(); }
 
-  bool operator == (const OpGroup& other) const {
-    return group_.lock().get() == other.group_.lock().get();
-  }
+  bool operator==(const OpGroup& other) const { return group_.lock().get() == other.group_.lock().get(); }
 
-  bool operator < (const OpGroup& other) const {
-    return group_.lock().get() < other.group_.lock().get();
-  }
+  bool operator<(const OpGroup& other) const { return group_.lock().get() < other.group_.lock().get(); }
 
  private:
   const std::weak_ptr<hlir::framework::Graph::Group> group_;
@@ -173,4 +152,4 @@ struct hash<cinn::api::OpGroup> {
   }
 };
 
-} // namespace std
+}  // namespace std
