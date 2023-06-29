@@ -223,6 +223,8 @@ class InputFusePassCtx : public FusePassCtx {
 
   virtual void EnableFuse(const OpGroupPtr& first, const OpGroupPtr& second) = 0;
 
+  virtual void EnableFuse(const OpGroupList& candidates) = 0;
+
  protected:
   InputFusePassCtx() = default;
 };
@@ -237,11 +239,21 @@ class GraphGroupInputFusePassCtx final : public InputFusePassCtx {
         EnableFuse_(EnableFuse),
         fuse_helper_(new GraphGroupFuseHelper<GraphGroupInputFusePassCtx>(this)) {}
 
+  GraphGroupInputFusePassCtx(const FusionHelperBase* graph_group_fusion_helper,
+                             const std::unordered_set<GroupPtr>& groups,
+                             const std::function<void(const OpGroupList& candidates)>& EnableFuseList)
+      : graph_group_fusion_helper_(graph_group_fusion_helper),
+        groups_(groups),
+        EnableFuseList_(EnableFuseList),
+        fuse_helper_(new GraphGroupFuseHelper<GraphGroupInputFusePassCtx>(this)) {}
+
   const std::unordered_set<GroupPtr>& PickConsumersWithSameInputs() const override { return groups_; }
 
   const FuseHelper& fuse_helper() const override { return *fuse_helper_; }
 
   void EnableFuse(const OpGroupPtr& first, const OpGroupPtr& second) override { EnableFuse_(first, second); }
+
+  void EnableFuse(const OpGroupList& candidates) override { EnableFuseList_(candidates); }
 
   const FusionHelperBase& graph_group_fusion_helper() const { return *graph_group_fusion_helper_; }
 
@@ -249,6 +261,7 @@ class GraphGroupInputFusePassCtx final : public InputFusePassCtx {
   const FusionHelperBase* graph_group_fusion_helper_;
   const std::unordered_set<GroupPtr>& groups_;
   const std::function<void(const OpGroupPtr& first, const OpGroupPtr& second)> EnableFuse_;
+  const std::function<void(const OpGroupList& candidates)> EnableFuseList_;
   const std::unique_ptr<const FuseHelper> fuse_helper_;
 };
 
@@ -414,31 +427,95 @@ class DefaultInputFusePass final : public InputFusePass {
 
   int Benefit() const override { return 100; }
 
+  bool IsDependency(const OpGroupPtr& consumer,
+                    const std::unordered_set<OpGroupPtr>& consumers) const {
+    std::queue<OpGroupPtr> candidates;
+    candidates.push(consumer);
+
+    std::unordered_set<OpGroupPtr> visited_set;
+    while (!candidates.empty()) {
+      auto& candidate = candidates.front();
+      candidates.pop();
+      for (const auto& producer_and_list : candidate->producer_groups()) {
+        const auto& producer = producer_and_list.first;
+        if (consumers.count(producer)) {
+          return true;
+        }
+        if (!visited_set.count(producer)) {
+          visited_set.insert(producer);
+          candidates.push(producer);
+        }
+      }
+    }
+    return false;
+  }
+
   void operator()(InputFusePassCtx* ctx) const override {
     VLOG(1) << "DefaultInputFusePass";
     const auto& consumer_set = ctx->PickConsumersWithSameInputs();
-    if (consumer_set.size() <= 1) {
+
+    const std::unordered_set<OpGroupPtr> consumer_candidates = [&]() -> std::unordered_set<OpGroupPtr> {
+      std::unordered_set<OpGroupPtr> consumers;
+      for (const auto& consumer : consumer_set) {
+        if (consumer->kind() != framework::kElementWise && 
+            consumer->kind() != framework::kBroadcast && 
+            consumer->kind() != framework::kInjective && 
+            consumer->kind() != framework::kReduction) {
+              continue;
+        }
+        consumers.insert(consumer);
+      }
+      return consumers;
+    }();
+    if (consumer_candidates.size() <= 1) {
       return;
     }
-    const OpGroupList consumers = [&]() {
-      OpGroupList ret;
-      for (const auto& consumer : consumer_set) {
-        ret.push_back(consumer);
+
+    std::vector<OpGroupList> fusionable_consumers;
+    for (auto& candidate : consumer_candidates) {
+      
+      // bool reachable = false;
+      // for (const auto& tmp: consumer_candidates) {
+      //   if (tmp == candidate) {
+      //     continue;
+      //   }
+      //   if (ctx->fuse_helper().IsReachable(candidate, tmp)) {
+      //     reachable = true;
+      //     break;
+      //   }
+      // }
+      // if (reachable) {
+      //   continue;
+      // }
+
+      if (IsDependency(candidate, consumer_candidates)) {
+        continue;
       }
-      return ret;
-    }();
-    for (int i = 0; i < consumers.size(); ++i) {
-      const auto& src = consumers.at(i);
-      for (int j = i + 1; j < consumers.size(); ++j) {
-        const auto& dst = consumers.at(j);
-        if (ctx->fuse_helper().IsReachable(src, dst)) {
+      if (fusionable_consumers.empty()) {
+        fusionable_consumers.push_back({candidate});
+        continue;
+      }
+      // check each fusionable groups
+      bool fusionable = false;
+      for (auto& groups : fusionable_consumers) {
+        auto& last = groups.back();
+        if (!HorizontalFuseUtil<InputFusePassCtx>::DetectFusabilityByKind(ctx, candidate, last)) {
           continue;
         }
-        if (!HorizontalFuseUtil<InputFusePassCtx>::DetectFusabilityByKind(ctx, src, dst)) {
-          continue;
-        }
-        ctx->EnableFuse(src, dst);
-        return;
+        groups.push_back(candidate);
+        fusionable = true;
+        break;
+      }
+
+      // if can't fuse to othors Groups, new Groups.
+      if (!fusionable) {
+        fusionable_consumers.push_back({candidate});
+      }
+    }
+    
+    for (const auto& groups: fusionable_consumers) {
+      if (groups.size() > 1) {
+        ctx->EnableFuse(groups);
       }
     }
   }
@@ -976,8 +1053,8 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
     }
 
     // fuse input consumers
-    // updated |= GeneralInputFuse();
-    updated |= FuseInputToConsumers();
+    updated |= GeneralInputFuse();
+    // updated |= FuseInputToConsumers();
 
     if (updated) {
       UpdateFusionGroup();
@@ -1004,8 +1081,8 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
     }
 
     // fuse input consumers
-    // updated |= GeneralInputFuse();
-    updated |= FuseInputToConsumers();
+    updated |= GeneralInputFuse();
+    // updated |= FuseInputToConsumers();
 
     if (updated) {
       UpdateFusionGroup();
@@ -1081,9 +1158,7 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
   }
 
   bool GeneralHorizontalFuse(const GroupPtr& producer) {
-    VLOG(3) << "GeneralHorizontalFuse...!";
-    using OpGroupSets                       = std::set<std::set<OpGroupPtr>>;
-    
+    VLOG(3) << "GeneralHorizontalFuse...!";  
     const auto& GetFusableConsumerGroupLists = [&]() -> std::vector<OpGroupList> {
       std::vector<OpGroupList> tagged_lists;
       const auto& EnableFuse = [&](const OpGroupList& candidates) {
@@ -1164,38 +1239,40 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
   bool CallGeneralInputFusePass(const std::unordered_set<GroupPtr>& consumers) {
     VLOG(3) << "CallGeneralInputFusePass...!";
     using OpGroupSets                       = std::set<std::set<OpGroupPtr>>;
-    const auto& GetFusableConsumerGroupSets = [&](const std::unordered_set<GroupPtr>& input_consumers) -> OpGroupSets {
-      OpGroupSets tagged_sets;
-      const auto& EnableFuse = [&](const OpGroupPtr& first, const OpGroupPtr& second) {
-        tagged_sets.insert(std::set<OpGroupPtr>{first, second});
+    const auto& GetFusableConsumerGroupLists = [&]() -> std::vector<OpGroupList> {
+      std::vector<OpGroupList> tagged_lists;
+      const auto& EnableFuse = [&](const OpGroupList& candidates) {
+        tagged_lists.push_back(candidates);
       };
-      GraphGroupInputFusePassCtx fuse_ctx(this, input_consumers, EnableFuse);
+      GraphGroupInputFusePassCtx fuse_ctx(this, consumers, EnableFuse);
       EnableFusedInputGroups(&fuse_ctx);
-      return tagged_sets;
+      return tagged_lists;
     };
-    const auto& GetFusableConsumerGroupList = [&](const std::unordered_set<GroupPtr>& input_consumers) -> GroupList {
-      const auto& group_sets = GetFusableConsumerGroupSets(input_consumers);
-      if (group_sets.empty()) {
-        return GroupList{};
+    const auto& GetFusableConsumerGroupList = [&]() -> std::vector<GroupList> {
+      const auto& group_lists = GetFusableConsumerGroupLists();
+      if (group_lists.empty()) {
+        return std::vector<GroupList>{};
       }
-      GroupList ret;
-      for (const auto& group : *group_sets.begin()) {
-        ret.push_back(std::dynamic_pointer_cast<Graph::Group>(group));
+      std::vector<GroupList> ret;
+      for (const auto& group_list : group_lists) {
+        GroupList tmp;
+        for (const auto& group: group_list) {
+          tmp.push_back(std::dynamic_pointer_cast<Graph::Group>(group));
+        }
+        ret.push_back(tmp);
       }
       return ret;
     };
-    bool update = false;
-    std::unordered_set<GroupPtr> mut_consumers(consumers);
-    while (true) {
-      const auto& groups = GetFusableConsumerGroupList(mut_consumers);
-      if (groups.size() <= 1) {
-        return false;
-      }
-      HorizontalFuse(groups);
-      mut_consumers = UpdateMutConsumers(mut_consumers);
-      update = true;
+
+    const auto& group_lists = GetFusableConsumerGroupList();
+    if (group_lists.empty()) {
+      return false;
     }
-    return update;
+    for (const auto& group_list: group_lists) {
+      HorizontalFuse(group_list);
+    }
+
+    return true;
   }
 
   bool HorizontalFusion(GroupPtr producer, const std::unordered_set<GroupPtr>& consumers) {
