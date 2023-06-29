@@ -100,6 +100,8 @@ class OpFusionPassHelper : public FusionHelperBase {
     for (auto& consumer : fusion_groups) {
       for (auto& input_node : consumer->input_nodes) {
         auto& producer = fusion_groups_[input_node.first];
+        consumer->mut_producer_groups()->insert(producer);
+        producer->mut_consumer_groups()->insert(consumer);
       }
     }
 
@@ -107,7 +109,7 @@ class OpFusionPassHelper : public FusionHelperBase {
     for (auto& group : fusion_groups) {
       for (const auto& consumer : group->consumer_groups()) {
         // update depth.
-        group->depth         = std::max(group->depth, consumer->depth + 1);
+        group->depth = std::max(group->depth, consumer->depth + 1);
       }
     }
 

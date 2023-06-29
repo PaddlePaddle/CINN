@@ -1,4 +1,4 @@
-// Copyright (c) 2022 CINN Authors. All Rights Reserved.
+// Copyright (c) 2023 CINN Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -186,8 +186,8 @@ class InputFusePassCtx : public FusePassCtx {
 
   virtual void EnableFuse(const OpGroupPtr& first, const OpGroupPtr& second) = 0;
 
-  // virtual absl::any* FindOrCreateCachedGroupInfo(const OpGroupPtr& op_group, const std::function<absl::any(const
-  // OpGroupPtr& op_group)>& create_fn) = 0;
+  // virtual absl::any* FindOrCreateCachedGroupInfo(const OpGroupPtr& op_group,
+  // const std::function<absl::any(const OpGroupPtr& op_group)>& create_fn) = 0;
 
  protected:
   InputFusePassCtx() = default;
@@ -370,7 +370,8 @@ static int GetSharedSize(const api::OpNode& op_node) {
         break;
       }
     }
-    // if lane > (max_num_threads / 2),the loop break from lane > max_num_threads / 2.
+    // if lane > (max_num_threads / 2),the loop break from lane >
+    // max_num_threads / 2.
     int axis = lane > (max_num_threads / 2) ? axes[index] : axes[index + 1];
     if (lane <= max_num_threads) {
       return lane * sizeof(float);
@@ -597,7 +598,7 @@ class InputFusePass : public FusePass {
 
   virtual void operator()(InputFusePassCtx* ctx) const = 0;
 
-  virtual const std::string FuseMode() const override final { return "InputFuse"; }
+  const std::string FuseMode() const final { return "InputFuse"; }
 
   virtual int Benefit() const = 0;
 
@@ -656,7 +657,7 @@ class HorizontalFusePass : public LightwareFusePass {
 
   virtual void operator()(LightwareFusePassCtx* ctx) const = 0;
 
-  virtual const std::string FuseMode() const override final { return "HorizontalFuse"; }
+  const std::string FuseMode() const final { return "HorizontalFuse"; }
 
   virtual int Benefit() const = 0;
 
@@ -706,7 +707,7 @@ class VerticalFusePass : public LightwareFusePass {
 
   virtual void operator()(LightwareFusePassCtx* ctx) const = 0;
 
-  virtual const std::string FuseMode() const override final { return "VerticalFuse"; }
+  const std::string FuseMode() const final { return "VerticalFuse"; }
 
   virtual int Benefit() const = 0;
 
@@ -832,7 +833,7 @@ class RecomputeFusePass : public LightwareFusePass {
 
   virtual void operator()(LightwareFusePassCtx* ctx) const = 0;
 
-  virtual const std::string FuseMode() const override final { return "RecomputeFuse"; }
+  const std::string FuseMode() const final { return "RecomputeFuse"; }
 
   virtual int Benefit() const = 0;
 
@@ -921,7 +922,8 @@ class FusionPassMap {
   // fuse_mode: HorizontalFuse, VerticalFuse, RecomputeFuse
   std::vector<std::shared_ptr<LightwareFusePass>> GetLightwareFusePassesByMode(const std::string& fuse_mode) const {
     CHECK(fuse_mode == "HorizontalFuse" || fuse_mode == "VerticalFuse" || fuse_mode == "RecomputeFuse")
-        << "fuse_mode only supports HorizontalFuse, VerticalFuse and RecomputeFuse. Please check your input modes = "
+        << "fuse_mode only supports HorizontalFuse, VerticalFuse and "
+           "RecomputeFuse. Please check your input modes = "
         << fuse_mode;
     std::set<std::shared_ptr<LightwareFusePass>, LightwareFusePassComparator> candidate_passes;
     for (const auto iter : map_) {
@@ -976,7 +978,7 @@ class FusionPassRegistrar final : public Registrar {
 // code generation.
 class GeneralFusionMergePassHelper : public FusionHelperBase {
  public:
-  GeneralFusionMergePassHelper(const Graph* graph) : FusionHelperBase(graph), graph_(graph) {
+  explicit GeneralFusionMergePassHelper(const Graph* graph) : FusionHelperBase(graph), graph_(graph) {
     fusion_groups_ = graph->fusion_groups;
     // init input to consumers.
     InitInputToConsumers();
@@ -1304,14 +1306,18 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
         fused_group->fused_sub_groups.push_back(consumer);
       }
       // producer group
-      for (const auto& producer : consumer->producer_groups()) {
+      for (auto& producer : *consumer->mut_producer_groups()) {
+        fused_group->mut_producer_groups()->insert(producer);
         // update producer's consumer
         producer->mut_consumer_groups()->erase(consumer);
+        producer->mut_consumer_groups()->insert(fused_group);
       }
       // consumer group
-      for (const auto& gconsumer : consumer->consumer_groups()) {
+      for (auto& gconsumer : *consumer->mut_consumer_groups()) {
+        fused_group->mut_consumer_groups()->insert(gconsumer);
         // update consumer's producer
         gconsumer->mut_producer_groups()->erase(consumer);
+        gconsumer->mut_producer_groups()->insert(fused_group);
       }
       // belongs group
       consumer->belong_groups.insert(fused_group);
@@ -1389,7 +1395,7 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
     }
   }
 
-  bool GeneralVerticalFuse(GroupPtr& producer) {
+  bool GeneralVerticalFuse(const GroupPtr& producer) {
     VLOG(3) << "GeneralVerticalFuse...!";
     using GroupSets                           = std::vector<std::pair<OpGroupPtr, OpGroupPtr>>;
     const auto& GetFusableConsumerOpGroupSets = [&]() -> GroupSets {
@@ -1417,7 +1423,7 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
     bool update          = false;
     auto consumer_groups = GetFusableConsumerGroupSet();
     if (consumer_groups.size()) {
-      SelectConsumerToFuse(producer, consumer_groups);
+      SelectConsumerToFuse(producer, &consumer_groups);
     }
     if (consumer_groups.size() > 0) {
       VerticalFuse(producer, consumer_groups);
@@ -1426,7 +1432,8 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
     return update;
   }
 
-  void VerticalFuse(GroupPtr& producer, std::unordered_set<GroupPtr, Hasher, Comparator>& fusionable_consumers) {
+  void VerticalFuse(const GroupPtr& producer,
+                    const std::unordered_set<GroupPtr, Hasher, Comparator>& fusionable_consumers) {
     VLOG(3) << "VerticalFuse...!";
     GroupList fused_groups;
     GroupPtr master_fuesd_group(nullptr);
@@ -1469,9 +1476,11 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
       }
 
       // producer groups
-      for (const auto& group : producer->producer_groups()) {
+      for (auto& group : *producer->mut_producer_groups()) {
+        fused_group->mut_producer_groups()->insert(group);
         // update producer's producer's consumer
         group->mut_consumer_groups()->erase(producer);
+        group->mut_consumer_groups()->insert(fused_group);
       }
 
       // delete consumer group in producer
@@ -1520,17 +1529,21 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
       }
 
       // producer nodes
-      for (const auto& group : consumer->producer_groups()) {
+      for (auto& group : *consumer->mut_producer_groups()) {
         if (group.get() != producer.get()) {
+          fused_group->mut_producer_groups()->insert(group);
           // update consumer's producer's consumer
           group->mut_consumer_groups()->erase(consumer);
+          group->mut_consumer_groups()->insert(fused_group);
         }
       }
 
       // consumer nodes
-      for (const auto& group : consumer->consumer_groups()) {
+      for (auto& group : *consumer->mut_consumer_groups()) {
+        fused_group->mut_consumer_groups()->insert(group);
         // update consumer's consumer's producer
         group->mut_producer_groups()->erase(consumer);
+        group->mut_producer_groups()->insert(fused_group);
       }
 
       // sub group
@@ -1590,12 +1603,14 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
       }
     }
     // insert unfusionable consumer groups
-    for (const auto& consumer : producer->consumer_groups()) {
+    for (auto& consumer : *producer->mut_consumer_groups()) {
       if (fusionable_consumers.count(consumer)) {
         continue;
       }
+      master_fuesd_group->mut_consumer_groups()->insert(consumer);
       // update consumer's producer
       consumer->mut_producer_groups()->erase(producer);
+      consumer->mut_producer_groups()->insert(master_fuesd_group);
     }
   }
 
@@ -1619,7 +1634,7 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
     }
   }
 
-  bool GeneralRecomputeFuse(GroupPtr& producer) {
+  bool GeneralRecomputeFuse(const GroupPtr& producer) {
     VLOG(3) << "GeneralRecomputeFuse...!";
     using GroupSets                           = std::set<std::pair<OpGroupPtr, OpGroupPtr>>;
     const auto& GetFusableConsumerOpGroupSets = [&]() -> GroupSets {
@@ -1653,23 +1668,17 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
     return update;
   }
 
-  void RecomputeFuse(GroupPtr& producer, std::unordered_set<GroupPtr, Hasher, Comparator>& fusionable_consumers) {
+  void RecomputeFuse(const GroupPtr& producer,
+                     const std::unordered_set<GroupPtr, Hasher, Comparator>& fusionable_consumers) {
     VerticalFuse(producer, fusionable_consumers);
   }
 
-  void RecomputeEleGraph(const GroupPtr& producer,
-                         std::unordered_set<GroupPtr, Hasher, Comparator>& fusionable_consumers) {
-    if (producer->op_pattern_kind != framework::kElementWise) {
-      SelectConsumerToFuse(producer, fusionable_consumers);
-    }
-  }
-
   void SelectConsumerToFuse(const GroupPtr& producer,
-                            std::unordered_set<GroupPtr, Hasher, Comparator>& fusionable_consumers) {
+                            std::unordered_set<GroupPtr, Hasher, Comparator>* fusionable_consumers) {
     // if is const op
     if (is_const_group(this, producer)) {
       std::unordered_set<GroupPtr, Hasher, Comparator> candidates;
-      for (auto& consumer : fusionable_consumers) {
+      for (auto& consumer : *fusionable_consumers) {
         // if can be output node.
         if (is_same_shape(this, producer, consumer)) {
           candidates.insert(consumer);
@@ -1691,10 +1700,10 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
       CHECK_GE(producer->consumer_groups().size(), candidates.size());
       if (producer->consumer_groups().size() == 0 && candidates.size() == 0 &&
           output_nodes_set_.count(producer->CollectNodes()[0]) == 0) {
-        producer->belong_groups.insert(*fusionable_consumers.begin());
+        producer->belong_groups.insert(*fusionable_consumers->begin());
       }
 
-      fusionable_consumers = candidates;
+      *fusionable_consumers = candidates;
       return;
     }
     // 1 to 1 fusion.
@@ -1704,7 +1713,7 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
 
     if (FLAGS_enhance_vertical_fusion_with_recompute) {
       std::vector<GroupPtr> candidates;
-      for (auto& consumer : fusionable_consumers) {
+      for (auto& consumer : *fusionable_consumers) {
         if (consumer->op_pattern_kind == framework::kElementWise) {
           candidates.push_back(consumer);
           continue;
@@ -1733,13 +1742,13 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
         return lhs->op_pattern_kind < rhs->op_pattern_kind;
       });
 
-      fusionable_consumers.clear();
+      fusionable_consumers->clear();
       if (candidates.size()) {
-        fusionable_consumers.insert(*candidates.begin());
+        fusionable_consumers->insert(*candidates.begin());
       }
     } else {
       std::vector<GroupPtr> candidates;
-      for (auto& consumer : fusionable_consumers) {
+      for (auto& consumer : *fusionable_consumers) {
         if (consumer->op_pattern_kind == framework::kElementWise) {
           candidates.push_back(consumer);
           continue;
@@ -1754,9 +1763,9 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
         }
       }
 
-      fusionable_consumers.clear();
+      fusionable_consumers->clear();
       if (candidates.size()) {
-        fusionable_consumers.insert(candidates.front());
+        fusionable_consumers->insert(candidates.front());
       }
     }
   }
@@ -1914,12 +1923,14 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
       std::unordered_set<GroupPtr, Hasher, Comparator> producers;
       std::unordered_set<GroupPtr, Hasher, Comparator> consumers;
 
-      for (auto& producer : group->producer_groups()) {
+      for (const auto& producer : group->producer_groups()) {
         CHECK(producer->belong_groups.size());
+        producers.insert(*producer->belong_groups.begin());
       }
 
-      for (auto& consumer : group->consumer_groups()) {
+      for (auto& consumer : *group->mut_consumer_groups()) {
         CHECK(consumer->belong_groups.size());
+        consumers.insert(*consumer->belong_groups.begin());
       }
       CHECK_EQ(group->producer_groups().size(), producers.size());
       CHECK_EQ(group->consumer_groups().size(), consumers.size());
@@ -1951,7 +1962,8 @@ void GeneralFusionMergePassInternal(Graph* graph) {
 CINN_REGISTER_HELPER(GeneralFusionMergePass) {
   CINN_REGISTER_PASS(GeneralFusionMergePass)
       .describe(
-          "Fusion Merge Pass which performs Fusion-Ops fusion, Producer Fusion-Ops are fused into Consumer Fusion-Ops "
+          "Fusion Merge Pass which performs Fusion-Ops fusion, Producer "
+          "Fusion-Ops are fused into Consumer Fusion-Ops "
           "with certain conditions.")
       .set_change_structure(false)
       .set_body(cinn::hlir::pass::GeneralFusionMergePassInternal);

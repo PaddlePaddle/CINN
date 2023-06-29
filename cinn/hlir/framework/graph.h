@@ -106,14 +106,6 @@ class Graph : public cinn::common::Graph {
       }
     };
 
-    std::unordered_set<std::shared_ptr<Group>, SharedGroupHasher, SharedGroupComparator> CollectConsumerGroups() {
-      std::unordered_set<std::shared_ptr<Group>, SharedGroupHasher, SharedGroupComparator> groups;
-      for (const auto& consumer_and_list : consumer_groups_) {
-        groups.insert(std::dynamic_pointer_cast<Graph::Group>(consumer_and_list));
-      }
-      return groups;
-    }
-
     std::vector<Node*> CollectNodes() {
       if (fused_sub_groups.size()) {
         std::vector<Node*> tmp_nodes;
@@ -154,11 +146,13 @@ class Graph : public cinn::common::Graph {
     std::string GetFuncName() { return "fn_" + group_id + unique_id; }
 
    public:
-    const std::unordered_set<std::shared_ptr<Group>, SharedGroupHasher, SharedGroupComparator>& producer_groups() const {
+    const std::unordered_set<std::shared_ptr<Group>, SharedGroupHasher, SharedGroupComparator>& producer_groups()
+        const {
       return producer_groups_;
     }
 
-    const std::unordered_set<std::shared_ptr<Group>, SharedGroupHasher, SharedGroupComparator>& consumer_groups() const {
+    const std::unordered_set<std::shared_ptr<Group>, SharedGroupHasher, SharedGroupComparator>& consumer_groups()
+        const {
       return consumer_groups_;
     }
 
