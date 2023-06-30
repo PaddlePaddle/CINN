@@ -77,12 +77,12 @@ Expr LowerGroup(const poly::ScheduleGroup& group,
   BindBuffer(stage_map);
   std::vector<poly::Stage*> stages;
   for (auto& node : group.nodes) {
-    VLOG(1) << "In LowerGroup, node id is: " << node->id();
+    VLOG(2) << "In LowerGroup, node id is: " << node->id();
     if (node->stage->has_expression()) {
       stages.push_back(node->stage);
-      VLOG(1) << "stage expr " << node->stage->expr();
+      VLOG(2) << "stage expr " << node->stage->expr();
     } else {
-      VLOG(1) << "stage expression is null: " << node->stage->domain();
+      VLOG(2) << "stage expression is null: " << node->stage->domain();
     }
   }
 
@@ -104,7 +104,7 @@ Expr LowerGroup(const poly::ScheduleGroup& group,
   // now we get a workable expression, but the statement are something like `B(((16 * po0) + po1), po2)`, we need to
   // transform this to some realworld statement in CINN.
 
-  VLOG(1) << "ast to expr: \n" << e << std::endl;
+  VLOG(2) << "ast to expr: \n" << e << std::endl;
 
   // replace isl call to the corresponding CINN statement, we need to replace the axis at the same time.
   for (auto& statement : tuple_to_expr) {
@@ -345,7 +345,7 @@ std::vector<ir::Argument> LowerImpl::GenerateFunctionArgumentList(Expr fn_body) 
   for (auto& tensor : tensor_args_) {
     auto* tensor_node = tensor.As<ir::_Tensor_>();
     bool is_output    = teller.IsWrite(tensor->name);
-    VLOG(1) << "tensor argument " << tensor->name << " buffer " << tensor->buffer->name;
+    VLOG(2) << "tensor argument " << tensor->name << " buffer " << tensor->buffer->name;
 
     // avoid duplicate
     if (!tensor_node->buffer.defined()) continue;
@@ -772,7 +772,7 @@ LowerImpl::LowerImpl(const std::string& fn_name,
 
     compu_graph_ = CreateCompGraph(tensors, stages, false /*inline_hide*/);
 
-    VLOG(1) << "compute_graph:\n" << compu_graph_->Visualize();
+    VLOG(2) << "compute_graph:\n" << compu_graph_->Visualize();
   }
 
   // Todo: Here insert auto syncthreads() @haoze
@@ -782,7 +782,7 @@ LowerImpl::LowerImpl(const std::string& fn_name,
     tensors.insert(std::end(tensors), temp_tensor_args_.begin(), temp_tensor_args_.end());
     compu_graph_ = CreateCompGraph(tensors, stages, true /*inline_hide*/);
 
-    VLOG(1) << "Computation Graph:\n" << compu_graph_->Visualize();
+    VLOG(2) << "Computation Graph:\n" << compu_graph_->Visualize();
   }
 }
 

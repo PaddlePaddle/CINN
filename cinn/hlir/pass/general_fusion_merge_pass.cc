@@ -586,6 +586,11 @@ class DefaultHorizontalFusePass final : public HorizontalFusePass {
   void operator()(LightwareFusePassCtx* ctx) const override {
     VLOG(1) << "DefaultHorizontalFusePass";
     const auto& producer        = ctx->PickOpGroup();
+
+    
+
+
+
     const std::unordered_set<OpGroupPtr> consumer_candidates = [&]() -> std::unordered_set<OpGroupPtr> {
       std::unordered_set<OpGroupPtr> consumers;
       for (const auto& pair : producer->consumer2outputs()) {
@@ -647,6 +652,7 @@ class DefaultHorizontalFusePass final : public HorizontalFusePass {
     
     for (const auto& groups: fusionable_consumers) {
       if (groups.size() > 1) {
+        VLOG(1) << "NOTICE DefaultHorizontalFusePass fuse groups.size() = " << groups.size();
         ctx->EnableFuse(groups);
       }
     }
@@ -981,6 +987,11 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
 
  private:
   void DoFusionMerge() {
+    VLOG(1) << "****** DEBUG Input Groups...! ********";
+    for (int idx = 0; idx < fusion_groups_.size(); ++idx) {
+      auto producer = fusion_groups_[idx];
+      VLOG(1) << "Fusion Producer idx " << idx << " Group -> " << producer->group_id;
+    }
     VLOG(3) << "DoFusionMerge...!";
     while (DoGeneralHorizontalFusion()) {
     }
@@ -991,18 +1002,17 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
   }
 
   bool DoGeneralHorizontalFusion() {
-    VLOG(3) << "DoGeneralHorizontalFusion...!";
+    VLOG(1) << "****** DEBUG DoGeneralHorizontalFusion...! ********";
     bool updated = false;
     for (int idx = 0; idx < fusion_groups_.size(); ++idx) {
       auto producer = fusion_groups_[idx];
-      VLOG(3) << "Fusion Producer Group -> " << producer->group_id;
+      VLOG(1) << "Fusion Producer idx " << idx << " Group -> " << producer->group_id;
       // if producer is sub group.
       if (producer->belong_groups.size()) {
         continue;
       }
       // do horizontal fusion.
       updated |= GeneralHorizontalFuse(producer);
-      // updated |= HorizontalFusion(producer, producer->CollectConsumerGroups());
     }
 
     if (updated) {
@@ -1037,24 +1047,22 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
   }
 
   bool DoGeneralVerticalFusion() {
-    VLOG(3) << "DoGeneralVerticalFusion...!";
+    VLOG(1) << "****** DEBUG DoGeneralVerticalFusion...! ********";
     bool updated = false;
     for (int idx = 0; idx < fusion_groups_.size(); ++idx) {
       auto producer = fusion_groups_[idx];
-      VLOG(3) << "Fusion Producer Group -> " << producer->group_id;
+      VLOG(1) << "Fusion Producer idx " << idx << " Group -> " << producer->group_id;
       // if producer is sub group.
       if (producer->belong_groups.size()) {
         continue;
       }
       // do horizontal fusion.
       updated |= GeneralHorizontalFuse(producer);
-      // updated |= HorizontalFusion(producer, producer->CollectConsumerGroups());
       updated |= GeneralVerticalFuse(producer);
     }
 
     // fuse input consumers
     updated |= GeneralInputFuse();
-    // updated |= FuseInputToConsumers();
 
     if (updated) {
       UpdateFusionGroup();
@@ -1063,7 +1071,7 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
   }
 
   bool DoGeneralRecomputeAndVerticalFusion() {
-    VLOG(3) << "DoGeneralRecomputeAndVerticalFusion...!";
+    VLOG(1) << "****** DEBUG DoGeneralRecomputeAndVerticalFusion...! ********";
     bool updated = false;
     for (int idx = 0; idx < fusion_groups_.size(); ++idx) {
       auto producer = fusion_groups_[idx];
@@ -1082,7 +1090,6 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
 
     // fuse input consumers
     updated |= GeneralInputFuse();
-    // updated |= FuseInputToConsumers();
 
     if (updated) {
       UpdateFusionGroup();
@@ -1158,7 +1165,7 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
   }
 
   bool GeneralHorizontalFuse(const GroupPtr& producer) {
-    VLOG(3) << "GeneralHorizontalFuse...!";  
+    VLOG(1) << "DEBUG Horizontal, begin check : " << producer->group_id;
     const auto& GetFusableConsumerGroupLists = [&]() -> std::vector<OpGroupList> {
       std::vector<OpGroupList> tagged_lists;
       const auto& EnableFuse = [&](const OpGroupList& candidates) {
@@ -1189,6 +1196,7 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
       return false;
     }
     for (const auto& group_list: group_lists) {
+      VLOG(1) << "DEBUG horizontal fuse group " << producer->group_id;
       HorizontalFuse(group_list);
     }
 
@@ -1355,8 +1363,9 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
     // find the first consumer.
     GroupPtr first_consumer(nullptr);
     // fuse all group into fusion group.
+    VLOG(1) << "********** DEBUG Begin check Horizontal ************";
     for (const auto& consumer : consumers) {
-      VLOG(3) << "fuse consumer " << consumer->group_id << " into fused_group!";
+      VLOG(1) << "DEBUG HorizontalFuse consumer " << consumer->group_id << " into fused_group!";
       // update depth
       fused_group->max_depth = std::max(fused_group->max_depth, consumer->max_depth);
       fused_group->min_depth = std::min(fused_group->min_depth, consumer->min_depth);
@@ -1583,7 +1592,7 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
   }
 
   bool GeneralVerticalFuse(GroupPtr& producer) {
-    VLOG(3) << "GeneralVerticalFuse...!";
+    VLOG(1) << "DEBUG Vertical, begin check : " << producer->group_id;
     using GroupSets                           = std::set<std::pair<OpGroupPtr, OpGroupPtr>>;
     const auto& GetFusableConsumerOpGroupSets = [&]() -> GroupSets {
       GroupSets tagged_sets;
@@ -1613,6 +1622,7 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
       SelectConsumerToFuse(producer, consumer_groups);
     }
     if (consumer_groups.size() > 0) {
+      VLOG(1) << "DEBUG Vertical fuse group " << producer->group_id;
       VerticalFuse(producer, consumer_groups);
       update = true;
     }
@@ -1824,7 +1834,7 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
 
   bool GeneralRecomputeFuse(GroupPtr& producer) {
     VLOG(3) << "GeneralRecomputeFuse...!";
-    VLOG(1) << "DEBUG VerticalFusion, begin check : " << producer->group_id;
+    VLOG(1) << "DEBUG Recompute, begin check : " << producer->group_id;
     using GroupSets                           = std::set<std::pair<OpGroupPtr, OpGroupPtr>>;
     const auto& GetFusableConsumerOpGroupSets = [&]() -> GroupSets {
       GroupSets tagged_sets;
@@ -1852,7 +1862,7 @@ class GeneralFusionMergePassHelper : public FusionHelperBase {
     auto consumer_groups = GetFusableConsumerGroupSet();
     if (consumer_groups.size() > 0) {
       CHECK(consumer_groups.size() == producer->mut_consumer_groups()->size()) << "Recompute requires fuse all consumers!";
-      VLOG(1) << "DEBUG begin recompute fuse group " << producer->group_id;
+      VLOG(1) << "DEBUG recompute fuse group " << producer->group_id;
       RecomputeFuse(producer, consumer_groups);
       update = true;
     }

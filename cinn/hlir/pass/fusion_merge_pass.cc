@@ -76,6 +76,10 @@ class FusionMergePassHelper : public FusionHelperBase {
  private:
   void DoFusionMerge() {
     VLOG(3) << "DoFusionMerge...!";
+    for (int idx = 0; idx < fusion_groups_.size(); ++idx) {
+      auto producer = fusion_groups_[idx];
+      VLOG(1) << "Fusion Producer idx " << idx << " Group -> " << producer->group_id;
+    }
     while (DoHorizontalFusion()) {
     }
     while (DoVerticalFusion(/* recompute=*/false)) {
@@ -85,11 +89,11 @@ class FusionMergePassHelper : public FusionHelperBase {
   }
 
   bool DoHorizontalFusion() {
-    VLOG(3) << "DoHorizontalFusion...!";
+    VLOG(1) << "****** DEBUG DoGeneralHorizontalFusion...! ********";
     bool updated = false;
     for (int idx = 0; idx < fusion_groups_.size(); ++idx) {
       auto producer = fusion_groups_[idx];
-      VLOG(3) << "Fusion Producer Group -> " << producer->group_id;
+      VLOG(1) << "Fusion Producer Group -> " << producer->group_id;
       // if producer is sub group.
       if (producer->belong_groups.size()) {
         continue;
@@ -105,6 +109,11 @@ class FusionMergePassHelper : public FusionHelperBase {
   }
 
   bool DoVerticalFusion(bool recompute) {
+    if (recompute) {
+      VLOG(1) << "****** DEBUG DoGeneralRecomputeAndVerticalFusion...! ********";
+    } else {
+      VLOG(1) << "****** DEBUG DoGeneralVerticalFusion...! ********";
+    }
     VLOG(3) << "DoVerticalFusion...!";
     bool updated = false;
     for (int idx = 0; idx < fusion_groups_.size(); ++idx) {
@@ -239,6 +248,7 @@ class FusionMergePassHelper : public FusionHelperBase {
     for (auto& groups : fusionable_consumers) {
       if (groups.size() > 1) {
         updated = true;
+        VLOG(1) << "DEBUG horizontal fuse group " << producer->group_id;
         HorizontalFuse(groups);
       }
     }
@@ -256,8 +266,9 @@ class FusionMergePassHelper : public FusionHelperBase {
     // find the first consumer.
     GroupPtr first_consumer(nullptr);
     // fuse all group into fusion group.
+    VLOG(1) << "********** DEBUG Begin check Horizontal ************";
     for (auto& consumer : consumers) {
-      VLOG(3) << "fuse consumer " << consumer->group_id << " into fused_group!";
+      VLOG(1) << "DEBUG HorizontalFuse consumer " << consumer->group_id << " into fused_group!";
       // update depth
       fused_group->max_depth = std::max(fused_group->max_depth, consumer->max_depth);
       fused_group->min_depth = std::min(fused_group->min_depth, consumer->min_depth);
@@ -439,6 +450,8 @@ class FusionMergePassHelper : public FusionHelperBase {
       return false;
     }
     VLOG(1) << "DEBUG fuse_consumers_unsafe.size() = " << fuse_consumers_unsafe.size();
+    VLOG(1) << "DEBUG fuse_consumers.size() = " << fuse_consumers.size();
+    VLOG(1) << "DEBUG producer->consumer_groups().size() = " << producer->consumer_groups().size();
     // if can_fuse_consumers == consumers
     // if producer op kind == kElementwise
     // if use recompute
@@ -447,8 +460,8 @@ class FusionMergePassHelper : public FusionHelperBase {
       if (!recompute) {
         return false;
       } else {
-        VLOG(1) << "DEBUG begin recompute fuse group " << producer->group_id;
         RecomputeEleGraph(producer, fuse_consumers_unsafe);
+        VLOG(1) << "DEBUG recompute fuse group " << producer->group_id;
         VerticalFuse(producer, fuse_consumers_unsafe);
         return true;
       }
@@ -460,6 +473,7 @@ class FusionMergePassHelper : public FusionHelperBase {
 
     // if fusionable consumers exist
     if (fuse_consumers.size()) {
+      VLOG(1) << "DEBUG Vertical fuse group " << producer->group_id;
       VerticalFuse(producer, fuse_consumers);
       return true;
     }
