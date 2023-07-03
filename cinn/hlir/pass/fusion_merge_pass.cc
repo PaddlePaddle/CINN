@@ -418,12 +418,12 @@ class FusionMergePassHelper : public FusionHelperBase {
       fuse_consumers_unsafe.insert(consumer);
 
       if (IsDependencySimplify(producer, consumer, consumers)) {
-        VLOG(1) << "DEBUG consumer " << consumer->group_id << " has loop";
+        VLOG(4) << "IsDependencySimplify, Consumer " << consumer->group_id << " can't be master fused group!";
         continue;
       }
 
       if (IsDependency(producer, consumer, consumers)) {
-        VLOG(4) << "IsDependencySimplify, Consumer " << consumer->group_id << " can't be master fused group!";
+        VLOG(4) << "IsDependency, Consumer " << consumer->group_id << " can't be master fused group!";
         continue;
       }
 
