@@ -565,7 +565,6 @@ class DefaultVerticalFusePass final : public VerticalFusePass {
 
   static bool IsSameSize(LightwareFusePassCtx* ctx, const OpGroupPtr& src, const OpGroupPtr& dst) {
     return utils::IsSameSize(src, dst);
-    ;
   }
 
   static bool ElementwiseFuseBroadcast(LightwareFusePassCtx* ctx, const OpGroupPtr& src, const OpGroupPtr& dst) {

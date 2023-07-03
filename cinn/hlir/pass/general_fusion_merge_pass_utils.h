@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <map>
-#include <unordered_map>
-
 #include "cinn/api/op_group.h"
 #include "cinn/hlir/pass/fusion_merge_pass_util.h"
 
