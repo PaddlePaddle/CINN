@@ -21,8 +21,6 @@
 #include <string>
 #include <vector>
 
-#include "cinn/api/op_group_interface.h"
-#include "cinn/api/tensor_interface_list.h"
 #include "cinn/common/graph_utils.h"
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/node.h"
@@ -30,9 +28,6 @@
 namespace cinn {
 namespace hlir {
 namespace framework {
-
-using OpGroupInterface    = cinn::api::OpGroupInterface;
-using TensorInterfaceList = cinn::api::TensorInterfaceList;
 
 /**
  * \brief Symbolic computation graph.
@@ -60,7 +55,14 @@ class Graph : public cinn::common::Graph {
   absl::flat_hash_map<std::string, std::shared_ptr<absl::any>> attrs;
 
   std::vector<std::vector<Node*>> groups;
-  struct Group final : public OpGroupInterface {
+  struct Group {
+    Group() = default;
+
+    Group(const Graph* graph) : graph_(graph) {}
+
+    // The graph that group belongs to.
+    const Graph* graph_ = nullptr;
+
     // distance to last group.
     int depth{0};
     int max_depth{0};
@@ -93,13 +95,16 @@ class Graph : public cinn::common::Graph {
     std::vector<std::string> input_names;
     std::vector<std::string> output_names;
 
-    std::unordered_set<std::shared_ptr<Group>> CollectConsumerGroups() {
-      std::unordered_set<std::shared_ptr<Group>> groups;
-      for (const auto& consumer_and_list : consumer_groups_) {
-        groups.insert(std::dynamic_pointer_cast<Graph::Group>(consumer_and_list.first));
+    struct SharedGroupHasher {
+      size_t operator()(const std::shared_ptr<Group>& group) const noexcept {
+        return std::hash<uint64_t>()(reinterpret_cast<uint64_t>(group.get()));
       }
-      return groups;
-    }
+    };
+    struct SharedGroupComparator {
+      bool operator()(const std::shared_ptr<Group>& first, const std::shared_ptr<Group>& second) const noexcept {
+        return first.get() == second.get();
+      }
+    };
 
     std::vector<Node*> CollectNodes() {
       if (fused_sub_groups.size()) {
@@ -110,6 +115,20 @@ class Graph : public cinn::common::Graph {
         return tmp_nodes;
       } else {
         return nodes;
+      }
+    }
+
+    void WalkNodes(const std::function<void(const Node*)>& VisitNode) const {
+      if (fused_sub_groups.size()) {
+        for (auto& group : fused_sub_groups) {
+          for (const auto* node : group->nodes) {
+            VisitNode(node);
+          }
+        }
+      } else {
+        for (const auto* node : nodes) {
+          VisitNode(node);
+        }
       }
     }
 
@@ -127,29 +146,31 @@ class Graph : public cinn::common::Graph {
     std::string GetFuncName() { return "fn_" + group_id + unique_id; }
 
    public:
-    const std::unordered_map<std::shared_ptr<OpGroupInterface>, TensorInterfaceList>& producer_groups() const override {
+    const std::unordered_set<std::shared_ptr<Group>, SharedGroupHasher, SharedGroupComparator>& producer_groups()
+        const {
       return producer_groups_;
     }
 
-    const std::unordered_map<std::shared_ptr<OpGroupInterface>, TensorInterfaceList>& consumer_groups() const override {
+    const std::unordered_set<std::shared_ptr<Group>, SharedGroupHasher, SharedGroupComparator>& consumer_groups()
+        const {
       return consumer_groups_;
     }
 
-    std::unordered_map<std::shared_ptr<OpGroupInterface>, TensorInterfaceList>* mut_producer_groups() {
+    std::unordered_set<std::shared_ptr<Group>, SharedGroupHasher, SharedGroupComparator>* mut_producer_groups() {
       return &producer_groups_;
     }
 
-    std::unordered_map<std::shared_ptr<OpGroupInterface>, TensorInterfaceList>* mut_consumer_groups() {
+    std::unordered_set<std::shared_ptr<Group>, SharedGroupHasher, SharedGroupComparator>* mut_consumer_groups() {
       return &consumer_groups_;
     }
 
-    hlir::framework::OpPatternKind kind() const override { return op_pattern_kind; }
+    hlir::framework::OpPatternKind kind() const { return op_pattern_kind; }
 
    private:
     // input groups
-    std::unordered_map<std::shared_ptr<OpGroupInterface>, TensorInterfaceList> producer_groups_;
+    std::unordered_set<std::shared_ptr<Group>, SharedGroupHasher, SharedGroupComparator> producer_groups_;
     // output grous
-    std::unordered_map<std::shared_ptr<OpGroupInterface>, TensorInterfaceList> consumer_groups_;
+    std::unordered_set<std::shared_ptr<Group>, SharedGroupHasher, SharedGroupComparator> consumer_groups_;
   };
   std::vector<std::shared_ptr<Group>> fusion_groups;
 

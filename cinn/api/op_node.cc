@@ -12,27 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#pragma once
-
-#include <memory>
+#include "cinn/api/op_node.h"
 
 namespace cinn {
 namespace api {
 
-class ShapeInterface;
+TensorNode OpNode::InputTensorListView::operator[](size_t index) const {
+  return TensorNode(edges_[index]->source()->safe_as<hlir::framework::NodeData>(), graph_);
+}
 
-class TensorInterface {
- public:
-  // Get the shape of tensor.
-  virtual const ShapeInterface& shape() const = 0;
-
- protected:
-  TensorInterface()                       = default;
-  TensorInterface(const TensorInterface&) = delete;
-  TensorInterface(TensorInterface&&)      = delete;
-};
-
-using TensorInterfacePtr = std::shared_ptr<TensorInterface>;
+TensorNode OpNode::OutputTensorListView::operator[](size_t index) const {
+  return TensorNode(edges_[index]->sink()->safe_as<hlir::framework::NodeData>(), graph_);
+}
 
 }  // namespace api
 }  // namespace cinn
