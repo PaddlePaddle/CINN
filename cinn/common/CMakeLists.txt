@@ -22,6 +22,10 @@ gather_srcs(cinnapi_src SRCS
 
  message(STATUS "srcs: ${cinnapi_src}")
 
+cc_test(test_dfs_visitor SRCS dfs_visitor_test.cc DEPS gtest glog)
+cc_test(test_is_reachable_predicator SRCS is_reachable_predicator_test.cc DEPS gtest glog)
+# cc_test(test_scc_visitor SRCS scc_visitor_test.cc DEPS gtest glog)
+cc_test(test_topo_visitor SRCS topo_visitor_test.cc DEPS gtest glog)
 cc_test(test_cinn_value SRCS cinn_value_test.cc DEPS cinncore)
 cc_test(test_shared SRCS shared_test.cc DEPS cinncore)
 cc_test(test_graph_utils SRCS graph_utils_test.cc DEPS cinncore)
