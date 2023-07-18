@@ -599,7 +599,7 @@ void IRCudaScheduleBlockShuffleReduce(ir::IRSchedule &ir_sch,
       auto load     = exprs.front().As<ir::Load>();
       load->indices = {index};
     };
-    hand_write_simplify(ir_sch.GetLoops(reshape->name), ir_sch.GetBlock(reshape->name));
+    // hand_write_simplify(ir_sch.GetLoops(reshape->name), ir_sch.GetBlock(reshape->name));
     auto block = ir_sch.GetBlock(reshape->name);
     ir_sch.ComputeInline(block);
     VLOG(4) << "After simplify reshape index : " << ir_sch.GetModule().GetExprs().at(0);
